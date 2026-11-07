@@ -212,7 +212,7 @@ player.onClick = (clientX, clientY, run) => {
   effectTask = null;
   const region = regions.active;
   if (region?.interact?.(hit.object, player.position)) return;
-  const target = region?.target?.(hit.point, player.position, hit.object);
+  const target = region?.target?.(hit, player.position);
   if (target) {
     const action = region.actionFor(target);
     const go = (choice) => {
@@ -270,7 +270,7 @@ function updateHover() {
   if (hovering && mode === 'play' && region?.target) {
     raycaster.setFromCamera(hoverPointer, camera);
     const hit = raycaster.intersectObjects(regions.clickables, true)[0];
-    if (hit) target = region.target(hit.point, player.position, hit.object);
+    if (hit) target = region.target(hit, player.position);
   }
   if (!target && !hoverRegion) return;
   region?.highlight?.(target);

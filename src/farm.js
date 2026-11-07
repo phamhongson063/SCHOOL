@@ -301,6 +301,7 @@ class FarmView {
     this.obstacles = [];
     this.disposables = [];
     this.slots = [];
+    this.planted = new Map();
     this.anims = new Map();
     this.buildField();
     this.models = new Map();
@@ -430,6 +431,7 @@ class FarmView {
       mesh.setMatrixAt(k, matrix.compose(position, rotation, scale));
     });
     if (transform === this.plantTransform) {
+      this.planted.set(mesh, indices);
       indices.forEach((index, k) => {
         this.slots[index] = { mesh, k };
         if (mesh.instanceColor) mesh.setColorAt(k, tintOf(this.state.spots[index]));
@@ -509,6 +511,11 @@ class FarmView {
     for (const [index, anim] of this.anims) this.wither(index, anim);
     this.drops.position.y = Math.sin(t * 3) * 0.05;
     if (this.ring.visible) this.ring.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
+  }
+
+  spotOf(mesh, instanceId) {
+    if (instanceId == null) return null;
+    return this.planted.get(mesh)?.[instanceId] ?? null;
   }
 
   highlight(spot) {
@@ -621,9 +628,9 @@ export function createFarm({ inventory, nav }) {
     id: 'farm',
     name: 'Ruộng cà chua',
     bounds: BOUNDS,
-    target(point, from, object) {
-      if (object && farmerAt(object)) return null;
-      const index = spotAt(spots, point);
+    target(hit, from) {
+      if (farmerAt(hit.object)) return null;
+      const index = view?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
       if (index < 0) return null;
       const spot = spots[index];
       return { index, x: spot.x, z: spot.z, stand: standFor(spot, from) };
