@@ -68,6 +68,7 @@ export class PlayerController {
     this.drag = null;
     this.onClick = null;
     this.onTarget = null;
+    this.avoid = null;
 
     this.dom.addEventListener('pointerdown', (e) => this.pointerDown(e));
     this.dom.addEventListener('pointermove', (e) => this.pointerMove(e));
@@ -332,10 +333,11 @@ export class PlayerController {
         if (!this.advanceWaypoint()) return null;
         continue;
       }
+      const turn = this.avoid ? this.avoid(this.position, dx / dist, dz / dist, last ? dist : dist + 2) : 0;
       if (dist < this.bestDistance - 0.02) {
         this.bestDistance = dist;
         this.stuckTime = 0;
-      } else {
+      } else if (Math.abs(turn) < 0.2) {
         this.stuckTime += dt;
         if (this.stuckTime > 0.7) {
           this.advanceWaypoint();
@@ -345,7 +347,8 @@ export class PlayerController {
 
       const running = this.running || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
       const speed = (running ? RUN_SPEED : WALK_SPEED) * (last ? Math.min(1, dist / 0.5 + 0.2) : 1);
-      return new THREE.Vector3((dx / dist) * speed, 0, (dz / dist) * speed);
+      const heading = Math.atan2(dx, dz) + turn;
+      return new THREE.Vector3(Math.sin(heading) * speed, 0, Math.cos(heading) * speed);
     }
     return null;
   }

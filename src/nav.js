@@ -20,6 +20,11 @@ class MinHeap {
     return this.nodes.length;
   }
 
+  clear() {
+    this.nodes.length = 0;
+    this.keys.length = 0;
+  }
+
   push(node, key) {
     const { nodes, keys } = this;
     let i = nodes.length;
@@ -78,6 +83,13 @@ export class NavGrid {
     this.w = Math.round((bounds.x1 - bounds.x0) / cell);
     this.d = Math.round((bounds.z1 - bounds.z0) / cell);
     this.heights = new Float32Array(this.w * this.d).fill(NaN);
+    const total = this.w * this.d;
+    this.gScore = new Float32Array(total);
+    this.cameFrom = new Int32Array(total);
+    this.seen = new Uint32Array(total);
+    this.closed = new Uint32Array(total);
+    this.searchId = 0;
+    this.heap = new MinHeap();
     this.bake(bounds);
   }
 
@@ -187,11 +199,18 @@ export class NavGrid {
   }
 
   search(start, goal) {
-    const total = this.heights.length;
-    const g = new Float32Array(total).fill(Infinity);
-    const came = new Int32Array(total).fill(-1);
-    const closed = new Uint8Array(total);
-    const heap = new MinHeap();
+    if (this.searchId >= 0xfffffff0) {
+      this.seen.fill(0);
+      this.closed.fill(0);
+      this.searchId = 0;
+    }
+    const id = ++this.searchId;
+    const g = this.gScore;
+    const came = this.cameFrom;
+    const seen = this.seen;
+    const closed = this.closed;
+    const heap = this.heap;
+    heap.clear();
     const gi = goal % this.w;
     const gj = (goal - gi) / this.w;
     const estimate = (c) => {
@@ -201,17 +220,20 @@ export class NavGrid {
       return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz);
     };
 
+    seen[start] = id;
     g[start] = 0;
+    came[start] = -1;
     heap.push(start, estimate(start));
     while (heap.size) {
       const cur = heap.pop();
       if (cur === goal) break;
-      if (closed[cur]) continue;
-      closed[cur] = 1;
+      if (closed[cur] === id) continue;
+      closed[cur] = id;
       this.forEachNeighbor(cur, (n, cost) => {
-        if (closed[n]) return;
+        if (closed[n] === id) return;
         const next = g[cur] + cost;
-        if (next < g[n]) {
+        if (seen[n] !== id || next < g[n]) {
+          seen[n] = id;
           g[n] = next;
           came[n] = cur;
           heap.push(n, next + estimate(n));
@@ -219,7 +241,7 @@ export class NavGrid {
       });
     }
 
-    if (start !== goal && came[goal] === -1) return null;
+    if (start !== goal && seen[goal] !== id) return null;
     const cells = [goal];
     while (cells[cells.length - 1] !== start) cells.push(came[cells[cells.length - 1]]);
     return cells.reverse();
@@ -230,8 +252,8 @@ export class NavGrid {
     const dz = b.z - a.z;
     const len = Math.hypot(dx, dz);
     if (len < 1e-6) return true;
-    const px = (-dz / len) * 0.15;
-    const pz = (dx / len) * 0.15;
+    const px = (-dz / len) * 0.25;
+    const pz = (dx / len) * 0.25;
     const steps = Math.ceil(len / 0.2);
     let prev = this.cellIndex(a.x, a.z);
     for (let s = 1; s <= steps; s++) {

@@ -38,7 +38,9 @@ export class RegionManager {
     region.handle = null;
     this.regions.push(region);
     for (const key of chunksCovering(region.bounds)) {
-      if (!this.chunks.get(key)) this.chunks.set(key, region);
+      const list = this.chunks.get(key);
+      if (list) list.push(region);
+      else this.chunks.set(key, [region]);
     }
     if (region.pinned) this.load(region);
     return region;
@@ -75,8 +77,7 @@ export class RegionManager {
           if (region) this.add(region);
           else this.chunks.set(key, null);
         }
-        const region = this.chunks.get(key);
-        if (region) found.add(region);
+        for (const region of this.chunks.get(key) ?? []) found.add(region);
       }
     }
     return found;
@@ -97,6 +98,17 @@ export class RegionManager {
   regionAt(x, z) {
     for (const region of this.regions) {
       if (region.handle && inside(region.bounds, x, z)) return region;
+    }
+    return null;
+  }
+
+  regionOf(object) {
+    for (const region of this.regions) {
+      const group = region.handle?.group;
+      if (!group) continue;
+      for (let node = object; node; node = node.parent) {
+        if (node === group) return region;
+      }
     }
     return null;
   }

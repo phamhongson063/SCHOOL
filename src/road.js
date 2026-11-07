@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Batch, shapes, shade } from './toon.js';
+import { Batch, freeze, shapes, shade } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, markMaterial, roundedRectGeometry, roundTree } from './scenery.js';
 
@@ -59,6 +59,7 @@ export function createRoad() {
       }
       const details = b.mesh();
       group.add(details);
+      freeze(group);
 
       return {
         group,

@@ -185,3 +185,21 @@ export function canvasTexture(size, paint, repeat = [1, 1]) {
   texture.anisotropy = 4;
   return texture;
 }
+
+export function labelBox(w, h, d, edge = [0.01, 0.01]) {
+  const geometry = new THREE.BoxGeometry(w, h, d);
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    if (i >= 16 && i < 20) continue;
+    uv.setXY(i, edge[0], edge[1]);
+  }
+  return geometry;
+}
+
+export function freeze(object) {
+  object.updateMatrixWorld(true);
+  object.traverse((node) => {
+    node.matrixAutoUpdate = false;
+    node.matrixWorldAutoUpdate = false;
+  });
+}

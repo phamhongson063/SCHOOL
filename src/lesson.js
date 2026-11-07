@@ -56,12 +56,21 @@ function loadChoice() {
   }
 }
 const FURIGANA_KEY = 'truong-lang-xua.furigana';
+const TRANSLATE_KEY = 'truong-lang-xua.translate';
 
 function loadFurigana() {
   try {
     return localStorage.getItem(FURIGANA_KEY) !== 'off';
   } catch {
     return true;
+  }
+}
+
+function loadTranslate() {
+  try {
+    return localStorage.getItem(TRANSLATE_KEY) === 'on';
+  } catch {
+    return false;
   }
 }
 
@@ -83,6 +92,7 @@ export function createLesson() {
   const lines = panel.querySelector('.lesson-lines');
   const close = document.getElementById('lessonClose');
   const furiganaBtn = document.getElementById('lessonFurigana');
+  const translateBtn = document.getElementById('lessonTranslate');
 
   const deck = () => shuffle(LESSONS.flatMap((lesson, li) => lesson.examples.map((_, ei) => [li, ei])));
   let order = deck();
@@ -102,10 +112,12 @@ export function createLesson() {
     meaning.textContent = lesson.meaning;
     situation.textContent = example.title;
     lines.replaceChildren(
-      ...example.lines.map(([speaker, text]) => {
+      ...example.lines.map(([speaker, text, translation]) => {
         const row = el('p', 'lesson-line');
-        row.append(el('span', 'lesson-speaker', speaker), el('span', 'lesson-text'));
-        row.lastChild.append(japanese(text));
+        const body = el('span', 'lesson-text');
+        body.append(japanese(text));
+        if (translation) body.append(el('span', 'lesson-vi', translation));
+        row.append(el('span', 'lesson-speaker', speaker), body);
         return row;
       }),
     );
@@ -162,6 +174,23 @@ export function createLesson() {
     showFurigana(on);
     try {
       localStorage.setItem(FURIGANA_KEY, on ? 'on' : 'off');
+    } catch {}
+  });
+
+  function showTranslation(on) {
+    panel.classList.toggle('show-vi', on);
+    translateBtn.setAttribute('aria-pressed', String(on));
+    const label = on ? 'Ẩn bản dịch tiếng Việt' : 'Hiện bản dịch tiếng Việt';
+    translateBtn.title = label;
+    translateBtn.setAttribute('aria-label', label);
+  }
+
+  showTranslation(loadTranslate());
+  translateBtn.addEventListener('click', () => {
+    const on = !panel.classList.contains('show-vi');
+    showTranslation(on);
+    try {
+      localStorage.setItem(TRANSLATE_KEY, on ? 'on' : 'off');
     } catch {}
   });
 

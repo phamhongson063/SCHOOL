@@ -3,23 +3,23 @@ import { Batch, shapes, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
-import { CROPS, RIPE, SPENT, mound } from './crops.js';
-import { Farmer, FARMER_PROFILES } from './farmers.js';
+import { CROPS, RIPE, SPENT, mound, stageName } from './crops.js';
 import { LOW_POWER } from './quality.js';
+import { gameNow, durationText, DAY_MINUTES } from './clock.js';
+import { CROP_ECONOMY, FARMING, SHOP, growDays } from './config.js';
+import { PLAYER, seedId } from './inventory.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
-const BAGS_KEY = 'truong-lang-xua.farmers';
-const FARMER_PLANTS = 14;
-const PLAYER = 'player';
-const ownerName = (id) => FARMER_PROFILES.find((farmer) => farmer.id === id)?.name ?? 'người khác';
 const LEGACY_KEY = 'truong-lang-xua.farm';
-const GROW_MS = 25000;
-const THIRST_MS = 15000;
+const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
 const SHAPED_FROM = 3;
+const REAL_TIME_FLOOR = 1e11;
 const cropOf = (spot) => CROPS[spot.crop] ?? CROPS.tomato;
 const varietyOf = (spot) => cropOf(spot).varieties[spot.variety] ?? cropOf(spot).varieties[0];
 const randomVariety = (crop) => Math.floor(Math.random() * CROPS[crop].varieties.length);
+const stageMinutes = (spot) => (growDays(spot.crop) * DAY_MINUTES) / GROWTH_STEPS;
+const thirstMinutes = (spot) => stageMinutes(spot) * FARMING.thirstShare;
 
 function plantTop(spot) {
   const crop = cropOf(spot);
@@ -44,7 +44,7 @@ const BEDS = BED_XS.map((x, i) => ({ x, shape: bedShape(700 + i * 13, { height: 
 const CLODS = [0x6b4428, 0x7d5532, 0x8a5c38, 0x5c3920];
 const WEEDS = [0x6fae3f, 0x5a9a36, 0x86c75a];
 const BOUNDS = { x0: -32, z0: 38.5, x1: 33, z1: 64 };
-const TREES = [
+export const FIELD_TREES = [
   [-32, 58],
   [-20, 64],
   [-6, 65],
@@ -55,18 +55,14 @@ const TREES = [
 
 const ROAD_EDGE = 36.6;
 
-export const SEEDS = Object.entries(CROPS).map(([id, { icon, name }]) => ({ id, icon, name }));
-const STAGE_NAMES = ['Đất trống', 'Hạt giống', 'Nảy mầm', 'Cây non', 'Ra hoa', 'Quả xanh', 'Quả chín', 'Đã hái'];
-
-function formatWait(ms) {
-  const seconds = Math.max(1, Math.ceil(ms / 1000));
-  if (seconds < 60) return `${seconds} giây`;
-  const rest = seconds % 60;
-  return rest ? `${Math.floor(seconds / 60)} phút ${rest} giây` : `${seconds / 60} phút`;
+function nextStageIn(spot, now) {
+  return `${stageName(spot.crop, spot.stage + 1)} sau ${durationText(stageMinutes(spot) - (now - spot.stageStart))}`;
 }
 
-function nextStageIn(spot, now) {
-  return `${STAGE_NAMES[spot.stage + 1]} sau ${formatWait(GROW_MS - (now - spot.stageStart))}`;
+function seedOptions(purse) {
+  return Object.keys(CROPS)
+    .filter((id) => purse.count(seedId(id)) > 0)
+    .map((id) => ({ id, icon: CROPS[id].icon, name: `${CROPS[id].name} ×${purse.count(seedId(id))}` }));
 }
 
 const C = {
@@ -82,15 +78,22 @@ const C = {
 
 const fresh = () => ({ stage: 0, stageStart: 0, watered: false, late: false, missed: 0, crop: null, variety: 0, owner: null });
 const growing = (spot) => spot.stage > 0 && spot.stage < RIPE;
-const vigor = (spot) => Math.max(0.25, 1 - 0.18 * spot.missed);
+const vigor = (spot) => Math.max(FARMING.minVigor, 1 - FARMING.missPenalty * spot.missed);
 const yieldOf = (spot) => Math.max(1, Math.round(varietyOf(spot).fruits * vigor(spot)));
+
+function worthFertilizing(spot) {
+  const price = CROP_ECONOMY[spot.crop]?.price ?? 1;
+  return varietyOf(spot).fruits * price * FARMING.missPenalty >= SHOP.fertilizer;
+}
 
 const ACTIONS = {
   plant(spot, now, farm, choice, actor) {
     if (spot.stage > 0) return 'Chỗ này trồng rồi!';
-    const id = CROPS[choice] ? choice : 'tomato';
+    const id = CROPS[choice] ? choice : null;
+    if (!id) return 'Hết hạt giống rồi! Ra tiệm mua nhé.';
+    if (!farm.ledger.purse(actor).take(seedId(id), 1)) return `Hết ${CROPS[id].seedName.toLowerCase()} rồi!`;
     Object.assign(spot, fresh(), { stage: 1, stageStart: now, owner: actor, crop: id, variety: randomVariety(id) });
-    return `🌱 Gieo hạt ${CROPS[id].name.toLowerCase()} xong!`;
+    return `🌱 Gieo ${CROPS[id].name.toLowerCase()} xong!`;
   },
   water(spot) {
     if (spot.stage === 0) return 'Chưa gieo hạt mà!';
@@ -101,10 +104,17 @@ const ACTIONS = {
     spot.watered = true;
     return '💧 Tưới xong!';
   },
+  fertilize(spot, now, farm, choice, actor) {
+    if (!growing(spot)) return 'Không cần bón lúc này!';
+    if (spot.missed <= 0) return 'Cây đang khoẻ, chưa cần bón!';
+    if (!farm.ledger.purse(actor).take('fertilizer', 1)) return 'Hết phân bón rồi! Ra tiệm mua nhé.';
+    spot.missed -= 1;
+    return spot.missed ? `🧪 Bón xong! Cây còn yếu ${spot.missed} phần.` : '🧪 Bón xong! Cây khoẻ hẳn rồi.';
+  },
   harvest(spot, now, farm, choice, actor) {
-    if (spot.stage !== RIPE) return spot.stage === 0 ? 'Chưa trồng gì cả!' : 'Chưa chín đâu!';
+    if (spot.stage !== RIPE) return spot.stage === 0 ? 'Chưa trồng gì cả!' : 'Chưa tới lứa thu đâu!';
     const count = yieldOf(spot);
-    farm.onHarvest(actor, spot.crop, count);
+    farm.ledger.purse(actor).add(spot.crop, count);
     spot.stage = SPENT;
     spot.watered = false;
     return `${cropOf(spot).icon} +${count}`;
@@ -115,16 +125,17 @@ const ACTIONS = {
     return '🧹 Dọn sạch rồi!';
   },
   look(spot, now, farm, choice, actor) {
-    if (spot.stage > 0 && spot.owner !== actor) return `Cây của ${ownerName(spot.owner)} đó!`;
-    if (growing(spot)) return nextStageIn(spot, now);
-    if (spot.stage === SPENT) return 'Cây đã hái, cần dọn!';
+    if (spot.stage > 0 && spot.owner !== actor) return `Cây của ${farm.nameOf(spot.owner)} đó!`;
+    if (growing(spot)) return nextStageIn(spot, now) + (spot.missed ? ' · cây yếu, bón phân sẽ khoẻ lại' : '');
+    if (spot.stage === SPENT) return 'Cây đã thu, cần dọn!';
     return 'Đất trống.';
   },
 };
 
 class FarmState {
-  constructor(count, onHarvest) {
-    this.onHarvest = onHarvest;
+  constructor(count, { ledger, nameOf }) {
+    this.ledger = ledger;
+    this.nameOf = nameOf;
     this.spots = Array.from({ length: count }, fresh);
     this.load();
   }
@@ -134,7 +145,7 @@ class FarmState {
       localStorage.removeItem(LEGACY_KEY);
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
       if (!saved || !Array.isArray(saved.spots) || saved.spots.length > this.spots.length) return false;
-      const now = Date.now();
+      const now = gameNow();
       saved.spots.forEach((spot, i) => {
         const target = this.spots[i];
         const stage = Math.floor(Number(spot?.stage));
@@ -144,16 +155,15 @@ class FarmState {
         target.owner = crop ? (typeof spot?.owner === 'string' ? spot.owner : PLAYER) : null;
         target.variety = crop && CROPS[crop].varieties[spot?.variety] ? spot.variety : crop ? randomVariety(crop) : 0;
         const legacyWet = Number(spot?.wetAt) > 0 ? Number(spot.wetAt) : 0;
-        target.stageStart = Number(spot?.stageStart) > 0 ? Number(spot.stageStart) : legacyWet || now;
+        const start = Number(spot?.stageStart) > 0 ? Number(spot.stageStart) : legacyWet;
+        target.stageStart = start > REAL_TIME_FLOOR ? gameNow(start) : start > 0 ? start : now;
         target.watered = spot?.watered === true || legacyWet > 0;
         target.late = spot?.late === true;
         target.missed = Math.max(0, Math.floor(Number(spot?.missed) || 0));
       });
       const harvested = Math.floor(Number(saved.harvested) || 0);
-      if (harvested > 0) {
-        this.onHarvest(PLAYER, 'tomato', harvested);
-        this.save();
-      }
+      if (harvested > 0) this.ledger.purse(PLAYER).add('tomato', harvested);
+      this.save();
       return true;
     } catch {
       return false;
@@ -173,15 +183,17 @@ class FarmState {
   tick(now) {
     let changed = false;
     for (const spot of this.spots) {
-      while (growing(spot) && now - spot.stageStart >= GROW_MS) {
+      if (!growing(spot)) continue;
+      const span = stageMinutes(spot);
+      while (growing(spot) && now - spot.stageStart >= span) {
         if (!spot.watered) spot.missed += 1;
         spot.stage += 1;
-        spot.stageStart += GROW_MS;
+        spot.stageStart += span;
         spot.watered = false;
         spot.late = false;
         changed = true;
       }
-      if (this.thirsty(spot) && now - spot.stageStart >= THIRST_MS) {
+      if (this.thirsty(spot) && now - spot.stageStart >= thirstMinutes(spot)) {
         spot.late = true;
         changed = true;
       }
@@ -193,19 +205,24 @@ class FarmState {
   timeLeft(index, now) {
     const spot = this.spots[index];
     if (!growing(spot)) return null;
-    return Math.max(0, GROW_MS - (now - spot.stageStart));
+    return Math.max(0, stageMinutes(spot) - (now - spot.stageStart));
   }
 
   actionFor(index, actor = PLAYER) {
     const spot = this.spots[index];
     if (spot.stage > 0 && spot.owner !== actor) return { id: 'look', hint: null };
-    if (spot.stage === 0) return { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options: SEEDS } };
+    const purse = this.ledger.purse(actor);
+    if (spot.stage === 0) {
+      const options = seedOptions(purse);
+      return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
+    }
     if (spot.stage === RIPE) {
       const pick = { kind: 'harvest', applyAt: 'start', count: yieldOf(spot), item: spot.crop };
       return { id: 'harvest', hint: 'hand', effect: cropOf(spot).harvest === 'dig' ? { kind: 'clear', duration: 1, then: pick } : pick };
     }
     if (spot.stage === SPENT) return { id: 'clear', hint: 'hoe', effect: { kind: 'clear', duration: CLEAR_SECONDS } };
     if (this.thirsty(spot)) return { id: 'water', hint: 'water', effect: { kind: 'water', duration: 2 } };
+    if (spot.missed > 0 && purse.count('fertilizer') > 0) return { id: 'fertilize', hint: 'hoe', effect: { kind: 'clear', duration: 1 } };
     return { id: 'look', hint: null };
   }
 
@@ -215,7 +232,8 @@ class FarmState {
     if (!action || !spot) return null;
     const before = JSON.stringify(spot);
     const reply = action(spot, now, this, choice, actor);
-    if (JSON.stringify(spot) !== before) this.save();
+    this.changed = JSON.stringify(spot) !== before;
+    if (this.changed) this.save();
     return reply;
   }
 }
@@ -333,6 +351,11 @@ class FarmView {
     this.ring.visible = false;
     this.group.add(this.ring);
     this.disposables.push(this.ring.geometry, this.ring.material);
+    for (const child of this.group.children) {
+      if (child === this.drops || child === this.ring) continue;
+      child.updateMatrix();
+      child.matrixAutoUpdate = false;
+    }
     this.refresh();
   }
 
@@ -386,7 +409,7 @@ class FarmView {
     const outer = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - 0.5)), 0) + 1.6;
     this.jar(b, 0.5 - outer, FRONT - 0.9);
     this.jar(b, 0.5 + outer, FRONT - 0.9);
-    for (const [x, z] of TREES) {
+    for (const [x, z] of FIELD_TREES) {
       roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
       this.block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);
     }
@@ -507,7 +530,7 @@ class FarmView {
   }
 
   update(t) {
-    if (this.state.tick(Date.now())) this.refresh();
+    if (this.state.tick(gameNow())) this.refresh();
     for (const [index, anim] of this.anims) this.wither(index, anim);
     this.drops.position.y = Math.sin(t * 3) * 0.05;
     if (this.ring.visible) this.ring.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
@@ -528,37 +551,12 @@ class FarmView {
   }
 }
 
-function loadBags() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(BAGS_KEY) ?? 'null');
-    return saved && typeof saved === 'object' ? saved : {};
-  } catch {
-    return {};
-  }
-}
-
-const pickCrop = () => {
-  const ids = Object.keys(CROPS);
-  return ids[Math.floor(Math.random() * ids.length)];
-};
-
-export function createFarm({ inventory, nav }) {
+export function createFarm({ ledger, nameOf, nav }) {
   const spots = layoutSpots();
-  const bags = loadBags();
-  const state = new FarmState(spots.length, (actor, item, count) => {
-    if (actor === PLAYER) {
-      inventory.add(item, count);
-      return;
-    }
-    const bag = (bags[actor] ??= {});
-    bag[item] = (bag[item] ?? 0) + count;
-    try {
-      localStorage.setItem(BAGS_KEY, JSON.stringify(bags));
-    } catch {}
-  });
+  const state = new FarmState(spots.length, { ledger, nameOf });
   const claims = new Map();
   let view = null;
-  let farmers = [];
+  let lastTick = 0;
 
   const placed = (index, action) => {
     if (!action.effect) return action;
@@ -570,6 +568,12 @@ export function createFarm({ inventory, nav }) {
     return { ...action, effect };
   };
 
+  const tick = () => {
+    const changed = state.tick(gameNow());
+    if (changed) view?.refresh();
+    return changed;
+  };
+
   const crew = {
     nav,
     spot: (index) => spots[index],
@@ -578,83 +582,99 @@ export function createFarm({ inventory, nav }) {
     release(index, who) {
       if (claims.get(index) === who) claims.delete(index);
     },
+    releaseAll(who) {
+      for (const [index, owner] of claims) if (owner === who) claims.delete(index);
+    },
     effectFor(index, action, actor) {
       const planned = state.actionFor(index, actor);
       return planned.id === action ? placed(index, planned).effect ?? null : null;
     },
     act(action, index, choice, actor) {
-      const reply = state.act(action, index, Date.now(), choice, actor);
+      const reply = state.act(action, index, gameNow(), choice, actor);
       view?.refresh();
       return reply;
     },
     animate: (index, kind, duration) => view?.animate(index, kind, duration),
-    bagText(id) {
-      const items = Object.entries(bags[id] ?? {}).filter(([item, count]) => CROPS[item] && count > 0);
-      if (!items.length) return `Túi của ${ownerName(id)} còn trống!`;
-      return items.map(([item, count]) => `${CROPS[item].icon} ${count}`).join(' · ');
+    randomPlot(actor) {
+      const mine = [];
+      state.spots.forEach((plant, index) => {
+        if (plant.stage > 0 && plant.owner === actor) mine.push(index);
+      });
+      return mine.length ? mine[Math.floor(Math.random() * mine.length)] : -1;
     },
-    jobFor(farmer) {
+    plots(actor) {
+      let owned = 0;
+      let ripe = 0;
+      for (const plant of state.spots) {
+        if (plant.stage === 0 || plant.owner !== actor) continue;
+        owned += 1;
+        if (plant.stage === RIPE) ripe += 1;
+      }
+      return { owned, ripe };
+    },
+    jobFor(worker, seedChoice) {
+      const purse = ledger.purse(worker.id);
+      const fertilizer = purse.count('fertilizer') > 0;
       let owned = 0;
       let best = null;
       const consider = (index, action, rank, choice) => {
-        if (claims.has(index)) return;
+        const claimant = claims.get(index);
+        if (claimant && claimant !== worker.id) return;
         const spot = spots[index];
-        const score = rank * 1000 + Math.hypot(spot.x - farmer.position.x, spot.z - farmer.position.z) + Math.random() * 6;
+        const score = rank * 1000 + Math.hypot(spot.x - worker.position.x, spot.z - worker.position.z) + Math.random() * 6;
         if (!best || score < best.score) best = { index, action, choice, score };
       };
       state.spots.forEach((plant, index) => {
-        if (plant.stage === 0 || plant.owner !== farmer.id) return;
+        if (plant.stage === 0 || plant.owner !== worker.id) return;
         owned += 1;
         if (plant.stage === RIPE) consider(index, 'harvest', 0);
         else if (plant.stage === SPENT) consider(index, 'clear', 1);
         else if (state.thirsty(plant)) consider(index, 'water', 2);
+        else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
-      if (owned < FARMER_PLANTS) {
+      if (owned < FARMING.villagerPlots && seedChoice) {
         state.spots.forEach((plant, index) => {
-          if (plant.stage === 0) consider(index, 'plant', 3, pickCrop());
+          if (plant.stage === 0) consider(index, 'plant', 4, seedChoice);
         });
       }
       return best;
     },
   };
 
-  const farmerAt = (object) => farmers.find((farmer) => farmer.owns(object));
-  const startFor = ({ home }) => {
-    const x = BED_XS[home];
-    return { x: x + (x < 0.5 ? -1 : 1) * (BED.pitch / 2), z: FRONT - 0.8 };
-  };
-
   return {
     id: 'farm',
-    name: 'Ruộng cà chua',
+    name: 'Ruộng rau màu',
     bounds: BOUNDS,
+    crew,
+    tick() {
+      const now = performance.now();
+      if (now - lastTick < 500) return;
+      lastTick = now;
+      tick();
+    },
     target(hit, from) {
-      if (farmerAt(hit.object)) return null;
       const index = view?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
-      if (index < 0) return null;
+      if (index == null || index < 0) return null;
       const spot = spots[index];
       return { index, x: spot.x, z: spot.z, stand: standFor(spot, from) };
-    },
-    interact(object, from) {
-      const farmer = farmerAt(object);
-      if (!farmer) return false;
-      farmer.greet(from);
-      return true;
     },
     actionFor(target) {
       return placed(target.index, state.actionFor(target.index));
     },
     timeLeft(target) {
-      return state.timeLeft(target.index, Date.now());
+      return state.timeLeft(target.index, gameNow());
     },
     topOf(target) {
       const spot = spots[target.index];
       return new THREE.Vector3(spot.x, spot.y + plantTop(state.spots[target.index]) * spot.scale + 0.18, spot.z);
     },
     act(action, target, choice) {
-      const reply = state.act(action, target.index, Date.now(), choice);
+      const reply = state.act(action, target.index, gameNow(), choice);
       view?.refresh();
       return reply;
+    },
+    didChange() {
+      return !!state.changed;
     },
     highlight(target) {
       view?.highlight(target ? spots[target.index] : null);
@@ -663,23 +683,16 @@ export function createFarm({ inventory, nav }) {
       view?.animate(target.index, kind, duration);
     },
     load() {
-      state.tick(Date.now());
+      tick();
       view = new FarmView(spots, state);
-      farmers = FARMER_PROFILES.map((profile) => new Farmer(profile, crew, view.group, startFor(profile)));
-      view.clickables.push(...farmers.map((farmer) => farmer.walker.group));
       return {
         group: view.group,
         clickables: view.clickables,
         obstacles: view.obstacles,
-        update: (t, dt) => {
-          view.update(t);
-          for (const farmer of farmers) farmer.update(t, dt);
-        },
+        update: (t) => view.update(t),
         dispose: () => {
           view.dispose();
           view = null;
-          farmers = [];
-          claims.clear();
         },
       };
     },

@@ -44,6 +44,13 @@ const C = {
   potatoLeafPurple: 0x6a5a5a,
   potatoFlower: 0xc9a0dc,
   potatoSkin: 0xa23a5a,
+  spinachStem: 0x7fbf4a,
+  spinachLeaf: 0x3f9a3a,
+  spinachLeafLight: 0x6cc04e,
+  choyStalk: 0xe8f2d4,
+  choyStalkShade: 0xc8e0a8,
+  choyLeaf: 0x2f7a32,
+  choyLeafLight: 0x4f9a3e,
 };
 
 export function mound(b, rand, seeds = 0) {
@@ -351,6 +358,68 @@ function sweetPotatoPlant(b, stage, variety) {
   }
 }
 
+const UP = new THREE.Vector3(0, 1, 0);
+
+function towards(dir) {
+  return new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize());
+}
+
+function waterSpinachPlant(b, stage, variety) {
+  const rand = makeRandom(variety.seed + (stage >= 5 ? 0 : stage));
+  const spent = stage === SPENT;
+  const grow = [0, 0, 0, 0.3, 0.55, 0.8, 1, 0.22][stage];
+  mound(b, rand);
+  const shoots = spent ? variety.shoots : Math.max(3, Math.round(variety.shoots * (0.4 + grow * 0.6)));
+  const leaves = [C.spinachLeaf, C.spinachLeafLight, C.leafDark];
+  for (let i = 0; i < shoots; i++) {
+    const a = (i / shoots) * Math.PI * 2 + rand() * 0.6;
+    const lean = 0.18 + rand() * 0.32;
+    const h = variety.height * grow * (0.75 + rand() * 0.35);
+    const base = new THREE.Vector3(Math.cos(a) * 0.035, 0.02, Math.sin(a) * 0.035);
+    const tip = new THREE.Vector3(Math.cos(a) * lean * h + base.x, h, Math.sin(a) * lean * h + base.z);
+    b.limb(base.toArray(), tip.toArray(), spent ? 0.014 : 0.011, spent ? C.stalkDry : C.spinachStem, { capsule: false, seg: 5 });
+    if (spent) {
+      b.add(shapes.cylinder(0.016, 0.016, 0.01, 5), C.spinachStem, { p: [tip.x, tip.y, tip.z] });
+      continue;
+    }
+    const count = Math.max(1, Math.round(1 + grow * 4));
+    for (let k = 0; k < count; k++) {
+      const t = 0.4 + (k / count) * 0.6;
+      const at = base.clone().lerp(tip, t);
+      const side = a + (k % 2 ? 1 : -1) * (0.9 + rand() * 0.4);
+      const dir = new THREE.Vector3(Math.cos(side) * 0.75, 0.6 + rand() * 0.3, Math.sin(side) * 0.75);
+      const length = 0.09 + grow * 0.07;
+      const center = at.clone().addScaledVector(dir.clone().normalize(), length * 0.5);
+      b.add(shapes.ico(length * 0.5, 0), leaves[(i + k) % leaves.length], { p: center.toArray(), q: towards(dir), s: [0.42, 1, 0.16], flat: true });
+    }
+    const crown = tip.clone();
+    b.add(shapes.ico(0.035 + grow * 0.02, 0), C.spinachLeafLight, { p: crown.toArray(), s: [0.6, 1.2, 0.4], r: [0, a, 0], flat: true });
+  }
+}
+
+function bokChoyPlant(b, stage, variety) {
+  const rand = makeRandom(variety.seed + (stage >= 5 ? 0 : stage));
+  const spent = stage === SPENT;
+  const grow = [0, 0, 0, 0.35, 0.6, 0.85, 1, 0.7][stage];
+  mound(b, rand);
+  const count = spent ? 5 : Math.round(4 + grow * (variety.leaves - 4));
+  const h = variety.height * grow;
+  const stalk = spent ? C.withered : C.choyStalk;
+  const blades = spent ? [C.withered, C.dry, C.stalkDry] : [C.choyLeaf, C.choyLeafLight, C.choyLeaf];
+  for (let i = 0; i < count; i++) {
+    const a = i * 2.4 + rand() * 0.3;
+    const inner = i / count;
+    const tilt = spent ? 0.9 + rand() * 0.4 : 0.18 + (1 - inner) * 0.5;
+    const dir = new THREE.Vector3(Math.cos(a) * Math.sin(tilt), Math.cos(tilt), Math.sin(a) * Math.sin(tilt));
+    const length = Math.max(0.08, h * (0.75 + (1 - inner) * 0.35));
+    const neck = dir.clone().multiplyScalar(length * 0.5).add(new THREE.Vector3(0, 0.02, 0));
+    b.limb([0, 0.02, 0], neck.toArray(), 0.022 + grow * 0.008, i % 2 ? stalk : spent ? C.dry : C.choyStalkShade, { capsule: false, seg: 6, radiusEnd: 0.016 });
+    const width = 0.05 + grow * 0.05;
+    const blade = dir.clone().multiplyScalar(length * 0.78).add(new THREE.Vector3(0, 0.02, 0));
+    b.add(shapes.ico(width, 1), blades[i % blades.length], { p: blade.toArray(), q: towards(dir), s: [0.85, length / (width * 1.6), 0.3], flat: true });
+  }
+}
+
 function tomatoVarieties() {
   const rand = makeRandom(4040);
   const count = 10;
@@ -404,6 +473,26 @@ function watermelonVarieties() {
   });
 }
 
+function waterSpinachVarieties() {
+  const rand = makeRandom(8383);
+  return Array.from({ length: 5 }, (_, i) => ({
+    height: 0.34 + rand() * 0.14,
+    shoots: 7 + Math.floor(rand() * 4),
+    fruits: 2 + Math.floor(rand() * 3),
+    seed: 2100 + i * 23,
+  }));
+}
+
+function bokChoyVarieties() {
+  const rand = makeRandom(9494);
+  return Array.from({ length: 5 }, (_, i) => ({
+    height: 0.3 + rand() * 0.1,
+    leaves: 9 + Math.floor(rand() * 4),
+    fruits: 2 + Math.floor(rand() * 3),
+    seed: 2500 + i * 29,
+  }));
+}
+
 function sweetPotatoVarieties() {
   const rand = makeRandom(7272);
   return Array.from({ length: 6 }, (_, i) => {
@@ -423,10 +512,36 @@ function sweetPotatoVarieties() {
   });
 }
 
+export const STAGE_NAMES = ['Đất trống', 'Hạt giống', 'Nảy mầm', 'Cây non', 'Ra hoa', 'Quả xanh', 'Quả chín', 'Đã hái'];
+
 export const CROPS = {
+  waterSpinach: {
+    icon: '🌿',
+    name: 'Rau muống',
+    seedName: 'Hạt rau muống',
+    unit: 'bó',
+    stages: { 3: 'Cây con', 4: 'Bén rễ', 5: 'Ra ngọn', 6: 'Đủ lứa cắt', 7: 'Đã cắt' },
+    varieties: waterSpinachVarieties(),
+    crown: 0.08,
+    stageHeight: (stage, height) => [0, 0.12, 0.2, height * 0.3, height * 0.55, height * 0.8, height, height * 0.22][stage],
+    build: waterSpinachPlant,
+  },
+  bokChoy: {
+    icon: '🥬',
+    name: 'Cải ngọt',
+    seedName: 'Hạt cải ngọt',
+    unit: 'bó',
+    stages: { 3: 'Cây con', 4: 'Ra lá', 5: 'Cuốn bẹ', 6: 'Đủ lứa thu', 7: 'Đã nhổ' },
+    varieties: bokChoyVarieties(),
+    crown: 0.06,
+    stageHeight: (stage, height) => [0, 0.12, 0.2, height * 0.35, height * 0.6, height * 0.85, height, height * 0.5][stage],
+    build: bokChoyPlant,
+  },
   tomato: {
     icon: '🍅',
     name: 'Cà chua',
+    seedName: 'Hạt cà chua',
+    unit: 'quả',
     varieties: tomatoVarieties(),
     crown: 0.25,
     stageHeight: (stage, height) => [0, 0.12, 0.3, Math.max(0.4, height * 0.3), height * 0.72, height, height, height * 0.96][stage],
@@ -435,6 +550,9 @@ export const CROPS = {
   corn: {
     icon: '🌽',
     name: 'Bắp',
+    seedName: 'Hạt bắp',
+    unit: 'trái',
+    stages: { 4: 'Trổ cờ', 5: 'Bắp non', 6: 'Bắp chín' },
     varieties: cornVarieties(),
     crown: 0.3,
     stageHeight: (stage, height) => [0, 0.12, 0.3, Math.max(0.5, height * 0.3), height * 0.85, height, height, height * 0.95][stage],
@@ -443,6 +561,9 @@ export const CROPS = {
   watermelon: {
     icon: '🍉',
     name: 'Dưa hấu',
+    seedName: 'Hạt dưa hấu',
+    unit: 'quả',
+    stages: { 5: 'Trái non', 6: 'Trái chín' },
     varieties: watermelonVarieties(),
     crown: 0.15,
     aligned: true,
@@ -452,6 +573,9 @@ export const CROPS = {
   sweetPotato: {
     icon: '🍠',
     name: 'Khoai lang',
+    seedName: 'Dây khoai lang',
+    unit: 'củ',
+    stages: { 4: 'Ra hoa', 5: 'Ra củ', 6: 'Củ già', 7: 'Đã đào' },
     varieties: sweetPotatoVarieties(),
     crown: 0.15,
     aligned: true,
@@ -460,3 +584,7 @@ export const CROPS = {
     build: sweetPotatoPlant,
   },
 };
+
+export function stageName(crop, stage) {
+  return CROPS[crop]?.stages?.[stage] ?? STAGE_NAMES[stage];
+}

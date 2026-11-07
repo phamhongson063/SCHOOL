@@ -1,17 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
-import { buildWorld, populate, stairHeight, CX } from './school.js';
-import { createScenery, createSky } from './scenery.js';
+import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
+import { createScenery } from './scenery.js';
 import { createPlayer, createStudent } from './characters.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
 import { LESSONS } from './lessons.js';
 import { PlayerController } from './walk.js';
 import { NavGrid } from './nav.js';
-import { createClouds } from './sky.js';
-import { Schedule } from './schedule.js';
-import { Classmates } from './npc.js';
+import { createSky, createClouds } from './sky.js';
 import { Footprints, createBlobShadow } from './groundfx.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
@@ -23,10 +21,26 @@ import { createQuiz } from './quiz.js';
 import { createFarm } from './farm.js';
 import { createRoad, SPAWN } from './road.js';
 import { createBubble } from './bubble.js';
-import { Inventory } from './inventory.js';
+import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { LOW_POWER } from './quality.js';
-import { outlineMaterial } from './toon.js';
+import { outlineMaterial, freeze } from './toon.js';
+import { gameNow, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
+import { phaseAt, sessionLabel } from './timetable.js';
+import { ROUTINE, SCHOOL, MONEY, ENERGY } from './config.js';
+import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
+import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
+import { createTuition } from './tuition.js';
+import { Town, createStudyIcon, villagerProfiles } from './villagers.js';
+import { createVillage, VILLAGE_BOUNDS } from './village.js';
+import { createNoticeBoard } from './notice.js';
+import { createSettings, wipeGame } from './settings.js';
+import { createRiver } from './river.js';
+import { createAngler } from './angler.js';
+import { createKanjiQuiz } from './kanjiQuiz.js';
+import { createPlayerFishing } from './fishing.js';
+import { createVitals } from './vitals.js';
+import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
@@ -36,6 +50,7 @@ const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5
 const MIN_PIXEL_RATIO = 0.75;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const OUTLINE_DISTANCE = 26;
+const NAV_BOUNDS = { x0: -44, x1: Math.max(45, VILLAGE_BOUNDS.x1 + 2), z0: -36, z1: 84 };
 
 let pixelRatio = MAX_PIXEL_RATIO;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -46,38 +61,32 @@ renderer.shadowMap.type = LOW_POWER ? THREE.PCFShadowMap : THREE.PCFSoftShadowMa
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-createSky(scene);
-
+const sky = createSky(scene, { renderer });
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 500);
 
-scene.add(new THREE.HemisphereLight(0xf2f8ff, 0x8a7350, 1.0));
-scene.add(new THREE.AmbientLight(0xfff4e0, 0.45));
-const sun = new THREE.DirectionalLight(0xfff1d6, 2.2);
-sun.position.set(28, 40, 36);
-sun.castShadow = true;
+const sun = sky.light;
 const shadowSize = LOW_POWER ? 1024 : renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;
 sun.shadow.mapSize.set(shadowSize, shadowSize);
 Object.assign(sun.shadow.camera, { left: -SHADOW_SPAN, right: SHADOW_SPAN, top: SHADOW_SPAN, bottom: -SHADOW_SPAN, near: 1, far: 140 });
 sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
-scene.add(sun, sun.target);
-const SUN_OFFSET = sun.position.clone();
-const sunCenter = new THREE.Vector3(0, 0, 0);
-function followSun(position) {
-  if (Math.hypot(position.x - sunCenter.x, position.z - sunCenter.z) < SHADOW_SPAN * 0.27) return;
-  sunCenter.set(Math.round(position.x / 4) * 4, 0, Math.round(position.z / 4) * 4);
-  sun.target.position.copy(sunCenter);
-  sun.position.copy(sunCenter).add(SUN_OFFSET);
-}
 
 const world = new VoxelWorld();
 const layout = buildWorld(world);
 const scenery = createScenery(scene, layout);
 const roof = scenery.roof;
 
+for (const child of scene.children) {
+  if (child.isMesh || child === roof) freeze(child);
+}
+
 const school = populate(scene);
 const clouds = createClouds(scene);
+const notice = createNoticeBoard(scene);
+const village = createVillage();
+const river = createRiver();
+school.obstacles.push(...notice.obstacles, ...village.obstacles, ...river.obstacles);
 
 const avatar = createPlayer();
 scene.add(avatar.group);
@@ -93,6 +102,28 @@ const player = new PlayerController({
 });
 player.surfaceAt = stairHeight;
 
+const ledger = new Ledger();
+const purse = ledger.purse(PLAYER);
+createBag(purse);
+createVitals(purse);
+const market = createMarket();
+const shopUI = createShopUI({ market, purse });
+const estate = createEstate({ houses: village.houses });
+let town = null;
+const NAMES = new Map(villagerProfiles().map((profile) => [profile.id, profile.name]));
+const nameOf = (id) => (id === PLAYER ? 'bạn' : NAMES.get(id) ?? 'người khác');
+const chiefUI = createChiefUI({ estate, purse, nameOf });
+const foodUI = createFoodUI({ purse });
+
+createSettings({
+  onReset() {
+    renderer.setAnimationLoop(null);
+    ledger.halt();
+    wipeGame();
+    window.location.reload();
+  },
+});
+
 const regions = new RegionManager({ scene, obstacles: school.obstacles });
 regions.add({
   id: 'school',
@@ -102,14 +133,42 @@ regions.add({
   overview: { position: new THREE.Vector3(CX + 14, 8, 30), target: new THREE.Vector3(CX, 3, -2) },
 });
 regions.add(createRoad());
-const inventory = new Inventory();
-createBag(inventory);
-regions.add(createFarm({ inventory, nav: () => player.nav }));
+const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
+regions.add(farm);
+for (const region of village.regions({
+    estate,
+    nameOf,
+    openShop: () => shopUI.open(),
+    openChief: () => chiefUI.open(),
+    openEatery: () => foodUI.open(),
+    isEateryOpen: () => eateryOpen(gameNow()),
+    eateryHours,
+    isShopOpen: () => shopOpen(gameNow()),
+    isChiefOpen: () => chiefOpen(gameNow()),
+    shopHours,
+    chiefHours,
+  })) {
+  regions.add(region);
+}
+regions.add(
+  river.region({
+    player,
+    day: () => context.day,
+    startFishing: (spot) => fishing.start(spot),
+  }),
+);
 regions.stream(SPAWN.x, SPAWN.z);
 
-player.nav = new NavGrid(world, (p) => player.collides(p), { x0: -44, x1: 45, z0: -36, z1: 67 }, { surfaceAt: stairHeight });
-regions.onLoad = (region) => player.nav.bake(region.bounds);
-regions.onUnload = (region) => player.nav.bake(region.bounds);
+player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, { surfaceAt: stairHeight });
+regions.onLoad = (region) => {
+  if (!region.staticNav) player.nav.bake(region.bounds);
+};
+regions.onUnload = (region) => {
+  if (!region.staticNav) player.nav.bake(region.bounds);
+};
+
+const villagerRoot = new THREE.Group();
+scene.add(villagerRoot);
 
 const picker = createPicker();
 const regionControls = [...document.querySelectorAll('[data-region]')];
@@ -125,8 +184,9 @@ regions.onChange = (region) => {
 const playerBubble = createBubble();
 playerBubble.sprite.position.set(0, 1.95, 0);
 avatar.group.add(playerBubble.sprite);
+const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
 
-const quiz = createQuiz({ onPass: () => playerBubble.show('🎉 Đúng rồi! Chơi tiếp nào!', 2.2, clock.elapsedTime) });
+const quiz = createQuiz({ onPass: () => sayPlayer('🎉 Đúng rồi! Chơi tiếp nào!') });
 
 const effects = {
   water: createWatering(scene, avatar),
@@ -142,9 +202,15 @@ player.onArrive = () => {
   fieldTask = null;
   if (!task || Math.hypot(task.target.stand.x - player.position.x, task.target.stand.z - player.position.z) > 0.8) return;
   player.faceToward(task.target.x, task.target.z);
+  const cost = task.region.id === 'farm' ? ENERGY.costs[task.action.id] ?? 0 : 0;
+  if (cost && purse.energy < cost) {
+    sayPlayer('Đói quá, hết sức làm rồi! Ra quán ăn nạp năng lượng nhé.', 2.6);
+    return;
+  }
   const finish = () => {
     const reply = task.region.act(task.action.id, task.target, task.choice);
-    if (reply) playerBubble.show(reply, 1.6, clock.elapsedTime);
+    if (reply) sayPlayer(reply, 1.8);
+    if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
   };
   const settings = task.action.effect;
   const effect = settings && effects[settings.kind];
@@ -185,34 +251,207 @@ const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
 const seatedAvatar = createStudent({ shirt: 0x3b6fb0, pants: 0xf4efe2, skin: 0xf6caa4, style: 'player', iris: 0x7a4422 });
+const playerStudyIcon = createStudyIcon();
+playerStudyIcon.position.set(0, 1.3, 0);
+seatedAvatar.group.add(playerStudyIcon);
 scene.add(seatedAvatar.group);
 player.attachSeating({
   seats,
   model: seatedAvatar,
-  onDisplace: (member, seat) => classmates.displaced(member, seat),
+  onDisplace: (member, seat) => town?.displaced(member, seat),
 });
 
+town = new Town({
+  root: villagerRoot,
+  nav: player.nav,
+  seats,
+  school,
+  farm: farm.crew,
+  ledger,
+  market,
+  estate,
+  places: village.places,
+  river,
+  footprints,
+});
+
+player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
+
+let context = null;
+
+function contextAt(minutes) {
+  const minute = minuteOfDay(minutes);
+  return {
+    minutes,
+    minute,
+    day: dayOf(minutes),
+    phase: phaseAt(minutes),
+    night: minute >= ROUTINE.home || minute < ROUTINE.wake,
+    shopOpen: shopOpen(minutes),
+    chiefOpen: chiefOpen(minutes),
+  };
+}
+context = contextAt(gameNow());
+
+const angler = createAngler(scene, avatar);
+const kanjiQuiz = createKanjiQuiz();
+const fishing = createPlayerFishing({
+  river,
+  purse,
+  angler,
+  quiz: kanjiQuiz,
+  harvest: effects.harvest,
+  player,
+  say: (text, seconds) => sayPlayer(text, seconds),
+  now: () => clock.elapsedTime,
+  minutes: () => context.minutes,
+  day: () => context.day,
+});
+let lastDay = context.day;
+if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3), 1500);
+
 const lesson = createLesson();
+const learningNow = () => context.phase.kind === 'period' && tuition.studying;
+const tuition = createTuition({
+  purse,
+  onStudy: () => {
+    sayPlayer('📖 Vào học thôi!', 1.6);
+    if (player.posture === 'seated') lesson.open();
+  },
+  onMissed: () => sayPlayer('Lỡ giờ thu học phí rồi, tiết này chỉ ngồi nghe thôi.', 3),
+  onCredit: (left) => sayPlayer(`Trừ 1 tiết đã đóng trước (còn ${left})`, 2.4),
+});
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
-  if (schedule.phase === 'class') lesson.open();
+  if (learningNow()) lesson.open();
 };
 player.onStand = () => lesson.close();
+
+const teacherDesk = {
+  act() {
+    if (!school.teacherPresent) return 'Thầy về nhà rồi, mai quay lại nhé!';
+    tuition.openTeacher();
+    return null;
+  },
+};
+const noticeSpot = {
+  act() {
+    openSchedule();
+    return null;
+  },
+};
+
+let playerLine = null;
+
+function stepInLine() {
+  const index = playerLine.queue.indexOf(player);
+  playerLine.index = index;
+  const spot = playerLine.queue.slot(index);
+  player.requestMove(new THREE.Vector3(spot.x, 0, spot.z), false);
+}
+
+function leaveLine() {
+  if (!playerLine) return;
+  playerLine.queue.leave(player);
+  playerLine = null;
+}
+
+function joinLine(kind, open, dialog) {
+  const queue = town.queues[kind];
+  if (playerLine?.queue === queue) {
+    stepInLine();
+    return;
+  }
+  leaveLine();
+  queue.join(player);
+  playerLine = { queue, open, dialog, index: -1, served: false };
+  stepInLine();
+}
+
+function updateLine() {
+  const line = playerLine;
+  if (!line) return;
+  if (line.served) {
+    if (!line.dialog.isOpen) leaveLine();
+    return;
+  }
+  const index = line.queue.indexOf(player);
+  if (index !== line.index) {
+    stepInLine();
+    return;
+  }
+  if (player.path || player.posture !== 'free') return;
+  const spot = line.queue.slot(index);
+  if (Math.hypot(spot.x - player.position.x, spot.z - player.position.z) > 1.5) {
+    leaveLine();
+    return;
+  }
+  const look = index === 0 ? line.queue.look : line.queue.slot(index - 1);
+  player.faceToward(look.x, look.z);
+  if (index > 0) return;
+  line.served = true;
+  line.open();
+}
+
+function goDo(region, target, id) {
+  fieldTask = { region, target, action: { id }, choice: null };
+  player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), false);
+}
 
 player.onClick = (clientX, clientY, run) => {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const targets = [...scenery.clickables, ...regions.clickables, school.root];
+  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root];
   if (roof.visible) targets.push(roof);
   const hit = raycaster.intersectObjects(targets, true)[0];
   if (!hit) return;
   fieldTask = null;
+  fishing.stop();
   busyEffect()?.cancel();
+  const queueing = playerLine;
   if (effectTask) effectTask.region.animate?.(effectTask.target, null);
   effectTask = null;
-  const region = regions.active;
-  if (region?.interact?.(hit.object, player.position)) return;
+  const villager = town.villagerAt(hit.object);
+  if (villager) {
+    villager.greet(player.position);
+    return;
+  }
+  if (school.isTeacher(hit.object)) {
+    leaveLine();
+    goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    return;
+  }
+  if (notice.owns(hit.object)) {
+    leaveLine();
+    goDo(noticeSpot, { stand: notice.stand, x: notice.group.position.x, z: notice.group.position.z }, 'notice');
+    return;
+  }
+  const region = regions.regionOf(hit.object) ?? regions.active;
+  if (region?.interact?.(hit.object, player.position)) {
+    leaveLine();
+    return;
+  }
   const target = region?.target?.(hit, player.position);
+  const kind = target?.kind;
+  if (target && town.queues[kind]) {
+    const now = gameNow();
+    const open = kind === 'shop' ? shopOpen(now) : kind === 'chief' ? chiefOpen(now) : eateryOpen(now);
+    if (!open) {
+      leaveLine();
+      sayPlayer(region.act('visit', target), 2.4);
+      return;
+    }
+    joinLine(
+      kind,
+      () => {
+        const reply = region.act('visit', target);
+        if (reply) sayPlayer(reply, 2.4);
+      },
+      kind === 'shop' ? shopUI : kind === 'chief' ? chiefUI : foodUI,
+    );
+    return;
+  }
+  if (queueing) leaveLine();
   if (target) {
     const action = region.actionFor(target);
     const go = (choice) => {
@@ -260,26 +499,48 @@ renderer.domElement.addEventListener('pointerleave', () => {
   hovering = false;
 });
 
-function updateHover() {
+const HOVER_INTERVAL = 0.1;
+let hoverAt = 0;
+let hoverText = null;
+let hoverAnchor = null;
+
+function updateHover(t) {
   if (player.drag) {
     hoverTip.hidden = true;
     return;
   }
-  const region = regions.active;
+  if (t < hoverAt) {
+    showHoverTip(hoverText, hoverAnchor);
+    return;
+  }
+  hoverAt = t + HOVER_INTERVAL;
+  let region = null;
   let target = null;
-  if (hovering && mode === 'play' && region?.target) {
+  if (hovering && mode === 'play') {
     raycaster.setFromCamera(hoverPointer, camera);
     const hit = raycaster.intersectObjects(regions.clickables, true)[0];
-    if (hit) target = region.target(hit, player.position);
+    if (hit) {
+      region = regions.regionOf(hit.object);
+      if (region?.target) target = region.target(hit, player.position);
+    }
   }
-  if (!target && !hoverRegion) return;
+  if (hoverRegion && hoverRegion !== region) hoverRegion.highlight?.(null);
+  if (!target && !hoverRegion) {
+    hoverText = null;
+    hoverAnchor = null;
+    renderer.domElement.style.cursor = '';
+    return;
+  }
   region?.highlight?.(target);
   hoverRegion = target ? region : null;
   const working = target && effectTask?.region === region && effectTask.target.index === target.index;
   const hint = target && !working ? region.actionFor(target).hint : null;
   renderer.domElement.style.cursor = hint ? CURSORS[hint] : '';
-  const left = target ? region.timeLeft?.(target) : null;
-  showHoverTip(left == null ? null : formatTime(left / 1000), left == null ? null : region.topOf(target));
+  const label = target ? region.labelOf?.(target) : null;
+  const left = target && !label ? region.timeLeft?.(target) : null;
+  hoverText = label ?? (left == null ? null : durationText(left));
+  hoverAnchor = hoverText == null ? null : region.topOf(target);
+  showHoverTip(hoverText, hoverAnchor);
 }
 
 const orbit = new OrbitControls(camera, renderer.domElement);
@@ -298,16 +559,11 @@ function overviewFor(region) {
 }
 
 const ui = {
-  help: document.getElementById('help'),
   viewBtn: document.getElementById('viewBtn'),
   modeBtn: document.getElementById('modeBtn'),
   roofBtn: document.getElementById('roofBtn'),
 };
 
-const HELP = {
-  play: 'Click chuột trái: đi tới chỗ đó · Click vào chỗ ngồi trống: ngồi xuống · Ở ruộng: click đất trống để gieo hạt, cây khát nước để tưới, cây chín để hái, cây đã hái để dọn, click nông dân để xem túi của họ · Kéo chuột: xoay camera · Lăn chuột: gần/xa',
-  overview: 'Kéo chuột trái: xoay · Chuột phải: dời khung hình · Lăn chuột: phóng to/thu nhỏ',
-};
 
 let mode = 'play';
 
@@ -318,7 +574,6 @@ function setLabel(button, text) {
 
 function refreshUI() {
   frameCamera();
-  ui.help.textContent = HELP[mode];
   ui.viewBtn.classList.toggle('active', player.firstPerson);
   ui.viewBtn.disabled = mode !== 'play';
   setLabel(ui.viewBtn, player.firstPerson ? 'Chuyển sang góc nhìn thứ ba' : 'Chuyển sang góc nhìn thứ nhất');
@@ -360,20 +615,17 @@ for (const button of [ui.viewBtn, ui.modeBtn, ui.roofBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
-const schedule = new Schedule();
-const classmates = new Classmates({ students: school.students, nav: player.nav, root: school.root, seats, footprints });
-
 const phaseUI = {
   pill: document.getElementById('phasePill'),
+  bell: document.getElementById('phaseBell'),
+  clock: document.getElementById('phaseClock'),
   icon: document.getElementById('phaseIcon'),
   time: document.getElementById('phaseTime'),
-  button: document.getElementById('scheduleBtn'),
   dialog: document.getElementById('scheduleDialog'),
   form: document.getElementById('scheduleForm'),
-  classInput: document.getElementById('classInput'),
-  breakInput: document.getElementById('breakInput'),
+  dayClock: document.getElementById('scheduleClock'),
+  list: document.getElementById('scheduleList'),
   hint: document.getElementById('scheduleHint'),
-  skip: document.getElementById('skipBtn'),
   cancel: document.getElementById('cancelBtn'),
   close: document.getElementById('scheduleClose'),
   modes: [...document.querySelectorAll('.mode-option')],
@@ -389,85 +641,131 @@ lessonSelect.replaceChildren(
 );
 
 let pendingMode = lesson.mode;
-function showMode(mode) {
-  pendingMode = mode;
-  for (const option of phaseUI.modes) option.setAttribute('aria-checked', String(option.dataset.mode === mode));
-  lessonChoice.hidden = mode !== 'choose';
+function showMode(next) {
+  pendingMode = next;
+  for (const option of phaseUI.modes) option.setAttribute('aria-checked', String(option.dataset.mode === next));
+  lessonChoice.hidden = next !== 'choose';
 }
 for (const option of phaseUI.modes) option.addEventListener('click', () => showMode(option.dataset.mode));
 
-function formatTime(seconds) {
-  const total = Math.ceil(seconds);
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+const MOONS = [
+  [0.03, '🌑 Trăng non'],
+  [0.22, '🌒 Trăng lưỡi liềm'],
+  [0.28, '🌓 Trăng thượng huyền'],
+  [0.47, '🌔 Trăng gần rằm'],
+  [0.53, '🌕 Trăng rằm'],
+  [0.72, '🌖 Trăng khuyết dần'],
+  [0.78, '🌗 Trăng hạ huyền'],
+  [0.97, '🌘 Trăng lưỡi liềm cuối'],
+  [1.01, '🌑 Trăng non'],
+];
+const moonName = (phase) => MOONS.find(([max]) => phase <= max)[1];
+const minutesLeft = (m) => `${Math.max(1, Math.ceil(m))}'`;
+
+function phaseStatus(ctx) {
+  const phase = ctx.phase;
+  if (phase.kind === 'period') {
+    if (phase.paying) return { icon: '🪙', text: `Tiết ${phase.period} · thu học phí`, tone: '' };
+    return { icon: '📖', text: `Tiết ${phase.period} · còn ${minutesLeft(phase.remaining)}`, tone: '' };
+  }
+  if (phase.kind === 'rest') return { icon: '☕', text: `Nghỉ tại chỗ · ${minutesLeft(phase.remaining)}`, tone: 'break' };
+  if (phase.kind === 'recess') return { icon: '🪁', text: `Ra chơi · ${minutesLeft(phase.remaining)}`, tone: 'break' };
+  if (ctx.night) return { icon: '🌙', text: 'Ban đêm', tone: 'night' };
+  if (phase.next) {
+    const soon = phase.remaining <= SCHOOL.alertBefore;
+    return {
+      icon: soon ? '🔔' : '⏳',
+      text: soon ? `Tiết ${phase.next.period} sau ${minutesLeft(phase.remaining)}` : `Tiết ${phase.next.period} lúc ${clockText(phase.next.start)}`,
+      tone: '',
+      alert: soon,
+    };
+  }
+  return { icon: '🏡', text: 'Tan học', tone: '' };
 }
 
-let shownSecond = -1;
+let shownKey = '';
 function refreshPhase(force = false) {
-  const second = Math.ceil(schedule.remaining);
-  if (!force && second === shownSecond) return;
-  shownSecond = second;
-  const inClass = schedule.phase === 'class';
-  phaseUI.icon.textContent = inClass ? '📖' : '🪁';
-  phaseUI.time.textContent = formatTime(schedule.remaining);
-  const status = `${inClass ? 'Giờ học' : 'Ra chơi'} · còn ${formatTime(schedule.remaining)}`;
-  phaseUI.pill.title = status;
-  phaseUI.pill.setAttribute('aria-label', `${status}. Mở cài đặt`);
-  phaseUI.pill.classList.toggle('break', !inClass);
-  phaseUI.skip.textContent = inClass ? '⏩ Ra chơi ngay' : '⏩ Vào học ngay';
-  phaseUI.hint.textContent = `${inClass ? '📖 Đang trong giờ học' : '🪁 Đang ra chơi'} · còn ${formatTime(schedule.remaining)}`;
-  phaseUI.hint.classList.toggle('break', !inClass);
+  const status = phaseStatus(context);
+  const clockLabel = clockText(context.minutes);
+  const key = `${clockLabel}|${status.text}`;
+  if (!force && key === shownKey) return;
+  shownKey = key;
+  phaseUI.clock.textContent = clockLabel;
+  phaseUI.icon.textContent = status.icon;
+  phaseUI.time.textContent = status.text;
+  phaseUI.bell.hidden = !status.alert;
+  phaseUI.pill.classList.toggle('break', status.tone === 'break');
+  phaseUI.pill.classList.toggle('night', status.tone === 'night');
+  phaseUI.pill.classList.toggle('alert', !!status.alert);
+  const label = `Ngày ${context.day}, ${clockLabel} · ${status.text}`;
+  phaseUI.pill.title = label;
+  phaseUI.pill.setAttribute('aria-label', `${label}. Mở thời khoá biểu`);
+  if (phaseUI.dialog.open) renderSchedule();
+}
+
+function renderSchedule() {
+  const { phase, minute, day } = context;
+  const schedule = phase.schedule;
+  phaseUI.dayClock.textContent = `Ngày ${day} · ${clockText(context.minutes)} · ${moonName(sky.phase)} · ${sessionLabel(schedule.plan)}`;
+  const items = [];
+  let lastEnd = 0;
+  for (const seg of schedule.segments) {
+    if (lastEnd && seg.start - lastEnd > 60) {
+      const li = document.createElement('li');
+      li.className = 'lunch';
+      li.textContent = `Nghỉ trưa · ${clockText(lastEnd)} – ${clockText(seg.start)}`;
+      items.push(li);
+    }
+    lastEnd = seg.end;
+    const li = document.createElement('li');
+    const name = seg.kind === 'period' ? `📖 Tiết ${seg.period}` : seg.kind === 'rest' ? '☕ Nghỉ tại chỗ' : '🪁 Ra chơi';
+    const label = document.createElement('span');
+    label.textContent = name;
+    const time = document.createElement('span');
+    time.textContent = `${clockText(seg.start)} – ${clockText(seg.end)}`;
+    li.append(label, time);
+    li.classList.toggle('break', seg.kind !== 'period');
+    li.classList.toggle('now', minute >= seg.start && minute < seg.end);
+    li.classList.toggle('past', minute >= seg.end);
+    items.push(li);
+  }
+  phaseUI.list.replaceChildren(...items);
+  const status = phaseStatus(context);
+  const credits = purse.credits ? ` · đã đóng trước ${purse.credits} tiết` : '';
+  phaseUI.hint.textContent = `${status.icon} ${status.text} · học phí ${SCHOOL.tuition} ${MONEY.icon}/tiết${credits}`;
+  phaseUI.hint.classList.toggle('break', status.tone === 'break');
 }
 
 function openSchedule() {
-  phaseUI.classInput.value = schedule.classMinutes;
-  phaseUI.breakInput.value = schedule.breakMinutes;
   lessonSelect.value = String(lesson.choice);
   showMode(lesson.mode);
-  refreshPhase(true);
+  renderSchedule();
   phaseUI.dialog.showModal();
 }
 
-schedule.onChange((phase) => {
-  classmates.setPhase(phase);
-  if (phase === 'break') {
-    player.standUp();
-  } else {
-    lesson.nextPeriod();
-    if (player.posture === 'seated') lesson.open();
-  }
-  refreshPhase(true);
-});
-
-phaseUI.button.addEventListener('click', openSchedule);
 phaseUI.pill.addEventListener('click', openSchedule);
-phaseUI.button.addEventListener('pointerup', () => phaseUI.button.blur());
 phaseUI.pill.addEventListener('pointerup', () => phaseUI.pill.blur());
 phaseUI.cancel.addEventListener('click', () => phaseUI.dialog.close());
 phaseUI.close.addEventListener('click', () => phaseUI.dialog.close());
-for (const step of phaseUI.form.querySelectorAll('.step')) {
-  step.addEventListener('click', () => {
-    const input = document.getElementById(step.dataset.target);
-    const value = Number(input.value) || 0;
-    const next = Number(step.dataset.dir) > 0 ? (value < 1 ? 1 : Math.floor(value) + 1) : value <= 1 ? 0.5 : Math.ceil(value) - 1;
-    input.value = Math.min(180, Math.max(0.5, next));
-  });
-}
-phaseUI.skip.addEventListener('click', () => {
-  schedule.advance();
-  phaseUI.dialog.close();
-});
 phaseUI.dialog.addEventListener('click', (e) => {
   if (e.target === phaseUI.dialog) phaseUI.dialog.close();
 });
 phaseUI.form.addEventListener('submit', (e) => {
   e.preventDefault();
-  const classMinutes = Number(phaseUI.classInput.value);
-  const breakMinutes = Number(phaseUI.breakInput.value);
-  if (!schedule.setMinutes(classMinutes, breakMinutes)) return;
   lesson.setMode(pendingMode, Number(lessonSelect.value));
-  refreshPhase(true);
   phaseUI.dialog.close();
 });
+
+let lastPhaseKey = context.phase.key;
+function onPhaseChange(ctx) {
+  const kind = ctx.phase.kind;
+  if (kind === 'period') {
+    lesson.nextPeriod();
+    return;
+  }
+  lesson.close();
+  if (player.posture === 'seated' && (kind === 'recess' || kind === 'free')) player.standUp();
+}
 
 const BASE_FOV = 55;
 function frameCamera() {
@@ -536,6 +834,7 @@ function updateOutlines(t) {
   }
 }
 
+let shownNight = -1;
 renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const frameRate = lesson.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
@@ -544,18 +843,42 @@ renderer.setAnimationLoop((time) => {
   if (LOW_POWER) adaptResolution(time, frameRate);
   const dt = Math.min(clock.getDelta(), 0.07);
   const t = clock.elapsedTime;
+  context = contextAt(gameNow());
+  purse.rest(context.minutes);
+  if (context.phase.key !== lastPhaseKey) {
+    lastPhaseKey = context.phase.key;
+    onPhaseChange(context);
+  }
+  const night = sky.update(context.minutes, camera, player.position, SHADOW_SPAN);
+  if (Math.abs(night - shownNight) > 0.01) {
+    shownNight = night;
+    school.setNight(night);
+    village.setNight(night);
+    river.setNight(night);
+  }
+  notice.refresh(context.day);
+  if (context.day !== lastDay) {
+    lastDay = context.day;
+    if (ledger.spoilFish(context.day).includes(PLAYER)) sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3);
+  }
   footprints.update(t);
-  schedule.update(dt);
+  tuition.update(context, player.posture === 'seated');
+  playerStudyIcon.visible = player.posture === 'seated' && learningNow() && !context.phase.paying;
   refreshPhase();
-  classmates.update(t, dt, schedule.phase === 'break' ? schedule.remaining : Infinity);
-  school.update(t, schedule.phase === 'class');
-  clouds.update(dt);
+  farm.tick();
+  town.update(t, dt, context, player, camera);
+  updateLine();
+  school.update(t, context.phase.kind === 'period' && !context.phase.paying);
+  village.update(t, context, camera);
+  river.update(dt);
+  clouds.update(dt, night);
   player.update(dt);
   for (const effect of Object.values(effects)) effect.update(dt);
+  fishing.update();
+  angler.update(dt);
   regions.update(t, dt, player.position);
   quiz.update(dt, regions.active?.id !== 'school');
-  updateHover();
-  followSun(player.position);
+  updateHover(t);
   updateOutlines(t);
   playerBubble.update(t);
   avatar.face.update(t);

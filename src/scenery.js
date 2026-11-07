@@ -191,19 +191,6 @@ function rafterTexture() {
   });
 }
 
-function skyTexture() {
-  return canvasTexture(256, (ctx, s) => {
-    const g = ctx.createLinearGradient(0, 0, 0, s);
-    g.addColorStop(0, '#5aa9e6');
-    g.addColorStop(0.6, '#a9d7f0');
-    g.addColorStop(1, '#e6f2f0');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, s, s);
-  });
-}
-
-export const HORIZON = 0xd8ecef;
-
 export function roundedRectGeometry(x0, z0, x1, z1, r) {
   const s = new THREE.Shape();
   const ay = -z1;
@@ -746,11 +733,6 @@ export function markMaterial(color) {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
-}
-
-export function createSky(scene) {
-  scene.background = skyTexture();
-  scene.fog = new THREE.Fog(HORIZON, 70, 190);
 }
 
 export function createScenery(scene, layout) {

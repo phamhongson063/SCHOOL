@@ -53,6 +53,7 @@ export function createWatering(scene, avatar) {
     MAX_DROPS,
   );
   drops.count = 0;
+  drops.visible = false;
   drops.frustumCulled = false;
   scene.add(drops);
 
@@ -143,6 +144,7 @@ export function createWatering(scene, avatar) {
         drops.setMatrixAt(i, matrix);
       }
       drops.count = alive;
+      drops.visible = alive > 0;
       if (alive) drops.instanceMatrix.needsUpdate = true;
     },
   };

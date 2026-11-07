@@ -42,6 +42,7 @@ export function createClearing(scene, avatar) {
 
   const bits = new THREE.InstancedMesh(new THREE.BoxGeometry(0.035, 0.035, 0.035), new THREE.MeshBasicMaterial(), MAX_BITS);
   bits.count = 0;
+  bits.visible = false;
   bits.frustumCulled = false;
   const tint = new THREE.Color();
   for (let i = 0; i < MAX_BITS; i++) bits.setColorAt(i, tint.set(BITS[i % BITS.length]));
@@ -123,6 +124,7 @@ export function createClearing(scene, avatar) {
       }
       particles.length = alive;
       bits.count = alive;
+      bits.visible = alive > 0;
       if (alive) bits.instanceMatrix.needsUpdate = true;
     },
   };

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, shade, toonMaterial, vertexMaterial } from './toon.js';
+import { Batch, labelBox, shapes, shade, toonMaterial, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 
 const OUTLINE = 0.01;
@@ -258,9 +258,7 @@ export function textBoard({ lines, width, height, depth, bg, fg, border, seal = 
   paint();
   document.fonts?.load(`64px "Water Brush"`, lines.join(' ')).then(paint, () => {});
 
-  const side = toonMaterial({ color: border });
-  const front = toonMaterial({ map: texture });
-  const mesh = new THREE.Mesh(shapes.box(width, height, depth), [side, side, side, side, front, side]);
+  const mesh = new THREE.Mesh(labelBox(width, height, depth), toonMaterial({ map: texture }));
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;

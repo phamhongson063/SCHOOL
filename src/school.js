@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { makeRandom } from './random.js';
-import { createStudent, createTeacher } from './characters.js';
+import { freeze } from './toon.js';
+import { createTeacher } from './characters.js';
 import {
   studentFurniture,
   teacherPlatform,
@@ -25,7 +26,7 @@ export const HOUSE = {
     [0, 3],
   ],
 };
-export const STAIRS ={ x0: -3, x1: 4, top: 8, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
+export const STAIRS = { x0: -3, x1: 4, top: 8, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
 
 export function stairHeight(x, z) {
   const { x0, x1, top, count, rise, tread } = STAIRS;
@@ -33,17 +34,11 @@ export function stairHeight(x, z) {
   return (count - Math.floor((z - top) / tread)) * rise;
 }
 
-const SHIRTS = [0x8a5a34, 0x6e4a30, 0xa0703f, 0x4a6a9a, 0x5a7a4a, 0xb0804a];
-const PANTS = [0xf1ebdc, 0x3a3430, 0xe0d4b8];
-const SKINS = [0xf0c09a, 0xe6b08a, 0xf5caa6];
-const STYLES = ['chom', 'bachom', 'toc', 'bui', 'khan'];
-const KHANS = [0x3a3430, 0x8a3a2a, 0x4a6a9a];
-const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 const ROWS = [-6.6, -3.6, -0.6, 2.4];
-const COLUMNS = [-6.5, -2.5, 2.5, 6.5];
-const OCCUPIED_ROWS = 3;
+const COLUMNS = [-10.5, -6.5, -2.5, 2.5, 6.5, 10.5];
 const WALL_Z = HOUSE.back + 0.6;
-const TEACHER_Z = WALL_Z + 0.33 + 1.125;
+export const TEACHER_Z = WALL_Z + 0.33 + 1.125;
+export const TEACHER_STAND = { x: CX + 2.1, z: TEACHER_Z + 1.9 };
 
 function terrain(world) {
   for (let x = -44; x <= 44; x++) {
@@ -275,8 +270,6 @@ export function buildWorld(world) {
 export function populate(scene) {
   const root = new THREE.Group();
   scene.add(root);
-  const rand = makeRandom(77);
-  const pick = (list) => list[Math.floor(rand() * list.length)];
   const obstacles = [];
   const block = (minX, minZ, maxX, maxZ, minY = FLOOR) => {
     obstacles.push({ minX, minZ, maxX, maxZ, minY, maxY: minY + 3 });
@@ -297,10 +290,9 @@ export function populate(scene) {
   root.add(area);
   block(CX - 1.55, TEACHER_Z - 1.2, CX + 1.55, TEACHER_Z + 1.2);
 
-  const students = [];
   const seats = [];
   let seed = 1000;
-  ROWS.forEach((sz, row) => {
+  ROWS.forEach((sz) => {
     for (const dx of COLUMNS) {
       seed += 17;
       const x = CX + dx;
@@ -310,8 +302,7 @@ export function populate(scene) {
       furniture.add(studentFurniture(seed));
       root.add(furniture);
       block(x - 0.5, sz - 0.8, x + 0.5, sz + 0.42);
-
-      const seat = {
+      seats.push({
         index: seats.length,
         x,
         z: sz,
@@ -323,27 +314,6 @@ export function populate(scene) {
           group.position.set(x, FLOOR + 0.02, sz);
           group.rotation.set(0, Math.PI, 0);
         },
-      };
-      seats.push(seat);
-      if (row >= OCCUPIED_ROWS) continue;
-
-      const options = {
-        shirt: pick(SHIRTS),
-        pants: pick(PANTS),
-        skin: pick(SKINS),
-        style: pick(STYLES),
-        khan: pick(KHANS),
-        iris: pick(IRISES),
-      };
-      const student = createStudent(options);
-      seat.place(student.group);
-      root.add(student.group);
-      students.push({
-        ...student,
-        options,
-        seat,
-        phase: rand() * Math.PI * 2,
-        writing: rand() < 0.6,
       });
     }
   });
@@ -370,10 +340,12 @@ export function populate(scene) {
     root.add(board);
   }
 
+  const glows = [];
   for (const x of [CX - 9.5, CX - 3, CX + 3, CX + 9.5]) {
     const lamp = lantern();
     lamp.position.set(x, 8.15, 6.5);
     lamp.castShadow = false;
+    glows.push(lamp.material);
     root.add(lamp);
   }
 
@@ -398,29 +370,43 @@ export function populate(scene) {
     block(x - 0.42, z - 0.42, x + 0.42, z + 0.42, 0);
   }
 
+  for (const child of root.children) {
+    if (child !== area) freeze(child);
+  }
+  for (const child of area.children) {
+    if (child !== teacher.group) freeze(child);
+  }
+  root.updateMatrix();
+  root.matrixAutoUpdate = false;
+  area.updateMatrix();
+  area.matrixAutoUpdate = false;
+
   return {
     root,
     obstacles,
-    students,
     seats,
+    teacher,
     teacherHead: new THREE.Vector3(CX, FLOOR + 1.45, TEACHER_Z - 0.34),
-    update(t, inClass = true) {
-      for (const s of students) {
-        if (!s.group.visible) continue;
-        if (s.writing) {
-          s.head.rotation.x = 0.3 + Math.sin(t * 1.3 + s.phase) * 0.04;
-          s.rightArm.rotation.x = -(0.03 + (Math.sin(t * 6 + s.phase) * 0.5 + 0.5) * 0.06);
-          s.rightArm.rotation.y = Math.sin(t * 3 + s.phase) * 0.06;
-          s.face.update(t, 'open');
-        } else {
-          s.head.rotation.x = -0.05 + Math.sin(t * 2.4 + s.phase) * 0.08;
-          s.head.rotation.y = Math.sin(t * 0.5 + s.phase) * 0.12;
-          s.face.update(t, Math.sin(t * 9 + s.phase) > 0.1 ? 'talk' : 'open');
-        }
+    get teacherPresent() {
+      return teacher.group.visible;
+    },
+    setTeacherPresent(present) {
+      teacher.group.visible = present;
+    },
+    isTeacher(object) {
+      for (let node = object; node; node = node.parent) {
+        if (node === teacher.group) return true;
       }
+      return false;
+    },
+    setNight(k) {
+      for (const material of glows) material.emissiveIntensity = 1 + k * 5;
+    },
+    update(t, teaching = true) {
+      if (!teacher.group.visible) return;
       teacher.head.rotation.y = Math.sin(t * 0.45) * 0.5;
       teacher.head.rotation.x = 0.08 + Math.sin(t * 0.9) * 0.04;
-      const tap = inClass ? Math.pow(Math.max(0, Math.sin(t * 0.8)), 12) : 0;
+      const tap = teaching ? Math.pow(Math.max(0, Math.sin(t * 0.8)), 12) : 0;
       teacher.rightArm.rotation.x = -tap * 0.7;
       teacher.face.update(t, tap > 0.2 ? 'stern' : 'open');
     },

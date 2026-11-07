@@ -18,6 +18,7 @@
 #hud,
 #toolbar,
 #phasePill,
+#payPopup,
 #lessonOpen,
 #picker {
   -webkit-user-select: none;
@@ -52,21 +53,85 @@ body {
   z-index: 3;
 }
 
-#helpBtn {
-  font: 700 20px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+.vitals {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(28, 20, 14, 0.75);
+  cursor: default;
 }
 
-#helpPanel {
+.vitals svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.vitals-track {
+  fill: none;
+  stroke: rgba(28, 20, 14, 0.85);
+  stroke-width: 6;
+}
+
+.vitals-ring {
+  fill: none;
+  stroke: url(#energyGlow);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 32px 32px;
+  transition: stroke-dashoffset 0.35s ease-out;
+  filter: drop-shadow(0 0 2px rgba(255, 210, 74, 0.8));
+}
+
+.vitals.low .vitals-ring {
+  stroke: #e8502a;
+  filter: drop-shadow(0 0 3px rgba(232, 80, 42, 0.9));
+  animation: energy-pulse 0.9s ease-in-out infinite;
+}
+
+.vitals-value {
   position: absolute;
-  top: calc(100% + 8px);
+  right: -6px;
+  bottom: -4px;
+  min-width: 26px;
+  padding: 2px 6px;
+  border: 2px solid #c9962f;
+  border-radius: 999px;
+  background: rgba(28, 20, 14, 0.9);
+  color: #f2cf63;
+  font: 700 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.vitals.low .vitals-value {
+  border-color: #e8502a;
+  color: #ffb39a;
+}
+
+.vitals:focus-visible {
+  outline: 2px solid #f2cf63;
+  outline-offset: 3px;
+}
+
+.vitals-info {
+  position: absolute;
+  top: calc(100% + 10px);
   left: 0;
+  display: grid;
+  gap: 4px;
   width: max-content;
-  max-width: min(360px, calc(100vw - 32px));
-  padding: 12px 14px;
-  background: rgba(28, 20, 14, 0.85);
-  color: #f4ead2;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 10px 12px;
   border: 2px solid #c9962f;
   border-radius: 6px;
+  background: rgba(28, 20, 14, 0.9);
+  color: #f4ead2;
   font-size: 13px;
   line-height: 1.45;
   opacity: 0;
@@ -76,21 +141,31 @@ body {
   pointer-events: none;
 }
 
-#hud:hover #helpPanel,
-#helpBtn:focus + #helpPanel {
+.vitals-info strong {
+  color: #f2cf63;
+}
+
+#hud:hover .vitals-info,
+.vitals:focus + .vitals-info {
   opacity: 1;
   visibility: visible;
   transform: none;
 }
 
-#helpPanel h1 {
-  margin: 0 0 4px;
-  font-size: 16px;
-  color: #f2cf63;
+@keyframes energy-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
-#helpPanel p {
-  margin: 0;
+@media (prefers-reduced-motion: reduce) {
+  .vitals.low .vitals-ring {
+    animation: none;
+  }
 }
 
 #toolbar {
@@ -336,7 +411,7 @@ body {
   }
 }
 
-#scheduleDialog {
+dialog.paper {
   width: min(400px, calc(100vw - 32px));
   padding: 0;
   border: 6px solid #6b4425;
@@ -351,16 +426,17 @@ body {
   font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-#scheduleDialog[open] {
+dialog.paper[open] {
   animation: pop-in 0.38s cubic-bezier(0.22, 1.4, 0.36, 1) both;
 }
 
-#scheduleDialog::backdrop {
+dialog.paper::backdrop {
   background: rgba(20, 12, 6, 0.45);
   backdrop-filter: blur(2px);
 }
 
-#scheduleForm {
+#scheduleForm,
+.paper-body {
   padding: 18px 22px 20px;
 }
 
@@ -874,7 +950,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .lesson.show,
   .lesson.show::after,
-  #scheduleDialog[open] {
+  dialog.paper[open] {
     animation: none;
   }
 }
@@ -919,13 +995,26 @@ body {
   background: #f2e3bd;
 }
 
-.lesson-furigana[aria-pressed="true"] {
+.lesson-furigana[aria-pressed="true"],
+.lesson-translate[aria-pressed="true"] {
   background: #c9962f;
   color: #fffaf0;
 }
 
-.lesson-furigana[aria-pressed="true"]:hover {
+.lesson-furigana[aria-pressed="true"]:hover,
+.lesson-translate[aria-pressed="true"]:hover {
   background: #b5842a;
+}
+
+.lesson-vi {
+  display: none;
+  margin: -0.3em 0 0.3em;
+  color: #6b4425;
+  font: 500 0.66em/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.lesson.show-vi .lesson-vi {
+  display: block;
 }
 
 .lesson.no-furigana rt {
@@ -1177,4 +1266,574 @@ body {
 
 #lessonOpen[hidden] {
   display: none;
+}
+
+.wallet {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 12px;
+  border: 2px solid #c9962f;
+  border-radius: 6px;
+  background: rgba(28, 20, 14, 0.75);
+  color: #f2cf63;
+  font: 700 16px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wallet.bump {
+  animation: bag-bump 0.45s ease-out;
+}
+
+.bag-money {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: -4px 0 10px;
+  color: #f2cf63;
+  font: 700 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.bag-money #bagCredits {
+  color: #cbe7a8;
+  font-weight: 600;
+}
+
+.bag-groups {
+  display: grid;
+  gap: 10px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.bag-group h3 {
+  margin: 0 0 6px;
+  color: #cbbf9f;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bag-slot.seed {
+  border-style: dashed;
+  background: rgba(46, 70, 30, 0.85);
+}
+
+.bag-slot-badge {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+#phaseClock {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: #fff3d6;
+}
+
+#phaseIcon {
+  padding-left: 8px;
+  border-left: 1px solid rgba(201, 150, 47, 0.6);
+}
+
+#phasePill.night {
+  background: rgba(16, 22, 48, 0.88);
+  border-color: #8ea0d8;
+}
+
+#phasePill.alert {
+  border-color: #ffd24a;
+  box-shadow: 0 0 0 3px rgba(255, 210, 74, 0.35);
+}
+
+#phaseBell {
+  display: inline-block;
+  animation: bell-ring 0.9s ease-in-out infinite;
+}
+
+@keyframes bell-ring {
+  0%,
+  100% {
+    transform: rotate(0);
+    opacity: 1;
+  }
+  20% {
+    transform: rotate(-18deg);
+  }
+  40% {
+    transform: rotate(14deg);
+    opacity: 0.55;
+  }
+  60% {
+    transform: rotate(-8deg);
+  }
+}
+
+.pay-popup {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--pill-gap) + var(--safe-bottom) + var(--pill-height) + 14px);
+  z-index: 4;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px 18px;
+  transform: translateX(-50%);
+  border: 4px solid #6b4425;
+  border-radius: 12px;
+  outline: 2px solid #c9962f;
+  outline-offset: -8px;
+  background: radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
+  color: #2b1c12;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  font: 600 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+  animation: pay-in 0.3s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+}
+
+@keyframes pay-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.pay-popup p {
+  margin: 0 0 8px;
+}
+
+.pay-popup .pay-note {
+  color: #8a1d14;
+  font-size: 13px;
+}
+
+.pay-popup .pay-note:empty {
+  display: none;
+}
+
+.pay-row button {
+  padding: 8px 22px;
+  border: 2px solid #c9962f;
+  border-radius: 8px;
+  background: #8a1d14;
+  color: #fff3d6;
+  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.pay-row button:hover {
+  background: #a3271b;
+}
+
+.pay-row button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pay-track {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(107, 68, 37, 0.18);
+  overflow: hidden;
+}
+
+.pay-bar {
+  display: block;
+  height: 100%;
+  background: #c9962f;
+  transform-origin: left;
+}
+
+dialog.paper.wide {
+  width: min(520px, calc(100vw - 24px));
+}
+
+.sched-badge.emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.paper-money {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(107, 68, 37, 0.12);
+  color: #6b4425;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-note {
+  margin: 0 0 12px;
+  color: #6b4425;
+  font-size: 14px;
+}
+
+.paper-note:empty {
+  display: none;
+}
+
+.paper-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.paper-tabs button {
+  padding: 9px 8px;
+  border: 2px solid #d9c49a;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.8);
+  color: #4a2e18;
+  font: 700 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.paper-tabs button[aria-selected="true"] {
+  border-color: #8a1d14;
+  background: #fff3df;
+  color: #8a1d14;
+}
+
+.shop-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(56vh, 460px);
+  margin-bottom: 10px;
+  overflow-y: auto;
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #d9c49a;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.85);
+}
+
+.shop-row.owned {
+  opacity: 0.75;
+}
+
+.shop-icon {
+  flex: none;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.shop-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.shop-text strong {
+  color: #2b1c12;
+  font-size: 14px;
+}
+
+.shop-text small {
+  color: #8a6a3a;
+  font-size: 12px;
+}
+
+.shop-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.shop-actions button {
+  padding: 7px 10px;
+  border: 2px solid #c9962f;
+  border-radius: 8px;
+  background: #8a1d14;
+  color: #fff3d6;
+  font: 700 13px/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shop-actions button:hover {
+  background: #a3271b;
+}
+
+.shop-actions button:disabled {
+  border-color: #d9c49a;
+  background: rgba(107, 68, 37, 0.12);
+  color: #a08a6a;
+  cursor: default;
+}
+
+.sched-clock {
+  margin: -6px 0 10px;
+  color: #6b4425;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sched-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.sched-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 252, 240, 0.7);
+  color: #2b1c12;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sched-list li.break {
+  color: #2e6e46;
+}
+
+.sched-list li.lunch {
+  justify-content: center;
+  background: transparent;
+  color: #8a6a3a;
+  font-style: italic;
+}
+
+.sched-list li.now {
+  outline: 2px solid #8a1d14;
+  background: #fff3df;
+  font-weight: 700;
+}
+
+.sched-list li.past {
+  opacity: 0.5;
+}
+
+@media (max-width: 600px) {
+  .wallet {
+    height: 40px;
+    padding: 0 10px;
+    font-size: 15px;
+  }
+
+  #phasePill {
+    gap: 6px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .shop-row {
+    flex-wrap: wrap;
+  }
+
+  .shop-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #phaseBell,
+  .wallet.bump,
+  .pay-popup {
+    animation: none;
+  }
+}
+
+.danger-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #8a1d14;
+  border-radius: 10px;
+  background: rgba(138, 29, 20, 0.08);
+  color: #8a1d14;
+  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.danger-btn:hover {
+  background: rgba(138, 29, 20, 0.16);
+}
+
+.reset-confirm {
+  padding: 12px;
+  border: 2px dashed #8a1d14;
+  border-radius: 10px;
+  background: rgba(255, 243, 223, 0.9);
+}
+
+.reset-confirm p {
+  margin: 0 0 10px;
+  color: #4a2e18;
+  font-size: 14px;
+}
+
+.sched-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+dialog.paper.kanji {
+  width: min(420px, calc(100vw - 24px));
+}
+
+.kanji .paper-body {
+  position: relative;
+}
+
+.kanji-word {
+  margin: 4px 0 14px;
+  color: #2b1c12;
+  font: 700 clamp(44px, 12vw, 64px)/1.2 "BIZ UDPGothic", system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.kanji-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.kanji-options button {
+  padding: 12px 8px;
+  border: 2px solid #d9c49a;
+  border-radius: 12px;
+  background: rgba(255, 252, 240, 0.9);
+  color: #2b1c12;
+  font: 600 20px/1.2 "BIZ UDPGothic", system-ui, sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+
+.kanji-options button:hover:not(:disabled) {
+  border-color: #c9962f;
+}
+
+.kanji-options button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.kanji-options button:disabled {
+  cursor: default;
+}
+
+.kanji-options button.right {
+  border-color: #2e6e46;
+  background: #dff1e3;
+  color: #1f5534;
+}
+
+.kanji-options button.wrong {
+  border-color: #8a1d14;
+  background: #f8dcd8;
+  color: #8a1d14;
+}
+
+.kanji-track {
+  position: static;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.kanji-result {
+  min-height: 2.8em;
+  margin: 0;
+  color: #6b4425;
+  font-size: 14px;
+  text-align: center;
+}
+
+.kanji-result.right {
+  color: #1f5534;
+  font-weight: 700;
+}
+
+.kanji-result.wrong {
+  color: #8a1d14;
+  font-weight: 700;
+}
+
+.bag-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.bag-tab {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 2px 5px;
+  border: 2px solid #6b4425;
+  border-radius: 8px;
+  background: rgba(58, 38, 22, 0.9);
+  color: #cbbf9f;
+  font: 600 11px/1.15 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.bag-tab:hover {
+  border-color: #c9962f;
+  color: #f4ead2;
+}
+
+.bag-tab[aria-selected="true"] {
+  border-color: #f2cf63;
+  background: #8a1d14;
+  color: #fff3d6;
+}
+
+.bag-tab:focus-visible {
+  outline: 2px solid #f2cf63;
+  outline-offset: 2px;
+}
+
+.bag-tab-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.bag-tab-label {
+  white-space: nowrap;
+}
+
+.bag-tab-count {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #f2cf63;
+  color: #2b1c12;
+  font: 700 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+#bagSlots {
+  max-height: min(48vh, 320px);
+  overflow-y: auto;
 }
