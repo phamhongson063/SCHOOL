@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trường Làng Xưa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Water+Brush&family=Dancing+Script:wght@600&family=BIZ+UDPGothic:wght@400;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud">
+    <button id="helpBtn" class="icon-btn" type="button" aria-label="Hướng dẫn" aria-describedby="helpPanel">?</button>
+    <div id="helpPanel" role="tooltip">
+      <h1>Trường làng xưa</h1>
+      <p id="help"></p>
+    </div>
+  </div>
+  <div id="toolbar">
+    <button id="scheduleBtn" class="icon-btn" type="button" title="Cài đặt" aria-label="Cài đặt">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </button>
+    <button id="viewBtn" class="icon-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    </button>
+    <button id="modeBtn" class="icon-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+        <path d="M9 4v14M15 6v14" />
+      </svg>
+    </button>
+    <button id="roofBtn" class="icon-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 11 12 3l10 8" />
+        <path d="M5 9.5V20h14V9.5" />
+        <path d="M10 20v-5h4v5" />
+      </svg>
+    </button>
+  </div>
+  <section id="lesson" class="lesson" aria-hidden="true" aria-label="Bài học">
+    <button id="lessonClose" class="lesson-close" type="button" aria-label="Đóng bài học">×</button>
+    <div class="lesson-head">
+      <h2 class="lesson-phrase" lang="ja"></h2>
+      <span class="lesson-hint-wrap">
+        <button id="lessonHint" class="lesson-hint" type="button" aria-label="Xem nghĩa" aria-describedby="lessonMeaning">?</button>
+        <span id="lessonMeaning" class="lesson-tooltip" role="tooltip"></span>
+      </span>
+    </div>
+    <p class="lesson-romaji"></p>
+    <div class="lesson-picker">
+      <p class="lesson-picker-title">Chọn bài cho tiết học này</p>
+      <div class="lesson-cards"></div>
+    </div>
+    <div class="lesson-example">
+      <p class="lesson-situation"></p>
+      <div class="lesson-lines" lang="ja"></div>
+    </div>
+    <div class="lesson-footer">
+      <span class="lesson-progress"></span>
+    </div>
+  </section>
+  <button id="lessonOpen" type="button" hidden>📜 Bài học</button>
+  <button id="phasePill" type="button" title="Cài đặt">
+    <span id="phaseIcon" aria-hidden="true"></span>
+    <span id="phaseLabel"></span>
+    <span id="phaseTime"></span>
+  </button>
+  <dialog id="scheduleDialog" aria-labelledby="scheduleTitle">
+    <form id="scheduleForm">
+      <header class="sched-head">
+        <span class="sched-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </span>
+        <h2 id="scheduleTitle">Cài đặt</h2>
+        <button id="scheduleClose" class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <h3 class="sched-section">Thời gian biểu</h3>
+      <div class="sched-row">
+        <label class="sched-label" for="classInput"><span aria-hidden="true">📖</span>Giờ học</label>
+        <div class="stepper">
+          <button class="step" type="button" data-target="classInput" data-dir="-1" aria-label="Giảm giờ học">−</button>
+          <input id="classInput" type="number" inputmode="decimal" min="0.5" max="180" step="0.5" required />
+          <button class="step" type="button" data-target="classInput" data-dir="1" aria-label="Tăng giờ học">+</button>
+        </div>
+        <span class="sched-unit">phút</span>
+      </div>
+      <div class="sched-row">
+        <label class="sched-label" for="breakInput"><span aria-hidden="true">🪁</span>Giờ ra chơi</label>
+        <div class="stepper">
+          <button class="step" type="button" data-target="breakInput" data-dir="-1" aria-label="Giảm giờ ra chơi">−</button>
+          <input id="breakInput" type="number" inputmode="decimal" min="0.5" max="180" step="0.5" required />
+          <button class="step" type="button" data-target="breakInput" data-dir="1" aria-label="Tăng giờ ra chơi">+</button>
+        </div>
+        <span class="sched-unit">phút</span>
+      </div>
+      <p class="sched-status" id="scheduleHint"></p>
+      <h3 class="sched-section">Chế độ học</h3>
+      <div class="mode-switch" role="radiogroup" aria-label="Chế độ học">
+        <button class="mode-option" type="button" role="radio" data-mode="random" aria-checked="true">
+          <span class="mode-icon" aria-hidden="true">🎲</span>
+          <strong>Ngẫu nhiên</strong>
+          <small>Mỗi tiết một ví dụ bất kỳ</small>
+        </button>
+        <button class="mode-option" type="button" role="radio" data-mode="choose" aria-checked="false">
+          <span class="mode-icon" aria-hidden="true">📚</span>
+          <strong>Chọn bài</strong>
+          <small>Vào tiết tự chọn bài muốn học</small>
+        </button>
+      </div>
+      <div class="sched-actions">
+        <button id="skipBtn" class="sched-skip" type="button"></button>
+        <span class="spacer"></span>
+        <button id="cancelBtn" class="sched-ghost" type="button">Huỷ</button>
+        <button class="sched-primary" type="submit">Lưu</button>
+      </div>
+    </form>
+  </dialog>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+const MAX_STEP = 0.55;
+const DIRS = [
+  [1, 0, 1],
+  [-1, 0, 1],
+  [0, 1, 1],
+  [0, -1, 1],
+  [1, 1, Math.SQRT2],
+  [1, -1, Math.SQRT2],
+  [-1, 1, Math.SQRT2],
+  [-1, -1, Math.SQRT2],
+];
+
+class MinHeap {
+  constructor() {
+    this.nodes = [];
+    this.keys = [];
+  }
+
+  get size() {
+    return this.nodes.length;
+  }
+
+  push(node, key) {
+    const { nodes, keys } = this;
+    let i = nodes.length;
+    nodes.push(node);
+    keys.push(key);
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (keys[parent] <= key) break;
+      nodes[i] = nodes[parent];
+      keys[i] = keys[parent];
+      i = parent;
+    }
+    nodes[i] = node;
+    keys[i] = key;
+  }
+
+  pop() {
+    const { nodes, keys } = this;
+    const top = nodes[0];
+    const node = nodes.pop();
+    const key = keys.pop();
+    const n = nodes.length;
+    if (n === 0) return top;
+    let i = 0;
+    while (true) {
+      const left = i * 2 + 1;
+      if (left >= n) break;
+      const child = left + 1 < n && keys[left + 1] < keys[left] ? left + 1 : left;
+      if (keys[child] >= key) break;
+      nodes[i] = nodes[child];
+      keys[i] = keys[child];
+      i = child;
+    }
+    nodes[i] = node;
+    keys[i] = key;
+    return top;
+  }
+}
+
+function surface(world, bx, bz) {
+  for (let y = -2; y <= 3; y++) {
+    if (!world.isSolid(bx, y - 1, bz) || world.isSolid(bx, y, bz) || world.isSolid(bx, y + 1, bz)) continue;
+    return world.get(bx, y, bz) === 'water' ? null : y;
+  }
+  return null;
+}
+
+export class NavGrid {
+  constructor(world, collides, bounds, { cell = 0.5, surfaceAt = null } = {}) {
+    this.cell = cell;
+    this.x0 = bounds.x0;
+    this.z0 = bounds.z0;
+    this.w = Math.round((bounds.x1 - bounds.x0) / cell);
+    this.d = Math.round((bounds.z1 - bounds.z0) / cell);
+    this.heights = new Float32Array(this.w * this.d).fill(NaN);
+
+    for (let j = 0; j < this.d; j++) {
+      for (let i = 0; i < this.w; i++) {
+        const x = this.x0 + (i + 0.5) * cell;
+        const z = this.z0 + (j + 0.5) * cell;
+        const y = surfaceAt?.(x, z) ?? surface(world, Math.floor(x), Math.floor(z));
+        if (y === null) continue;
+        if (!collides({ x, y, z }) || !collides({ x, y: y + 1, z })) this.heights[j * this.w + i] = y;
+      }
+    }
+    this.components = this.label();
+  }
+
+  walkable(n) {
+    return n >= 0 && !Number.isNaN(this.heights[n]);
+  }
+
+  canStep(a, b) {
+    return this.walkable(a) && this.walkable(b) && Math.abs(this.heights[a] - this.heights[b]) <= MAX_STEP;
+  }
+
+  cellIndex(x, z) {
+    const i = Math.floor((x - this.x0) / this.cell);
+    const j = Math.floor((z - this.z0) / this.cell);
+    if (i < 0 || j < 0 || i >= this.w || j >= this.d) return -1;
+    return j * this.w + i;
+  }
+
+  heightAt(x, z) {
+    const n = this.cellIndex(x, z);
+    return this.walkable(n) ? this.heights[n] : null;
+  }
+
+  center(n) {
+    const i = n % this.w;
+    const j = (n - i) / this.w;
+    return { x: this.x0 + (i + 0.5) * this.cell, y: this.heights[n], z: this.z0 + (j + 0.5) * this.cell };
+  }
+
+  forEachNeighbor(cur, fn) {
+    const i = cur % this.w;
+    const j = (cur - i) / this.w;
+    for (const [di, dj, cost] of DIRS) {
+      const ni = i + di;
+      const nj = j + dj;
+      if (ni < 0 || nj < 0 || ni >= this.w || nj >= this.d) continue;
+      const n = nj * this.w + ni;
+      if (!this.canStep(cur, n)) continue;
+      if (di && dj && (!this.canStep(cur, j * this.w + ni) || !this.canStep(cur, nj * this.w + i))) continue;
+      fn(n, cost);
+    }
+  }
+
+  label() {
+    const comp = new Int32Array(this.heights.length).fill(-1);
+    const queue = new Int32Array(this.heights.length);
+    let id = 0;
+    for (let s = 0; s < comp.length; s++) {
+      if (comp[s] !== -1 || !this.walkable(s)) continue;
+      let head = 0;
+      let tail = 0;
+      queue[tail++] = s;
+      comp[s] = id;
+      while (head < tail) {
+        this.forEachNeighbor(queue[head++], (n) => {
+          if (comp[n] !== -1) return;
+          comp[n] = id;
+          queue[tail++] = n;
+        });
+      }
+      id++;
+    }
+    return comp;
+  }
+
+  nearest(x, z, radius, comp = -1) {
+    const ci = Math.floor((x - this.x0) / this.cell);
+    const cj = Math.floor((z - this.z0) / this.cell);
+    let best = -1;
+    let bestD = Infinity;
+    for (let dj = -radius; dj <= radius; dj++) {
+      for (let di = -radius; di <= radius; di++) {
+        const i = ci + di;
+        const j = cj + dj;
+        if (i < 0 || j < 0 || i >= this.w || j >= this.d) continue;
+        const n = j * this.w + i;
+        if (!this.walkable(n)) continue;
+        if (comp >= 0 && this.components[n] !== comp) continue;
+        const d = di * di + dj * dj;
+        if (d < bestD) {
+          bestD = d;
+          best = n;
+        }
+      }
+    }
+    return best;
+  }
+
+  search(start, goal) {
+    const total = this.heights.length;
+    const g = new Float32Array(total).fill(Infinity);
+    const came = new Int32Array(total).fill(-1);
+    const closed = new Uint8Array(total);
+    const heap = new MinHeap();
+    const gi = goal % this.w;
+    const gj = (goal - gi) / this.w;
+    const estimate = (c) => {
+      const i = c % this.w;
+      const dx = Math.abs(i - gi);
+      const dz = Math.abs((c - i) / this.w - gj);
+      return Math.max(dx, dz) + (Math.SQRT2 - 1) * Math.min(dx, dz);
+    };
+
+    g[start] = 0;
+    heap.push(start, estimate(start));
+    while (heap.size) {
+      const cur = heap.pop();
+      if (cur === goal) break;
+      if (closed[cur]) continue;
+      closed[cur] = 1;
+      this.forEachNeighbor(cur, (n, cost) => {
+        if (closed[n]) return;
+        const next = g[cur] + cost;
+        if (next < g[n]) {
+          g[n] = next;
+          came[n] = cur;
+          heap.push(n, next + estimate(n));
+        }
+      });
+    }
+
+    if (start !== goal && came[goal] === -1) return null;
+    const cells = [goal];
+    while (cells[cells.length - 1] !== start) cells.push(came[cells[cells.length - 1]]);
+    return cells.reverse();
+  }
+
+  clear(a, b) {
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-6) return true;
+    const px = (-dz / len) * 0.15;
+    const pz = (dx / len) * 0.15;
+    const steps = Math.ceil(len / 0.2);
+    let prev = this.cellIndex(a.x, a.z);
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const x = a.x + dx * t;
+      const z = a.z + dz * t;
+      const n = this.cellIndex(x, z);
+      if (!this.walkable(n)) return false;
+      if (!this.walkable(this.cellIndex(x + px, z + pz)) || !this.walkable(this.cellIndex(x - px, z - pz))) return false;
+      if (n !== prev && this.walkable(prev) && !this.canStep(prev, n)) return false;
+      prev = n;
+    }
+    return true;
+  }
+
+  smooth(points) {
+    const out = [];
+    let anchor = 0;
+    while (anchor < points.length - 1) {
+      let next = anchor + 1;
+      for (let k = anchor + 2; k < points.length; k++) {
+        if (!this.clear(points[anchor], points[k])) break;
+        next = k;
+      }
+      out.push(points[next]);
+      anchor = next;
+    }
+    return out;
+  }
+
+  findPath(from, to) {
+    const start = this.nearest(from.x, from.z, 4);
+    if (start < 0) return null;
+    const goal = this.nearest(to.x, to.z, 12, this.components[start]);
+    if (goal < 0) return null;
+    const cells = this.search(start, goal);
+    if (!cells) return null;
+
+    const end = this.cellIndex(to.x, to.z) === goal ? { x: to.x, y: this.heights[goal], z: to.z } : this.center(goal);
+    const points = [{ x: from.x, y: from.y, z: from.z }, ...cells.slice(1, -1).map((n) => this.center(n)), end];
+    return this.smooth(points);
+  }
+}
