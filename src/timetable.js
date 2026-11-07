@@ -30,6 +30,7 @@ export function scheduleFor(day) {
   };
   session(SCHOOL.morning, plan.morning);
   session(SCHOOL.afternoon, plan.afternoon);
+  session(SCHOOL.evening, plan.evening);
   const schedule = { day, plan, periods: period, segments };
   cache.set(day, schedule);
   if (cache.size > 8) cache.delete(cache.keys().next().value);
@@ -69,5 +70,6 @@ export function sessionLabel(plan) {
   const parts = [];
   if (plan.morning) parts.push(`sáng ${plan.morning} tiết`);
   if (plan.afternoon) parts.push(`chiều ${plan.afternoon} tiết`);
+  if (plan.evening) parts.push(`tối ${plan.evening} tiết`);
   return parts.join(' · ');
 }

@@ -20,6 +20,7 @@
 #phasePill,
 #payPopup,
 #lessonOpen,
+#studyOpen,
 #picker {
   -webkit-user-select: none;
   user-select: none;
@@ -92,26 +93,6 @@ body {
   stroke: #e8502a;
   filter: drop-shadow(0 0 3px rgba(232, 80, 42, 0.9));
   animation: energy-pulse 0.9s ease-in-out infinite;
-}
-
-.vitals-value {
-  position: absolute;
-  right: -6px;
-  bottom: -4px;
-  min-width: 26px;
-  padding: 2px 6px;
-  border: 2px solid #c9962f;
-  border-radius: 999px;
-  background: rgba(28, 20, 14, 0.9);
-  color: #f2cf63;
-  font: 700 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.vitals.low .vitals-value {
-  border-color: #e8502a;
-  color: #ffb39a;
 }
 
 .vitals:focus-visible {
@@ -431,8 +412,7 @@ dialog.paper[open] {
 }
 
 dialog.paper::backdrop {
-  background: rgba(20, 12, 6, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(20, 12, 6, 0.5);
 }
 
 #scheduleForm,
@@ -444,14 +424,26 @@ dialog.paper::backdrop {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin: -18px -22px 16px;
+  padding: 12px 14px 12px 20px;
+  border-bottom: 2px solid #c9962f;
+  background:
+    repeating-linear-gradient(177deg, rgba(255, 220, 160, 0.08) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(183deg, rgba(30, 14, 4, 0.16) 0 1px, transparent 1px 11px),
+    linear-gradient(180deg, #9a6638 0%, #7a4a26 45%, #5a3519 100%);
+  box-shadow: 0 2px 0 #3a2212;
+}
+
+.sched-fill {
+  flex: 1;
 }
 
 .sched-head h2 {
   flex: 1;
   margin: 0;
   font-size: 20px;
-  color: #6b4425;
+  color: #fbe7b0;
+  text-shadow: 0 1px 0 #2a160a, 0 0 6px rgba(0, 0, 0, 0.35);
 }
 
 .sched-badge {
@@ -476,19 +468,48 @@ dialog.paper::backdrop {
 }
 
 .sched-x {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: #6b4425;
-  font-size: 24px;
-  line-height: 1;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid #e8b84a;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, #8a1d14 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 3px rgba(0, 0, 0, 0.45);
+  font-size: 0;
   cursor: pointer;
 }
 
+.sched-x::before,
+.sched-x::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffe36a;
+  filter: drop-shadow(0 1px 0 #6a120a);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.sched-x::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
 .sched-x:hover {
-  background: rgba(107, 68, 37, 0.12);
+  filter: brightness(1.12);
+}
+
+.sched-x:active {
+  transform: translateY(1px);
+}
+
+.sched-x:focus-visible {
+  outline: 2px solid #ffe36a;
+  outline-offset: 2px;
 }
 
 .sched-row {
@@ -760,7 +781,6 @@ dialog.paper::backdrop {
 
 .quiz::backdrop {
   background: rgba(20, 12, 6, 0.5);
-  backdrop-filter: blur(2px);
 }
 
 .quiz-form {
@@ -793,57 +813,53 @@ dialog.paper::backdrop {
 }
 
 .quiz-question {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 4px 0 10px;
+  margin: 4px 0 14px;
   color: #2b1c12;
   font: 800 34px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
-.quiz-question input {
-  width: 78px;
-  height: 52px;
-  border: 3px solid #c9962f;
-  border-radius: 12px;
-  background: #fffaf0;
-  color: #2b1c12;
-  font: inherit;
-  text-align: center;
-  appearance: textfield;
-  -moz-appearance: textfield;
+.quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
 }
 
-.quiz-question input::-webkit-outer-spin-button,
-.quiz-question input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.quiz-question input:focus {
-  outline: none;
-  border-color: #8a5a34;
-}
-
-.quiz-submit {
-  min-width: 140px;
-  padding: 11px 22px;
-  border: 2px solid #c9962f;
+.quiz-options button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid #d9c49a;
   border-radius: 10px;
+  background: rgba(255, 252, 240, 0.9);
+  color: #2b1c12;
+  font: 800 24px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s, border-color 0.15s;
+}
+
+.quiz-options button:hover {
+  border-color: #8a1d14;
+  background: #fff3df;
+}
+
+.quiz-options button:active {
+  transform: scale(0.96);
+}
+
+.quiz-options b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   background: #8a1d14;
   color: #fff3d6;
-  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  cursor: pointer;
-  transition: transform 0.08s, background 0.15s;
-}
-
-.quiz-submit:hover {
-  background: #a3271b;
-}
-
-.quiz-submit:active {
-  transform: scale(0.96);
+  font-size: 15px;
 }
 
 @keyframes quiz-shake {
@@ -973,7 +989,12 @@ dialog.paper::backdrop {
 }
 
 .lesson-head {
+  padding-right: 36px;
+}
+
+.lesson-tools {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 12px;
 }
@@ -1029,7 +1050,7 @@ dialog.paper::backdrop {
 .lesson-tooltip {
   position: absolute;
   top: calc(100% + 10px);
-  left: -8px;
+  right: -8px;
   z-index: 5;
   width: min(340px, 70vw);
   padding: 10px 12px;
@@ -1049,7 +1070,7 @@ dialog.paper::backdrop {
   content: "";
   position: absolute;
   top: -6px;
-  left: 18px;
+  right: 13px;
   border: 6px solid transparent;
   border-top: 0;
   border-bottom-color: #3a2616;
@@ -1166,7 +1187,8 @@ dialog.paper::backdrop {
   color: #c2287e;
 }
 
-#lessonOpen {
+#lessonOpen,
+#studyOpen {
   padding: 7px 14px;
   border: 2px solid #c9962f;
   border-radius: 6px;
@@ -1176,11 +1198,13 @@ dialog.paper::backdrop {
   cursor: pointer;
 }
 
-#lessonOpen:hover {
+#lessonOpen:hover,
+#studyOpen:hover {
   background: #a3271b;
 }
 
-#lessonOpen {
+#lessonOpen,
+#studyOpen {
   position: fixed;
   right: 16px;
   bottom: calc(var(--pill-gap) + var(--safe-bottom));
@@ -1204,6 +1228,10 @@ dialog.paper::backdrop {
   }
 
   .lesson-head {
+    padding-right: 28px;
+  }
+
+  .lesson-tools {
     position: relative;
     gap: 8px;
   }
@@ -1264,7 +1292,8 @@ dialog.paper::backdrop {
   }
 }
 
-#lessonOpen[hidden] {
+#lessonOpen[hidden],
+#studyOpen[hidden] {
   display: none;
 }
 
@@ -1467,8 +1496,8 @@ dialog.paper.wide {
 .paper-money {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(107, 68, 37, 0.12);
-  color: #6b4425;
+  background: rgba(20, 10, 4, 0.35);
+  color: #ffe08a;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1836,4 +1865,204 @@ dialog.paper.kanji {
 #bagSlots {
   max-height: min(48vh, 320px);
   overflow-y: auto;
+}
+
+.sleep-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #05070d;
+  color: #f2cf63;
+  font: 700 22px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.sleep-veil.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sleep-veil p {
+  margin: 0;
+}
+
+.sleep-energy {
+  color: #cbb98a;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-wake {
+  margin-top: 8px;
+  padding: 10px 22px;
+  border: 2px solid #e8b84a;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, #8a1d14 100%);
+  color: #ffe36a;
+  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.study-card {
+  position: fixed;
+  left: 50%;
+  bottom: var(--panel-bottom);
+  z-index: 3;
+  width: min(460px, calc(100vw - 24px));
+  max-height: calc(100dvh - var(--panel-bottom) - var(--panel-top));
+  overflow-y: auto;
+  border: 6px solid #6b4425;
+  border-radius: 14px;
+  outline: 2px solid #c9962f;
+  outline-offset: -11px;
+  background:
+    repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.035) 0 2px, transparent 2px 6px),
+    radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
+  color: #2b1c12;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 20px) scale(0.92);
+  transform-origin: 50% 100%;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+.study-card.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.study-chip {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 227, 106, 0.6);
+  border-radius: 999px;
+  background: rgba(20, 10, 4, 0.35);
+  color: #ffe08a;
+  font: 700 12px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.study-start {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 4px 0 6px;
+}
+
+.study-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 10px;
+  border: 2px solid #d9c49a;
+  border-radius: 12px;
+  background: rgba(255, 252, 240, 0.85);
+  color: #4a2e18;
+  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.study-pick span {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.study-pick:hover {
+  border-color: #8a1d14;
+  background: #fff3df;
+}
+
+.study-body {
+  text-align: center;
+}
+
+.study-reading {
+  margin: 0;
+  color: #8a6a3a;
+  font: 500 18px/1.3 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  letter-spacing: 0.12em;
+}
+
+.study-word {
+  margin: 2px 0 8px;
+  color: #2b1c12;
+  font: 700 clamp(48px, 14vw, 72px)/1.15 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+.study-hanviet {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(138, 29, 20, 0.1);
+  color: #8a1d14;
+  font: 700 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.12em;
+}
+
+.study-meaning {
+  max-width: 340px;
+  margin: 0 auto 14px;
+  padding: 10px 14px;
+  border: 1px dashed #c9b07c;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.8);
+  font: 600 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.study-progress {
+  height: 6px;
+  margin-bottom: 12px;
+  border-radius: 3px;
+  background: rgba(107, 68, 37, 0.15);
+  overflow: hidden;
+}
+
+.study-progress span {
+  display: block;
+  height: 100%;
+  background: #c9962f;
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.study-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.study-step {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 2px solid #c9962f;
+  border-radius: 50%;
+  background: #fbf5e4;
+  color: #6b4425;
+  font: 700 26px/1 system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+}
+
+.study-step:hover {
+  background: #f2e3bd;
+}
+
+.study-count {
+  min-width: 60px;
+  color: #6b4425;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

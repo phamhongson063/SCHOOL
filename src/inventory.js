@@ -1,5 +1,6 @@
 import { CROPS } from './crops.js';
 import { STARTER, FISH, FISHING, ENERGY } from './config.js';
+import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 
 const KEY = 'truong-lang-xua.ledger';
 const LEGACY_PLAYER = 'truong-lang-xua.inventory';
@@ -24,7 +25,7 @@ ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' }
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 
 const GIFTS = ['fishing'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null });
+const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false });
 
 function starter() {
   const account = blank();
@@ -48,6 +49,7 @@ function clean(raw) {
   account.fishDay = Number.isFinite(raw.fishDay) ? raw.fishDay : null;
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
+  account.sleeping = raw.sleeping === true;
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
@@ -156,6 +158,16 @@ export class Purse {
     return this.data.energy;
   }
 
+  get sleeping() {
+    return this.data.sleeping;
+  }
+
+  setSleeping(on) {
+    if (this.data.sleeping === on) return;
+    this.data.sleeping = on;
+    this.ledger.save();
+  }
+
   spendEnergy(amount) {
     if (this.data.energy + 1e-6 < amount) return false;
     this.data.energy = Math.max(0, Math.round((this.data.energy - amount) * 100) / 100);
@@ -169,12 +181,38 @@ export class Purse {
     this.changed({ energy: amount });
   }
 
-  rest(minutes) {
+  liveEnergy(minutes, activity, offlineNight) {
+    const last = this.data.energyAt;
+    if (last === null || minutes - last > OFFLINE_GAP) {
+      this.catchUpEnergy(minutes, offlineNight);
+      return;
+    }
+    this.tickEnergy(minutes, energyRate(activity, isNight(minutes)));
+  }
+
+  tickEnergy(minutes, ratePerHour) {
     const last = this.data.energyAt ?? minutes;
     this.data.energyAt = minutes;
-    if (this.data.energy >= ENERGY.restCap || minutes <= last) return;
+    if (minutes > last) this.shiftEnergy((-ratePerHour * (minutes - last)) / 60);
+  }
+
+  catchUpEnergy(minutes, nightActivity) {
+    let t = this.data.energyAt ?? minutes;
+    let energy = this.data.energy;
+    while (t < minutes) {
+      const night = isNight(t);
+      const end = Math.min(minutes, nextShift(t));
+      energy -= (energyRate(night ? nightActivity : 'idle', night) * (end - t)) / 60;
+      energy = Math.min(ENERGY.max, Math.max(0, energy));
+      t = end;
+    }
+    this.data.energyAt = minutes;
+    this.shiftEnergy(energy - this.data.energy);
+  }
+
+  shiftEnergy(delta) {
     const before = Math.floor(this.data.energy);
-    this.data.energy = Math.min(ENERGY.restCap, this.data.energy + ((minutes - last) / 60) * ENERGY.restPerHour);
+    this.data.energy = Math.min(ENERGY.max, Math.max(0, this.data.energy + delta));
     if (Math.floor(this.data.energy) !== before) this.changed({ energy: 0 });
   }
 

@@ -48,7 +48,6 @@
           <path d="M29.5 40.5 Q32 42.5 34.5 40.5" stroke="#8a3a2a" stroke-width="1.2" fill="none" stroke-linecap="round" />
         </g>
       </svg>
-      <span id="energyValue" class="vitals-value"></span>
     </button>
     <div id="vitalsInfo" class="vitals-info" role="tooltip">
       <strong>Năng lượng</strong>
@@ -79,13 +78,6 @@
         <path d="M9 4v14M15 6v14" />
       </svg>
     </button>
-    <button id="roofBtn" class="icon-btn" type="button" data-region="school">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M2 11 12 3l10 8" />
-        <path d="M5 9.5V20h14V9.5" />
-        <path d="M10 20v-5h4v5" />
-      </svg>
-    </button>
     <button id="settingsBtn" class="icon-btn" type="button" title="Cài đặt" aria-label="Cài đặt" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="3" />
@@ -104,6 +96,8 @@
     <button id="lessonClose" class="lesson-close" type="button" aria-label="Đóng bài học">×</button>
     <div class="lesson-head">
       <h2 class="lesson-phrase" lang="ja"></h2>
+    </div>
+    <div class="lesson-tools">
       <span class="lesson-hint-wrap">
         <button id="lessonHint" class="lesson-hint" type="button" aria-label="Xem nghĩa" aria-describedby="lessonMeaning">?</button>
         <span id="lessonMeaning" class="lesson-tooltip" role="tooltip"></span>
@@ -118,7 +112,39 @@
     </div>
   </section>
   <button id="lessonOpen" type="button" hidden>📜 Bài học</button>
+  <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">📖</span>
+        <h2>Từ vựng N2</h2>
+        <button id="studyMode" class="study-chip" type="button" hidden></button>
+        <button id="studyClose" class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div id="studyStart" class="study-start">
+        <button class="study-pick" type="button" data-mode="random"><span aria-hidden="true">🔀</span>Ngẫu nhiên</button>
+        <button class="study-pick" type="button" data-mode="order"><span aria-hidden="true">🔢</span>Theo thứ tự</button>
+      </div>
+      <div id="studyBody" class="study-body" hidden>
+        <p id="studyReading" class="study-reading" lang="ja"></p>
+        <p id="studyWord" class="study-word" lang="ja"></p>
+        <p id="studyHanViet" class="study-hanviet"></p>
+        <p id="studyMeaning" class="study-meaning"></p>
+        <div class="study-progress"><span id="studyBar"></span></div>
+        <div class="study-nav">
+          <button id="studyPrev" class="study-step" type="button" aria-label="Từ trước">‹</button>
+          <span id="studyCount" class="study-count"></span>
+          <button id="studyNext" class="study-step" type="button" aria-label="Từ sau">›</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <button id="studyOpen" type="button" hidden>📜 Từ vựng N2</button>
   <div id="hoverTip" class="hover-tip" role="status" hidden></div>
+  <div id="sleepVeil" class="sleep-veil" role="dialog" aria-label="Đang ngủ">
+    <p class="sleep-title">💤 Đang ngủ...</p>
+    <p id="sleepEnergy" class="sleep-energy"></p>
+    <button id="wakeBtn" class="sleep-wake" type="button">☀️ Thức dậy</button>
+  </div>
   <div id="picker" class="picker" role="dialog" hidden>
     <div class="picker-options"></div>
   </div>
@@ -134,7 +160,6 @@
     <div class="pay-row">
       <button id="payBtn" type="button">Đóng tiền</button>
     </div>
-    <span class="pay-track"><span id="payBar" class="pay-bar"></span></span>
   </div>
   <dialog id="scheduleDialog" class="paper" aria-labelledby="scheduleTitle">
     <form id="scheduleForm">
@@ -255,12 +280,13 @@
       <div id="foodList" class="shop-list"></div>
     </div>
   </dialog>
-  <dialog id="kanjiDialog" class="paper kanji" aria-labelledby="kanjiTitle">
+  <dialog id="kanjiDialog" class="paper kanji" aria-label="Cá cắn câu">
     <div class="paper-body">
       <header class="sched-head">
         <span class="sched-badge emoji" aria-hidden="true">🎣</span>
-        <h2 id="kanjiTitle">Cá cắn câu!</h2>
+        <span class="sched-fill"></span>
         <span id="kanjiLevel" class="paper-money"></span>
+        <button id="kanjiClose" class="sched-x" type="button" aria-label="Đóng" hidden>×</button>
       </header>
       <p id="kanjiWord" class="kanji-word" lang="ja"></p>
       <div id="kanjiOptions" class="kanji-options"></div>
@@ -273,11 +299,8 @@
       <p class="quiz-badge" aria-hidden="true">🧮</p>
       <h2 id="quizTitle">Kiểm tra toán</h2>
       <p class="quiz-hint"></p>
-      <label class="quiz-question" for="quizAnswer">
-        <span id="quizQuestion"></span>
-        <input id="quizAnswer" type="number" inputmode="numeric" autocomplete="off" required />
-      </label>
-      <button type="submit" class="quiz-submit">Trả lời</button>
+      <p id="quizQuestion" class="quiz-question"></p>
+      <div id="quizOptions" class="quiz-options"></div>
     </form>
   </dialog>
   <script type="module" src="src/main.js"></script>

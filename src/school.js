@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makeRandom } from './random.js';
 import { freeze } from './toon.js';
 import { createTeacher } from './characters.js';
+import { createLanternGlow } from './lanternGlow.js';
 import {
   studentFurniture,
   teacherPlatform,
@@ -16,17 +17,28 @@ import {
 
 export const CX = 0.5;
 export const FLOOR = 1;
+const SHIFT = -39;
 export const HOUSE = {
-  back: -13,
-  front: 6,
-  foundationBack: -14,
-  midColumn: -4,
+  back: -13 + SHIFT,
+  front: 6 + SHIFT,
+  foundationBack: -14 + SHIFT,
+  midColumn: -4 + SHIFT,
   windows: [
-    [-10, -7],
-    [0, 3],
+    [-10 + SHIFT, -7 + SHIFT],
+    [0 + SHIFT, 3 + SHIFT],
   ],
 };
-export const STAIRS = { x0: -3, x1: 4, top: 8, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
+export const ENCLOSURE = { x0: -28, x1: 28, front: 28, back: -59 };
+export const CROSS_WALLS = [28, -22];
+export const SIDE_GATES = [-11, 12];
+export const HO_VAN = { x0: -16, z0: 40, x1: 17, z1: 62, island: { x: 0.5, z: 51, r: 3.2 } };
+export const POND = { x: 0.5, z: 15.5, half: 5 };
+export const THUONG_DIEN = { x: 0.5, z: -8.5, hx: 11, hz: 4 };
+export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -22 : 23, z0: -16, z1: 2 }));
+export const STELE_SHEDS = [-1, 1].map((side) => ({ x: side < 0 ? -18.5 : 19.5, z0: 4, z1: 24 }));
+export const KHUE_VAN_CAC = { x: 0.5, z: 28.5, half: 2 };
+export const STELES = STELE_SHEDS.flatMap(({ x }, i) => [-2, 2].flatMap((dx) => Array.from({ length: 5 }, (_, k) => ({ x: x + dx, z: 22.5 - k * 4, side: i === 0 ? -1 : 1 }))));
+export const STAIRS = { x0: -3, x1: 4, top: 8 + SHIFT, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
 
 export function stairHeight(x, z) {
   const { x0, x1, top, count, rise, tread } = STAIRS;
@@ -34,7 +46,7 @@ export function stairHeight(x, z) {
   return (count - Math.floor((z - top) / tread)) * rise;
 }
 
-const ROWS = [-6.6, -3.6, -0.6, 2.4];
+const ROWS = [-6.6, -3.6, -0.6, 2.4].map((z) => z + SHIFT);
 const COLUMNS = [-10.5, -6.5, -2.5, 2.5, 6.5, 10.5];
 const WALL_Z = HOUSE.back + 0.6;
 export const TEACHER_Z = WALL_Z + 0.33 + 1.125;
@@ -54,11 +66,11 @@ function terrain(world) {
 
 function house(world) {
   const { back, front, foundationBack, midColumn, windows } = HOUSE;
-  world.fill(-15, 0, foundationBack, 15, 0, 7, 'foundation');
+  world.fill(-15, 0, foundationBack, 15, 0, front + 1, 'foundation');
 
-  world.fill(-13, 1, back, 13, 7, back, 'plaster');
-  world.fill(-14, 1, back + 1, -14, 7, front - 1, 'plaster');
-  world.fill(14, 1, back + 1, 14, 7, front - 1, 'plaster');
+  world.fill(-13, 1, back, 13, 5, back, 'plaster');
+  world.fill(-14, 1, back + 1, -14, 5, front - 1, 'plaster');
+  world.fill(14, 1, back + 1, 14, 5, front - 1, 'plaster');
   world.fill(-13, 1, back, 13, 1, back, 'brick');
   world.fill(-14, 1, back + 1, -14, 1, front - 1, 'brick');
   world.fill(14, 1, back + 1, 14, 1, front - 1, 'brick');
@@ -68,30 +80,32 @@ function house(world) {
   }
 
   for (const x of [-14, -5, 5, 14]) {
-    world.fill(x, 1, back, x, 7, back, 'log');
-    world.fill(x, 1, front, x, 7, front, 'log');
+    world.fill(x, 1, back, x, 5, back, 'log');
+    world.fill(x, 1, front, x, 5, front, 'log');
   }
-  world.fill(-14, 1, midColumn, -14, 7, midColumn, 'log');
-  world.fill(14, 1, midColumn, 14, 7, midColumn, 'log');
+  world.fill(-14, 1, midColumn, -14, 5, midColumn, 'log');
+  world.fill(14, 1, midColumn, 14, 5, midColumn, 'log');
 
-  world.fill(-14, 8, back, 14, 8, back, 'darkPlanks');
-  world.fill(-14, 8, front, 14, 8, front, 'darkPlanks');
-  world.fill(-14, 8, back + 1, -14, 8, front - 1, 'darkPlanks');
-  world.fill(14, 8, back + 1, 14, 8, front - 1, 'darkPlanks');
-  for (const x of [-5, 5]) world.fill(x, 8, back + 1, x, 8, front - 1, 'darkPlanks');
+  world.fill(-14, 6, back, 14, 6, back, 'darkPlanks');
+  world.fill(-14, 6, front, 14, 6, front, 'darkPlanks');
+  world.fill(-14, 6, back + 1, -14, 6, front - 1, 'darkPlanks');
+  world.fill(14, 6, back + 1, 14, 6, front - 1, 'darkPlanks');
+  for (const x of [-5, 5]) world.fill(x, 6, back + 1, x, 6, front - 1, 'darkPlanks');
 }
+
+const ROOF_PITCH = 0.45;
 
 function roof(world) {
   const X0 = -16;
   const X1 = 16;
   const Z0 = HOUSE.back - 2;
-  const Z1 = 9;
-  const BASE = 8;
+  const Z1 = HOUSE.front + 3;
+  const BASE = 6;
   const put = (x, y, z, type) => world.set(x, y, z, type, 'roof');
 
   let top = BASE;
   for (let k = 0; Z0 + k <= Z1 - k; k++) {
-    const y = BASE + k;
+    const y = BASE + Math.round(k * ROOF_PITCH);
     const x0 = X0 + k;
     const x1 = X1 - k;
     const z0 = Z0 + k;
@@ -108,7 +122,7 @@ function roof(world) {
   }
 
   const rz = (Z0 + Z1) / 2;
-  const end = X1 - (top - BASE);
+  const end = X1 - Math.round((top - BASE) / ROOF_PITCH);
   for (const x of [-end, end]) {
     put(x, top + 1, rz, 'ridge');
     put(x, top + 2, rz, 'ridge');
@@ -122,93 +136,50 @@ function roof(world) {
   }
 }
 
-function gate(world) {
-  const z = 30;
-  world.fill(-3, 0, z, -3, 3, z, 'brick');
-  world.fill(3, 0, z, 3, 3, z, 'brick');
-  world.fill(-2, 3, z, 2, 3, z, 'darkPlanks');
-  world.fill(-4, 4, z - 1, 4, 4, z + 1, 'roof');
-  world.fill(-4, 5, z, 4, 5, z, 'ridge');
-  world.set(-4, 6, z, 'ridge');
-  world.set(4, 6, z, 'ridge');
-  world.set(0, 6, z, 'gold');
+function courtyard(world) {
+  const { x, z, half } = KHUE_VAN_CAC;
+  for (const dx of [-half, half]) {
+    for (const dz of [-half, half]) world.fill(Math.floor(x + dx), 0, Math.floor(z + dz), Math.floor(x + dx), 3, Math.floor(z + dz), 'brick');
+  }
+  for (const stele of STELES) world.fill(Math.floor(stele.x), 0, Math.floor(stele.z), Math.floor(stele.x), 1, Math.floor(stele.z), 'stone');
+  for (const shed of STELE_SHEDS) {
+    for (const dx of [-3, 3]) {
+      for (let pz = shed.z0 + 0.5; pz <= shed.z1; pz += 4) world.fill(Math.floor(shed.x + dx), 0, Math.floor(pz), Math.floor(shed.x + dx), 2, Math.floor(pz), 'log');
+    }
+  }
+  for (let px = Math.floor(POND.x - POND.half); px < Math.ceil(POND.x + POND.half); px++) {
+    for (let pz = Math.floor(POND.z - POND.half); pz < Math.ceil(POND.z + POND.half); pz++) {
+      world.set(px, -1, pz, 'water');
+      world.set(px, -2, pz, 'water');
+    }
+  }
+  const td = THUONG_DIEN;
+  world.fill(Math.floor(td.x - td.hx), 0, Math.floor(td.z - td.hz), Math.ceil(td.x + td.hx) - 1, 4, Math.ceil(td.z + td.hz) - 1, 'plaster');
+  for (const vu of VU) world.fill(Math.floor(vu.x - 2), 0, vu.z0, Math.ceil(vu.x + 2) - 1, 3, vu.z1 - 1, 'plaster');
 }
 
-function hedge(world) {
-  const X = 28;
-  const Z0 = -20;
-  const Z1 = 30;
-  for (let x = -X; x <= X; x++) {
-    world.fill(x, 0, Z0, x, 1, Z0, 'leaves');
-    if (Math.abs(x) > 3) world.fill(x, 0, Z1, x, 1, Z1, 'leaves');
-  }
-  for (let z = Z0; z <= Z1; z++) {
-    world.fill(-X, 0, z, -X, 1, z, 'leaves');
-    world.fill(X, 0, z, X, 1, z, 'leaves');
-  }
-}
-
-function pond(world, cx, cz, r) {
-  for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
-    for (let z = Math.floor(cz - r); z <= Math.ceil(cz + r); z++) {
-      const d = Math.hypot(x - cx, z - cz);
-      if (d > r) continue;
+function hoVan(world) {
+  const { x0, z0, x1, z1, island } = HO_VAN;
+  for (let x = x0; x < x1; x++) {
+    for (let z = z0; z < z1; z++) {
+      if (Math.hypot(x + 0.5 - island.x, z + 0.5 - island.z) < island.r) continue;
       world.set(x, -1, z, 'water');
-      if (d <= r - 2) world.set(x, -2, z, 'water');
+      world.set(x, -2, z, 'water');
     }
   }
 }
 
-function arecaPalm(world, x, z, h) {
-  world.fill(x, 0, z, x, h - 1, z, 'areca');
-  world.set(x, h, z, 'leaves');
-  world.set(x, h + 1, z, 'leaves');
-  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    const diagonal = dx !== 0 && dz !== 0;
-    world.set(x + dx, h, z + dz, 'leaves');
-    world.set(x + dx * 2, diagonal ? h - 1 : h, z + dz * 2, 'leaves');
-    if (!diagonal) world.set(x + dx * 3, h - 1, z + dz * 3, 'leaves');
-  }
-}
-
-function bambooGrove(world, rand, x0, z0, x1, z1) {
-  const stalks = [];
-  const count = Math.floor(((x1 - x0 + 1) * (z1 - z0 + 1)) / 4);
-  for (let i = 0; i < count; i++) {
-    const x = x0 + Math.floor(rand() * (x1 - x0 + 1));
-    const z = z0 + Math.floor(rand() * (z1 - z0 + 1));
-    if (world.get(x, 0, z)) continue;
-    const h = 7 + Math.floor(rand() * 5);
-    stalks.push({ x, z, h });
-    world.fill(x, 0, z, x, h - 1, z, 'bamboo');
-    world.set(x, h, z, 'leaves');
-    for (let y = h - 3; y <= h; y++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dz = -1; dz <= 1; dz++) {
-          if (rand() < 0.45 && !world.get(x + dx, y, z + dz)) world.set(x + dx, y, z + dz, 'leaves');
-        }
-      }
-    }
-  }
-  return stalks;
-}
-
-function banyan(world, rand, cx, cz) {
-  world.fill(cx, 0, cz, cx + 1, 6, cz + 1, 'log');
-  world.fill(cx - 2, 5, cz, cx - 1, 5, cz, 'log');
-  world.fill(cx + 2, 6, cz + 1, cx + 3, 6, cz + 1, 'log');
-  world.fill(cx, 6, cz + 2, cx, 6, cz + 3, 'log');
-  const ox = cx + 1;
-  const oz = cz + 1;
-  const oy = 8;
-  for (let x = cx - 6; x <= cx + 7; x++) {
-    for (let y = 4; y <= 12; y++) {
-      for (let z = cz - 6; z <= cz + 7; z++) {
-        const d = ((x + 0.5 - ox) / 5.2) ** 2 + ((y + 0.5 - oy) / 3.2) ** 2 + ((z + 0.5 - oz) / 5.2) ** 2;
-        if (d < 1 && rand() > 0.07 && !world.get(x, y, z)) world.set(x, y, z, 'leaves');
-      }
-    }
-  }
+function walls(world) {
+  const { x0, x1, front, back } = ENCLOSURE;
+  const row = (z, open) => {
+    for (let x = x0; x <= x1; x++) if (!open(x)) world.fill(x, 0, z, x, 2, z, 'brick');
+  };
+  row(back, () => false);
+  const kvcRow = Math.floor(KHUE_VAN_CAC.z);
+  const sideGate = (x) => SIDE_GATES.some((g) => x >= Math.floor(g - 1) && x < Math.ceil(g + 1));
+  for (const z of CROSS_WALLS) row(z, (x) => (x >= -2 && x <= 2) || (z === kvcRow && sideGate(x)));
+  world.fill(x0, 0, back, x0, 2, front, 'brick');
+  world.fill(x1, 0, back, x1, 2, front, 'brick');
 }
 
 function roundTree(world, rand, x, z) {
@@ -225,43 +196,17 @@ function roundTree(world, rand, x, z) {
   return { x, z, h };
 }
 
-function haystack(world, cx, cz) {
-  [2.6, 2.2, 1.6, 0.9].forEach((r, y) => {
-    for (let x = cx - 3; x <= cx + 3; x++) {
-      for (let z = cz - 3; z <= cz + 3; z++) {
-        if (Math.hypot(x - cx, z - cz) <= r) world.set(x, y, z, 'thatch');
-      }
-    }
-  });
-  world.set(cx, 4, cz, 'log');
-}
 
 export function buildWorld(world) {
   const rand = makeRandom(2024);
-  const layout = {
-    pond: { x: -21, z: 18, r: 4.6 },
-    arecas: [
-      { x: -20, z: 5, h: 8 },
-      { x: 21, z: 5, h: 9 },
-      { x: -9, z: 27, h: 7 },
-      { x: 9, z: 27, h: 8 },
-    ],
-    banyan: { x: 21, z: 19 },
-    haystack: { x: 23, z: -4 },
-    bamboos: [],
-    trees: [],
-  };
+  const layout = { trees: [] };
   terrain(world);
   house(world);
   roof(world);
-  gate(world);
-  hedge(world);
-  pond(world, layout.pond.x, layout.pond.z, layout.pond.r);
-  for (const { x, z, h } of layout.arecas) arecaPalm(world, x, z, h);
-  layout.bamboos.push(...bambooGrove(world, rand, -26, -19, -18, -13), ...bambooGrove(world, rand, 18, -19, 26, -13));
-  banyan(world, rand, layout.banyan.x, layout.banyan.z);
-  haystack(world, layout.haystack.x, layout.haystack.z);
-  for (const [x, z] of [[-36, -24], [-34, 12], [36, -26], [37, 10], [0, -30], [-22, -30], [24, -31]]) {
+  courtyard(world);
+  walls(world);
+  hoVan(world);
+  for (const [x, z] of [[-36, -24], [-34, 12], [36, -26], [37, 10], [0, -65], [-36, -40], [37, -45]]) {
     layout.trees.push(roundTree(world, rand, x, z));
   }
   return layout;
@@ -328,7 +273,7 @@ export function populate(scene) {
     border: 0xa12a1c,
     seal: true,
   });
-  plaque.position.set(CX, 6.0, WALL_Z + 0.06);
+  plaque.position.set(CX, 4.6, WALL_Z + 0.06);
   root.add(plaque);
   const couplets = [
     [['Tiên', 'Học', 'Lễ'], CX + 2.7],
@@ -341,13 +286,29 @@ export function populate(scene) {
   }
 
   const glows = [];
-  for (const x of [CX - 9.5, CX - 3, CX + 3, CX + 9.5]) {
+  const lanternSpots = [
+    ...[CX - 9.5, CX - 3, CX + 3, CX + 9.5].map((x) => [x, 6.15, HOUSE.front + 0.95]),
+    [CX - 2.4, 5.6, TEACHER_Z + 1.2],
+    [CX + 2.4, 5.6, TEACHER_Z + 1.2],
+    [CX - 6.5, 5.6, HOUSE.back + 10.9],
+    [CX + 6.5, 5.6, HOUSE.back + 10.9],
+  ];
+  for (const [x, y, z] of lanternSpots) {
     const lamp = lantern();
-    lamp.position.set(x, 8.15, 6.5);
+    lamp.position.set(x, y, z);
     lamp.castShadow = false;
     glows.push(lamp.material);
     root.add(lamp);
   }
+  const lanternGlow = createLanternGlow(lanternSpots.map(([x, y, z]) => ({ position: new THREE.Vector3(x, y - 0.41, z), tint: 0xd8321e })));
+  root.add(lanternGlow.object);
+  let night = 0;
+  const classLights = [[CX, TEACHER_Z + 2], [CX - 6.5, HOUSE.back + 11.5], [CX + 6.5, HOUSE.back + 11.5]].map(([x, z]) => {
+    const light = new THREE.PointLight(0xffb36a, 0, 15, 2);
+    light.position.set(x, 4.8, z);
+    root.add(light);
+    return light;
+  });
 
   const shelf = bookshelf(360);
   shelf.position.set(CX - 9.5, FLOOR, WALL_Z);
@@ -401,8 +362,11 @@ export function populate(scene) {
     },
     setNight(k) {
       for (const material of glows) material.emissiveIntensity = 1 + k * 5;
+      for (const light of classLights) light.intensity = k * 22;
+      night = k;
     },
     update(t, teaching = true) {
+      lanternGlow.update(t, night);
       if (!teacher.group.visible) return;
       teacher.head.rotation.y = Math.sin(t * 0.45) * 0.5;
       teacher.head.rotation.x = 0.08 + Math.sin(t * 0.9) * 0.04;

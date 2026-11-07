@@ -1,13 +1,10 @@
 import { SCHOOL, MONEY } from './config.js';
-import { realSeconds } from './clock.js';
-import { payWindow } from './timetable.js';
 import { coins } from './format.js';
 
-export function createTuition({ purse, onStudy, onMissed, onCredit }) {
+export function createTuition({ purse, onStudy, onCredit }) {
   const popup = document.getElementById('payPopup');
   const popupText = document.getElementById('payText');
   const popupBtn = document.getElementById('payBtn');
-  const popupBar = document.getElementById('payBar');
   const popupNote = document.getElementById('payNote');
 
   const dialog = document.getElementById('teacherDialog');
@@ -99,15 +96,10 @@ export function createTuition({ purse, onStudy, onMissed, onCredit }) {
         period = phase.period;
         studying = false;
         resolved = false;
+        hidePopup();
       }
       if (!seated || resolved) {
         hidePopup();
-        return;
-      }
-      if (!phase.paying) {
-        resolved = true;
-        hidePopup();
-        if (!studying) onMissed?.();
         return;
       }
       if (purse.useCredit()) {
@@ -118,14 +110,16 @@ export function createTuition({ purse, onStudy, onMissed, onCredit }) {
         onStudy?.();
         return;
       }
-      const left = Math.max(0, realSeconds(payWindow() - (ctx.minutes - phase.startAt)));
-      if (popup.hidden) {
-        popupText.textContent = `📖 Tiết ${period} sắp bắt đầu — đóng ${SCHOOL.tuition} ${MONEY.icon} để học?`;
-        popupNote.textContent = purse.money < SCHOOL.tuition ? 'Bạn chưa đủ tiền. Ra ruộng thu hoạch rồi bán ở tiệm nhé!' : '';
-        popupBtn.disabled = purse.money < SCHOOL.tuition;
+      const short = purse.money < SCHOOL.tuition;
+      const text = phase.paying
+        ? `📖 Tiết ${period} sắp bắt đầu — đóng ${SCHOOL.tuition} ${MONEY.icon} để học?`
+        : `📖 Tiết ${period} đang học — đóng ${SCHOOL.tuition} ${MONEY.icon} để vào học?`;
+      if (popupText.textContent !== text) popupText.textContent = text;
+      if (popup.hidden || popupBtn.disabled !== short) {
+        popupNote.textContent = short ? 'Bạn chưa đủ tiền. Ra ruộng thu hoạch rồi bán ở tiệm nhé!' : '';
+        popupBtn.disabled = short;
         popup.hidden = false;
       }
-      popupBar.style.transform = `scaleX(${Math.min(1, left / Math.max(0.1, realSeconds(payWindow())))})`;
     },
   };
 }

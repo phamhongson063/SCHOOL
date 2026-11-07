@@ -49,9 +49,9 @@ export function createEatery({ seed = 9 } = {}) {
     b.add(shapes.box(0.2, 3.2, D), WALL, { p: [side * (W / 2 - 0.1), 1.6, -D / 2] });
     b.add(shapes.box(0.26, 0.5, D + 0.02), shade(WALL, 0.7), { p: [side * (W / 2 - 0.1), 0.25, -D / 2] });
     block(side < 0 ? -W / 2 : W / 2 - 0.3, -D, side < 0 ? -W / 2 + 0.3 : W / 2, 0);
-    b.add(shapes.box(0.22, 3.0, 0.22), WOOD_DARK, { p: [side * (W / 2 - 0.15), 1.5, -0.1] });
+    b.add(shapes.box(0.22, 3.0, 0.22), WOOD_DARK, { p: [side * (W / 2 - 0.15), 1.5, -0.06] });
   }
-  b.add(shapes.box(W, 0.2, 0.22), WOOD, { p: [0, 2.98, -0.1] });
+  b.add(shapes.box(W - 0.04, 0.2, 0.22), WOOD, { p: [0, 2.98, -0.09] });
 
   roofPlane(b, 0.9, 3.05, -D / 2, 4.2);
   roofPlane(b, -D / 2, 4.2, -D - 0.4, 3.05);
@@ -106,6 +106,7 @@ export function createEatery({ seed = 9 } = {}) {
   }
   const glow = lamps.mesh(glowMaterial, { shadow: false });
   group.add(glow);
+  group.userData.lights = [-1.6, 1.6].map((x) => ({ position: new THREE.Vector3(x, 2.45, 0.35), tint: x < 0 ? 0xd8321e : 0xf2b630 }));
 
   return {
     group,

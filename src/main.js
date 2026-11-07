@@ -7,7 +7,7 @@ import { createPlayer, createStudent } from './characters.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
 import { LESSONS } from './lessons.js';
-import { PlayerController } from './walk.js';
+import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
 import { NavGrid } from './nav.js';
 import { createSky, createClouds } from './sky.js';
 import { Footprints, createBlobShadow } from './groundfx.js';
@@ -27,12 +27,12 @@ import { LOW_POWER } from './quality.js';
 import { outlineMaterial, freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
-import { ROUTINE, SCHOOL, MONEY, ENERGY } from './config.js';
+import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD } from './config.js';
 import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
 import { Town, createStudyIcon, villagerProfiles } from './villagers.js';
-import { createVillage, VILLAGE_BOUNDS } from './village.js';
+import { createVillage } from './village.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
 import { createRiver } from './river.js';
@@ -40,17 +40,21 @@ import { createAngler } from './angler.js';
 import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
+import { buildStudyHall, createStudyHall } from './studyHall.js';
+import { createStudy } from './study.js';
+import { activityOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
 const READING_FRAME_RATE = 20;
+const POPUP_FRAME_RATE = 15;
 const IDLE_AFTER = 20000;
 const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
 const MIN_PIXEL_RATIO = 0.75;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const OUTLINE_DISTANCE = 26;
-const NAV_BOUNDS = { x0: -44, x1: Math.max(45, VILLAGE_BOUNDS.x1 + 2), z0: -36, z1: 84 };
+const NAV_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: -68, z1: 84 };
 
 let pixelRatio = MAX_PIXEL_RATIO;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -74,6 +78,7 @@ sun.shadow.normalBias = 0.03;
 
 const world = new VoxelWorld();
 const layout = buildWorld(world);
+buildStudyHall(world);
 const scenery = createScenery(scene, layout);
 const roof = scenery.roof;
 
@@ -86,7 +91,8 @@ const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
 const village = createVillage();
 const river = createRiver();
-school.obstacles.push(...notice.obstacles, ...village.obstacles, ...river.obstacles);
+const studyHall = createStudyHall(scene);
+school.obstacles.push(...notice.obstacles, ...village.obstacles, ...river.obstacles, ...studyHall.obstacles);
 
 const avatar = createPlayer();
 scene.add(avatar.group);
@@ -128,9 +134,9 @@ const regions = new RegionManager({ scene, obstacles: school.obstacles });
 regions.add({
   id: 'school',
   name: 'Trường làng',
-  bounds: { x0: -28, z0: -20, x1: 29, z1: 31 },
+  bounds: { x0: -28, z0: -59, x1: 29, z1: 33 },
   pinned: true,
-  overview: { position: new THREE.Vector3(CX + 14, 8, 30), target: new THREE.Vector3(CX, 3, -2) },
+  overview: { position: new THREE.Vector3(CX + 60, 70, 20), target: new THREE.Vector3(CX, 0, -7) },
 });
 regions.add(createRoad());
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
@@ -147,6 +153,8 @@ for (const region of village.regions({
     isChiefOpen: () => chiefOpen(gameNow()),
     shopHours,
     chiefHours,
+    isNight: () => context.night,
+    sleep: () => sleepAtHome(),
   })) {
   regions.add(region);
 }
@@ -157,7 +165,16 @@ regions.add(
     startFishing: (spot) => fishing.start(spot),
   }),
 );
-regions.stream(SPAWN.x, SPAWN.z);
+const PLACE_KEY = 'truong-lang-xua.player';
+function loadPlace() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PLACE_KEY) ?? 'null');
+    if (saved && [saved.x, saved.z, saved.yaw].every(Number.isFinite)) return saved;
+  } catch {}
+  return null;
+}
+const savedPlace = loadPlace();
+regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
 player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, { surfaceAt: stairHeight });
 regions.onLoad = (region) => {
@@ -207,6 +224,17 @@ player.onArrive = () => {
     sayPlayer('Đói quá, hết sức làm rồi! Ra quán ăn nạp năng lượng nhé.', 2.6);
     return;
   }
+  const stand = { x: player.position.x, z: player.position.z };
+  player.faceTarget(task.target, {
+    work: true,
+    then: () => {
+      if (fieldTask || player.path || player.posture !== 'free' || Math.hypot(player.position.x - stand.x, player.position.z - stand.z) > 0.3) return;
+      perform(task, cost);
+    },
+  });
+};
+
+function perform(task, cost) {
   const finish = () => {
     const reply = task.region.act(task.action.id, task.target, task.choice);
     if (reply) sayPlayer(reply, 1.8);
@@ -230,8 +258,27 @@ player.onArrive = () => {
     finish();
     if (settings.then) effects[settings.then.kind]?.start(settings.then);
   });
-};
-player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
+}
+const savedY = savedPlace ? player.nav.heightAt(savedPlace.x, savedPlace.z) : null;
+if (savedY !== null) player.place(new THREE.Vector3(savedPlace.x, savedY, savedPlace.z), savedPlace.yaw);
+else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
+
+function savePlace() {
+  const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
+  try {
+    localStorage.setItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw }));
+  } catch {}
+}
+let placeSavedAt = 0;
+addEventListener('pagehide', () => {
+  ledger.flush();
+  savePlace();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return;
+  ledger.flush();
+  savePlace();
+});
 player.setEnabled(true);
 
 const marker = new THREE.Mesh(
@@ -250,13 +297,14 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
+const playerSeats = new Seats([...school.seats, ...studyHall.seats]);
 const seatedAvatar = createStudent({ shirt: 0x3b6fb0, pants: 0xf4efe2, skin: 0xf6caa4, style: 'player', iris: 0x7a4422 });
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, 1.3, 0);
 seatedAvatar.group.add(playerStudyIcon);
 scene.add(seatedAvatar.group);
 player.attachSeating({
-  seats,
+  seats: playerSeats,
   model: seatedAvatar,
   onDisplace: (member, seat) => town?.displaced(member, seat),
 });
@@ -311,21 +359,26 @@ let lastDay = context.day;
 if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3), 1500);
 
 const lesson = createLesson();
+const study = createStudy();
+const inClass = () => player.posture === 'seated' && !player.seat?.study;
 const learningNow = () => context.phase.kind === 'period' && tuition.studying;
 const tuition = createTuition({
   purse,
   onStudy: () => {
     sayPlayer('📖 Vào học thôi!', 1.6);
-    if (player.posture === 'seated') lesson.open();
+    if (inClass()) lesson.open();
   },
-  onMissed: () => sayPlayer('Lỡ giờ thu học phí rồi, tiết này chỉ ngồi nghe thôi.', 3),
   onCredit: (left) => sayPlayer(`Trừ 1 tiết đã đóng trước (còn ${left})`, 2.4),
 });
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
-  if (learningNow()) lesson.open();
+  if (player.seat?.study) study.open();
+  else if (learningNow()) lesson.open();
 };
-player.onStand = () => lesson.close();
+player.onStand = () => {
+  lesson.close();
+  study.close();
+};
 
 const teacherDesk = {
   act() {
@@ -401,7 +454,7 @@ function goDo(region, target, id) {
 player.onClick = (clientX, clientY, run) => {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root];
+  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group];
   if (roof.visible) targets.push(roof);
   const hit = raycaster.intersectObjects(targets, true)[0];
   if (!hit) return;
@@ -467,8 +520,8 @@ player.onClick = (clientX, clientY, run) => {
     normal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
     point.addScaledVector(normal, 0.3);
   }
-  const seat = seats.at(hit.point);
-  if (seat && seats.canTake(seat, 'player')) {
+  const seat = playerSeats.at(hit.point);
+  if (seat && playerSeats.canTake(seat, 'player')) {
     player.requestSeat(seat, run);
     return;
   }
@@ -561,7 +614,6 @@ function overviewFor(region) {
 const ui = {
   viewBtn: document.getElementById('viewBtn'),
   modeBtn: document.getElementById('modeBtn'),
-  roofBtn: document.getElementById('roofBtn'),
 };
 
 
@@ -579,9 +631,20 @@ function refreshUI() {
   setLabel(ui.viewBtn, player.firstPerson ? 'Chuyển sang góc nhìn thứ ba' : 'Chuyển sang góc nhìn thứ nhất');
   ui.modeBtn.classList.toggle('active', mode === 'overview');
   setLabel(ui.modeBtn, mode === 'overview' ? 'Quay lại nhập vai' : 'Xem toàn cảnh');
-  ui.roofBtn.classList.toggle('active', !roof.visible);
-  setLabel(ui.roofBtn, roof.visible ? 'Ẩn mái nhà' : 'Hiện mái nhà');
 }
+
+const mapTap = { id: null, x: 0, y: 0, at: 0 };
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (mode !== 'overview' || e.button !== 0) return;
+  Object.assign(mapTap, { id: e.pointerId, x: e.clientX, y: e.clientY, at: performance.now() });
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (mode !== 'overview' || e.pointerId !== mapTap.id) return;
+  mapTap.id = null;
+  if (Math.hypot(e.clientX - mapTap.x, e.clientY - mapTap.y) > 8 || performance.now() - mapTap.at > 500) return;
+  setMode('play');
+  player.onClick?.(e.clientX, e.clientY, false);
+});
 
 function setMode(next) {
   if (next === mode) return;
@@ -605,13 +668,7 @@ ui.viewBtn.addEventListener('click', () => {
   refreshUI();
 });
 ui.modeBtn.addEventListener('click', () => setMode(mode === 'play' ? 'overview' : 'play'));
-ui.roofBtn.addEventListener('click', () => {
-  roof.visible = !roof.visible;
-  if (roof.visible) player.hiddenLayers.delete('roof');
-  else player.hiddenLayers.add('roof');
-  refreshUI();
-});
-for (const button of [ui.viewBtn, ui.modeBtn, ui.roofBtn]) {
+for (const button of [ui.viewBtn, ui.modeBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
@@ -713,7 +770,7 @@ function renderSchedule() {
     if (lastEnd && seg.start - lastEnd > 60) {
       const li = document.createElement('li');
       li.className = 'lunch';
-      li.textContent = `Nghỉ trưa · ${clockText(lastEnd)} – ${clockText(seg.start)}`;
+      li.textContent = `${seg.start >= 18 * 60 ? 'Nghỉ tối' : 'Nghỉ trưa'} · ${clockText(lastEnd)} – ${clockText(seg.start)}`;
       items.push(li);
     }
     lastEnd = seg.end;
@@ -764,7 +821,7 @@ function onPhaseChange(ctx) {
     return;
   }
   lesson.close();
-  if (player.posture === 'seated' && (kind === 'recess' || kind === 'free')) player.standUp();
+  if (inClass() && (kind === 'recess' || kind === 'free')) player.standUp();
 }
 
 const BASE_FOV = 55;
@@ -834,17 +891,68 @@ function updateOutlines(t) {
   }
 }
 
+const dialogs = [...document.querySelectorAll('dialog')];
+const bagPanel = document.getElementById('bagPanel');
+const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dialog) => dialog.open);
+
+const sleepVeil = document.getElementById('sleepVeil');
+const sleepEnergy = document.getElementById('sleepEnergy');
+
+function showSleep(on) {
+  sleepVeil.classList.toggle('on', on);
+  player.setEnabled(!on && mode === 'play');
+}
+
+function drainEnergy() {
+  const asleep = purse.sleeping;
+  const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
+  const activity = asleep ? 'sleep' : player.posture === 'seated' ? 'seated' : moving;
+  purse.liveEnergy(context.minutes, activity, asleep ? 'sleep' : 'idle');
+  player.tired = purse.energy <= 0;
+  if (!asleep) return;
+  if (!context.night) {
+    wakeUp('☀️ Sáng rồi, dậy thôi!');
+    return;
+  }
+  const text = `⚡ ${Math.floor(purse.energy)}/${ENERGY.max}`;
+  if (sleepEnergy.textContent !== text) sleepEnergy.textContent = text;
+}
+
+function sleepAtHome() {
+  if (purse.sleeping) return;
+  fishing.stop();
+  purse.setSleeping(true);
+  showSleep(true);
+}
+
+function wakeUp(message) {
+  purse.setSleeping(false);
+  showSleep(false);
+  sayPlayer(message, 2.4);
+}
+
+document.getElementById('wakeBtn').addEventListener('click', () => wakeUp('Dậy rồi!'));
+if (purse.sleeping) showSleep(true);
+
 let shownNight = -1;
 renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
-  const frameRate = lesson.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
+  const popup = popupOpen();
+  const frameRate = popup ? POPUP_FRAME_RATE : lesson.visible || study.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
-  if (LOW_POWER) adaptResolution(time, frameRate);
+  if (LOW_POWER) {
+    if (popup) pace.since = 0;
+    else adaptResolution(time, frameRate);
+  }
   const dt = Math.min(clock.getDelta(), 0.07);
   const t = clock.elapsedTime;
   context = contextAt(gameNow());
-  purse.rest(context.minutes);
+  drainEnergy();
+  if (t >= placeSavedAt) {
+    placeSavedAt = t + 3;
+    savePlace();
+  }
   if (context.phase.key !== lastPhaseKey) {
     lastPhaseKey = context.phase.key;
     onPhaseChange(context);
@@ -862,15 +970,15 @@ renderer.setAnimationLoop((time) => {
     if (ledger.spoilFish(context.day).includes(PLAYER)) sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3);
   }
   footprints.update(t);
-  tuition.update(context, player.posture === 'seated');
-  playerStudyIcon.visible = player.posture === 'seated' && learningNow() && !context.phase.paying;
+  tuition.update(context, inClass());
+  playerStudyIcon.visible = inClass() && learningNow() && !context.phase.paying;
   refreshPhase();
   farm.tick();
   town.update(t, dt, context, player, camera);
   updateLine();
   school.update(t, context.phase.kind === 'period' && !context.phase.paying);
   village.update(t, context, camera);
-  river.update(dt);
+  river.update(dt, context.minutes);
   clouds.update(dt, night);
   player.update(dt);
   for (const effect of Object.values(effects)) effect.update(dt);

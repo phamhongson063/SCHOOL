@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createWalker, createStudent } from './characters.js';
-import { characterMaterial } from './toon.js';
 import { createBubble } from './bubble.js';
 import { Gait } from './gait.js';
 import { createBlobShadow } from './groundfx.js';
@@ -12,23 +10,23 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS } from './config.js';
+import { activityOf } from './stamina.js';
 import { payWindow } from './timetable.js';
 import { amount } from './format.js';
 import { realSeconds } from './clock.js';
-import { TEACHER_STAND, FLOOR } from './school.js';
-import { FIELD_TREES } from './farm.js';
+import { TEACHER_STAND, FLOOR, HOUSE } from './school.js';
+import { FIELD_TREES, FARM_X } from './farm.js';
 import { ServiceQueue } from './queue.js';
 
 const SPACING = 0.62;
 const LOOKAHEAD = 0.85;
 const MAX_STEP = 0.55;
 const AVOID_RANGE = 1.15;
-const CLASSROOM = { x: 0.5, z: -2 };
+const CLASSROOM = { x: 0.5, z: HOUSE.back + 11 };
 const PATHS_PER_FRAME = 2;
 const STUCK_TIME = 1.2;
-const NEAR_LOD = 28;
-const FAR_LOD = 120;
+const VISIBLE_DISTANCE = 40;
 const SKIP_FRAMES = 2;
 const FEELERS = [0, 0.45, 0.9, 1.35];
 
@@ -42,9 +40,9 @@ const HANGOUTS = [
 ];
 
 const YARD = [
-  [-12, 9.5, 13, 24],
-  [-11, -8, 12, 5],
-  [-25, -16, 25, 28],
+  [-14, 31.3, 15, 32.8],
+  [-11, HOUSE.back + 5, 12, HOUSE.front - 1],
+  [-14, 4, 15, 25],
 ];
 
 const STREET = [
@@ -65,7 +63,7 @@ const FIELD_EDGES = [
   [-30, 37.4, 31, 37.9],
   [-1.6, 39.5, 1.8, 59.5],
   [-30, 60.6, 31, 61.2],
-];
+].map(([x0, z0, x1, z1]) => [x0 + FARM_X, z0, x1 + FARM_X, z1]);
 const CAUGHT = ['Dính rồi!', 'Con này to ghê!', 'Hên quá!'];
 const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này khó quá...'];
 const BROKE = ['Hết tiền đóng học rồi...', 'Đi làm ruộng kiếm tiền đã!', 'Mai em đi học sau.'];
@@ -154,23 +152,6 @@ function studyTexture() {
   return texture;
 }
 
-function lowPoly(walker) {
-  const parts = [];
-  for (const child of walker.group.children) {
-    if (!child.isMesh) continue;
-    child.updateMatrix();
-    parts.push(child.geometry.clone().applyMatrix4(child.matrix));
-  }
-  const geometry = mergeGeometries(parts, false);
-  for (const part of parts) part.dispose();
-  const mesh = new THREE.Mesh(geometry, characterMaterial());
-  mesh.rotation.order = 'YXZ';
-  mesh.castShadow = false;
-  mesh.receiveShadow = true;
-  mesh.visible = false;
-  return mesh;
-}
-
 let studyMaterial = null;
 
 export function createStudyIcon() {
@@ -198,11 +179,9 @@ class Villager {
     this.walker.group.rotation.order = 'YXZ';
     this.walker.group.visible = false;
     town.root.add(this.walker.group);
-    this.lowMesh = lowPoly(this.walker);
-    town.root.add(this.lowMesh);
     this.present = false;
     this.seatedShown = false;
-    this.lod = 0;
+    this.near = true;
     this.skipDt = 0;
     this.skipCount = 0;
     this.bubble = createBubble();
@@ -308,7 +287,7 @@ class Villager {
 
   owns(object) {
     for (let node = object; node; node = node.parent) {
-      if (node === this.walker.group || node === this.lowMesh || node === this.seated?.group) return true;
+      if (node === this.walker.group || node === this.seated?.group) return true;
     }
     return false;
   }
@@ -341,12 +320,10 @@ class Villager {
   }
 
   applyLod() {
-    const near = this.present && this.lod === 0;
-    const far = this.present && this.lod === 1;
+    const near = this.present && this.near;
     this.walker.group.visible = near;
-    this.lowMesh.visible = far;
-    this.shadow.setVisible(near || far);
-    if (this.seated) this.seated.group.visible = this.seatedShown && this.lod < 2;
+    this.shadow.setVisible(near);
+    if (this.seated) this.seated.group.visible = this.seatedShown && this.near;
   }
 
   attendsToday(day) {
@@ -373,10 +350,54 @@ class Villager {
     this.lookAt = null;
     this.task = null;
     if (ctx.night) return this.goHome();
+    if (this.wantsFood(ctx)) return this.goEat();
     if (this.shouldAttend(ctx)) return this.goToClass();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
+    if (this.purse.energy < ENERGY.costs.clear) return this.wait(between(8, 15));
     return this.goFarm();
+  }
+
+  activityNow(ctx) {
+    if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
+    if (this.state === 'seated' || this.state === 'teaching') return 'seated';
+    return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
+  }
+
+  tickEnergy(ctx) {
+    this.purse.liveEnergy(ctx.minutes, this.activityNow(ctx), 'sleep');
+    this.tired = this.purse.energy <= 0;
+  }
+
+  wantsFood(ctx) {
+    if (this.purse.energy >= ENERGY.low || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
+    return Object.values(FOODS).some((food) => food.price <= this.purse.money);
+  }
+
+  goEat() {
+    this.cancel();
+    this.task = 'eat';
+    this.enqueue(this.town.queues.eatery, () => this.eat());
+  }
+
+  eat() {
+    const ctx = this.town.context;
+    const purse = this.purse;
+    if (ctx.minute < EATERY.open || ctx.minute >= EATERY.close) {
+      this.say('Quán đóng cửa mất rồi!');
+      this.wait(1.5, () => this.finishService());
+      return;
+    }
+    const menu = Object.values(FOODS).sort((a, b) => b.energy - a.energy);
+    const eaten = [];
+    for (const food of menu) {
+      while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
+        purse.addEnergy(food.energy);
+        eaten.push(food.icon);
+      }
+    }
+    this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : 'Hết tiền ăn rồi...', 2.2);
+    this.wait(between(2, 4), () => this.finishService());
   }
 
   wait(seconds, then = null) {
@@ -387,6 +408,7 @@ class Villager {
   }
 
   travel(point, { speed = this.walkSpeed, then = null, fail = null, state = 'walking' } = {}) {
+    if (this.tired) speed = Math.min(speed, this.walkSpeed * ENERGY.tiredSpeed);
     const path = this.town.path(this.position, point);
     if (path === undefined) {
       this.wait(0.05 + Math.random() * 0.15, () => this.travel(point, { speed, then, fail, state }));
@@ -569,7 +591,7 @@ class Villager {
     this.task = 'class';
     this.recess = false;
     const phase = this.town.context.phase;
-    if (phase.kind === 'period' && phase.paying && !this.studying) this.payAt = this.now + between(0.1, 0.6);
+    if (phase.kind === 'period' && !this.studying) this.payAt = this.now + between(0.1, 0.6);
     const waiting = phase.kind !== 'free' || (phase.next && phase.remaining <= ROUTINE.schoolLead);
     if (!waiting || this.town.context.night) this.rise(() => this.think(), between(1, 3));
   }
@@ -800,12 +822,12 @@ class Villager {
   canFish() {
     const purse = this.purse;
     const river = this.town.river;
-    return purse.count('rod') > 0 && purse.count('bait') > 0 && river.available(this.town.context.day) > 0 && river.anglers < FISHING.villagerAnglers;
+    return purse.count('rod') > 0 && purse.count('bait') > 0 && purse.energy >= ENERGY.costs.fish && river.hasOpenZone && river.anglers < FISHING.villagerAnglers;
   }
 
   goFish() {
     const river = this.town.river;
-    const spot = river.claim(this, this.position, Infinity);
+    const spot = river.claim(this, this.position, Infinity, true);
     if (!spot) return false;
     this.task = 'fish';
     const [lo, hi] = FISHING.villagerCasts;
@@ -820,7 +842,7 @@ class Villager {
   castLine() {
     const session = this.fishing;
     const ctx = this.town.context;
-    if (!session || session.casts <= 0 || ctx.night || this.shouldAttend(ctx) || !this.purse.take('bait', 1) || this.town.river.available(ctx.day) <= 0) {
+    if (!session || session.casts <= 0 || ctx.night || this.shouldAttend(ctx) || !this.town.river.hasFish(session.spot) || !this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
       this.endFishing();
       return;
     }
@@ -836,6 +858,10 @@ class Villager {
 
   fishBite() {
     const session = this.fishing;
+    if (!this.town.river.hasFish(session.spot)) {
+      this.endFishing();
+      return;
+    }
     session.done = true;
     session.reelAt = this.now + between(1.5, 3);
     this.effects.angler.bite();
@@ -847,7 +873,7 @@ class Villager {
     const ctx = this.town.context;
     this.effects.angler.reel();
     const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
-    if (Math.random() < skill && this.town.river.take(ctx.day)) {
+    if (Math.random() < skill && this.town.river.take(session.spot)) {
       const fish = this.town.river.rollFish(ctx.minutes);
       this.purse.add(fishId(fish), 1);
       this.purse.markFish(ctx.day);
@@ -930,6 +956,14 @@ class Villager {
     const farm = this.town.farm;
     if (!job) {
       this.wait(0.5);
+      return;
+    }
+    const cost = ENERGY.costs[job.action] ?? 0;
+    if (!this.purse.spendEnergy(cost)) {
+      farm.release(job.index, this.id);
+      this.job = null;
+      this.say('Mệt quá, nghỉ chút đã...', 1.8);
+      this.wait(between(4, 8));
       return;
     }
     const spot = farm.spot(job.index);
@@ -1242,7 +1276,7 @@ class Villager {
     const phase = this.town.context.phase;
     const learning = this.studying && phase.kind === 'period' && !phase.paying;
     this.studyIcon.visible = learning;
-    if (this.lod > 0) return;
+    if (!this.near) return;
     if (learning && this.writing) {
       s.head.rotation.x = 0.3 + Math.sin(t * 1.3 + this.seatPhase) * 0.04;
       s.rightArm.rotation.x = -(0.03 + (Math.sin(t * 6 + this.seatPhase) * 0.5 + 0.5) * 0.06);
@@ -1329,13 +1363,7 @@ class Villager {
     const pos = this.position;
     const ground = this.town.nav.heightAt(pos.x, pos.z);
     if (ground !== null && this.roaming) pos.y += (ground - pos.y) * (1 - Math.exp(-14 * dt));
-    if (this.lod === 2) return;
-    if (this.lod === 1) {
-      this.lowMesh.position.set(pos.x, pos.y, pos.z);
-      this.lowMesh.rotation.set(0, this.facing, 0);
-      this.shadow.place(pos.x, pos.y, pos.z, 0);
-      return;
-    }
+    if (!this.near) return;
     const w = this.walker;
     const g = this.gait.update(w, this.velocity, dt, true);
     if (this.bubble.visible && this.state === 'idle') w.rightArm.rotation.x = -0.6 - Math.sin(t * 6) * 0.25;
@@ -1445,7 +1473,6 @@ export class Town {
     const list = [];
     for (const member of this.all) {
       if (member.walker.group.visible) list.push(member.walker.group);
-      if (member.lowMesh.visible) list.push(member.lowMesh);
       if (member.seated?.group.visible) list.push(member.seated.group);
     }
     return list;
@@ -1692,7 +1719,7 @@ export class Town {
         continue;
       }
       if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'chief') continue;
+      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat') continue;
       if (member.shouldAttend(ctx)) member.goToClass();
     }
     const teacher = this.teacher;
@@ -1705,10 +1732,9 @@ export class Town {
     for (const member of this.all) {
       const d = camera.position.distanceTo(member.position);
       this.probe.center.set(member.position.x, member.position.y + 0.9, member.position.z);
-      let lod = d < NEAR_LOD ? 0 : d < FAR_LOD ? 1 : 2;
-      if (d > 10 && !this.frustum.intersectsSphere(this.probe)) lod = 2;
-      if (lod === member.lod) continue;
-      member.lod = lod;
+      const near = d < VISIBLE_DISTANCE && (d <= 10 || this.frustum.intersectsSphere(this.probe));
+      if (near === member.near) continue;
+      member.near = near;
       member.applyLod();
     }
   }
@@ -1745,11 +1771,12 @@ export class Town {
       this.reviewAt = t + 1;
       this.review(ctx);
     }
+    for (const member of this.all) member.tickEnergy(ctx);
     this.updateLod(camera);
     const breakLeft = ctx.phase.kind === 'recess' ? realSeconds(ctx.phase.remaining) : Infinity;
     for (const member of this.all) {
       if (breakLeft !== Infinity && member.dueBack(breakLeft)) member.endRecess();
-      if (member.lod === 2) {
+      if (!member.near) {
         member.skipDt += dt;
         if (++member.skipCount < SKIP_FRAMES) continue;
         member.update(t, Math.min(member.skipDt, 0.15));

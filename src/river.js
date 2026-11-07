@@ -2,28 +2,37 @@ import * as THREE from 'three';
 import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
-import { FISH, FISHING } from './config.js';
+import { FISH, FISHING, WORLD } from './config.js';
 import { minuteOfDay } from './clock.js';
 import { moonLight, moonPhase } from './sky.js';
+import { createLanternGlow } from './lanternGlow.js';
 
 const KEY = 'truong-lang-xua.river';
-const SPAN = { x0: -70, x1: 130 };
+const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
+const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
 const DOCK = { x0: 44.6, x1: 46.4, z0: 68.8, z1: 76.6 };
 const DOCK_X = (DOCK.x0 + DOCK.x1) / 2;
 const PATH = { x0: 44.4, x1: 46.6, z0: 37 };
-const REACH = { x0: -46, x1: 104 };
+const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
 const SEGMENT = 3;
 const STEP = 1;
-const BANK_SPOTS = [26, 30, 34, 52, 56, 60, 64];
 const BOAT_X = 38.5;
+const BANK_RANGE = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5, step: 5 };
+const BANK_SPOTS = [];
+for (let x = BANK_RANGE.x0; x <= BANK_RANGE.x1; x += BANK_RANGE.step) {
+  if (Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3) BANK_SPOTS.push(x);
+}
+const DROPS = 160;
+const RING_SECONDS = 1.1;
 const WOOD = 0x7a5232;
 const WOOD_DARK = 0x553820;
 const REED = [0x7fa443, 0x9ab84a, 0x6a8a3a];
 const PEBBLES = [0x9e9484, 0xb3ab99, 0x857c6c];
 const FLOW_SPEED = 0.05;
-const HYACINTHS = 10;
+const HYACINTHS = 30;
 
 const between = (a, b) => a + Math.random() * (b - a);
+const randomInt = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
 const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -38,7 +47,7 @@ export function northBank(x) {
 
 export function southBank(x) {
   const wave = 1.3 * Math.sin(x * 0.05 + 4) + 0.7 * Math.sin(x * 0.13 + 0.7) + 0.35 * Math.sin(x * 0.27 + 1.9) + bump(x, 30, 6, -1.8) + bump(x, 92, 5, -1.5) + bump(x, -45, 7, -1.3);
-  return 80 + wave * (0.4 + 0.6 * fade(x));
+  return 130 + wave * (0.4 + 0.6 * fade(x));
 }
 
 function lowestNorth(x, half) {
@@ -49,7 +58,7 @@ function lowestNorth(x, half) {
 
 function makeSpots() {
   const spots = [];
-  const add = (stand, float) => spots.push({ id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), angler: null });
+  const add = (stand, float) => spots.push({ id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), angler: null, fish: 0, jumpAt: 0 });
   add({ x: DOCK_X, z: DOCK.z1 - 0.5 }, { x: DOCK_X, z: DOCK.z1 + 1.7 });
   for (const z of [72.6, 74.6]) {
     add({ x: DOCK.x0 + 0.3, z }, { x: DOCK.x0 - 2.4, z });
@@ -142,7 +151,7 @@ function dock(b) {
 
 function shoreline(b, rand) {
   const skip = (x) => Math.abs(x - DOCK_X) < 5 || Math.abs(x - BOAT_X) < 3 || BANK_SPOTS.some((spot) => Math.abs(x - spot) < 1.6);
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 90 * SPAN_SCALE; i++) {
     const x = SPAN.x0 + 8 + rand() * (SPAN.x1 - SPAN.x0 - 16);
     if (skip(x)) continue;
     const north = rand() < 0.55;
@@ -158,7 +167,7 @@ function shoreline(b, rand) {
       });
     }
   }
-  for (let i = 0; i < 140; i++) {
+  for (let i = 0; i < 140 * SPAN_SCALE; i++) {
     const x = SPAN.x0 + 4 + rand() * (SPAN.x1 - SPAN.x0 - 8);
     if (Math.abs(x - DOCK_X) < 2) continue;
     const north = rand() < 0.5;
@@ -170,13 +179,15 @@ function shoreline(b, rand) {
 
 let lanternMaterial = null;
 
+const DOCK_LANTERNS = [
+  [DOCK.x0 + 0.22, 0xd8321e],
+  [DOCK.x1 - 0.22, 0xf2b630],
+];
+
 function dockLanterns() {
   lanternMaterial ??= toonMaterial({ vertexColors: true, emissive: 0xff8a3a, emissiveIntensity: 0 });
   const b = new Batch();
-  for (const [x, color] of [
-    [DOCK.x0 + 0.22, 0xd8321e],
-    [DOCK.x1 - 0.22, 0xf2b630],
-  ]) {
+  for (const [x, color] of DOCK_LANTERNS) {
     const z = DOCK.z1 - 0.15;
     b.add(shapes.sphere(0.18, 10, 8), color, { p: [x, 1.25, z], s: [1, 1.25, 1] });
     b.add(shapes.cylinder(0.08, 0.09, 0.05, 8), 0xf2c14e, { p: [x, 1.48, z] });
@@ -208,12 +219,32 @@ function hyacinthGeometry() {
   return b.geometry();
 }
 
-function loadStock() {
+function loadZones() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && Number.isFinite(saved.day) && Number.isFinite(saved.left)) return saved;
+    if (saved && saved.zones && typeof saved.zones === 'object' && Array.isArray(saved.pending)) return saved;
   } catch {}
-  return { day: null, left: FISHING.dailyStock };
+  return null;
+}
+
+function fishGeometry() {
+  const b = new Batch();
+  b.add(
+    shapes.lathe([[0.001, 0], [0.018, 0.02], [0.04, 0.08], [0.058, 0.16], [0.06, 0.22], [0.05, 0.28], [0.028, 0.325], [0.001, 0.34]], 14),
+    0xa8b6bc,
+    { p: [0, 0, -0.17], r: [Math.PI / 2, 0, 0], s: [0.62, 1, 1] },
+  );
+  b.add(shapes.sphere(0.05, 10, 6), 0x4f6672, { p: [0, 0.03, 0.01], s: [0.55, 0.5, 3] });
+  b.add(shapes.sphere(0.05, 10, 6), 0xe9eef0, { p: [0, -0.028, 0.03], s: [0.6, 0.45, 2.6] });
+  b.add(shapes.box(0.008, 0.075, 0.05), 0x7f939c, { p: [0, 0.03, -0.205], r: [-0.7, 0, 0] });
+  b.add(shapes.box(0.008, 0.075, 0.05), 0x7f939c, { p: [0, -0.03, -0.205], r: [0.7, 0, 0] });
+  b.add(shapes.box(0.006, 0.05, 0.09), 0x5d7480, { p: [0, 0.068, 0.02], r: [-0.35, 0, 0] });
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(0.04, 0.006, 0.03), 0x8fa3ab, { p: [side * 0.035, -0.02, 0.1], r: [0, 0, side * 0.5] });
+    b.add(shapes.sphere(0.015, 8, 6), 0xffffff, { p: [side * 0.024, 0.014, 0.25] });
+    b.add(shapes.sphere(0.009, 6, 4), 0x111111, { p: [side * 0.032, 0.014, 0.255] });
+  }
+  return b.geometry();
 }
 
 function waterObstacles() {
@@ -237,7 +268,8 @@ function waterObstacles() {
 
 export function createRiver() {
   const spots = makeSpots();
-  const stock = loadStock();
+  const saved = loadZones();
+  const pending = [];
   const obstacles = waterObstacles();
 
   const group = new THREE.Group();
@@ -262,6 +294,9 @@ export function createRiver() {
   shoreline(b, makeRandom(8181));
   const details = b.mesh();
   group.add(details, dockLanterns());
+  const lanternGlow = createLanternGlow(DOCK_LANTERNS.map(([x, tint]) => ({ position: new THREE.Vector3(x, 1.25, DOCK.z1 - 0.15), tint })));
+  group.add(lanternGlow.object);
+  let night = 0;
 
   const floaters = new THREE.InstancedMesh(hyacinthGeometry(), vertexMaterial(), HYACINTHS);
   floaters.count = 0;
@@ -292,26 +327,174 @@ export function createRiver() {
   const spawn = (x) => {
     drifting.push({ x, offset: between(0.8, 2.4), speed: between(0.35, 0.6), turn: Math.random() * Math.PI * 2, spin: between(-0.25, 0.25), phase: Math.random() * Math.PI * 2, scale: between(0.8, 1.25) });
   };
-  for (let i = 0; i < 4; i++) spawn(between(SPAN.x0 + 10, SPAN.x1 - 10));
+  for (let i = 0; i < HYACINTHS / 2; i++) spawn(between(SPAN.x0 + 10, SPAN.x1 - 10));
 
-  const available = (day) => {
-    if (stock.day !== day) {
-      stock.day = day;
-      stock.left = FISHING.dailyStock;
-    }
-    return stock.left;
-  };
+  const fishMaterial = vertexMaterial();
+  const fishShape = fishGeometry();
+  const jumpers = Array.from({ length: FISHING.zones * 3 }, () => {
+    const mesh = new THREE.Mesh(fishShape, fishMaterial);
+    mesh.rotation.order = 'YXZ';
+    mesh.visible = false;
+    mesh.castShadow = false;
+    group.add(mesh);
+    return { mesh, t: -1, wait: 0, duration: 1, height: 0.6, travel: 0.8, from: new THREE.Vector3(), dir: new THREE.Vector3() };
+  });
+  const ringShape = new THREE.RingGeometry(0.12, 0.2, 24);
+  ringShape.rotateX(-Math.PI / 2);
+  const rings = Array.from({ length: FISHING.zones * 6 }, () => {
+    const mesh = new THREE.Mesh(ringShape, new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, depthWrite: false }));
+    mesh.visible = false;
+    mesh.renderOrder = 2;
+    group.add(mesh);
+    return { mesh, t: -1 };
+  });
+  const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.025, 6, 4), new THREE.MeshBasicMaterial({ color: 0xdff2ff }), DROPS);
+  drops.count = 0;
+  drops.frustumCulled = false;
+  drops.castShadow = false;
+  group.add(drops);
+  const flying = [];
+  const dropMatrix = new THREE.Matrix4();
+  group.matrixWorldAutoUpdate = true;
+
   const save = () => {
+    const zones = {};
+    for (const spot of spots) if (spot.fish > 0) zones[spot.id] = spot.fish;
     try {
-      localStorage.setItem(KEY, JSON.stringify(stock));
+      localStorage.setItem(KEY, JSON.stringify({ zones, pending }));
     } catch {}
   };
 
-  function nearestFree(point, who, radius = Infinity) {
+  function openZone() {
+    const empty = spots.filter((spot) => spot.fish <= 0);
+    if (!empty.length) return;
+    const spot = empty[Math.floor(Math.random() * empty.length)];
+    spot.fish = randomInt(FISHING.zoneFish);
+    spot.jumpAt = clock + between(0.5, 2);
+  }
+
+  if (saved) {
+    for (const [id, count] of Object.entries(saved.zones)) {
+      const spot = spots[Number(id)];
+      if (spot && Number.isFinite(count) && count > 0) spot.fish = Math.floor(count);
+    }
+    pending.push(...saved.pending.filter(Number.isFinite).sort((a, b) => a - b));
+  } else {
+    for (let i = 0; i < FISHING.zones; i++) openZone();
+    save();
+  }
+
+  const zoneCount = () => spots.reduce((count, spot) => count + (spot.fish > 0 ? 1 : 0), 0);
+
+  function refill(minutes) {
+    let changed = false;
+    while (pending.length && pending[0] <= minutes) {
+      pending.shift();
+      openZone();
+      changed = true;
+    }
+    while (zoneCount() + pending.length < FISHING.zones) {
+      pending.push(minutes + randomInt(FISHING.zoneRespawn));
+      pending.sort((a, b) => a - b);
+      changed = true;
+    }
+    if (changed) save();
+  }
+
+  function splash(x, z, strength = 1) {
+    const ring = rings.find((item) => item.t < 0) ?? rings[0];
+    ring.t = 0;
+    ring.mesh.position.set(x, 0.06, z);
+    ring.mesh.visible = true;
+    const count = Math.round(5 + strength * 5);
+    for (let i = 0; i < count && flying.length < DROPS; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const out = between(0.3, 0.9) * strength;
+      flying.push({ x, y: 0.06, z, vx: Math.cos(angle) * out, vy: between(1.2, 2.3) * strength, vz: Math.sin(angle) * out });
+    }
+  }
+
+  function jump(spot) {
+    const roll = Math.random();
+    const count = roll < 0.35 ? 1 : roll < 0.7 ? 2 : roll < 0.9 ? 3 : 4;
+    const angle = Math.random() * Math.PI * 2;
+    const reach = between(0.4, 1.8);
+    const cx = spot.float.x + Math.cos(angle) * reach;
+    const cz = Math.max(spot.float.z - 0.4, spot.float.z + Math.sin(angle) * reach);
+    const heading = Math.random() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      const jumper = jumpers.find((item) => item.t < 0 && item.wait <= 0);
+      if (!jumper) return;
+      const turn = heading + between(-0.6, 0.6);
+      jumper.from.set(cx + between(-0.5, 0.5), 0, Math.max(spot.float.z - 0.4, cz + between(-0.5, 0.5)));
+      jumper.dir.set(Math.sin(turn), 0, Math.cos(turn));
+      jumper.duration = between(0.75, 1.05);
+      jumper.height = between(0.45, 0.9);
+      jumper.travel = between(0.5, 1.1);
+      jumper.wait = i === 0 ? 0.001 : between(0.08, 0.45) * i;
+      jumper.mesh.rotation.y = turn;
+    }
+  }
+
+  function animateJumps(dt) {
+    for (const spot of spots) {
+      if (spot.fish <= 0 || clock < spot.jumpAt) continue;
+      spot.jumpAt = clock + between(2.5, 6);
+      jump(spot);
+    }
+    for (const jumper of jumpers) {
+      if (jumper.wait > 0) {
+        jumper.wait -= dt;
+        if (jumper.wait > 0) continue;
+        jumper.wait = 0;
+        jumper.t = 0;
+        jumper.mesh.visible = true;
+        splash(jumper.from.x, jumper.from.z, 0.8);
+      }
+      if (jumper.t < 0) continue;
+      jumper.t += dt / jumper.duration;
+      const k = Math.min(1, jumper.t);
+      const { mesh, from, dir } = jumper;
+      mesh.position.set(from.x + dir.x * jumper.travel * k, -0.15 + Math.sin(Math.PI * k) * jumper.height, from.z + dir.z * jumper.travel * k);
+      mesh.rotation.x = -Math.cos(Math.PI * k) * 1.05;
+      mesh.rotation.z = Math.sin(k * Math.PI * 6) * 0.25;
+      if (jumper.t < 1) continue;
+      jumper.t = -1;
+      mesh.visible = false;
+      splash(mesh.position.x, mesh.position.z, 1);
+    }
+    for (const ring of rings) {
+      if (ring.t < 0) continue;
+      ring.t += dt / RING_SECONDS;
+      if (ring.t >= 1) {
+        ring.t = -1;
+        ring.mesh.visible = false;
+        continue;
+      }
+      ring.mesh.scale.setScalar(1 + ring.t * 3);
+      ring.mesh.material.opacity = 0.75 * (1 - ring.t);
+    }
+    let alive = 0;
+    for (const drop of flying) {
+      drop.vy -= 7 * dt;
+      drop.x += drop.vx * dt;
+      drop.y += drop.vy * dt;
+      drop.z += drop.vz * dt;
+      if (drop.y < 0.03) continue;
+      drops.setMatrixAt(alive, dropMatrix.makeTranslation(drop.x, drop.y, drop.z));
+      flying[alive++] = drop;
+    }
+    flying.length = alive;
+    drops.count = alive;
+    if (alive) drops.instanceMatrix.needsUpdate = true;
+  }
+
+  function nearestFree(point, who, radius = Infinity, withFish = false) {
     let best = null;
     let bestD = radius;
     for (const spot of spots) {
       if (spot.angler && spot.angler !== who) continue;
+      if (withFish && spot.fish <= 0) continue;
       const d = Math.hypot(spot.float.x - point.x, spot.float.z - point.z);
       if (d < bestD) {
         bestD = d;
@@ -324,22 +507,27 @@ export function createRiver() {
   return {
     obstacles,
     spots,
-    available,
+    hasFish(spot) {
+      return spot.fish > 0;
+    },
+    get hasOpenZone() {
+      return spots.some((spot) => spot.fish > 0 && !spot.angler);
+    },
     get anglers() {
       return spots.filter((spot) => spot.angler).length;
     },
-    claim(who, point, radius) {
+    claim(who, point, radius, withFish = false) {
       for (const spot of spots) if (spot.angler === who) spot.angler = null;
-      const spot = nearestFree(point, who, radius);
+      const spot = nearestFree(point, who, radius, withFish);
       if (spot) spot.angler = who;
       return spot;
     },
     release(who) {
       for (const spot of spots) if (spot.angler === who) spot.angler = null;
     },
-    take(day) {
-      if (available(day) <= 0) return false;
-      stock.left -= 1;
+    take(spot) {
+      if (spot.fish <= 0) return false;
+      spot.fish -= 1;
       save();
       return true;
     },
@@ -361,10 +549,14 @@ export function createRiver() {
       return entries[0][0];
     },
     setNight(k) {
+      night = k;
       if (lanternMaterial) lanternMaterial.emissiveIntensity = k * 1.8;
     },
-    update(dt) {
+    update(dt, minutes) {
       clock += dt;
+      refill(minutes);
+      animateJumps(dt);
+      lanternGlow.update(clock, night);
       flow.offset.x -= dt * FLOW_SPEED;
       flow.offset.y = Math.sin(clock * 0.35) * 0.015;
       if (clock >= spawnAt && drifting.length < HYACINTHS) {
@@ -389,9 +581,9 @@ export function createRiver() {
       return {
         id: 'river',
         name: 'Bến sông Hoài',
-        bounds: { x0: -60, z0: 66, x1: 120, z1: 84 },
+        bounds: { x0: WORLD.x0 - 10, z0: 66, x1: WORLD.x1 + 10, z1: 84 },
         staticNav: true,
-        overview: { position: new THREE.Vector3(45, 16, 92), target: new THREE.Vector3(45, 0, 72) },
+        overview: { position: new THREE.Vector3(45, 40, 140), target: new THREE.Vector3(45, 0, 96) },
         target(hit) {
           if (hit.object !== water) return null;
           const spot = nearestFree(hit.point, options.player, 12);
@@ -400,10 +592,6 @@ export function createRiver() {
         },
         actionFor() {
           return { id: 'fish', hint: 'hand' };
-        },
-        labelOf() {
-          const left = available(options.day());
-          return left > 0 ? `Câu cá · sông còn khoảng ${left} con` : 'Sông hết cá rồi, mai quay lại nhé';
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 0.7, target.z);

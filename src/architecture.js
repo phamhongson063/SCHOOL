@@ -228,6 +228,7 @@ function createKit(seed) {
     lamps: new Batch(),
     panes: new Batch(),
     signs: [],
+    lights: [],
     obstacles: [],
   };
 }
@@ -243,6 +244,7 @@ function assemble(kit) {
   add(kit.lamps, lanternMaterial(), false);
   for (const sign of kit.signs) group.add(sign);
   add(kit.panes, glassMaterial(), false);
+  group.userData.lights = kit.lights;
   return group;
 }
 
@@ -511,6 +513,7 @@ function silkLantern(kit, x, yTop, z, color, stretch = 1) {
   );
   b.add(shapes.cylinder(0.1, 0.08, 0.05, 8), PAL.gold, { p: [x, bodyBottom - 0.01, z] });
   b.add(shapes.cone(0.045, 0.24, 6), shade(color, 0.7), { p: [x, bodyBottom - 0.16, z] });
+  kit.lights.push({ position: new THREE.Vector3(x, bodyBottom + h / 2, z), tint: color });
 }
 
 function lanternRow(kit, xs, yAt, z, colors) {
@@ -652,7 +655,7 @@ function clayJar(kit, x, y, z, scale, glaze) {
 }
 
 const SIGN_PX = 320;
-const HAN_FONT = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "Noto Serif JP", "BIZ UDPGothic", serif';
+const BRUSH_FONT = '"Water Brush", "Dancing Script", cursive';
 const LATIN_FONT = '"BIZ UDPGothic", system-ui, -apple-system, "Segoe UI", sans-serif';
 const cssHex = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 
@@ -668,11 +671,15 @@ function paintSign(ctx, w, h, { lines, vertical, bg, fg, font }) {
   ctx.textBaseline = 'middle';
   const pad = edge * 0.16;
   if (vertical) {
-    const chars = [...lines.join('')];
-    const cell = (h - pad * 2) / chars.length;
-    const size = Math.min(cell * 0.84, (w - pad * 2) * 0.98);
+    const cell = (h - pad * 2) / lines.length;
+    let size = Math.min(cell * 0.84, (w - pad * 2) * 0.98);
+    for (const word of lines) {
+      ctx.font = `700 ${size}px ${font}`;
+      const width = ctx.measureText(word).width;
+      if (width > w - pad * 2) size *= (w - pad * 2) / width;
+    }
     ctx.font = `700 ${size}px ${font}`;
-    chars.forEach((char, i) => ctx.fillText(char, w / 2, pad + cell * (i + 0.53)));
+    lines.forEach((word, i) => ctx.fillText(word, w / 2, pad + cell * (i + 0.53)));
     return;
   }
   const lineH = (h - pad * 2) / lines.length;
@@ -697,7 +704,7 @@ function signGeometry(w, h, d, twoSided) {
   return geometry;
 }
 
-function textSign(kit, x, y, z, w, h, { text, across = false, vertical = false, bg = PAL.lacquer, fg = PAL.gold, han = true } = {}) {
+function textSign(kit, x, y, z, w, h, { text, across = false, vertical = false, bg = PAL.lacquer, fg = PAL.gold, brush = true } = {}) {
   kit.body.group([x, y, z], across ? [0, Math.PI / 2, 0] : [0, 0, 0], () => {
     kit.body.add(shapes.box(w + 0.07, h + 0.07, 0.05), PAL.woodDark);
   });
@@ -707,13 +714,13 @@ function textSign(kit, x, y, z, w, h, { text, across = false, vertical = false, 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
-  const options = { lines: Array.isArray(text) ? text : [text], vertical, bg, fg, font: han ? HAN_FONT : LATIN_FONT };
+  const options = { lines: Array.isArray(text) ? text : [text], vertical, bg, fg, font: brush ? BRUSH_FONT : LATIN_FONT };
   const paint = () => {
     paintSign(canvas.getContext('2d'), canvas.width, canvas.height, options);
     texture.needsUpdate = true;
   };
   paint();
-  document.fonts?.ready.then(paint, () => {});
+  document.fonts?.load(`700 64px ${options.font}`, options.lines.join(' ')).then(paint, () => {});
   const mesh = new THREE.Mesh(signGeometry(w, h, 0.07, across), toonMaterial({ map: texture }));
   mesh.position.set(x, y, z);
   mesh.rotation.y = across ? Math.PI / 2 : 0;
@@ -966,12 +973,12 @@ export function createMarket({ seed = 1 } = {}) {
       const dir = post === side * 1.5 ? side : -side;
       b.limb([post + dir * 0.1, 2.55, 0.02], [post + dir * 0.6, 3.12, 0.02], 0.045, PAL.woodDark, { capsule: false, seg: 4 });
     }
-    textSign(kit, side * 1.5, 1.75, 0.14, 0.3, 1.4, { text: side < 0 ? '生意興隆' : '財源廣進', vertical: true });
+    textSign(kit, side * 1.5, 1.75, 0.14, 0.3, 1.4, { text: side < 0 ? ['Mua', 'May', 'Bán', 'Đắt'] : ['Tấn', 'Tài', 'Tấn', 'Lộc'], vertical: true });
   }
 
   b.limb([-1.5, 3.0, 0.1], [-1.5, 3.0, 1.0], 0.025, PAL.ink, { capsule: false, seg: 5 });
   for (const dz of [0.48, 0.98]) b.limb([-1.5, 3.0, dz], [-1.5, 2.96, dz], 0.012, PAL.ink, { capsule: false, seg: 4 });
-  textSign(kit, -1.5, 2.55, 0.73, 0.7, 0.8, { text: ['NÔNG', 'SẢN'], across: true, bg: 0xe8c45a, fg: PAL.lacquer, han: false });
+  textSign(kit, -1.5, 2.55, 0.73, 0.7, 0.8, { text: ['NÔNG', 'SẢN'], across: true, bg: 0xe8c45a, fg: PAL.lacquer, brush: false });
 
   b.add(shapes.box(2.4, 0.9, 0.55), PAL.woodMid, { p: [0, 0.45, -1.3] });
   b.add(shapes.box(2.5, 0.08, 0.62), PAL.woodDark, { p: [0, 0.04, -1.3] });
@@ -1149,7 +1156,7 @@ export function createChiefHouse({ seed = 1 } = {}) {
   b.add(shapes.box(W - 2 * T, gableFill - 3.64, 0.06), PAL.woodDark, { p: [0, (gableFill + 3.64) / 2, innerZ] });
   block(kit, -W / 2, innerZ - 0.15, -1.08, innerZ + 0.15);
   block(kit, 1.08, innerZ - 0.15, W / 2, innerZ + 0.15);
-  textSign(kit, 0, 4.15, innerZ + 0.1, 1.9, 0.55, { text: '國泰民安' });
+  textSign(kit, 0, 4.15, innerZ + 0.1, 1.9, 0.55, { text: 'Quốc Thái Dân An' });
 
   b.add(shapes.box(1.9, 0.07, 0.76), PAL.lacquer, { p: [0, 0.8, -3.9] });
   b.add(shapes.box(1.94, 0.02, 0.8), PAL.gold, { p: [0, 0.76, -3.9] });
@@ -1182,8 +1189,8 @@ export function createChiefHouse({ seed = 1 } = {}) {
 
   b.add(shapes.box(3.6, 3.0, 0.03), 0x7a1e14, { p: [0, 1.75, -D + T + 0.02] });
   for (const y of [0.27, 3.23]) b.add(shapes.box(3.6, 0.05, 0.04), PAL.gold, { p: [0, y, -D + T + 0.03] });
-  textSign(kit, 0, 2.95, -D + T + 0.06, 2.2, 0.6, { text: '光前裕後' });
-  for (const side of [-1, 1]) textSign(kit, side * 1.45, 1.75, -D + T + 0.06, 0.32, 1.7, { text: side < 0 ? '福如東海' : '壽比南山', vertical: true });
+  textSign(kit, 0, 2.95, -D + T + 0.06, 2.2, 0.6, { text: 'Quang Tiền Dụ Hậu' });
+  for (const side of [-1, 1]) textSign(kit, side * 1.45, 1.75, -D + T + 0.06, 0.32, 1.7, { text: side < 0 ? ['Phúc', 'Như', 'Đông', 'Hải'] : ['Thọ', 'Tỷ', 'Nam', 'Sơn'], vertical: true });
   const altarZ = -7.35;
   b.add(shapes.box(2.4, 0.08, 0.55), PAL.lacquer, { p: [0, 1.0, altarZ] });
   b.add(shapes.box(2.3, 0.85, 0.03), PAL.lacquer, { p: [0, 0.52, altarZ + 0.26] });

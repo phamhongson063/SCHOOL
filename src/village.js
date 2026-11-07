@@ -8,6 +8,7 @@ import { createWalker } from './characters.js';
 import { createBubble } from './bubble.js';
 import { SHOP, CHIEF, EATERY } from './config.js';
 import { coins } from './format.js';
+import { createLanternGlow } from './lanternGlow.js';
 
 export const VILLAGE_BOUNDS = { x0: 47, z0: 18, x1: 100, z1: 52 };
 
@@ -98,7 +99,7 @@ function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8a1d14 }
 
 let lanternMaterial = null;
 
-function lanternString(b, glow, x, rand) {
+function lanternString(b, glow, lights, x, rand) {
   const z0 = NORTH_FRONT - 0.2;
   const z1 = SOUTH_FRONT + 0.2;
   const top = 4.3;
@@ -115,6 +116,7 @@ function lanternString(b, glow, x, rand) {
     const color = LANTERN_COLORS[Math.floor(rand() * LANTERN_COLORS.length)];
     b.limb(at.toArray(), [at.x, at.y - 0.18, at.z], 0.008, 0x3a2414, { capsule: false, seg: 4 });
     glow.add(shapes.sphere(0.2, 10, 8), color, { p: [at.x, at.y - 0.4, at.z], s: [1, 1.2, 1] });
+    lights.push({ position: new THREE.Vector3(at.x, at.y - 0.4, at.z), tint: color });
     b.add(shapes.cylinder(0.09, 0.1, 0.05, 8), 0xf2c14e, { p: [at.x, at.y - 0.18, at.z] });
     b.add(shapes.cylinder(0.1, 0.09, 0.05, 8), 0xf2c14e, { p: [at.x, at.y - 0.64, at.z] });
     b.add(shapes.cone(0.04, 0.16, 6), color, { p: [at.x, at.y - 0.74, at.z], r: [Math.PI, 0, 0] });
@@ -172,11 +174,12 @@ function decor() {
   const rand = makeRandom(4646);
   const b = new Batch();
   const glow = new Batch();
-  for (const x of [60.6, 74.9, 89.6]) lanternString(b, glow, x, rand);
+  const lights = [];
+  for (const x of [60.6, 74.9, 89.6]) lanternString(b, glow, lights, x, rand);
   const obstacles = [];
   for (const [x, z] of [
     [98.5, 29.8],
-    [46.6, 41.2],
+    [33.6, 43.2],
     [98.5, 40.8],
   ]) {
     roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
@@ -187,7 +190,7 @@ function decor() {
   lanternMaterial ??= toonMaterial({ vertexColors: true, emissive: 0xff7a2a, emissiveIntensity: 0 });
   const lit = glow.mesh(lanternMaterial, { shadow: false });
   group.add(lit);
-  return { group, walks, obstacles };
+  return { group, walks, obstacles, lights };
 }
 
 function keeperNPC(look) {
@@ -231,6 +234,11 @@ export function createVillage() {
     building.center = box.getCenter(new THREE.Vector3());
     const proxy = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), hitMaterial);
     proxy.position.copy(building.center);
+    proxy.raycast = (raycaster, intersects) => {
+      if (!raycaster.ray.intersectsBox(box)) return;
+      const hit = raycaster.intersectObject(building.group, true)[0];
+      if (hit) intersects.push({ ...hit, object: proxy });
+    };
     building.proxy = proxy;
     building.sign = sign;
     building.group.add(sign.mesh);
@@ -299,6 +307,12 @@ export function createVillage() {
   middle.clickables.push(...street.walks);
   freeze(street.group);
   obstacles.push(...street.obstacles);
+  const lights = [...street.lights];
+  for (const building of buildings) {
+    for (const light of building.group.userData.lights ?? []) lights.push({ position: building.group.localToWorld(light.position.clone()), tint: light.tint });
+  }
+  const lanternGlow = createLanternGlow(lights);
+  middle.group.add(lanternGlow.object);
 
   const buildingOf = (object) => {
     for (const building of buildings) {
@@ -360,7 +374,6 @@ export function createVillage() {
     actionFor() {
       return { id: 'visit', hint: 'hand' };
     },
-    labelOf,
     topOf(target) {
       if (target.kind === 'house') return plaques.get(target.id).anchor.clone().add(new THREE.Vector3(0, 0.6, 0));
       return new THREE.Vector3(target.x, 3.6, target.z);
@@ -383,6 +396,12 @@ export function createVillage() {
         bound.openEatery();
         return null;
       }
+      const home = bound.estate.houses.find((item) => item.id === target.id);
+      if (home?.owner === 'player') {
+        if (!bound.isNight()) return 'Nhà của mình. Tối về đây ngủ cho lại sức nhé!';
+        bound.sleep();
+        return null;
+      }
       return labelOf(target);
     },
   };
@@ -399,6 +418,7 @@ export function createVillage() {
     },
     update(t, ctx, camera) {
       now = t;
+      lanternGlow.update(t, night);
       const minute = ctx.minute;
       const shopOn = minute >= SHOP.open && minute < SHOP.close;
       const chiefOn = minute >= CHIEF.open && minute < CHIEF.close;

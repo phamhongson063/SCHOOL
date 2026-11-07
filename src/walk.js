@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Gait } from './gait.js';
+import { ENERGY } from './config.js';
 
 const RADIUS = 0.3;
 const MAX_STEP = 0.55;
@@ -10,8 +11,9 @@ const PIVOT = 1.5;
 const LOOK_ABOVE = 0.55;
 const GRAVITY = 30;
 const JUMP_SPEED = 9;
-const WALK_SPEED = 2.4;
-const RUN_SPEED = 4.9;
+export const WALK_SPEED = 2.4;
+export const RUN_SPEED = 4.9;
+const WORK_SIDE = 0.45;
 const DOUBLE_CLICK_MS = 320;
 const DOUBLE_CLICK_PX = 24;
 const SENSITIVITY = 0.005;
@@ -57,6 +59,7 @@ export class PlayerController {
     this.distance = 5;
     this.distanceScale = 1;
     this.running = false;
+    this.tired = false;
     this.lastClick = null;
     this.cameraDistance = 5;
     this.facing = Math.PI;
@@ -238,22 +241,31 @@ export class PlayerController {
   finishSit() {
     this.posture = 'seated';
     this.position.copy(this.seat.sit);
-    this.facing = Math.PI;
+    this.facing = this.seat.facing ?? Math.PI;
     this.seat.place(this.seating.model.group);
     this.shadow?.setVisible(false);
-    if (this.lookTarget) this.faceTarget(this.lookTarget);
+    const look = this.seat.look ?? this.lookTarget;
+    if (look) this.faceTarget(look);
     else this.completeFacing();
   }
 
-  faceTarget(target) {
-    const yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
+  faceTarget(target, { work = false, then = null } = {}) {
+    let yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
+    if (work && !this.firstPerson) {
+      const left = Math.atan2(Math.sin(yaw + WORK_SIDE - this.yaw), Math.cos(yaw + WORK_SIDE - this.yaw));
+      const right = Math.atan2(Math.sin(yaw - WORK_SIDE - this.yaw), Math.cos(yaw - WORK_SIDE - this.yaw));
+      yaw += Math.abs(left) < Math.abs(right) ? WORK_SIDE : -WORK_SIDE;
+    }
     const diff = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
-    this.cameraGoal = { yaw: this.yaw + diff, pitch: this.firstPerson ? 0.08 : 0.22 };
+    const pitch = work ? (this.firstPerson ? 0.7 : Math.max(this.pitch, 0.6)) : this.firstPerson ? 0.08 : 0.22;
+    this.cameraGoal = { yaw: this.yaw + diff, pitch, then };
   }
 
   completeFacing() {
+    const goal = this.cameraGoal;
     this.cameraGoal = null;
-    this.onFacingTeacher?.();
+    if (goal?.then) goal.then();
+    else this.onFacingTeacher?.();
   }
 
   finishStand() {
@@ -345,8 +357,9 @@ export class PlayerController {
         }
       }
 
-      const running = this.running || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
-      const speed = (running ? RUN_SPEED : WALK_SPEED) * (last ? Math.min(1, dist / 0.5 + 0.2) : 1);
+      const running = !this.tired && (this.running || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'));
+      const pace = running ? RUN_SPEED : this.tired ? WALK_SPEED * ENERGY.tiredSpeed : WALK_SPEED;
+      const speed = pace * (last ? Math.min(1, dist / 0.5 + 0.2) : 1);
       const heading = Math.atan2(dx, dz) + turn;
       return new THREE.Vector3(Math.sin(heading) * speed, 0, Math.cos(heading) * speed);
     }
@@ -413,7 +426,7 @@ export class PlayerController {
     const seated = this.posture === 'seated';
     const ease = 1 - Math.exp(-6 * dt);
     if (this.cameraGoal) {
-      const turn = 1 - Math.exp(-4 * dt);
+      const turn = 1 - Math.exp((this.cameraGoal.then ? -7 : -4) * dt);
       this.yaw += (this.cameraGoal.yaw - this.yaw) * turn;
       this.pitch += (this.cameraGoal.pitch - this.pitch) * turn;
       if (Math.abs(this.cameraGoal.yaw - this.yaw) < 0.02 && Math.abs(this.cameraGoal.pitch - this.pitch) < 0.02) this.completeFacing();

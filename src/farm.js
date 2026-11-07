@@ -33,17 +33,18 @@ const PER_BED = 10;
 const SPACING = 2;
 const FRONT = 39.5;
 const BACK = FRONT + PER_BED * SPACING;
-const PATH = { x0: -2.1, x1: 2.3 };
+export const FARM_X = -70;
+const PATH = { x0: -2.1 + FARM_X, x1: 2.3 + FARM_X };
 const SIDES = [
-  { first: -2.6, dir: -1 },
-  { first: 3.6, dir: 1 },
+  { first: -2.6 + FARM_X, dir: -1 },
+  { first: 3.6 + FARM_X, dir: 1 },
 ];
 const columns = ({ first, dir }) => Array.from({ length: BEDS_PER_SIDE }, (_, k) => first + dir * k * BED.pitch);
 const BED_XS = [...SIDES.flatMap((side) => columns(side).slice(0, FIRST_BEDS)), ...SIDES.flatMap((side) => columns(side).slice(FIRST_BEDS))];
 const BEDS = BED_XS.map((x, i) => ({ x, shape: bedShape(700 + i * 13, { height: BED.height }) }));
 const CLODS = [0x6b4428, 0x7d5532, 0x8a5c38, 0x5c3920];
 const WEEDS = [0x6fae3f, 0x5a9a36, 0x86c75a];
-const BOUNDS = { x0: -32, z0: 38.5, x1: 33, z1: 64 };
+const BOUNDS = { x0: -32 + FARM_X, z0: 38.5, x1: 33 + FARM_X, z1: 64 };
 export const FIELD_TREES = [
   [-32, 58],
   [-20, 64],
@@ -51,7 +52,7 @@ export const FIELD_TREES = [
   [9, 64.5],
   [24, 63.5],
   [33, 57],
-];
+].map(([x, z]) => [x + FARM_X, z]);
 
 const ROAD_EDGE = 36.6;
 
@@ -406,9 +407,10 @@ class FarmView {
         }
       }
     }
-    const outer = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - 0.5)), 0) + 1.6;
-    this.jar(b, 0.5 - outer, FRONT - 0.9);
-    this.jar(b, 0.5 + outer, FRONT - 0.9);
+    const center = 0.5 + FARM_X;
+    const outer = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - center)), 0) + 1.6;
+    this.jar(b, center - outer, FRONT - 0.9);
+    this.jar(b, center + outer, FRONT - 0.9);
     for (const [x, z] of FIELD_TREES) {
       roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
       this.block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);

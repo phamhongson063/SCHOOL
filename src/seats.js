@@ -4,7 +4,18 @@ export class Seats {
   }
 
   at(point) {
-    return this.list.find((s) => Math.abs(point.x - s.x) <= 0.55 && point.z >= s.z - 0.85 && point.z <= s.z + 0.6) ?? null;
+    return (
+      this.list.find((s) => {
+        const facing = s.facing ?? Math.PI;
+        const fx = Math.sin(facing);
+        const fz = Math.cos(facing);
+        const dx = point.x - s.x;
+        const dz = point.z - s.z;
+        const ahead = dx * fx + dz * fz;
+        const across = dx * fz - dz * fx;
+        return Math.abs(across) <= 0.55 && ahead >= -0.6 && ahead <= 0.85;
+      }) ?? null
+    );
   }
 
   canTake(seat, who) {

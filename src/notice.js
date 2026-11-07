@@ -3,8 +3,8 @@ import { Batch, freeze, labelBox, shapes, toonMaterial } from './toon.js';
 import { scheduleFor, sessionLabel } from './timetable.js';
 import { clockText } from './clock.js';
 
-export const NOTICE = { x: -6.2, z: 32.15 };
-export const NOTICE_STAND = { x: -6.2, z: 33.7 };
+export const NOTICE = { x: -5.6, z: 31.4 };
+export const NOTICE_STAND = { x: -5.6, z: 32.9 };
 
 const WIDTH = 1.9;
 const HEIGHT = 1.45;
@@ -32,7 +32,7 @@ function paint(ctx, w, h, day) {
   ctx.fillText(`Ngày ${day} · ${sessionLabel(schedule.plan)}`, w / 2, 102);
   const rows = schedule.segments;
   const top = 140;
-  const lineH = Math.min(34, (h - top - 30) / Math.max(1, rows.length + (schedule.plan.afternoon ? 1 : 0)));
+  const lineH = Math.min(34, (h - top - 30) / Math.max(1, rows.length + (schedule.plan.afternoon ? 1 : 0) + (schedule.plan.evening ? 1 : 0)));
   ctx.font = `600 ${Math.round(lineH * 0.78)}px ${FONT}`;
   let y = top;
   let lastStart = 0;
@@ -40,7 +40,7 @@ function paint(ctx, w, h, day) {
     if (seg.start - lastStart > 60 && lastStart) {
       ctx.fillStyle = '#8a6a3a';
       ctx.textAlign = 'center';
-      ctx.fillText('— Nghỉ trưa —', w / 2, y + lineH / 2);
+      ctx.fillText(seg.start >= 18 * 60 ? '— Nghỉ tối —' : '— Nghỉ trưa —', w / 2, y + lineH / 2);
       y += lineH;
     }
     lastStart = seg.end;

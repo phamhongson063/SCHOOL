@@ -1,29 +1,27 @@
-export const TIME_SCALE = 15;
+export const TIME_SCALE = 20;
 
 export const START = { day: 1, minute: 6 * 60 };
+
+export const WORLD = { x0: -150, x1: 200 };
 
 export const DAYLIGHT = { sunrise: 5 * 60 + 30, sunset: 18 * 60 };
 
 export const ROUTINE = {
   wake: 5 * 60 + 30,
-  home: 19 * 60,
+  home: 21 * 60,
   teacherArrive: 6 * 60 + 15,
-  teacherLeave: 17 * 60,
-  schoolLead: 20,
+  teacherLeave: 21 * 60,
+  schoolLead: 50,
 };
 
 export const SCHOOL = {
-  period: 90,
+  period: 120,
   rest: 5,
   recess: 15,
-  morning: 8 * 60 + 30,
+  morning: 7 * 60 + 30,
   afternoon: 13 * 60 + 30,
-  plans: [
-    { morning: 3, afternoon: 0 },
-    { morning: 2, afternoon: 1 },
-    { morning: 3, afternoon: 1 },
-    { morning: 2, afternoon: 2 },
-  ],
+  evening: 19 * 60,
+  plans: [{ morning: 2, afternoon: 2, evening: 1 }],
   alertBefore: 10,
   payWindowSeconds: 5,
   tuition: 1,
@@ -36,7 +34,7 @@ export const SHOP = { open: 5 * 60 + 30, close: 21 * 60, fertilizer: 2 };
 
 export const CHIEF = { open: 6 * 60, close: 20 * 60 };
 
-export const CROP_TIME_FACTOR = 0.35;
+export const CROP_TIME_FACTOR = 0.2;
 
 export const CROP_ECONOMY = {
   waterSpinach: { days: 20, seed: 1, price: 3 },
@@ -70,7 +68,9 @@ export const FISHING = {
   rod: 40,
   baitPack: 3,
   baitPerPack: 10,
-  dailyStock: 20,
+  zones: 8,
+  zoneFish: [3, 8],
+  zoneRespawn: [60, 180],
   biteSeconds: [10, 40],
   quizSeconds: 20,
   spoilDays: 2,
@@ -90,9 +90,11 @@ export const VILLAGER = {
 
 export const ENERGY = {
   max: 100,
-  costs: { plant: 1, water: 0.5, fertilize: 1, harvest: 1.5, clear: 1, fish: 1 },
-  restCap: 30,
-  restPerHour: 3,
+  costs: { plant: 1, water: 1, fertilize: 1, harvest: 1.5, clear: 3, fish: 0.5 },
+  drain: { seated: 0.5, idle: 1, walk: 2, run: 4 },
+  nightFactor: 2,
+  sleepPerHour: 8,
+  tiredSpeed: 0.6,
   low: 20,
 };
 

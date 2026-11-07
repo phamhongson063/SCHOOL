@@ -1,7 +1,6 @@
 import { FISHING } from './config.js';
 
 const RECENT = 40;
-const RESULT_SECONDS = 1.8;
 
 let bank = null;
 
@@ -28,6 +27,7 @@ export function createKanjiQuiz() {
   const options = document.getElementById('kanjiOptions');
   const bar = document.getElementById('kanjiBar');
   const result = document.getElementById('kanjiResult');
+  const closeBtn = document.getElementById('kanjiClose');
   const recent = [];
   let pending = null;
 
@@ -44,6 +44,7 @@ export function createKanjiQuiz() {
     if (!pending || pending.answered) return;
     const current = pending;
     current.answered = true;
+    current.correct = correct;
     clearInterval(current.tick);
     for (const button of options.children) {
       button.disabled = true;
@@ -54,19 +55,24 @@ export function createKanjiQuiz() {
     result.textContent = correct
       ? `✔ Đúng rồi! ${current.entry.word}（${current.entry.reading}）: ${current.entry.meaning}`
       : `✘ ${chosen ? 'Sai rồi' : 'Hết giờ'}! ${current.entry.word} đọc là「${current.entry.reading}」: ${current.entry.meaning}`;
-    setTimeout(() => finish(current, correct), RESULT_SECONDS * 1000);
+    closeBtn.hidden = false;
+    closeBtn.focus({ preventScroll: true });
   }
 
-  function finish(current, correct) {
-    if (pending !== current) return;
+  function finish() {
+    const current = pending;
+    if (!current?.answered) return;
     pending = null;
     if (dialog.open) dialog.close();
-    current.resolve({ correct, entry: current.entry });
+    current.resolve({ correct: current.correct, entry: current.entry });
   }
+
+  closeBtn.addEventListener('click', finish);
 
   dialog.addEventListener('cancel', (event) => {
     event.preventDefault();
-    if (pending && !pending.answered) settle(false, null);
+    if (pending?.answered) finish();
+    else if (pending) settle(false, null);
   });
 
   return {
@@ -78,7 +84,8 @@ export function createKanjiQuiz() {
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       return new Promise((resolve) => {
-        pending = { entry, resolve, answered: false, tick: null };
+        pending = { entry, resolve, answered: false, correct: false, tick: null };
+        closeBtn.hidden = true;
         word.textContent = entry.word;
         level.textContent = entry.level;
         result.textContent = 'Chọn cách đọc đúng để kéo cá lên!';
