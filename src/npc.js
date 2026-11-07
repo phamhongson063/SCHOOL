@@ -38,7 +38,8 @@ const CHAT = [
   'Chiều đi thả diều nhé!',
 ];
 const PLAY = ['Đuổi bắt nè!', 'Bắt được rồi!', 'Hí hí!', 'Chạy mau!', 'Không bắt được đâu!'];
-const BACK = ['Vào học rồi!', 'Về chỗ thôi!', 'Trống rồi kìa!', 'Chờ tớ với!'];
+const BACK = ['Sắp vào học rồi!', 'Về chỗ thôi!', 'Trống rồi kìa!', 'Chờ tớ với!'];
+const LATE = ['Muộn mất rồi!', 'Chạy nhanh lên!', 'Chờ tớ với!'];
 const TAKEN = ['Ơ, có người ngồi rồi!', 'Tớ ngồi chỗ khác vậy.', 'Chỗ tớ bị chiếm mất rồi!'];
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -76,6 +77,9 @@ class Classmate {
     this.wobbleP = Math.random() * Math.PI * 2;
     this.stepTime = between(0.35, 0.6);
     this.chatty = between(0.6, 1.4);
+    this.returnSpeed = this.walkSpeed * 1.15;
+    this.returnMargin = 6;
+    this.late = false;
     this.gait = new Gait({ stride: between(0.6, 0.85), armSwing: between(0.55, 1.0), bounce: between(0.7, 1.4) });
 
     this.seatRef = student.seat;
@@ -106,6 +110,8 @@ class Classmate {
   }
 
   startBreak() {
+    this.returnSpeed = Math.random() < 0.4 ? this.runSpeed * between(0.9, 1) : this.walkSpeed * between(1, 1.25);
+    this.returnMargin = between(4, 9);
     if (this.state === 'seated') {
       this.state = 'rising';
       this.timer = between(0.2, 3);
@@ -119,7 +125,14 @@ class Classmate {
     }
   }
 
-  endBreak() {
+  dueBack(breakLeft) {
+    if (this.activity === 'return' || (this.state !== 'walking' && this.state !== 'idle')) return false;
+    const spot = this.seatRef.spot;
+    const distance = Math.hypot(spot.x - this.position.x, spot.z - this.position.z) * 1.35 + 2;
+    return breakLeft <= distance / (this.returnSpeed * 0.8) + this.returnMargin;
+  }
+
+  endBreak(late = false) {
     if (this.state === 'rising') {
       this.state = 'seated';
       return;
@@ -130,21 +143,24 @@ class Classmate {
     this.activity = 'return';
     this.pauseTimer = 0;
     this.state = 'heeding';
-    this.timer = between(0, 1.6);
+    this.late = late;
+    this.timer = late ? between(0, 0.5) : between(0, 1.6);
+    if (late) this.returnSpeed = Math.max(this.returnSpeed, this.runSpeed * between(0.9, 1));
   }
 
   headBack() {
     const seats = this.crew.seats;
-    const target = seats.isFreeFor(this.seatRef, this) ? this.seatRef : seats.nearestFree(this.position, this);
+    const own = seats.isFreeFor(this.seatRef, this);
+    const target = own ? this.seatRef : this.crew.spareSeat(this);
     if (!target) {
       this.idle(2);
       return;
     }
     seats.reserve(target, this);
     this.targetSeat = target;
-    if (Math.random() < 0.6) this.bubble.show(pick(BACK), 1.6, this.now);
-    this.routeTo(target.spot, this.walkSpeed * between(1.1, 1.5));
-    if (this.remainingDistance() > 10 && Math.random() < 0.5) this.cruise = this.runSpeed;
+    if (!own) this.bubble.show(pick(TAKEN), 1.8, this.now);
+    else if (Math.random() < 0.6) this.bubble.show(pick(this.late ? LATE : BACK), 1.6, this.now);
+    this.routeTo(target.spot, this.returnSpeed);
   }
 
   routeTo(point, cruise) {
@@ -156,7 +172,7 @@ class Classmate {
   retarget() {
     const seats = this.crew.seats;
     seats.unreserve(this.targetSeat, this);
-    const next = seats.nearestFree(this.position, this);
+    const next = this.crew.spareSeat(this);
     this.targetSeat = next;
     if (!next) {
       this.idle(2);
@@ -164,7 +180,7 @@ class Classmate {
     }
     seats.reserve(next, this);
     this.bubble.show(pick(TAKEN), 1.8, this.now);
-    this.routeTo(next.spot, Math.max(this.cruise, this.walkSpeed));
+    this.routeTo(next.spot, Math.max(this.cruise, this.returnSpeed));
   }
 
   standUp() {
@@ -498,19 +514,24 @@ export class Classmates {
     if (member instanceof Classmate && member.targetSeat === seat && member.state === 'returning') member.retarget();
   }
 
-  allSeated() {
-    return this.members.every((member) => member.state === 'seated');
+  spareSeat(member) {
+    const homes = new Set();
+    for (const other of this.members) if (other !== member) homes.add(other.seatRef);
+    return this.seats.nearestFree(member.position, member, (seat) => !homes.has(seat)) ?? this.seats.nearestFree(member.position, member);
   }
 
   setPhase(phase) {
     for (const member of this.members) {
       if (phase === 'break') member.startBreak();
-      else member.endBreak();
+      else member.endBreak(true);
     }
   }
 
-  update(t, dt) {
-    for (const member of this.members) member.update(t, dt);
+  update(t, dt, breakLeft = Infinity) {
+    for (const member of this.members) {
+      if (member.dueBack(breakLeft)) member.endBreak();
+      member.update(t, dt);
+    }
     this.separate();
   }
 

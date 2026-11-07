@@ -15,7 +15,6 @@ import {
 
 export const CX = 0.5;
 export const FLOOR = 1;
-export const SPAWN = { x: CX, y: 0, z: 20 };
 export const HOUSE = {
   back: -13,
   front: 6,
@@ -267,7 +266,7 @@ export function buildWorld(world) {
   layout.bamboos.push(...bambooGrove(world, rand, -26, -19, -18, -13), ...bambooGrove(world, rand, 18, -19, 26, -13));
   banyan(world, rand, layout.banyan.x, layout.banyan.z);
   haystack(world, layout.haystack.x, layout.haystack.z);
-  for (const [x, z] of [[-36, -24], [-34, 12], [-38, 34], [36, -26], [37, 10], [34, 36], [-14, 38], [16, 40], [0, -30], [-22, -30], [24, -31]]) {
+  for (const [x, z] of [[-36, -24], [-34, 12], [36, -26], [37, 10], [0, -30], [-22, -30], [24, -31]]) {
     layout.trees.push(roundTree(world, rand, x, z));
   }
   return layout;

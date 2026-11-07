@@ -32,13 +32,15 @@ export class VoxelWorld {
 
   isSolid(x, y, z) {
     const type = this.get(x, y, z);
-    return type !== undefined && !PASSABLE.has(type);
+    if (type === undefined) return y < 0;
+    return !PASSABLE.has(type);
   }
 
   blocksView(x, y, z, hiddenLayers) {
     const key = `${x},${y},${z}`;
     const type = this.cells.get(key);
-    if (type === undefined || PASSABLE.has(type)) return false;
+    if (type === undefined) return y < 0;
+    if (PASSABLE.has(type)) return false;
     return !hiddenLayers.has(this.layers.get(key) ?? 'main');
   }
 }

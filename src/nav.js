@@ -69,20 +69,33 @@ function surface(world, bx, bz) {
 
 export class NavGrid {
   constructor(world, collides, bounds, { cell = 0.5, surfaceAt = null } = {}) {
+    this.world = world;
+    this.collides = collides;
+    this.surfaceAt = surfaceAt;
     this.cell = cell;
     this.x0 = bounds.x0;
     this.z0 = bounds.z0;
     this.w = Math.round((bounds.x1 - bounds.x0) / cell);
     this.d = Math.round((bounds.z1 - bounds.z0) / cell);
     this.heights = new Float32Array(this.w * this.d).fill(NaN);
+    this.bake(bounds);
+  }
 
-    for (let j = 0; j < this.d; j++) {
-      for (let i = 0; i < this.w; i++) {
+  bake({ x0, z0, x1, z1 }) {
+    const { cell } = this;
+    const i0 = Math.max(0, Math.floor((x0 - this.x0) / cell));
+    const j0 = Math.max(0, Math.floor((z0 - this.z0) / cell));
+    const i1 = Math.min(this.w, Math.ceil((x1 - this.x0) / cell));
+    const j1 = Math.min(this.d, Math.ceil((z1 - this.z0) / cell));
+    for (let j = j0; j < j1; j++) {
+      for (let i = i0; i < i1; i++) {
         const x = this.x0 + (i + 0.5) * cell;
         const z = this.z0 + (j + 0.5) * cell;
-        const y = surfaceAt?.(x, z) ?? surface(world, Math.floor(x), Math.floor(z));
+        const n = j * this.w + i;
+        this.heights[n] = NaN;
+        const y = this.surfaceAt?.(x, z) ?? surface(this.world, Math.floor(x), Math.floor(z));
         if (y === null) continue;
-        if (!collides({ x, y, z }) || !collides({ x, y: y + 1, z })) this.heights[j * this.w + i] = y;
+        if (!this.collides({ x, y, z }) || !this.collides({ x, y: y + 1, z })) this.heights[n] = y;
       }
     }
     this.components = this.label();

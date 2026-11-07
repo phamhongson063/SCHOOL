@@ -27,7 +27,14 @@
     </div>
   </div>
   <div id="toolbar">
-    <button id="scheduleBtn" class="icon-btn" type="button" title="Cài đặt" aria-label="Cài đặt">
+    <button id="bagBtn" class="icon-btn" type="button" title="Túi đồ" aria-label="Túi đồ" aria-expanded="false" aria-controls="bagPanel">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9.5 6.5 8 3.5h8l-1.5 3" />
+        <path d="M9 6.5h6" />
+        <path d="M9.5 6.5C6 8.5 4 12 4 15.5 4 19 7.5 21 12 21s8-2 8-5.5c0-3.5-2-7-5.5-9" />
+      </svg>
+    </button>
+    <button id="scheduleBtn" class="icon-btn" type="button" title="Cài đặt" aria-label="Cài đặt" data-region="school">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -45,13 +52,18 @@
         <path d="M9 4v14M15 6v14" />
       </svg>
     </button>
-    <button id="roofBtn" class="icon-btn" type="button">
+    <button id="roofBtn" class="icon-btn" type="button" data-region="school">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M2 11 12 3l10 8" />
         <path d="M5 9.5V20h14V9.5" />
         <path d="M10 20v-5h4v5" />
       </svg>
     </button>
+    <section id="bagPanel" class="bag-panel" aria-label="Túi đồ" hidden>
+      <h2>Túi đồ</h2>
+      <div class="bag-slots"></div>
+      <p class="bag-empty">Túi đang trống</p>
+    </section>
   </div>
   <section id="lesson" class="lesson" aria-hidden="true" aria-label="Bài học">
     <button id="lessonClose" class="lesson-close" type="button" aria-label="Đóng bài học">×</button>
@@ -61,24 +73,21 @@
         <button id="lessonHint" class="lesson-hint" type="button" aria-label="Xem nghĩa" aria-describedby="lessonMeaning">?</button>
         <span id="lessonMeaning" class="lesson-tooltip" role="tooltip"></span>
       </span>
+      <button id="lessonFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
     </div>
     <p class="lesson-romaji"></p>
-    <div class="lesson-picker">
-      <p class="lesson-picker-title">Chọn bài cho tiết học này</p>
-      <div class="lesson-cards"></div>
-    </div>
     <div class="lesson-example">
       <p class="lesson-situation"></p>
       <div class="lesson-lines" lang="ja"></div>
     </div>
-    <div class="lesson-footer">
-      <span class="lesson-progress"></span>
-    </div>
   </section>
   <button id="lessonOpen" type="button" hidden>📜 Bài học</button>
-  <button id="phasePill" type="button" title="Cài đặt">
+  <div id="hoverTip" class="hover-tip" role="status" hidden></div>
+  <div id="picker" class="picker" role="dialog" hidden>
+    <div class="picker-options"></div>
+  </div>
+  <button id="phasePill" type="button" title="Cài đặt" data-region="school">
     <span id="phaseIcon" aria-hidden="true"></span>
-    <span id="phaseLabel"></span>
     <span id="phaseTime"></span>
   </button>
   <dialog id="scheduleDialog" aria-labelledby="scheduleTitle">
@@ -123,8 +132,12 @@
         <button class="mode-option" type="button" role="radio" data-mode="choose" aria-checked="false">
           <span class="mode-icon" aria-hidden="true">📚</span>
           <strong>Chọn bài</strong>
-          <small>Vào tiết tự chọn bài muốn học</small>
+          <small>Học theo bài đã chọn</small>
         </button>
+      </div>
+      <div class="lesson-choice" id="lessonChoice" hidden>
+        <label class="sched-label" for="lessonSelect">Bài học</label>
+        <select id="lessonSelect" class="lesson-select"></select>
       </div>
       <div class="sched-actions">
         <button id="skipBtn" class="sched-skip" type="button"></button>
@@ -132,6 +145,18 @@
         <button id="cancelBtn" class="sched-ghost" type="button">Huỷ</button>
         <button class="sched-primary" type="submit">Lưu</button>
       </div>
+    </form>
+  </dialog>
+  <dialog id="quizDialog" class="quiz" aria-labelledby="quizTitle">
+    <form id="quizForm" class="quiz-form">
+      <p class="quiz-badge" aria-hidden="true">🧮</p>
+      <h2 id="quizTitle">Kiểm tra toán</h2>
+      <p class="quiz-hint"></p>
+      <label class="quiz-question" for="quizAnswer">
+        <span id="quizQuestion"></span>
+        <input id="quizAnswer" type="number" inputmode="numeric" autocomplete="off" required />
+      </label>
+      <button type="submit" class="quiz-submit">Trả lời</button>
     </form>
   </dialog>
   <script type="module" src="src/main.js"></script>

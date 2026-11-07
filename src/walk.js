@@ -10,8 +10,10 @@ const PIVOT = 1.5;
 const LOOK_ABOVE = 0.55;
 const GRAVITY = 30;
 const JUMP_SPEED = 9;
-const WALK_SPEED = 4.3;
-const RUN_SPEED = 7.5;
+const WALK_SPEED = 2.4;
+const RUN_SPEED = 4.9;
+const DOUBLE_CLICK_MS = 320;
+const DOUBLE_CLICK_PX = 24;
 const SENSITIVITY = 0.005;
 const DRAG_THRESHOLD = 6;
 const EPS = 1e-4;
@@ -53,6 +55,9 @@ export class PlayerController {
     this.yaw = 0;
     this.pitch = 0.3;
     this.distance = 5;
+    this.distanceScale = 1;
+    this.running = false;
+    this.lastClick = null;
     this.cameraDistance = 5;
     this.facing = Math.PI;
     this.stepOffset = 0;
@@ -113,7 +118,12 @@ export class PlayerController {
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
     this.endDrag(e);
-    if (!d.moved && d.button === 0) this.onClick?.(e.clientX, e.clientY);
+    if (d.moved || d.button !== 0) return;
+    const now = performance.now();
+    const last = this.lastClick;
+    const double = last && now - last.time < DOUBLE_CLICK_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_CLICK_PX;
+    this.lastClick = double ? null : { time: now, x: e.clientX, y: e.clientY };
+    this.onClick?.(e.clientX, e.clientY, double);
   }
 
   endDrag(e) {
@@ -158,7 +168,8 @@ export class PlayerController {
     model.group.visible = false;
   }
 
-  requestMove(point) {
+  requestMove(point, run = false) {
+    this.running = run;
     this.pendingSeat = null;
     if (this.posture !== 'free') {
       this.pendingAction = () => this.goTo(point);
@@ -168,8 +179,9 @@ export class PlayerController {
     this.goTo(point);
   }
 
-  requestSeat(seat) {
+  requestSeat(seat, run = false) {
     if (this.seat === seat && this.posture !== 'standing') return;
+    this.running = run;
     const go = () => {
       this.pendingSeat = seat;
       if (!this.goTo(seat.spot)) this.pendingSeat = null;
@@ -185,10 +197,15 @@ export class PlayerController {
   arrived() {
     const seat = this.pendingSeat;
     this.pendingSeat = null;
+    this.onArrive?.();
     if (!seat || !this.seating) return;
     if (Math.hypot(seat.spot.x - this.position.x, seat.spot.z - this.position.z) > 0.7) return;
     if (!this.seating.seats.canTake(seat, 'player')) return;
     this.beginSit(seat);
+  }
+
+  faceToward(x, z) {
+    this.facing = Math.atan2(x - this.position.x, z - this.position.z);
   }
 
   beginSit(seat) {
@@ -287,6 +304,7 @@ export class PlayerController {
   clearPath() {
     if (!this.path) return;
     this.path = null;
+    this.running = false;
     this.onTarget?.(null);
   }
 
@@ -325,7 +343,7 @@ export class PlayerController {
         }
       }
 
-      const running = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      const running = this.running || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
       const speed = (running ? RUN_SPEED : WALK_SPEED) * (last ? Math.min(1, dist / 0.5 + 0.2) : 1);
       return new THREE.Vector3((dx / dist) * speed, 0, (dz / dist) * speed);
     }
@@ -413,7 +431,7 @@ export class PlayerController {
       Math.sin(this.pitch),
       Math.cos(this.yaw) * Math.cos(this.pitch),
     );
-    const free = this.castCamera(pivot, dir, this.distance);
+    const free = this.castCamera(pivot, dir, this.distance * this.distanceScale);
     if (free < this.cameraDistance) this.cameraDistance = free;
     else this.cameraDistance += (free - this.cameraDistance) * (1 - Math.exp(-5 * dt));
 

@@ -1,100 +1,6 @@
-const LESSONS = [
-  {
-    phrase: '一応{いちおう}',
-    romaji: 'ichiō',
-    meaning:
-      'Tạm gọi là, cũng đã (làm ở mức cơ bản, chưa dám chắc là hoàn hảo); hoặc làm cho chắc, phòng khi cần. Cũng dùng khi nói khiêm tốn kiểu "dù sao thì cũng…", "về danh nghĩa thì…".',
-    examples: [
-      {
-        title: 'With a colleague',
-        lines: [
-          ['A', '文章{ぶんしょう}のチェック、[一応{いちおう}]済{す}んだけど、もう一度{いちど}自分{じぶん}でも見直{みなお}してね。'],
-          ['B', 'うん。ありがとう。'],
-        ],
-      },
-      {
-        title: 'About the departure day',
-        lines: [
-          ['A', 'いつ出発{しゅっぱつ}するか、決{き}めた？'],
-          ['B', 'はい、[一応{いちおう}]。'],
-        ],
-      },
-      {
-        title: 'How to use',
-        lines: [
-          ['A', 'ちゃんとマニュアル読{よ}んだ？'],
-          ['B', '[一応{いちおう}]。ま、大丈夫{だいじょうぶ}だよ。'],
-        ],
-      },
-      {
-        title: 'Different than usual',
-        lines: [
-          ['A', '今日{きょう}はスーツなんだ。'],
-          ['B', '[一応{いちおう}]ね。初{はじ}めて会{あ}う人{ひと}だから。'],
-        ],
-      },
-      {
-        title: 'Confirmation',
-        lines: [
-          ['A', '彼女{かのじょ}にはメールした？'],
-          ['B', 'うん。でも、返事{へんじ}がないから[一応{いちおう}]電話{でんわ}もかけてみる。'],
-        ],
-      },
-      {
-        title: 'Age',
-        lines: [
-          ['A', 'マイケルはまだ未成年{みせいねん}でしょ？'],
-          ['B', 'こう見{み}えても、[一応{いちおう}]25歳{さい}なんですが。'],
-        ],
-      },
-    ],
-  },
-  {
-    phrase: '一{いち}か八{ばち}か',
-    romaji: 'ichika bachika',
-    meaning:
-      'Liều một phen, "được ăn cả, ngã về không". Dùng khi quyết định thử làm một việc dù không chắc thành công, chấp nhận phó mặc cho may rủi.',
-    examples: [
-      {
-        title: 'Confession',
-        lines: [
-          ['A', '卒業{そつぎょう}したら会{あ}えなくなるし、[一{いち}か八{ばち}か]告白{こくはく}してみる。'],
-          ['B', '付{つ}き合{あ}ってくれたらいいね。'],
-        ],
-      },
-      {
-        title: 'Seeing a help wanted ad',
-        lines: [
-          ['A', 'どうしよう。応募{おうぼ}してみようかなあ。'],
-          ['B', '[一{いち}か八{ばち}か]受{う}けてみたら？'],
-        ],
-      },
-      {
-        title: 'Starting a business',
-        lines: [
-          ['A', '今{いま}の仕事{しごと}をやめて、[一{いち}か八{ばち}か]会社{かいしゃ}を作{つく}ろうかと考{かんが}えてます。'],
-          ['B', 'え？ そうなんですか。'],
-        ],
-      },
-      {
-        title: 'Conveying your determination',
-        lines: [
-          ['A', '自信{じしん}は全然{ぜんぜん}ないけど、[一{いち}か八{ばち}か]、やってみます。'],
-          ['B', 'うん。後{あと}で後悔{こうかい}しないほうがいいよ。'],
-        ],
-      },
-      {
-        title: 'A request',
-        lines: [
-          ['A', '一応{いちおう}、頼{たの}むだけ頼{たの}んでみようと思{おも}うんです。'],
-          ['B', 'うん。[一{いち}か八{ばち}か]、やってみないとわからないからね。'],
-        ],
-      },
-    ],
-  },
-];
+import { LESSONS } from './lessons.js';
 
-const RUBY = /([\u3400-\u9fff\u3005\u3006]+)\{([^}]+)\}/g;
+const RUBY = /([\u3400-\u9fff\u3005\u3006\uff21-\uff3a\uff41-\uff5a]+)\{([^}]+)\}/g;
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -139,6 +45,25 @@ function japanese(text) {
 }
 
 const MODE_KEY = 'truong-lang-xua.lessonMode';
+const CHOICE_KEY = 'truong-lang-xua.lessonChoice';
+
+function loadChoice() {
+  try {
+    const no = Number(localStorage.getItem(CHOICE_KEY));
+    return Math.max(0, LESSONS.findIndex((lesson) => lesson.no === no));
+  } catch {
+    return 0;
+  }
+}
+const FURIGANA_KEY = 'truong-lang-xua.furigana';
+
+function loadFurigana() {
+  try {
+    return localStorage.getItem(FURIGANA_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
 
 function loadMode() {
   try {
@@ -156,15 +81,15 @@ export function createLesson() {
   const meaning = document.getElementById('lessonMeaning');
   const situation = panel.querySelector('.lesson-situation');
   const lines = panel.querySelector('.lesson-lines');
-  const cards = panel.querySelector('.lesson-cards');
-  const progress = panel.querySelector('.lesson-progress');
   const close = document.getElementById('lessonClose');
+  const furiganaBtn = document.getElementById('lessonFurigana');
 
   const deck = () => shuffle(LESSONS.flatMap((lesson, li) => lesson.examples.map((_, ei) => [li, ei])));
   let order = deck();
   let shown = 0;
   const perLesson = LESSONS.map((lesson) => ({ order: shuffle(lesson.examples.map((_, i) => i)), shown: 0 }));
   let mode = loadMode();
+  let choice = loadChoice();
   let current = null;
   let seated = false;
 
@@ -172,7 +97,6 @@ export function createLesson() {
     const [li, ei] = current;
     const lesson = LESSONS[li];
     const example = lesson.examples[ei];
-    panel.classList.remove('picking');
     phrase.replaceChildren(japanese(lesson.phrase));
     romaji.textContent = lesson.romaji;
     meaning.textContent = lesson.meaning;
@@ -185,10 +109,6 @@ export function createLesson() {
         return row;
       }),
     );
-    progress.textContent =
-      mode === 'choose'
-        ? `Bài ${li + 1}/${LESSONS.length} · Ví dụ ${perLesson[li].shown}/${lesson.examples.length}`
-        : `Bài ${li + 1}/${LESSONS.length} · Đã học ${shown}/${order.length} ví dụ`;
   }
 
   function pickRandom() {
@@ -212,32 +132,14 @@ export function createLesson() {
     render();
   }
 
-  function showPicker() {
-    panel.classList.add('picking');
-    progress.textContent = 'Chế độ chọn bài';
-    cards.replaceChildren(
-      ...LESSONS.map((lesson, li) => {
-        const card = el('button', 'lesson-card');
-        card.type = 'button';
-        card.style.animationDelay = `${li * 0.06}s`;
-        const title = el('span', 'lesson-card-phrase');
-        title.lang = 'ja';
-        title.append(japanese(lesson.phrase));
-        card.append(
-          title,
-          el('span', 'lesson-card-meta', `Bài ${li + 1} · ${lesson.romaji}`),
-          el('span', 'lesson-card-meta', `Đã học ${perLesson[li].shown}/${lesson.examples.length} ví dụ`),
-        );
-        card.addEventListener('click', () => pickFrom(li));
-        return card;
-      }),
-    );
+  function pickNext() {
+    if (mode === 'choose') pickFrom(choice);
+    else pickRandom();
   }
 
   function ensure() {
     if (current) render();
-    else if (mode === 'choose') showPicker();
-    else pickRandom();
+    else pickNext();
   }
 
   function setVisible(visible) {
@@ -246,6 +148,23 @@ export function createLesson() {
     reopen.hidden = visible || !seated;
   }
 
+  function showFurigana(on) {
+    panel.classList.toggle('no-furigana', !on);
+    furiganaBtn.setAttribute('aria-pressed', String(on));
+    const label = on ? 'Ẩn furigana' : 'Hiện furigana';
+    furiganaBtn.title = label;
+    furiganaBtn.setAttribute('aria-label', label);
+  }
+
+  showFurigana(loadFurigana());
+  furiganaBtn.addEventListener('click', () => {
+    const on = panel.classList.contains('no-furigana');
+    showFurigana(on);
+    try {
+      localStorage.setItem(FURIGANA_KEY, on ? 'on' : 'off');
+    } catch {}
+  });
+
   close.addEventListener('click', () => setVisible(false));
   reopen.addEventListener('click', () => setVisible(true));
 
@@ -253,16 +172,26 @@ export function createLesson() {
     get mode() {
       return mode;
     },
-    setMode(next) {
+    get visible() {
+      return panel.classList.contains('show');
+    },
+    get choice() {
+      return LESSONS[choice].no;
+    },
+    setMode(next, lessonNo) {
       mode = next === 'choose' ? 'choose' : 'random';
+      const index = LESSONS.findIndex((lesson) => lesson.no === lessonNo);
+      if (index >= 0) choice = index;
       try {
         localStorage.setItem(MODE_KEY, mode);
+        localStorage.setItem(CHOICE_KEY, String(LESSONS[choice].no));
       } catch {}
+      if (mode === 'choose' && current && current[0] !== choice) current = null;
       if (!current && panel.classList.contains('show')) ensure();
     },
     nextPeriod() {
       current = null;
-      if (mode === 'random') pickRandom();
+      pickNext();
     },
     open() {
       seated = true;

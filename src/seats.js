@@ -15,11 +15,11 @@ export class Seats {
     return this.canTake(seat, who) && (!seat.reservedBy || seat.reservedBy === who);
   }
 
-  nearestFree(position, who) {
+  nearestFree(position, who, accept = () => true) {
     let best = null;
     let bestD = Infinity;
     for (const seat of this.list) {
-      if (!this.isFreeFor(seat, who)) continue;
+      if (!this.isFreeFor(seat, who) || !accept(seat)) continue;
       const d = Math.hypot(seat.x - position.x, seat.z - position.z);
       if (d < bestD) {
         bestD = d;

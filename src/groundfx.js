@@ -111,11 +111,15 @@ export class Footprints {
   update(now) {
     this.now = now;
     const array = this.fade.array;
+    let changed = false;
     for (let i = 0; i < this.max; i++) {
       const age = now - this.born[i];
-      array[i] = age < 0 || age > this.life ? 0 : Math.min(1, (this.life - age) / (this.life * 0.5)) * 0.5;
+      const value = age < 0 || age > this.life ? 0 : Math.min(1, (this.life - age) / (this.life * 0.5)) * 0.5;
+      if (array[i] === value) continue;
+      array[i] = value;
+      changed = true;
     }
-    this.fade.needsUpdate = true;
+    if (changed) this.fade.needsUpdate = true;
   }
 }
 

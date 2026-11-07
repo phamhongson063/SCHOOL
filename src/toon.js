@@ -102,16 +102,18 @@ export class Batch {
     if (typeof s === 'number') dummy.scale.setScalar(s);
     else dummy.scale.fromArray(s);
     dummy.updateMatrix();
-    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(this.base, dummy.matrix));
 
     color.set(hex);
-    const count = g.attributes.position.count;
+    const position = g.attributes.position;
+    const count = position.count;
     const colors = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
+      if (t.paint) color.set(t.paint(position.getX(i), position.getY(i), position.getZ(i)));
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
     }
+    g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(this.base, dummy.matrix));
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.parts.push(g);
     return this;

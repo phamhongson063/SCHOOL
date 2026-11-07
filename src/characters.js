@@ -238,7 +238,14 @@ export function createTeacher() {
   return { group, head, leftArm, rightArm, face };
 }
 
-export function createWalker({ shirt, pants, skin, style = 'toc', khan = 0x3a3430, iris = 0x6a3a1e, sash = null }) {
+function conicalHat(b, c, R, color) {
+  const height = R * 0.85;
+  b.add(shapes.cone(R * 1.45, height, 28), color, { p: [0, c + R * 0.55 + height / 2, 0] });
+  b.add(shapes.torus(R * 1.43, R * 0.03, 36), shade(color, 0.78), { p: [0, c + R * 0.56, 0], r: [Math.PI / 2, 0, 0] });
+  b.add(shapes.torus(R * 0.98, R * 0.018, 30), shade(color, 0.82), { p: [0, c + R * 0.84, 0], r: [Math.PI / 2, 0, 0] });
+}
+
+export function createWalker({ shirt, pants, skin, style = 'toc', khan = 0x3a3430, iris = 0x6a3a1e, sash = null, hat = null }) {
   const group = new THREE.Group();
   const trim = shade(shirt, 0.7);
 
@@ -265,6 +272,7 @@ export function createWalker({ shirt, pants, skin, style = 'toc', khan = 0x3a343
   const head = part(group, [0, 0.88, 0], (b) => {
     skull(b, c, R, skin);
     hair(b, c, R, { style, khan });
+    if (hat) conicalHat(b, c, R, hat);
   });
   const face = attachFace(head, c, R, faceSet({ iris, brow: HAIR }));
 

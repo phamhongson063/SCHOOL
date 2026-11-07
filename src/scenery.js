@@ -204,7 +204,7 @@ function skyTexture() {
 
 export const HORIZON = 0xd8ecef;
 
-function roundedRectGeometry(x0, z0, x1, z1, r) {
+export function roundedRectGeometry(x0, z0, x1, z1, r) {
   const s = new THREE.Shape();
   const ay = -z1;
   const by = -z0;
@@ -682,7 +682,7 @@ function banyan(b, rand, { x, z }) {
   });
 }
 
-function roundTree(b, rand, { x, z, h }) {
+export function roundTree(b, rand, { x, z, h }) {
   const bx = x + 0.5;
   const bz = z + 0.5;
   b.limb([bx, 0, bz], [bx, h + 0.5, bz], 0.22, C.trunk, { capsule: false, seg: 7, radiusEnd: 0.16 });
@@ -718,6 +718,36 @@ function thatchDecor(b, roof) {
   }
 }
 
+export const GROUND_LAYER = { earth: 1, field: 2, mark: 3 };
+
+export function groundDecal(geometry, material, layer, y = 0.01) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = y;
+  mesh.renderOrder = layer;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+export function earthMaterial() {
+  return toonMaterial({
+    map: blotchTexture(0xdcb684, [[0xcfa774, 60, 4, 12], [0xe8c798, 50, 4, 10], [0xb9ad98, 40, 1, 3]], [0.25, 0.25], 2),
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+}
+
+export function markMaterial(color) {
+  return toonMaterial({
+    color,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+}
+
 export function createSky(scene) {
   scene.background = skyTexture();
   scene.fog = new THREE.Fog(HORIZON, 70, 190);
@@ -741,14 +771,9 @@ export function createScenery(scene, layout) {
   );
   ground.rotation.x = -Math.PI / 2;
 
-  const earth = toonMaterial({
-    map: blotchTexture(0xdcb684, [[0xcfa774, 60, 4, 12], [0xe8c798, 50, 4, 10], [0xb9ad98, 40, 1, 3]], [0.25, 0.25], 2),
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
-  addFlat(new THREE.Mesh(roundedRectGeometry(-15, 8, 16, 27, 2), earth)).position.y = 0.01;
-  addFlat(new THREE.Mesh(roundedRectGeometry(-2, 26.5, 3, 47, 0.6), earth)).position.y = 0.012;
+  const earth = earthMaterial();
+  addFlat(groundDecal(roundedRectGeometry(-15, 8, 16, 27, 2), earth, GROUND_LAYER.earth));
+  addFlat(groundDecal(roundedRectGeometry(-2, 26.5, 3, 34, 0.6), earth, GROUND_LAYER.earth));
 
   const floorDepth = 8 - HOUSE.foundationBack;
   const floor = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(31, floorDepth), toonMaterial({ map: floorTexture([15.5, floorDepth / 2]) })));
