@@ -25,16 +25,24 @@ import { createRoad, SPAWN } from './road.js';
 import { createBubble } from './bubble.js';
 import { Inventory } from './inventory.js';
 import { createBag } from './bag.js';
+import { LOW_POWER } from './quality.js';
+import { outlineMaterial } from './toon.js';
 
-const touchDevice = window.matchMedia('(pointer: coarse)').matches;
-const FRAME_RATE = touchDevice ? 30 : 60;
+const FRAME_RATE = LOW_POWER ? 30 : 60;
+const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
 const READING_FRAME_RATE = 20;
+const IDLE_AFTER = 20000;
+const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
+const MIN_PIXEL_RATIO = 0.75;
+const SHADOW_SPAN = LOW_POWER ? 30 : 45;
+const OUTLINE_DISTANCE = 26;
 
+let pixelRatio = MAX_PIXEL_RATIO;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = LOW_POWER ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -47,9 +55,9 @@ scene.add(new THREE.AmbientLight(0xfff4e0, 0.45));
 const sun = new THREE.DirectionalLight(0xfff1d6, 2.2);
 sun.position.set(28, 40, 36);
 sun.castShadow = true;
-const shadowSize = !touchDevice && renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;
+const shadowSize = LOW_POWER ? 1024 : renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;
 sun.shadow.mapSize.set(shadowSize, shadowSize);
-Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 140 });
+Object.assign(sun.shadow.camera, { left: -SHADOW_SPAN, right: SHADOW_SPAN, top: SHADOW_SPAN, bottom: -SHADOW_SPAN, near: 1, far: 140 });
 sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
@@ -57,7 +65,7 @@ scene.add(sun, sun.target);
 const SUN_OFFSET = sun.position.clone();
 const sunCenter = new THREE.Vector3(0, 0, 0);
 function followSun(position) {
-  if (Math.hypot(position.x - sunCenter.x, position.z - sunCenter.z) < 12) return;
+  if (Math.hypot(position.x - sunCenter.x, position.z - sunCenter.z) < SHADOW_SPAN * 0.27) return;
   sunCenter.set(Math.round(position.x / 4) * 4, 0, Math.round(position.z / 4) * 4);
   sun.target.position.copy(sunCenter);
   sun.position.copy(sunCenter).add(SUN_OFFSET);
@@ -483,11 +491,58 @@ refreshPhase(true);
 
 const clock = new THREE.Clock();
 let lastFrame = 0;
+let lastInput = performance.now();
+for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) {
+  window.addEventListener(type, () => (lastInput = performance.now()), { passive: true });
+}
+
+const pace = { target: FRAME_RATE, frames: 0, since: 0, steady: 0 };
+function adaptResolution(time, target) {
+  if (target !== pace.target || !pace.since) {
+    Object.assign(pace, { target, frames: 0, since: time });
+    return;
+  }
+  pace.frames += 1;
+  const span = time - pace.since;
+  if (span < 3000) return;
+  const fps = (pace.frames * 1000) / span;
+  pace.frames = 0;
+  pace.since = time;
+  let next = pixelRatio;
+  if (fps < target * 0.8) {
+    next = Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25);
+    pace.steady = 0;
+  } else if (fps >= target * 0.95 && ++pace.steady >= 5) {
+    next = Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.25);
+    pace.steady = 0;
+  }
+  if (next === pixelRatio) return;
+  pixelRatio = next;
+  renderer.setPixelRatio(pixelRatio);
+}
+
+const outlines = [];
+scene.traverse((object) => {
+  if (object.isMesh && object.material === outlineMaterial()) outlines.push(object);
+});
+const outlinePoint = new THREE.Vector3();
+let outlineCheck = 0;
+function updateOutlines(t) {
+  if (t < outlineCheck) return;
+  outlineCheck = t + 0.5;
+  for (const outline of outlines) {
+    outline.getWorldPosition(outlinePoint);
+    outline.visible = outlinePoint.distanceToSquared(camera.position) < OUTLINE_DISTANCE * OUTLINE_DISTANCE;
+  }
+}
+
 renderer.setAnimationLoop((time) => {
-  const frameRate = lesson.visible ? READING_FRAME_RATE : FRAME_RATE;
+  const idle = performance.now() - lastInput > IDLE_AFTER;
+  const frameRate = lesson.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
-  const dt = Math.min(clock.getDelta(), 0.05);
+  if (LOW_POWER) adaptResolution(time, frameRate);
+  const dt = Math.min(clock.getDelta(), 0.07);
   const t = clock.elapsedTime;
   footprints.update(t);
   schedule.update(dt);
@@ -501,6 +556,7 @@ renderer.setAnimationLoop((time) => {
   quiz.update(dt, regions.active?.id !== 'school');
   updateHover();
   followSun(player.position);
+  updateOutlines(t);
   playerBubble.update(t);
   avatar.face.update(t);
   if (seatedAvatar.group.visible) {

@@ -5,6 +5,7 @@ import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTre
 import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { Farmer, FARMER_PROFILES } from './farmers.js';
+import { LOW_POWER } from './quality.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const BAGS_KEY = 'truong-lang-xua.farmers';
@@ -307,7 +308,7 @@ class FarmView {
     for (const [id, crop] of Object.entries(CROPS)) {
       crop.varieties.forEach((variety, v) => {
         for (let stage = SHAPED_FROM; stage <= SPENT; stage++) {
-          this.models.set(modelKey(stage, id, v), this.instanced((b) => crop.build(b, stage, variety), { tinted: true }));
+          this.models.set(modelKey(stage, id, v), this.instanced((b) => crop.build(b, stage, variety), { tinted: true, shadow: !LOW_POWER }));
         }
       });
     }
