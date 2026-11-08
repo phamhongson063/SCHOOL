@@ -7,7 +7,7 @@ import { earthMaterial, groundDecal, GROUND_LAYER, markMaterial, roundedRectGeom
 export const ROAD = { z0: 33, z1: 37, x0: -150, x1: 151 };
 export const SPAWN = { x: 0.5, y: 0, z: 35 };
 
-const TREES = [
+export const TREES = [
   [-35, 31.2],
   [-46, 31.4],
   [36, 31.3],

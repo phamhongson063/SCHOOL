@@ -5,7 +5,7 @@ import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
 import { toonMaterial } from './toon.js';
 
 const MODELS = {
-  player: { url: 'assets/player/player.glb', height: 1.8 },
+  player: { url: 'assets/player/player.glb', height: 1.7 },
   girl: { url: 'assets/npc/girl.glb', height: 1.68 },
   man: { url: 'assets/npc/man.glb', height: 1.72 },
   granny: { url: 'assets/npc/granny.glb', height: 1.62, posed: true },

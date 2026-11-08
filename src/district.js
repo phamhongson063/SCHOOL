@@ -4,13 +4,14 @@ import { Batch, freeze, shapes } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse } from './architecture.js';
-import { paving } from './village.js';
+import { paving, plaqueBoard } from './village.js';
+import { LODGE_ROOMS } from './config.js';
+import { roomTier, lodgeLabel } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
 
 const AVENUES = [104, 126, 148, 170];
 const STREET = 3;
 const MAIN = { z0: 33, z1: 37 };
-const NORTH_STREET = 7.5;
 const SOUTH_STREET = 60;
 const EAST_GATE = 181;
 const DEPTH = 8;
@@ -19,6 +20,13 @@ const BOUNDS = { x0: 100, z0: 4, x1: 185, z1: 64 };
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
 const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
+const ROW = { x0: 102, x1: 179 };
+const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
+const LODGE_LOOKS = {
+  cheap: { stories: 1, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
+  cozy: { stories: 1, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
+  grand: { stories: 2, sign: { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e } },
+};
 
 function frame(side, x, front) {
   const north = side === 'north';
@@ -32,32 +40,32 @@ function footprint(f, width) {
     : { minX: f.x - half, maxX: f.x + half, minZ: f.front + 0.4, maxZ: f.front + DEPTH, minY: 0, maxY: 3.5 };
 }
 
+function spread(x0, x1, count) {
+  const step = (x1 - x0) / count;
+  return Array.from({ length: count }, (_, k) => x0 + step * (k + 0.5));
+}
+
 function layout() {
   const rand = makeRandom(6161);
-  const blocks = [];
-  for (let i = 0; i < AVENUES.length - 1; i++) {
-    const x0 = AVENUES[i] + STREET / 2;
-    const x1 = AVENUES[i + 1] - STREET / 2;
-    const slots = [x0 + 3.2, x0 + 9.5, x0 + 15.8];
-    const north = NORTH_STREET + STREET / 2;
-    const roadNorth = MAIN.z0 - 1.6;
-    const roadSouth = MAIN.z1 + 1.6;
-    const south = SOUTH_STREET - STREET / 2;
-    const rows = [
-      { side: 'north', front: roadNorth },
-      { side: 'south', front: north },
-    ];
-    if (i !== PLAZA_BLOCK) rows.push({ side: 'south', front: roadSouth }, { side: 'north', front: south });
-    const houses = [];
-    for (const row of rows) {
-      for (const x of slots) {
-        const width = 5.6 + rand() * 0.5;
-        houses.push({ ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 });
-      }
-    }
-    blocks.push({ x0, x1, houses });
-  }
   const plaza = { x0: AVENUES[PLAZA_BLOCK] + STREET / 2, x1: AVENUES[PLAZA_BLOCK + 1] - STREET / 2, z0: MAIN.z1 + 1.6, z1: SOUTH_STREET - STREET / 2 };
+  const rows = [
+    { side: 'north', front: MAIN.z0 - 1.6, xs: spread(ROW.x0, ROW.x1, 9) },
+    { side: 'south', front: MAIN.z1 + 1.6, xs: [...spread(ROW.x0, plaza.x0 - 1, 3), ...spread(plaza.x1 + 1, ROW.x1, 3)] },
+  ];
+  const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
+  for (const row of rows) {
+    row.xs.forEach((x, index) => {
+      const width = 5.6 + rand() * 0.5;
+      const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
+      const lodge = LODGE_PICKS[`${row.side}:${index}`];
+      if (lodge) {
+        house.lodge = lodge;
+        house.stories = LODGE_LOOKS[LODGE_ROOMS[lodge].tier].stories;
+      }
+      const block = x < plaza.x0 ? 0 : x < plaza.x1 ? 1 : 2;
+      blocks[block].houses.push(house);
+    });
+  }
   return { blocks, plaza };
 }
 
@@ -99,6 +107,7 @@ function mergeByMaterial(root) {
 function buildBlock(block) {
   const root = new THREE.Group();
   for (const house of block.houses) {
+    if (house.lodge) continue;
     const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
     built.group.position.set(house.x, 0, house.front);
     built.group.rotation.y = house.turn;
@@ -153,8 +162,6 @@ function plazaMesh(plaza, obstacles, rand) {
 
 function streetMesh(plaza) {
   const parts = [roundedRectGeometry(BOUNDS.x0, MAIN.z0, EAST_GATE + 1, MAIN.z1, 0.4)];
-  for (const x of AVENUES) parts.push(roundedRectGeometry(x - STREET / 2, NORTH_STREET - STREET / 2, x + STREET / 2, SOUTH_STREET + STREET / 2, 0.4));
-  for (const z of [NORTH_STREET, SOUTH_STREET]) parts.push(roundedRectGeometry(AVENUES[0], z - STREET / 2, AVENUES[AVENUES.length - 1], z + STREET / 2, 0.4));
   parts.push(roundedRectGeometry(plaza.x0, plaza.z0, plaza.x1, plaza.z1, 0.6));
   const merged = mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part)), false);
   return groundDecal(merged, paving(), PAVING_LAYER, 0.014);
@@ -174,6 +181,31 @@ export function createDistrict() {
   group.add(streets);
   clickables.push(streets);
   const props = plazaMesh(plaza, obstacles, rand);
+  const lodges = [];
+  for (const block of blocks) {
+    for (const house of block.houses) {
+      if (!house.lodge) continue;
+      const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
+      built.group.position.set(house.x, 0, house.front);
+      built.group.rotation.y = house.turn;
+      const sign = plaqueBoard([LODGE_ROOMS[house.lodge].name.toUpperCase(), `${roomTier(house.lodge).price} 🪙 / đêm`], LODGE_LOOKS[LODGE_ROOMS[house.lodge].tier].sign);
+      sign.mesh.position.set(built.plaque.x, built.plaque.y, built.plaque.z);
+      built.group.add(sign.mesh);
+      group.add(built.group);
+      clickables.push(built.group);
+      const side = house.north ? 1 : -1;
+      const stand = { x: house.x + side * built.door.x, z: house.front + side * built.door.z };
+      const look = { x: house.x + side * built.door.x, z: house.front + side * (built.door.z - 1) };
+      lodges.push({ id: house.lodge, stand, look, group: built.group });
+    }
+  }
+  const lodgeOf = (object) => {
+    for (let node = object; node; node = node.parent) {
+      const lodge = lodges.find((item) => item.group === node);
+      if (lodge) return lodge;
+    }
+    return null;
+  };
   const gate = createVillageGate(EAST_GATE);
   group.add(props, ...gate);
   const lift = (node) => {
@@ -187,12 +219,30 @@ export function createDistrict() {
 
   return {
     obstacles,
-    region() {
+    lodges: lodges.map(({ id, stand }) => ({ id, stand })),
+    region(options) {
       return {
         id: 'district',
         name: 'Xóm Bàn Cờ',
         bounds: BOUNDS,
         staticNav: true,
+        target(hit) {
+          const lodge = lodgeOf(hit.object);
+          if (!lodge) return null;
+          return { kind: 'lodge', id: lodge.id, index: `lodge:${lodge.id}`, x: lodge.look.x, z: lodge.look.z, stand: lodge.stand };
+        },
+        actionFor() {
+          return { id: 'visit', hint: 'hand' };
+        },
+        labelOf(target) {
+          return lodgeLabel(target.id);
+        },
+        topOf(target) {
+          return new THREE.Vector3(target.x, 3.6, target.z);
+        },
+        act(action, target) {
+          return options.rentLodge(target.id);
+        },
         load() {
           return {
             group,

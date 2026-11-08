@@ -21,6 +21,7 @@ import { createClearing } from './clearing.js';
 import { createQuiz } from './quiz.js';
 import { createFarm } from './farm.js';
 import { createRoad, SPAWN } from './road.js';
+import { createStreetLamps } from './streetLamps.js';
 import { createBubble } from './bubble.js';
 import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
@@ -28,7 +29,7 @@ import { LOW_POWER } from './quality.js';
 import { outlineMaterial, freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
-import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, LODGING, HUNTING } from './config.js';
+import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING } from './config.js';
 import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -38,6 +39,7 @@ import { createQuarter } from './quarter.js';
 import { createMountain } from './mountain.js';
 import { createCountryside } from './countryside.js';
 import { createDistrict } from './district.js';
+import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { MOUNTAIN, terrainHeight, terrainFloor, navSurface, nearShelter } from './terrain.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
@@ -106,6 +108,9 @@ const school = populate(scene);
 const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
 const village = createVillage();
+scene.add(village.lights);
+const streetLamps = createStreetLamps();
+scene.add(streetLamps.group);
 const river = createRiver();
 const studyHall = createStudyHall(scene);
 const inn = createInn(scene);
@@ -142,6 +147,7 @@ player.terrainAt = terrainHeight;
 
 const ledger = new Ledger();
 const purse = ledger.purse(PLAYER);
+if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
 createBag(purse);
 createVitals(purse);
 const market = createMarket();
@@ -170,12 +176,11 @@ regions.add({
   name: 'Trường làng',
   bounds: { x0: -22, z0: -42, x1: 23, z1: 33 },
   pinned: true,
-  overview: { position: new THREE.Vector3(CX + 48, 56, 22), target: new THREE.Vector3(CX, 0, -1) },
 });
 regions.add(createRoad());
 regions.add(quarter.region());
 for (const region of countryside.regions()) regions.add(region);
-regions.add(district.region());
+regions.add(district.region({ rentLodge: (id) => rentLodge(id) }));
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
 for (const region of village.regions({
@@ -192,6 +197,7 @@ for (const region of village.regions({
     chiefHours,
     isNight: () => context.night,
     sleep: () => sleepAtHome(),
+    rentLodge: (id) => rentLodge(id),
   })) {
   regions.add(region);
 }
@@ -199,7 +205,7 @@ regions.add(
   river.region({
     player,
     day: () => context.day,
-    startFishing: (spot) => fishing.start(spot),
+    startFishing: (spot, berth) => fishing.start(spot, berth),
   }),
 );
 const PLACE_KEY = 'truong-lang-xua.player';
@@ -214,7 +220,10 @@ const savedPlace = loadPlace();
 regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
 await loadingStep(0.72, 'Mở lối đi');
-player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, { surfaceAt: (x, z) => stairHeight(x, z) ?? navSurface(x, z) });
+player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
+  surfaceAt: (x, z) => stairHeight(x, z) ?? navSurface(x, z),
+  blocked: (p) => player.blocks(p),
+});
 regions.onLoad = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
 };
@@ -249,7 +258,6 @@ function placeBubble() {
   if (k > 0) anchor.applyAxisAngle(X_AXIS, -avatar.group.rotation.x);
 }
 
-const quiz = createQuiz({ onPass: () => sayPlayer('🎉 Đúng rồi! Chơi tiếp nào!') });
 
 const effects = {
   water: createWatering(scene, avatar),
@@ -358,6 +366,7 @@ const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
 const playerSeats = new Seats([...school.seats, ...studyHall.seats]);
+const studySeats = new Seats(studyHall.seats);
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
@@ -373,12 +382,14 @@ town = new Town({
   root: villagerRoot,
   nav: player.nav,
   seats,
+  studySeats,
   school,
   farm: farm.crew,
   ledger,
   market,
   estate,
   places: village.places,
+  lodges: district.lodges,
   river,
   footprints,
 });
@@ -403,6 +414,7 @@ context = contextAt(gameNow());
 
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz();
+const quiz = createQuiz({ quiz: kanjiQuiz, onPass: () => sayPlayer('🎉 Đúng rồi! Chơi tiếp nào!') });
 const fishing = createPlayerFishing({
   river,
   purse,
@@ -471,12 +483,19 @@ const noticeSpot = {
     return null;
   },
 };
+function rentLodge(id) {
+  const tier = roomTier(id);
+  if (!isFree(id, PLAYER)) return 'Phòng có người ở rồi, tìm chỗ khác nhé!';
+  if (purse.energy >= ENERGY.max - 0.5) return 'Còn khoẻ lắm, chưa cần nghỉ!';
+  if (!purse.spend(tier.price)) return `Không đủ tiền! Cần ${tier.price} ${MONEY.icon}.`;
+  book(id, PLAYER);
+  sleepAtLodge(id);
+  return null;
+}
+
 const innDesk = {
   act() {
-    if (purse.energy >= ENERGY.max - 0.5) return 'Còn khoẻ lắm, chưa cần nghỉ!';
-    if (!purse.spend(LODGING.price)) return `Không đủ tiền! Cần ${LODGING.price} ${MONEY.icon}.`;
-    sleepAtInn();
-    return null;
+    return rentLodge('inn');
   },
 };
 
@@ -564,10 +583,14 @@ function goDo(region, target, id) {
   player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), false);
 }
 
+function clickTargets() {
+  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group, inn.group];
+}
+
 player.onClick = (clientX, clientY, run) => {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group, inn.group];
+  const targets = clickTargets();
   if (roof.visible) targets.push(roof);
   const hit = raycaster.intersectObjects(targets, true)[0];
   if (!hit) return;
@@ -717,24 +740,18 @@ function updateHover(t) {
   showHoverTip(hoverText, hoverAnchor);
 }
 
+const MAP_VIEW = { height: 95, tilt: 0.45, near: 2, min: 25, max: 170, fogNear: 400, fogFar: 900, tapGap: 350, tapSlop: 12 };
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
-orbit.maxPolarAngle = Math.PI * 0.48;
-orbit.minDistance = 2;
-orbit.maxDistance = 90;
+orbit.enableRotate = false;
+orbit.minPolarAngle = MAP_VIEW.tilt;
+orbit.maxPolarAngle = MAP_VIEW.tilt;
+orbit.minDistance = MAP_VIEW.min;
+orbit.maxDistance = MAP_VIEW.max;
 orbit.screenSpacePanning = false;
-orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
-orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
 orbit.enabled = false;
-function overviewFor(region) {
-  if (region?.overview) return region.overview;
-  const target = player.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-  const back = camera.position.clone().sub(player.position).setY(0);
-  if (back.lengthSq() < 1e-6) back.set(0, 0, 1);
-  back.normalize();
-  return { target, position: target.clone().addScaledVector(back, 20).add(new THREE.Vector3(0, 12, 0)) };
-}
-
 const ui = {
   viewBtn: document.getElementById('viewBtn'),
   modeBtn: document.getElementById('modeBtn'),
@@ -771,18 +788,59 @@ function setMode(next) {
   if (next === mode) return;
   mode = next;
   if (mode === 'overview') {
-    const view = overviewFor(regions.active);
     player.setEnabled(false);
-    camera.position.copy(view.position);
-    orbit.target.copy(view.target);
+    orbit.target.set(player.position.x, 0, player.position.z);
+    camera.position.set(player.position.x, MAP_VIEW.height, player.position.z + MAP_VIEW.height * Math.tan(MAP_VIEW.tilt));
+    savedFog = { near: scene.fog.near, far: scene.fog.far };
+    scene.fog.near = MAP_VIEW.fogNear;
+    scene.fog.far = MAP_VIEW.fogFar;
+    savedNear = camera.near;
+    camera.near = MAP_VIEW.near;
+    camera.updateProjectionMatrix();
     orbit.enabled = true;
     orbit.update();
   } else {
     orbit.enabled = false;
+    if (savedFog) Object.assign(scene.fog, savedFog);
+    savedFog = null;
+    if (savedNear !== null) camera.near = savedNear;
+    savedNear = null;
+    camera.updateProjectionMatrix();
     player.setEnabled(true);
   }
   refreshUI();
 }
+
+let savedFog = null;
+let savedNear = null;
+let mapPress = null;
+let mapTap = null;
+
+function mapPoint(clientX, clientY) {
+  pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObjects(clickTargets(), true)[0]?.point ?? null;
+}
+
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  if (mode === 'overview') mapPress = { x: event.clientX, y: event.clientY };
+});
+renderer.domElement.addEventListener('pointerup', (event) => {
+  if (mode !== 'overview' || !mapPress) return;
+  const moved = Math.hypot(event.clientX - mapPress.x, event.clientY - mapPress.y) > MAP_VIEW.tapSlop;
+  mapPress = null;
+  if (moved) {
+    mapTap = null;
+    return;
+  }
+  const now = performance.now();
+  const second = mapTap && now - mapTap.at < MAP_VIEW.tapGap && Math.hypot(event.clientX - mapTap.x, event.clientY - mapTap.y) <= MAP_VIEW.tapSlop * 2;
+  mapTap = second ? null : { at: now, x: event.clientX, y: event.clientY };
+  if (!second) return;
+  const point = mapPoint(event.clientX, event.clientY);
+  setMode('play');
+  if (point) player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+});
 
 ui.viewBtn.addEventListener('click', () => {
   player.setFirstPerson(!player.firstPerson);
@@ -1043,9 +1101,10 @@ function drainEnergy() {
   const asleep = purse.sleeping;
   const lodging = asleep && purse.lodging;
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
-  const resting = lodging ? 'inn' : 'sleep';
+  const resting = lodging || 'sleep';
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : 'rest';
-  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? 'seated' : moving;
+  const studying = player.seat?.study || (inClass() && learningNow());
+  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? 'study' : 'seated') : moving;
   const offline = asleep ? 'idle' : player.resting ? lying : 'idle';
   purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;
@@ -1069,15 +1128,16 @@ function sleepAtHome() {
   showSleep(true);
 }
 
-function sleepAtInn() {
+function sleepAtLodge(id) {
   if (purse.sleeping) return;
   fishing.stop();
   player.getUp();
-  purse.setSleeping(true, true);
+  purse.setSleeping(true, id);
   showSleep(true);
 }
 
 function wakeUp(message) {
+  leaveRoom(PLAYER);
   purse.setSleeping(false);
   showSleep(false);
   sayPlayer(message, 2.4);
@@ -1124,6 +1184,7 @@ renderer.setAnimationLoop((time) => {
     inn.setNight(night);
     village.setNight(night);
     river.setNight(night);
+    streetLamps.setNight(night);
   }
   notice.refresh(context.day);
   if (context.day !== lastDay) {
@@ -1146,6 +1207,7 @@ renderer.setAnimationLoop((time) => {
   studyHall.update(t);
   inn.update(t);
   village.update(t, context, camera);
+  streetLamps.update(t);
   river.update(dt, context.minutes);
   clouds.update(dt, night);
   player.update(dt);
@@ -1157,7 +1219,7 @@ renderer.setAnimationLoop((time) => {
   mountain.update(dt, { camera, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
   regions.update(t, dt, mode === 'overview' ? orbit.target : player.position);
-  quiz.update(dt, regions.active?.id !== 'school');
+  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active);
   updateHover(t);
   updateOutlines(t);
   playerBubble.update(t);

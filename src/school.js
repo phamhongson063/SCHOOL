@@ -53,6 +53,7 @@ const COLUMNS = [-8.4, -5.2, -2, 2, 5.2, 8.4];
 const WALL_Z = HOUSE.back + 0.6;
 export const TEACHER_Z = WALL_Z + 0.33 + 1.125;
 export const TEACHER_STAND = { x: CX + 2.1, z: TEACHER_Z + 1.9 };
+export const PACE_SPOTS = [-3.6, 0, 3.6].flatMap((dx) => ROWS.map((z) => ({ x: CX + dx, z })));
 
 function terrain(world) {
   for (let x = -44; x <= 44; x++) {
@@ -342,6 +343,7 @@ export function populate(scene) {
   }
   root.updateMatrix();
   root.matrixAutoUpdate = false;
+  let teacherPresent = teacher.group.visible;
   area.updateMatrix();
   area.matrixAutoUpdate = false;
 
@@ -352,10 +354,14 @@ export function populate(scene) {
     teacher,
     teacherHead: new THREE.Vector3(CX, FLOOR + 1.45, TEACHER_Z - 0.34),
     get teacherPresent() {
-      return teacher.group.visible;
+      return teacherPresent;
     },
     setTeacherPresent(present) {
+      teacherPresent = present;
       teacher.group.visible = present;
+    },
+    setTeacherSeated(seated) {
+      teacher.group.visible = teacherPresent && seated;
     },
     isTeacher(object) {
       for (let node = object; node; node = node.parent) {

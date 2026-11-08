@@ -1,4 +1,4 @@
-import { ENERGY, LODGING, ROUTINE } from './config.js';
+import { ENERGY, LODGES, LODGE_ROOMS, ROUTINE } from './config.js';
 import { DAY_MINUTES, minuteOfDay } from './clock.js';
 
 export const OFFLINE_GAP = 5;
@@ -12,7 +12,7 @@ export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
   if (activity === 'rest') return -ENERGY.restPerHour;
   if (activity === 'shelter') return -ENERGY.shelterPerHour;
-  if (activity === 'inn') return -LODGING.perHour;
+  if (LODGE_ROOMS[activity]) return -LODGES[LODGE_ROOMS[activity].tier].perHour;
   const base = ENERGY.drain[activity] ?? ENERGY.drain.idle;
   return night ? base * ENERGY.nightFactor : base;
 }

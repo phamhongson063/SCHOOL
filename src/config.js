@@ -113,7 +113,7 @@ export const VILLAGER = {
 export const ENERGY = {
   max: 100,
   costs: { plant: 1, water: 1, fertilize: 1, harvest: 1.5, clear: 3, fish: 0.5 },
-  drain: { seated: 0.5, idle: 1, walk: 2, run: 4 },
+  drain: { seated: 0.5, idle: 1, walk: 2, study: 3, run: 4 },
   nightFactor: 2,
   sleepPerHour: 8,
   restPerHour: 4,
@@ -123,6 +123,25 @@ export const ENERGY = {
 };
 
 export const LODGING = { price: 20, perHour: 15 };
+
+export const LODGES = {
+  inn: { price: LODGING.price, perHour: LODGING.perHour, comfort: 0.6 },
+  cheap: { price: 10, perHour: 9, comfort: 0.2 },
+  cozy: { price: 25, perHour: 18, comfort: 0.7 },
+  grand: { price: 45, perHour: 26, comfort: 1 },
+};
+
+export const LODGE_ROOMS = {
+  inn: { tier: 'inn', name: 'Quán trọ' },
+  cheap: { tier: 'cheap', name: 'Nhà trọ Bình Dân' },
+  cozy: { tier: 'cozy', name: 'Nhà trọ An Khang' },
+  grand: { tier: 'grand', name: 'Nhà trọ Phú Quý' },
+  'banco-1': { tier: 'cheap', name: 'Nhà trọ Cây Đa' },
+  'banco-2': { tier: 'cheap', name: 'Nhà trọ Bến Đò' },
+  'banco-3': { tier: 'cozy', name: 'Nhà trọ Hoa Sen' },
+  'banco-4': { tier: 'cozy', name: 'Nhà trọ Thanh Bình' },
+  'banco-5': { tier: 'grand', name: 'Nhà trọ Kim Long' },
+};
 
 export const EATERY = { open: 5 * 60, close: 21 * 60 + 30 };
 

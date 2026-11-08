@@ -6,7 +6,6 @@ import { FISH, FISHING, WORLD } from './config.js';
 import { minuteOfDay } from './clock.js';
 import { moonLight, moonPhase } from './sky.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { ServiceQueue } from './queue.js';
 
 const KEY = 'truong-lang-xua.river';
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
@@ -18,8 +17,10 @@ const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
 const SEGMENT = 3;
 const STEP = 1;
 const FISH_PICK_RADIUS = 6;
-const QUEUE_DEPTH = 9;
-const QUEUE_PENALTY = 12;
+const BERTH_GAP = 1.6;
+const CROWD_RADIUS = 8;
+const CROWD_PENALTY = 25;
+const SPREAD = 6;
 const BOAT_X = 38.5;
 const BANK_RANGE = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5, step: 5 };
 const BANK_SPOTS = [];
@@ -65,20 +66,25 @@ function lowestNorth(x, half) {
 
 function makeSpots() {
   const spots = [];
-  const add = (stand, float, line) =>
-    spots.push({ id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), queue: new ServiceQueue(line, float), fish: 0, jumpAt: 0, rippleAt: 0 });
-  const dockLine = (stand) => [stand, { x: DOCK_X, z: stand.z - 0.8 }, { x: DOCK_X, z: DOCK.z0 - QUEUE_DEPTH }];
-  const dockEnd = { x: DOCK_X, z: DOCK.z1 - 0.5 };
-  add(dockEnd, { x: DOCK_X, z: DOCK.z1 + 1.7 }, [dockEnd, { x: DOCK_X, z: DOCK.z0 - QUEUE_DEPTH }]);
+  const berth = (stand, float) => ({ stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), who: null, spot: null });
+  const add = (stand, float, berths) => {
+    const spot = { id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), berths, fish: 0, jumpAt: 0, rippleAt: 0 };
+    for (const item of berths) item.spot = spot;
+    spots.push(spot);
+  };
+  const single = (stand, float) => add(stand, float, [berth(stand, float)]);
+  single({ x: DOCK_X, z: DOCK.z1 - 0.5 }, { x: DOCK_X, z: DOCK.z1 + 1.7 });
   for (const z of [72.6, 74.6]) {
-    const west = { x: DOCK.x0 + 0.3, z };
-    const east = { x: DOCK.x1 - 0.3, z };
-    add(west, { x: DOCK.x0 - 2.4, z }, dockLine(west));
-    add(east, { x: DOCK.x1 + 2.4, z }, dockLine(east));
+    single({ x: DOCK.x0 + 0.3, z }, { x: DOCK.x0 - 2.4, z });
+    single({ x: DOCK.x1 - 0.3, z }, { x: DOCK.x1 + 2.4, z });
   }
+  const clear = (x) => Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3;
   for (const x of BANK_SPOTS) {
-    const stand = { x, z: lowestNorth(x, SEGMENT) - 0.5 };
-    add(stand, { x, z: northBank(x) + 2.5 }, [stand, { x, z: stand.z - QUEUE_DEPTH }]);
+    const berths = [-BERTH_GAP, 0, BERTH_GAP]
+      .map((dx) => x + dx)
+      .filter(clear)
+      .map((bx) => berth({ x: bx, z: lowestNorth(bx, SEGMENT) - 0.5 }, { x: bx, z: northBank(bx) + 2.5 }));
+    add({ x, z: lowestNorth(x, SEGMENT) - 0.5 }, { x, z: northBank(x) + 2.5 }, berths);
   }
   return spots;
 }
@@ -527,6 +533,31 @@ export function createRiver() {
     if (alive) drops.instanceMatrix.needsUpdate = true;
   }
 
+  const berths = spots.flatMap((spot) => spot.berths);
+  const taken = (who) => berths.filter((item) => item.who && item.who !== who);
+  const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+  function crowdAt(point, who) {
+    return taken(who).filter((item) => gap(item.stand, point) < CROWD_RADIUS).length;
+  }
+
+  function freeBerth(spot, who, point) {
+    const others = taken(who);
+    let best = null;
+    let bestScore = -Infinity;
+    for (const item of spot.berths) {
+      if (item.who && item.who !== who) continue;
+      let room = SPREAD;
+      for (const other of others) room = Math.min(room, gap(item.stand, other.stand));
+      const score = room - (point ? gap(item.stand, point) * 0.1 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    }
+    return best;
+  }
+
   function nearestFish(point, radius) {
     let best = null;
     let bestD = radius;
@@ -547,35 +578,37 @@ export function createRiver() {
     hasFish(spot) {
       return spot.fish > 0;
     },
-    get hasOpenZone() {
-      return spots.some((spot) => spot.fish > 0);
+    get hasRoom() {
+      return spots.some((spot) => spot.fish > 0 && spot.berths.some((item) => !item.who));
     },
     get anglers() {
-      return spots.reduce((count, spot) => count + spot.queue.members.length, 0);
+      return berths.filter((item) => item.who).length;
     },
-    pick(point) {
+    pick(point, who) {
       let best = null;
       let bestScore = Infinity;
       for (const spot of spots) {
         if (spot.fish <= 0) continue;
-        const score = Math.hypot(spot.stand.x - point.x, spot.stand.z - point.z) + spot.queue.members.length * QUEUE_PENALTY;
+        const berth = freeBerth(spot, who, point);
+        if (!berth) continue;
+        const score = Math.hypot(berth.stand.x - point.x, berth.stand.z - point.z) + crowdAt(berth.stand, who) * CROWD_PENALTY;
         if (score < bestScore) {
           bestScore = score;
-          best = spot;
+          best = berth;
         }
       }
       return best;
     },
-    join(who, spot) {
-      for (const other of spots) if (other !== spot) other.queue.leave(who);
-      return spot.queue.join(who);
+    berthFor(who, spot, point) {
+      return freeBerth(spot, who, point);
     },
-    rotate(who, spot) {
-      spot.queue.leave(who);
-      return spot.queue.join(who);
+    claim(who, berth) {
+      for (const item of berths) if (item.who === who) item.who = null;
+      berth.who = who;
+      return berth;
     },
     leave(who) {
-      for (const spot of spots) spot.queue.leave(who);
+      for (const item of berths) if (item.who === who) item.who = null;
     },
     take(spot) {
       if (spot.fish <= 0) return false;
@@ -635,18 +668,16 @@ export function createRiver() {
         name: 'Bến sông Hoài',
         bounds: { x0: WORLD.x0 - 10, z0: 66, x1: WORLD.x1 + 10, z1: 84 },
         staticNav: true,
-        overview: { position: new THREE.Vector3(45, 40, 140), target: new THREE.Vector3(45, 0, 96) },
         target(hit) {
           if (hit.object !== water) return null;
           const spot = nearestFish(hit.point, FISH_PICK_RADIUS);
-          if (!spot) return null;
-          const queue = spot.queue;
-          const place = queue.indexOf(options.player);
-          const stand = queue.slot(place >= 0 ? place : queue.members.length);
-          return { kind: 'fish', spot, index: `fish:${spot.id}`, x: spot.float.x, z: spot.float.z, stand };
+          const berth = spot && freeBerth(spot, options.player, hit.point);
+          if (!berth) return null;
+          return { kind: 'fish', spot, berth, index: `fish:${spot.id}`, x: berth.float.x, z: berth.float.z, stand: berth.stand };
         },
         blankTap(hit) {
-          return hit.object === water ? 'Chỗ này không có cá.' : null;
+          if (hit.object !== water) return null;
+          return nearestFish(hit.point, FISH_PICK_RADIUS) ? 'Chỗ này đông người rồi, tìm chỗ khác nhé!' : 'Chỗ này không có cá.';
         },
         actionFor() {
           return { id: 'fish', hint: 'hand' };
@@ -655,7 +686,7 @@ export function createRiver() {
           return new THREE.Vector3(target.x, 0.7, target.z);
         },
         act(action, target) {
-          return options.startFishing(target.spot);
+          return options.startFishing(target.spot, target.berth);
         },
         load() {
           return { group, clickables: [water, ...banks, details], obstacles: [] };

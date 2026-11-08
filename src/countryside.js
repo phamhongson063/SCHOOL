@@ -38,8 +38,8 @@ const PAVING_ORDER = GROUND_LAYER.mark + 2;
 function bambooMeshes(clumps, rand) {
   const culm = new THREE.CylinderGeometry(0.045, 0.06, 1, 5).translate(0, 0.5, 0);
   const leaf = new THREE.IcosahedronGeometry(1, 0);
-  const culms = new THREE.InstancedMesh(culm, toonMaterial({ color: 0x8aa04a }), clumps.length * 6);
-  const leaves = new THREE.InstancedMesh(leaf, toonMaterial({ flatShading: true }), clumps.length * 4);
+  const culms = new THREE.InstancedMesh(culm, toonMaterial({ muted: true, color: 0x8aa04a }), clumps.length * 6);
+  const leaves = new THREE.InstancedMesh(leaf, toonMaterial({ muted: true, flatShading: true }), clumps.length * 4);
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
   let c = 0;
@@ -169,7 +169,7 @@ function riceField() {
     }
   }
   const tuft = new THREE.ConeGeometry(0.1, 0.6, 5).translate(0, 0.3, 0);
-  const material = toonMaterial({ color: 0x5fae48 });
+  const material = toonMaterial({ muted: true, color: 0x5fae48 });
   const rice = new THREE.InstancedMesh(tuft, material, spots.length);
   const dummy = new THREE.Object3D();
   spots.forEach(([x, z, s, turn], i) => {

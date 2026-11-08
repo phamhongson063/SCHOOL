@@ -16,8 +16,8 @@ const DAY = {
   horizon: new THREE.Color(0xd8ecef),
   ground: new THREE.Color(0xcfe3e0),
   hemiSky: new THREE.Color(0xf2f8ff),
-  hemiGround: new THREE.Color(0x8a7350),
-  ambient: new THREE.Color(0xfff4e0),
+  hemiGround: new THREE.Color(0x7a766e),
+  ambient: new THREE.Color(0xf6f6f3),
 };
 const DUSK = {
   top: new THREE.Color(0x3b4f8f),
@@ -32,7 +32,7 @@ const NIGHT = {
   hemiGround: new THREE.Color(0x1a1a26),
   ambient: new THREE.Color(0x5a6a9a),
 };
-const SUN_COLOR = new THREE.Color(0xfff1d6);
+const SUN_COLOR = new THREE.Color(0xfdfbf6);
 const SUNSET_COLOR = new THREE.Color(0xffa860);
 const MOON_COLOR = new THREE.Color(0xa8bcff);
 

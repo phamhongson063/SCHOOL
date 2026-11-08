@@ -164,12 +164,12 @@ function tileTexture() {
 }
 
 export function plasterMaterial() {
-  shared.plaster ??= toonMaterial({ map: plasterTexture(), vertexColors: true });
+  shared.plaster ??= toonMaterial({ muted: true, map: plasterTexture(), vertexColors: true });
   return shared.plaster;
 }
 
 function roofMaterial() {
-  shared.roof ??= toonMaterial({ map: tileTexture(), vertexColors: true, shadowSide: THREE.DoubleSide });
+  shared.roof ??= toonMaterial({ muted: true, map: tileTexture(), vertexColors: true, shadowSide: THREE.DoubleSide });
   return shared.roof;
 }
 
@@ -537,7 +537,7 @@ function pottedPlant(kit, x, z, kind) {
   const rand = kit.rand;
   if (kind === 0) {
     b.add(shapes.lathe([[0.001, 0], [0.18, 0], [0.26, 0.3], [0.3, 0.36], [0.26, 0.38], [0.001, 0.38]], 8), PAL.pot, { p: [x, 0, z], flat: true });
-    b.add(shapes.cylinder(0.24, 0.24, 0.02, 8), PAL.soil, { p: [x, 0.36, z] });
+    b.add(shapes.cylinder(0.24, 0.24, 0.02, 8), PAL.soil, { p: [x, 0.392, z] });
     bush(kit, x, 0.62, z, 0.32, [PAL.leaf, PAL.leafDark, PAL.leafLight]);
   } else if (kind === 1) {
     b.add(shapes.lathe([[0.001, 0], [0.14, 0], [0.24, 0.22], [0.22, 0.46], [0.16, 0.52], [0.18, 0.56], [0.001, 0.56]], 8), 0x2f5f8e, { p: [x, 0, z], flat: true });
@@ -581,7 +581,7 @@ function bougainvillea(kit, x, topY, dir, reach, railY = 0) {
   const rand = kit.rand;
   const potZ = 0.34;
   b.add(shapes.cylinder(0.25, 0.2, 0.42, 8), PAL.pot, { p: [x, 0.21, potZ], flat: true });
-  b.add(shapes.cylinder(0.23, 0.23, 0.02, 8), PAL.soil, { p: [x, 0.41, potZ] });
+  b.add(shapes.cylinder(0.23, 0.23, 0.02, 8), PAL.soil, { p: [x, 0.432, potZ] });
   const trunk = [
     [x, 0.38, potZ],
     [x + dir * 0.1, topY * 0.35, 0.22],

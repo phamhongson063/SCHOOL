@@ -153,6 +153,7 @@ let sharedGroundMaterial = null;
 
 export function groundMaterial() {
   sharedGroundMaterial ??= toonMaterial({
+    muted: true,
     map: blotchTexture(GROUND.shade, [[0xe9e9e9, 70, 6, 14], [0xb7b7b7, 70, 4, 10]], [GROUND.size / 4, GROUND.size / 4], 1),
     vertexColors: true,
   });
@@ -306,7 +307,7 @@ export function hipRoof({ cx, cz, hx, hz, ridge, eaveY, height, lift, thickness,
 let tileMaterials = null;
 
 export function tileRoofMeshes(options) {
-  tileMaterials ??= [toonMaterial({ map: roofTexture(), shadowSide: THREE.DoubleSide }), toonMaterial({ color: C.roofUnder, side: THREE.BackSide })];
+  tileMaterials ??= [toonMaterial({ muted: true, map: roofTexture(), shadowSide: THREE.DoubleSide }), toonMaterial({ muted: true, color: C.roofUnder, side: THREE.BackSide })];
   const roof = hipRoof({ thickness: 0.15, rings: 8, tile: 0.9, curve: 1, ...options });
   return roofMeshes(roof.geometry, ...tileMaterials);
 }
@@ -416,7 +417,7 @@ function texturedBox(w, h, d, tile = 1) {
 }
 
 function foundation(scene, b, clickables) {
-  const material = toonMaterial({ map: brickTexture() });
+  const material = toonMaterial({ muted: true, map: brickTexture() });
   const depth = HALL_FRONT - HOUSE.foundationBack;
   const centerZ = (HALL_FRONT + HOUSE.foundationBack) / 2;
   const parts = [texturedBox(25, 1, depth).translate(0.5, 0.5, centerZ)];
@@ -854,6 +855,7 @@ export function groundDecal(geometry, material, layer, y = 0.01) {
 
 export function earthMaterial() {
   return toonMaterial({
+    muted: true,
     map: blotchTexture(0xdcb684, [[0xcfa774, 60, 4, 12], [0xe8c798, 50, 4, 10], [0xb9ad98, 40, 1, 3]], [0.25, 0.25], 2),
     depthWrite: false,
     polygonOffset: true,
@@ -864,6 +866,7 @@ export function earthMaterial() {
 
 export function markMaterial(color) {
   return toonMaterial({
+    muted: true,
     color,
     depthWrite: false,
     polygonOffset: true,
@@ -885,7 +888,7 @@ export function createScenery(scene, layout) {
   const ground = addFlat(groundMesh());
   ground.rotation.x = -Math.PI / 2;
 
-  const paving = toonMaterial({ map: brickTexture(), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const paving = toonMaterial({ muted: true, map: brickTexture(), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const pathEnd = STAIRS.top + STAIRS.count * STAIRS.tread;
   const pondFront = POND.z + POND.half + 1.2;
   const pondBack = POND.z - POND.half - 1.2;
@@ -919,13 +922,13 @@ export function createScenery(scene, layout) {
   well.receiveShadow = false;
 
   const floorDepth = HALL_FRONT - HOUSE.foundationBack;
-  const floor = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(25, floorDepth), toonMaterial({ map: floorTexture([12.5, floorDepth / 2]) })));
+  const floor = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(25, floorDepth), toonMaterial({ muted: true, map: floorTexture([12.5, floorDepth / 2]) })));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0.5, 1.003, (HALL_FRONT + HOUSE.foundationBack) / 2);
 
 
-  const roofTop = toonMaterial({ map: roofTexture(), shadowSide: THREE.DoubleSide });
-  const roofUnder = toonMaterial({ color: C.roofUnder, side: THREE.BackSide });
+  const roofTop = toonMaterial({ muted: true, map: roofTexture(), shadowSide: THREE.DoubleSide });
+  const roofUnder = toonMaterial({ muted: true, color: C.roofUnder, side: THREE.BackSide });
 
   const env = new Batch();
   const walls = [];
@@ -934,7 +937,7 @@ export function createScenery(scene, layout) {
   const bricks = [];
   const gateRoofs = [...khueVanCac(env), ...compound(env, bricks), ...hoVanLake(env, rand)];
   steles(env);
-  const brickWalls = new THREE.Mesh(mergeGeometries(bricks, false), toonMaterial({ map: brickTexture() }));
+  const brickWalls = new THREE.Mesh(mergeGeometries(bricks, false), toonMaterial({ muted: true, map: brickTexture() }));
   brickWalls.castShadow = true;
   brickWalls.receiveShadow = true;
   scene.add(brickWalls);
@@ -945,7 +948,7 @@ export function createScenery(scene, layout) {
   const upper = hipRoof({ cx: 0.5, cz: HALL_Z, hx: 10.4, hz: 7, ridge: 5.2, eaveY: 8.6, height: 3.6, lift: 0.7, falloff: 3, thickness: 0.3, rings: 14, tile: 0.9, curve: 1 });
   trusses(env, main);
 
-  const plaster = new THREE.Mesh(mergeGeometries(walls, false), toonMaterial({ map: plasterTexture() }));
+  const plaster = new THREE.Mesh(mergeGeometries(walls, false), toonMaterial({ muted: true, map: plasterTexture() }));
   plaster.castShadow = true;
   plaster.receiveShadow = true;
   scene.add(plaster);

@@ -35,12 +35,32 @@ export function gradientMap() {
   return gradient;
 }
 
-export function toonMaterial(options = {}) {
-  return new THREE.MeshToonMaterial({ gradientMap: gradientMap(), ...options });
+const NEUTRAL = { desaturate: 0.32, warmth: 0.1 };
+
+function mute(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+      {
+        float luma = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(luma), ${NEUTRAL.desaturate.toFixed(3)});
+        float warm = clamp(diffuseColor.r - diffuseColor.b, 0.0, 1.0);
+        diffuseColor.rgb = max(diffuseColor.rgb - vec3(1.0, 0.35, -0.6) * warm * ${NEUTRAL.warmth.toFixed(3)}, 0.0);
+      }`,
+    );
+  };
+  material.customProgramCacheKey = () => 'muted';
+  return material;
+}
+
+export function toonMaterial({ muted = false, ...options } = {}) {
+  const material = new THREE.MeshToonMaterial({ gradientMap: gradientMap(), ...options });
+  return muted ? mute(material) : material;
 }
 
 export function vertexMaterial() {
-  sharedVertex ??= toonMaterial({ vertexColors: true });
+  sharedVertex ??= toonMaterial({ vertexColors: true, muted: true });
   return sharedVertex;
 }
 

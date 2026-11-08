@@ -1,5 +1,5 @@
 import { CROPS } from './crops.js';
-import { STARTER, FISH, FISHING, ENERGY, WILDLIFE } from './config.js';
+import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 
 const KEY = 'truong-lang-xua.ledger';
@@ -54,7 +54,7 @@ function clean(raw) {
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
   account.sleeping = raw.sleeping === true;
-  account.lodging = account.sleeping && raw.lodging === true;
+  account.lodging = account.sleeping && (raw.lodging === true ? 'inn' : LODGE_ROOMS[raw.lodging] ? raw.lodging : false);
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
@@ -172,7 +172,7 @@ export class Purse {
   }
 
   setSleeping(on, lodging = false) {
-    const stay = on && lodging;
+    const stay = on && lodging ? lodging : false;
     if (this.data.sleeping === on && this.data.lodging === stay) return;
     this.data.sleeping = on;
     this.data.lodging = stay;

@@ -7,7 +7,8 @@ import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
-import { SHOP, CHIEF, EATERY } from './config.js';
+import { SHOP, CHIEF, EATERY, LODGE_ROOMS } from './config.js';
+import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
 import { createLanternGlow } from './lanternGlow.js';
 
@@ -26,13 +27,15 @@ const HOUSES = [
   { id: 1, side: 'north', x: 64.5, width: 7, depth: 9, stories: 1, size: 'medium', seed: 11 },
   { id: 2, side: 'north', x: 71.6, width: 6, depth: 8, stories: 1, size: 'small', seed: 23 },
   { id: 3, side: 'north', x: 78.95, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 37 },
-  { id: 4, side: 'north', x: 86.3, width: 6, depth: 8, stories: 1, size: 'small', seed: 41 },
-  { id: 5, side: 'north', x: 93.4, width: 7, depth: 9, stories: 1, size: 'medium', seed: 53 },
   { id: 6, side: 'south', x: 64, width: 6, depth: 9, stories: 2, size: 'medium', seed: 67 },
   { id: 7, side: 'south', x: 70.6, width: 6, depth: 8, stories: 1, size: 'small', seed: 71 },
   { id: 8, side: 'south', x: 77.95, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 83 },
-  { id: 9, side: 'south', x: 85.3, width: 6, depth: 8, stories: 1, size: 'small', seed: 97 },
-  { id: 10, side: 'south', x: 92.4, width: 7, depth: 9, stories: 1, size: 'medium', seed: 101 },
+];
+
+const LODGE_SPOTS = [
+  { id: 'cheap', side: 'north', x: 86.3, width: 6, depth: 8, stories: 1, seed: 131, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
+  { id: 'cozy', side: 'north', x: 93.4, width: 7, depth: 9, stories: 1, seed: 149, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
+  { id: 'grand', side: 'south', x: 92.4, width: 7.5, depth: 10, stories: 2, seed: 157, sign: { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e } },
 ];
 
 const MARKET = { side: 'north', x: 55, seed: 7 };
@@ -161,6 +164,7 @@ function brickTexture() {
 
 export function paving() {
   return toonMaterial({
+    muted: true,
     map: brickTexture(),
     depthWrite: false,
     polygonOffset: true,
@@ -213,6 +217,7 @@ const ZONES = [
 const DETAIL_DISTANCE = 70;
 const SIGN_DISTANCE = 45;
 const KEEPER_DISTANCE = 60;
+const KEEPER_LIGHT = { intensity: 10, distance: 8, height: 2.8, toward: 0.6 };
 const FLOOR_HEIGHT = 0.3;
 
 let hitMaterial = null;
@@ -297,6 +302,18 @@ export function createVillage() {
   eaterySign.mesh.position.set(eatery.plaque.x, eatery.plaque.y, eatery.plaque.z);
   addBuilding({ kind: 'eatery', group: eatery.group, stand: eateryCounter, look: cookAt, npc: cook }, EATERY_SPOT.x, eaterySign);
 
+  const lightGroup = new THREE.Group();
+  const keeperLights = [
+    [keeperAt, counter],
+    [chiefAt, desk],
+    [cookAt, eateryCounter],
+  ].map(([from, to]) => {
+    const light = new THREE.PointLight(0xffc27a, 0, KEEPER_LIGHT.distance, 2);
+    light.position.set(from.x + (to.x - from.x) * KEEPER_LIGHT.toward, KEEPER_LIGHT.height, from.z + (to.z - from.z) * KEEPER_LIGHT.toward);
+    lightGroup.add(light);
+    return light;
+  });
+
   for (const spec of HOUSES) {
     const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
     const f = placeBuilding(house, spec);
@@ -308,6 +325,17 @@ export function createVillage() {
     plaques.set(spec.id, { sign, anchor: new THREE.Vector3().copy(sign.mesh.position).applyMatrix4(house.group.matrixWorld) });
     addBuilding({ kind: 'house', id: spec.id, group: house.group, stand: door, look: f.toWorld({ x: house.door.x, z: house.door.z - 1 }) }, spec.x, sign);
   }
+
+  const lodges = LODGE_SPOTS.map((spec) => {
+    const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
+    const f = placeBuilding(house, spec);
+    obstacles.push(...house.obstacles.map(f.box));
+    const door = f.toWorld(house.door);
+    const sign = plaqueBoard([LODGE_ROOMS[spec.id].name.toUpperCase(), `${roomTier(spec.id).price} 🪙 / đêm`], spec.sign);
+    sign.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
+    addBuilding({ kind: 'lodge', id: spec.id, group: house.group, stand: door, look: f.toWorld({ x: house.door.x, z: house.door.z - 1 }) }, spec.x, sign);
+    return { id: spec.id, stand: door };
+  });
 
   const street = decor();
   const middle = zones[1];
@@ -346,6 +374,7 @@ export function createVillage() {
     eatery: { x: eateryCounter.x, z: eateryCounter.z, look: cookAt, line: eateryLine },
     shop: { x: counter.x, z: counter.z, look: keeperAt, line: marketLine },
     chief: { x: desk.x, z: desk.z, look: chiefAt, line: chiefLine },
+    lodges,
     doors,
     exits: EXITS,
   };
@@ -371,6 +400,7 @@ export function createVillage() {
     if (target.kind === 'shop') return bound.isShopOpen() ? 'Tiệm buôn · bán nông sản, mua hạt giống' : `Tiệm buôn · đóng cửa (mở ${bound.shopHours()})`;
     if (target.kind === 'chief') return bound.isChiefOpen() ? 'Nhà Lý trưởng · mua bán nhà' : `Nhà Lý trưởng · nghỉ (làm việc ${bound.chiefHours()})`;
     if (target.kind === 'eatery') return bound.isEateryOpen() ? 'Quán ăn · ăn uống nạp năng lượng' : `Quán ăn · đóng cửa (mở ${bound.eateryHours()})`;
+    if (target.kind === 'lodge') return lodgeLabel(target.id);
     const house = bound.estate.houses.find((item) => item.id === target.id);
     if (!house) return null;
     if (!house.owner) return `Nhà số ${house.id} · ${bound.estate.sizeName(house)} · bán ${coins(house.price)}`;
@@ -381,7 +411,6 @@ export function createVillage() {
     id: 'village',
     name: 'Phố cổ',
     staticNav: true,
-    overview: { position: new THREE.Vector3(73, 22, 62), target: new THREE.Vector3(73, 2, 35) },
     target(hit) {
       const building = buildingOf(hit.object);
       if (!building || walksOnFloor(building, hit)) return null;
@@ -412,6 +441,7 @@ export function createVillage() {
         bound.openEatery();
         return null;
       }
+      if (target.kind === 'lodge') return bound.rentLodge(target.id);
       const home = bound.estate.houses.find((item) => item.id === target.id);
       if (home?.owner === 'player') {
         if (!bound.isNight()) return 'Nhà của mình. Tối về đây ngủ cho lại sức nhé!';
@@ -423,6 +453,7 @@ export function createVillage() {
   };
 
   return {
+    lights: lightGroup,
     houses,
     obstacles,
     places,
@@ -430,6 +461,7 @@ export function createVillage() {
       night = k;
       setNightGlow(k);
       setEateryGlow(k);
+      for (const light of keeperLights) light.intensity = k * KEEPER_LIGHT.intensity;
       if (lanternMaterial) lanternMaterial.emissiveIntensity = k * 1.6;
     },
     update(t, ctx, camera) {

@@ -534,10 +534,10 @@ function forestMeshes(trees) {
   const trunkGeometry = new THREE.CylinderGeometry(0.16, 0.24, 1, 7).translate(0, 0.5, 0);
   const roundGeometry = new THREE.IcosahedronGeometry(1, 1);
   const pineGeometry = new THREE.ConeGeometry(1, 1, 8).translate(0, 0.5, 0);
-  const material = toonMaterial({ flatShading: true });
+  const material = toonMaterial({ muted: true, flatShading: true });
   const rounds = trees.filter((tree) => !tree.pine);
   const pines = trees.filter((tree) => tree.pine);
-  const trunks = new THREE.InstancedMesh(trunkGeometry, toonMaterial({ color: 0x6e5236 }), trees.length);
+  const trunks = new THREE.InstancedMesh(trunkGeometry, toonMaterial({ muted: true, color: 0x6e5236 }), trees.length);
   const roundCrowns = new THREE.InstancedMesh(roundGeometry, material, Math.max(1, rounds.length));
   const pineCrowns = new THREE.InstancedMesh(pineGeometry, material.clone(), Math.max(1, pines.length * 2));
   trees.forEach((tree, i) => {
@@ -582,7 +582,7 @@ function forestMeshes(trees) {
 
 function rockMesh(rocks) {
   const geometry = new THREE.IcosahedronGeometry(1, 0);
-  const mesh = new THREE.InstancedMesh(geometry, toonMaterial({ color: 0x9a968c, flatShading: true }), Math.max(1, rocks.length));
+  const mesh = new THREE.InstancedMesh(geometry, toonMaterial({ muted: true, color: 0x9a968c, flatShading: true }), Math.max(1, rocks.length));
   const dummy = new THREE.Object3D();
   rocks.forEach((rock, i) => {
     dummy.position.set(rock.x, rock.y + rock.size * rock.squash * 0.35, rock.z);

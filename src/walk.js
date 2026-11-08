@@ -714,6 +714,10 @@ export class PlayerController {
         }
       }
     }
+    return this.blocks(p);
+  }
+
+  blocks(p) {
     return this.obstacleGrid.some(
       p.x - RADIUS,
       p.z - RADIUS,

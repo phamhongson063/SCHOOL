@@ -1,4 +1,7 @@
 const MAX_STEP = 0.55;
+const BODY_RADIUS = 0.3;
+const GOAL_RADIUS = 12;
+const FAR_GOAL_RADIUS = 40;
 const DIRS = [
   [1, 0, 1],
   [-1, 0, 1],
@@ -73,9 +76,10 @@ function surface(world, bx, bz) {
 }
 
 export class NavGrid {
-  constructor(world, collides, bounds, { cell = 0.5, surfaceAt = null } = {}) {
+  constructor(world, collides, bounds, { cell = 0.5, surfaceAt = null, blocked = null } = {}) {
     this.world = world;
     this.collides = collides;
+    this.blocked = blocked;
     this.surfaceAt = surfaceAt;
     this.cell = cell;
     this.x0 = bounds.x0;
@@ -107,7 +111,7 @@ export class NavGrid {
         this.heights[n] = NaN;
         const y = this.surfaceAt?.(x, z) ?? surface(this.world, Math.floor(x), Math.floor(z));
         if (y === null || Number.isNaN(y)) continue;
-        if (!this.collides({ x, y, z }) || !this.collides({ x, y: y + 1, z })) this.heights[n] = y;
+        if (!this.collides({ x, y, z }) || (!this.collides({ x, y: y + 1, z }) && !this.blocked?.({ x, y, z }))) this.heights[n] = y;
       }
     }
     this.components = this.label();
@@ -247,13 +251,23 @@ export class NavGrid {
     return cells.reverse();
   }
 
+  bodyClear(x, z) {
+    const i0 = Math.floor((x - BODY_RADIUS - this.x0) / this.cell);
+    const i1 = Math.floor((x + BODY_RADIUS - this.x0) / this.cell);
+    const j0 = Math.floor((z - BODY_RADIUS - this.z0) / this.cell);
+    const j1 = Math.floor((z + BODY_RADIUS - this.z0) / this.cell);
+    if (i0 < 0 || j0 < 0 || i1 >= this.w || j1 >= this.d) return false;
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) if (!this.walkable(j * this.w + i)) return false;
+    }
+    return true;
+  }
+
   clear(a, b) {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const len = Math.hypot(dx, dz);
     if (len < 1e-6) return true;
-    const px = (-dz / len) * 0.25;
-    const pz = (dx / len) * 0.25;
     const steps = Math.ceil(len / 0.2);
     let prev = this.cellIndex(a.x, a.z);
     for (let s = 1; s <= steps; s++) {
@@ -261,8 +275,7 @@ export class NavGrid {
       const x = a.x + dx * t;
       const z = a.z + dz * t;
       const n = this.cellIndex(x, z);
-      if (!this.walkable(n)) return false;
-      if (!this.walkable(this.cellIndex(x + px, z + pz)) || !this.walkable(this.cellIndex(x - px, z - pz))) return false;
+      if (!this.walkable(n) || !this.bodyClear(x, z)) return false;
       if (n !== prev && this.walkable(prev) && !this.canStep(prev, n)) return false;
       prev = n;
     }
@@ -287,12 +300,15 @@ export class NavGrid {
   findPath(from, to) {
     const start = this.nearest(from.x, from.z, 4);
     if (start < 0) return null;
-    const goal = this.nearest(to.x, to.z, 12, this.components[start]);
+    const comp = this.components[start];
+    let goal = this.nearest(to.x, to.z, GOAL_RADIUS, comp);
+    if (goal < 0) goal = this.nearest(to.x, to.z, FAR_GOAL_RADIUS, comp);
     if (goal < 0) return null;
     const cells = this.search(start, goal);
     if (!cells) return null;
 
-    const end = this.cellIndex(to.x, to.z) === goal ? { x: to.x, y: this.heights[goal], z: to.z } : this.center(goal);
+    const exact = this.cellIndex(to.x, to.z) === goal && this.bodyClear(to.x, to.z);
+    const end = exact ? { x: to.x, y: this.heights[goal], z: to.z } : this.center(goal);
     const points = [{ x: from.x, y: from.y, z: from.z }, ...cells.slice(1, -1).map((n) => this.center(n)), end];
     return this.smooth(points);
   }

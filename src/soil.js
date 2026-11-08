@@ -140,6 +140,7 @@ export function soilMaterial() {
     [0.3, 0.3],
   );
   return toonMaterial({
+    muted: true,
     map: texture,
     depthWrite: false,
     polygonOffset: true,

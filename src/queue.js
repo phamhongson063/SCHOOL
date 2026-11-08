@@ -1,6 +1,5 @@
 export const QUEUE_STEP = 1.3;
 export const JOIN_RADIUS = 2.5;
-const ASIDE = 1.3;
 
 export class ServiceQueue {
   constructor(line, look, step = QUEUE_STEP) {
@@ -67,18 +66,6 @@ export class ServiceQueue {
       left -= length;
     }
     return { x: line[0].x, z: line[0].z };
-  }
-
-  aside(index, offset = ASIDE) {
-    const here = this.along(index);
-    const next = this.along(index + 1);
-    let dx = next.x - here.x;
-    let dz = next.z - here.z;
-    const len = Math.hypot(dx, dz) || 1;
-    dx /= len;
-    dz /= len;
-    const point = { x: here.x + dz * offset + dx * 0.6, z: here.z - dx * offset + dz * 0.6 };
-    return this.snap ? this.snap(point) : point;
   }
 
   facingAt(index) {

@@ -2,10 +2,9 @@ import * as THREE from 'three';
 import { FISH, ENERGY } from './config.js';
 import { fishId } from './inventory.js';
 
-const CAST_DELAY = 0.7;
+const BITE_DELAY = 3;
 const PAUSE = 1.6;
-const SLOT_TOLERANCE = 0.6;
-const MAX_RETRIES = 3;
+const REACH = 0.9;
 
 export function createPlayerFishing({ river, purse, angler, quiz, harvest, player, say, now, minutes, day }) {
   let session = null;
@@ -18,24 +17,9 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     if (quiz.open) quiz.cancel();
   }
 
-  function follow() {
-    const queue = session.spot.queue;
-    const index = queue.indexOf(player);
-    if (index < 0) {
-      stop();
-      return;
-    }
-    session.phase = 'queue';
-    session.index = index;
-    session.faced = -1;
-    const slot = queue.slot(index);
-    if (Math.hypot(slot.x - player.position.x, slot.z - player.position.z) <= 0.3) return;
-    session.moving = true;
-    player.requestMove(new THREE.Vector3(slot.x, 0, slot.z), false);
-  }
+  const away = () => Math.hypot(session.berth.stand.x - player.position.x, session.berth.stand.z - player.position.z);
 
   function cast() {
-    if (!session) return;
     if (purse.count('bait') < 1) {
       stop();
       say('Hết mồi rồi! Ra tiệm buôn mua mồi giun nhé.');
@@ -47,10 +31,11 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
       return;
     }
     purse.take('bait', 1);
-    player.faceToward(session.spot.float.x, session.spot.float.z);
-    angler.cast(session.spot.float);
+    const float = session.berth.float;
+    player.faceToward(float.x, float.z);
+    angler.cast(float);
     session.phase = 'waiting';
-    session.at = now() + CAST_DELAY + river.biteDelay(minutes());
+    session.at = now() + BITE_DELAY;
   }
 
   async function bite() {
@@ -61,7 +46,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     const { correct, entry } = await quiz.ask({ fish });
     if (session !== current) return;
     angler.reel();
-    const float = current.spot.float;
+    const float = current.berth.float;
     if (correct && river.take(current.spot)) {
       purse.add(fishId(fish), 1);
       purse.markFish(day());
@@ -76,26 +61,21 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     current.at = now() + PAUSE;
   }
 
-  function waitTurn(index) {
-    if (session.faced === index) return;
-    session.faced = index;
-    const ahead = session.spot.queue.slot(index - 1);
-    player.faceToward(ahead.x, ahead.z);
-  }
-
   return {
     get active() {
       return !!session;
     },
-    start(spot) {
+    start(spot, berth) {
       stop();
       if (purse.count('rod') < 1) return 'Chưa có cần câu! Ra tiệm buôn mua nhé.';
       if (purse.count('bait') < 1) return 'Hết mồi rồi! Ra tiệm buôn mua mồi giun nhé.';
       if (purse.energy < ENERGY.costs.fish) return 'Đói quá, hết sức câu rồi! Ra quán ăn nạp năng lượng nhé.';
       if (!river.hasFish(spot)) return 'Chỗ này hết cá rồi!';
-      river.join(player, spot);
-      session = { spot, phase: 'queue', index: -1, faced: -1, moving: false, retries: 0, at: 0 };
-      follow();
+      const free = berth && !berth.who ? berth : river.berthFor(player, spot, player.position);
+      if (!free) return 'Chỗ này đông người rồi, tìm chỗ khác nhé!';
+      river.claim(player, free);
+      session = { spot, berth: free, phase: 'walk', at: 0 };
+      if (away() > REACH) player.requestMove(new THREE.Vector3(free.stand.x, 0, free.stand.z), false);
       return null;
     },
     stop,
@@ -111,53 +91,18 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
         return;
       }
       if (player.path) {
-        if (!session.moving) stop();
+        if (session.phase !== 'walk') stop();
         return;
       }
-      session.moving = false;
-      const queue = session.spot.queue;
-      const index = queue.indexOf(player);
-      if (index < 0) {
+      if (away() > REACH) {
         stop();
         return;
       }
-      if (session.phase === 'aside') {
-        follow();
-        return;
-      }
-      const slot = queue.slot(index);
-      const away = Math.hypot(slot.x - player.position.x, slot.z - player.position.z);
-      if (session.phase === 'queue') {
-        if (index !== session.index || away > SLOT_TOLERANCE) {
-          if (session.retries++ >= MAX_RETRIES) {
-            stop();
-            return;
-          }
-          follow();
-          return;
-        }
-        session.retries = 0;
-        if (index > 0) waitTurn(index);
-        else cast();
-        return;
-      }
-      if (away > SLOT_TOLERANCE) {
-        stop();
-        return;
-      }
-      if (session.phase === 'waiting' && now() >= session.at) bite();
+      if (session.phase === 'walk') cast();
+      else if (session.phase === 'waiting' && now() >= session.at) bite();
       else if (session.phase === 'pause' && now() >= session.at) {
         angler.stop();
-        const queue = session.spot.queue;
-        river.rotate(player, session.spot);
-        if (queue.members.length < 2) {
-          follow();
-          return;
-        }
-        const aside = queue.aside(0);
-        session.phase = 'aside';
-        session.moving = true;
-        player.requestMove(new THREE.Vector3(aside.x, 0, aside.z), false);
+        cast();
       }
     },
   };
