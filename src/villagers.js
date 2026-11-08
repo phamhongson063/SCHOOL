@@ -10,22 +10,24 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, LODGING } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, LODGING, HUNTING } from './config.js';
 import { INN_STAND } from './inn.js';
 import { activityOf } from './stamina.js';
-import { payWindow } from './timetable.js';
 import { amount } from './format.js';
 import { realSeconds } from './clock.js';
 import { TEACHER_STAND, FLOOR, HOUSE } from './school.js';
 import { FIELD_TREES, FARM_X } from './farm.js';
 import { ServiceQueue } from './queue.js';
 import { iconTag } from './itemArt.js';
+import { DISTRICT_STREETS } from './district.js';
+import { layDown, restEase, REST_TIME } from './walk.js';
 
 const SPACING = 0.62;
 const LOOKAHEAD = 0.85;
 const MAX_STEP = 0.55;
 const AVOID_RANGE = 1.15;
-const CLASSROOM = { x: 0.5, z: HOUSE.back + 11 };
+const QUEUE_DRIFT = 0.5;
+const CLASSROOM = { x: 0.5, z: HOUSE.back + 9 };
 const PATHS_PER_FRAME = 2;
 const STUCK_TIME = 1.2;
 const VISIBLE_DISTANCE = 40;
@@ -33,23 +35,24 @@ const SKIP_FRAMES = 2;
 const FEELERS = [0, 0.45, 0.9, 1.35];
 
 const HANGOUTS = [
-  { x: -3, z: 14 },
-  { x: 6, z: 18 },
-  { x: 17, z: 13 },
-  { x: -15, z: 11 },
-  { x: 0.5, z: 5.2 },
-  { x: -7, z: 22 },
+  { x: -2.3, z: 16.8 },
+  { x: 4.9, z: 20 },
+  { x: 13.7, z: 16 },
+  { x: -11.9, z: 14.4 },
+  { x: 0.5, z: 9.8 },
+  { x: -5.5, z: 23.2 },
 ];
 
 const YARD = [
   [-14, 31.3, 15, 32.8],
-  [-11, HOUSE.back + 5, 12, HOUSE.front - 1],
-  [-14, 4, 15, 25],
+  [-8.5, HOUSE.back + 4, 9.5, HOUSE.front - 1],
+  [-11, 9, 12, 25.5],
 ];
 
 const STREET = [
   [-40, 34, 40, 36],
   [48, 30.5, 97, 39.5],
+  ...DISTRICT_STREETS,
 ];
 
 const CHAT = ['Chào cậu!', 'Hôm nay học gì thế?', 'Ha ha!', 'Chơi ô ăn quan không?', 'Thầy nghiêm quá!', 'Tớ thuộc bài rồi!', 'Đói bụng quá...', 'Đi bắt dế không?', 'Hì hì', 'Ừ!', 'Thật á?', 'Chiều đi thả diều nhé!'];
@@ -68,6 +71,8 @@ const FIELD_EDGES = [
 ].map(([x0, z0, x1, z1]) => [x0 + FARM_X, z0, x1 + FARM_X, z1]);
 const CAUGHT = ['Dính rồi!', 'Con này to ghê!', 'Hên quá!'];
 const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này khó quá...'];
+const BAGGED = ['Bắt được rồi!', 'Hên ghê!', 'Đem ra chợ bán thôi!'];
+const MISSED = ['Chạy mất rồi...', 'Nhanh quá!', 'Hụt mất!'];
 const BROKE = ['Hết tiền đóng học rồi...', 'Đi làm ruộng kiếm tiền đã!', 'Mai em đi học sau.'];
 const PAID = ['Em nộp học phí ạ!', 'Thưa thầy, tiền học ạ.', 'Dạ nộp tiền ạ!'];
 
@@ -259,6 +264,9 @@ class Villager {
     this.attending = false;
     this.sitAnyway = false;
     this.wakeAt = null;
+    this.lyingDown = false;
+    this.restBlend = 0;
+    this.restClock = 0;
     this.queue = null;
     this.queueIndex = -1;
     this.serve = null;
@@ -361,13 +369,45 @@ class Villager {
     if (this.shouldAttend(ctx)) return this.goToClass();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
-    if (this.purse.energy < ENERGY.costs.clear) return this.wait(between(8, 15));
+    if (this.purse.energy < ENERGY.costs.clear) return this.wait(between(2, 4), () => this.goFarm(() => this.goRest()));
     return this.goFarm();
+  }
+
+  goRest() {
+    this.task = 'rest';
+    this.lookAt = null;
+    this.travel(this.town.fieldEdgePoint(), {
+      speed: this.walkSpeed * 0.8,
+      then: () => this.lieDown(),
+      fail: () => this.lieDown(),
+    });
+  }
+
+  lieDown() {
+    this.task = 'rest';
+    this.route = null;
+    this.velocity = 0;
+    this.state = 'resting';
+    this.lyingDown = true;
+    this.say('Mệt quá, nằm nghỉ chút...', 2);
+  }
+
+  restUpdate(dt) {
+    this.velocity = 0;
+    const ctx = this.town.context;
+    if (this.lyingDown && (ctx.night || this.purse.energy >= VILLAGER.restUntil)) this.lyingDown = false;
+    this.restBlend = Math.min(1, Math.max(0, this.restBlend + (this.lyingDown ? dt : -dt) / REST_TIME));
+    if (this.lyingDown || this.restBlend > 0) return;
+    this.state = 'idle';
+    this.timer = 0;
+    this.afterWait = null;
+    this.think();
   }
 
   activityNow(ctx) {
     if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
     if (this.state === 'inn') return 'inn';
+    if (this.state === 'resting') return this.lyingDown ? 'rest' : 'idle';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
   }
@@ -522,8 +562,10 @@ class Villager {
   cancel() {
     this.dropJob();
     this.leaveQueue();
-    this.town.river.release(this);
+    this.town.river.leave(this);
     this.fishing = null;
+    this.town.wildlife?.release(this);
+    this.hunting = null;
     if (this.fx) for (const effect of Object.values(this.fx)) effect.busy && effect.cancel();
     if (this.targetSeat) this.town.seats.unreserve(this.targetSeat, this);
     this.targetSeat = null;
@@ -689,7 +731,7 @@ class Villager {
 
   periodStart(ctx) {
     this.studying = false;
-    if (this.state === 'seated') this.payAt = this.now + between(0.15, Math.max(0.3, realSeconds(payWindow()) - 0.4));
+    if (this.state === 'seated') this.payAt = this.now + between(0.1, 0.6);
   }
 
   periodEnd() {
@@ -845,11 +887,11 @@ class Villager {
     return best;
   }
 
-  goFarm() {
+  goFarm(idle = () => this.leisure()) {
     const farm = this.town.farm;
     const job = farm.jobFor(this, this.seedChoice());
     if (!job) {
-      this.leisure();
+      idle();
       return;
     }
     const stand = farm.standFor(job.index, this.position);
@@ -862,6 +904,55 @@ class Villager {
     } });
   }
 
+  canHunt() {
+    const wildlife = this.town.wildlife;
+    if (!wildlife) return false;
+    return this.purse.energy >= HUNTING.energy + ENERGY.costs.clear && wildlife.hunters < HUNTING.villagerHunters && wildlife.hasPrey;
+  }
+
+  goHunt() {
+    const wildlife = this.town.wildlife;
+    const prey = wildlife.claim(this);
+    if (!prey) return false;
+    this.task = 'hunt';
+    this.hunting = { prey };
+    const stand = wildlife.standFor(prey, this.position);
+    this.travel(new THREE.Vector3(stand.x, 0, stand.z), {
+      then: () => this.pounce(),
+      fail: () => this.endHunt(),
+    });
+    return true;
+  }
+
+  pounce() {
+    const session = this.hunting;
+    const ctx = this.town.context;
+    const wildlife = this.town.wildlife;
+    if (!session || ctx.night || this.shouldAttend(ctx) || !wildlife.reachable(session.prey, this.position) || !this.purse.spendEnergy(HUNTING.energy)) {
+      this.endHunt();
+      return;
+    }
+    const prey = session.prey;
+    this.facing = Math.atan2(prey.x - this.position.x, prey.z - this.position.z);
+    const skill = HUNTING.villagerSkill[this.kind] ?? 0.5;
+    if (Math.random() < skill) {
+      const item = wildlife.capture(prey);
+      this.purse.add(item, 1);
+      if (Math.random() < 0.7) this.say(`${pick(BAGGED)} ${iconTag(ITEMS[item])}`, 1.8);
+    } else {
+      wildlife.scare(prey, this.position);
+      if (Math.random() < 0.6) this.say(pick(MISSED), 1.6);
+    }
+    this.endHunt();
+  }
+
+  endHunt() {
+    this.town.wildlife?.release(this);
+    this.hunting = null;
+    this.task = null;
+    this.wait(between(1, 2));
+  }
+
   canFish() {
     const purse = this.purse;
     const river = this.town.river;
@@ -869,17 +960,36 @@ class Villager {
   }
 
   goFish() {
-    const river = this.town.river;
-    const spot = river.claim(this, this.position, Infinity, true);
+    const spot = this.town.river.pick(this.position);
     if (!spot) return false;
     this.task = 'fish';
     const [lo, hi] = FISHING.villagerCasts;
     this.fishing = { spot, casts: lo + Math.floor(Math.random() * (hi - lo + 1)), biteAt: 0, done: false };
-    this.travel(spot.stand, {
-      then: () => this.castLine(),
-      fail: () => this.endFishing(),
-    });
+    this.town.river.leave(this);
+    this.enqueue(spot.queue, () => this.castLine());
     return true;
+  }
+
+  nextTurn() {
+    const session = this.fishing;
+    session.nextCastAt = null;
+    if (this.fx) this.fx.angler.stop();
+    if (session.casts <= 0 || !this.town.river.hasFish(session.spot)) {
+      this.endFishing();
+      return;
+    }
+    this.leaveQueue();
+    const queue = session.spot.queue;
+    if (!queue.members.length) {
+      this.enqueue(queue, () => this.castLine());
+      return;
+    }
+    const aside = queue.aside(0);
+    this.queue = queue;
+    this.serve = () => this.castLine();
+    queue.join(this);
+    const rejoin = () => (this.queue === queue ? this.followQueue() : this.endFishing());
+    this.travel(new THREE.Vector3(aside.x, 0, aside.z), { then: rejoin, fail: rejoin });
   }
 
   castLine() {
@@ -930,7 +1040,8 @@ class Villager {
   }
 
   endFishing() {
-    this.town.river.release(this);
+    this.leaveQueue();
+    this.town.river.leave(this);
     if (this.fx) this.fx.angler.stop();
     this.fishing = null;
     this.task = null;
@@ -940,6 +1051,7 @@ class Villager {
   leisure() {
     this.task = 'leisure';
     this.lookAt = null;
+    if (Math.random() < 0.2 && this.canHunt() && this.goHunt()) return;
     if (Math.random() < 0.35 && this.canFish() && this.goFish()) return;
     const farm = this.town.farm;
     const r = Math.random();
@@ -1104,6 +1216,7 @@ class Villager {
 
   finishService() {
     this.leaveQueue();
+    this.fishing = null;
     this.task = null;
     this.think();
   }
@@ -1317,7 +1430,7 @@ class Villager {
     if (this.payAt !== null && t >= this.payAt) this.pay();
     this.seatBubble.update(t);
     const phase = this.town.context.phase;
-    const learning = this.studying && phase.kind === 'period' && !phase.paying;
+    const learning = this.studying && phase.kind === 'period';
     this.studyIcon.visible = learning;
     if (!this.near) return;
     if (learning && this.writing) {
@@ -1376,6 +1489,9 @@ class Villager {
       case 'idle':
         this.idleUpdate(dt);
         break;
+      case 'resting':
+        this.restUpdate(dt);
+        break;
       case 'heeding':
         this.heedUpdate(dt);
         break;
@@ -1392,13 +1508,21 @@ class Villager {
         this.turnTo(session.spot.facing, 4, dt);
         if (!session.done && t >= session.biteAt) this.fishBite();
         else if (session.reelAt != null && t >= session.reelAt) this.resolveBite();
-        else if (session.nextCastAt != null && t >= session.nextCastAt) this.castLine();
+        else if (session.nextCastAt != null && t >= session.nextCastAt) this.nextTurn();
         break;
       }
       case 'queued':
         this.slowDown(dt);
+        if (this.fishing && !this.town.river.hasFish(this.fishing.spot)) {
+          this.endFishing();
+          break;
+        }
         if (!this.queue || this.queue.indexOf(this) !== this.queueIndex) this.queued();
-        else this.turnTo(this.queue.facingAt(this.queueIndex), 4, dt);
+        else {
+          const slot = this.queue.slot(this.queueIndex);
+          if (Math.hypot(slot.x - this.position.x, slot.z - this.position.z) > QUEUE_DRIFT) this.followQueue();
+          else this.turnTo(this.queue.facingAt(this.queueIndex), 4, dt);
+        }
         break;
     }
     if (this.state !== 'seated' && this.state !== 'away') this.animate(t, dt);
@@ -1409,9 +1533,18 @@ class Villager {
     const pos = this.position;
     const ground = this.town.nav.heightAt(pos.x, pos.z);
     if (ground !== null && this.roaming) pos.y += (ground - pos.y) * (1 - Math.exp(-14 * dt));
+    if (this.state !== 'resting') this.restBlend = 0;
     if (!this.near) return;
     const w = this.walker;
     const g = this.gait.update(w, this.velocity, dt, true);
+    if (this.restBlend > 0) {
+      this.restClock += dt;
+      layDown(w, pos, this.facing, restEase(this.restBlend), this.restClock);
+      w.group.scale.setScalar(1);
+      w.face.update(t, this.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+      this.shadow.place(pos.x, pos.y, pos.z, 0);
+      return;
+    }
     if (this.bubble.visible && this.state === 'idle') w.rightArm.rotation.x = -0.6 - Math.sin(t * 6) * 0.25;
     const curious = (this.state === 'idle' && !this.lookAt) || this.pauseTimer > 0;
     const headTarget = curious ? Math.sin(t * 0.9 + this.wobbleP) * 0.55 : 0;
@@ -1483,6 +1616,7 @@ export class Town {
       eatery: new ServiceQueue(places.eatery.line, places.eatery.look),
     };
     for (const queue of Object.values(this.queues)) queue.snap = (point) => this.walkable(point);
+    for (const spot of river.spots) spot.queue.snap = (point) => this.walkable(point);
     this.footprints = footprints;
     this.context = null;
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
@@ -1677,9 +1811,22 @@ export class Town {
           else this.nudge(villager, -nx * full, -nz * full);
           continue;
         }
-        const push = (SPACING - d) / 2;
-        this.nudge(i < bodies.length ? bodies[i] : player, -nx * push, -nz * push);
-        this.nudge(j < bodies.length ? bodies[j] : player, nx * push, nz * push);
+        const first = bodies[i];
+        const second = bodies[j];
+        const firstStill = first.state !== 'walking';
+        const secondStill = second.state !== 'walking';
+        const full = SPACING - d;
+        if (firstStill && !secondStill) {
+          this.nudge(second, nx * full, nz * full);
+          continue;
+        }
+        if (secondStill && !firstStill) {
+          this.nudge(first, -nx * full, -nz * full);
+          continue;
+        }
+        const push = full / 2;
+        this.nudge(first, -nx * push, -nz * push);
+        this.nudge(second, nx * push, nz * push);
       }
     }
   }
@@ -1760,7 +1907,7 @@ export class Town {
     for (const member of this.members) {
       if (member.state === 'away' || member.inSchool) continue;
       if (member.task === 'home') continue;
-      if (member.task === 'fish' && member.shouldAttend(ctx)) {
+      if ((member.task === 'fish' || member.task === 'hunt') && member.shouldAttend(ctx)) {
         member.goToClass();
         continue;
       }
@@ -1801,7 +1948,7 @@ export class Town {
             continue;
           }
           if (member.state === 'seated') member.rise(() => member.goHome(), between(0.2, 2));
-          else if (member.state !== 'rising' && member.state !== 'leaving' && member.state !== 'sitting') member.goHome();
+          else if (member.state !== 'rising' && member.state !== 'leaving' && member.state !== 'sitting' && member.state !== 'resting') member.goHome();
         }
       } else {
         for (const member of this.members) {

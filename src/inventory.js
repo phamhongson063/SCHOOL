@@ -1,5 +1,5 @@
 import { CROPS } from './crops.js';
-import { STARTER, FISH, FISHING, ENERGY } from './config.js';
+import { STARTER, FISH, FISHING, ENERGY, WILDLIFE } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 
 const KEY = 'truong-lang-xua.ledger';
@@ -20,6 +20,10 @@ ITEMS.fertilizer = { icon: '🧪', name: 'Phân bón', kind: 'fertilizer', unit:
 export const fishId = (fish) => `fish:${fish}`;
 for (const [id, fish] of Object.entries(FISH)) {
   ITEMS[fishId(id)] = { icon: fish.icon, art: id, name: fish.name, kind: 'fish', fish: id, unit: 'con' };
+}
+export const gameId = (animal) => `game:${animal}`;
+for (const [id, animal] of Object.entries(WILDLIFE)) {
+  if (animal.gentle) ITEMS[gameId(id)] = { icon: animal.icon, name: animal.name, kind: 'game', animal: id, unit: 'con' };
 }
 ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' };
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };

@@ -90,18 +90,18 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending;
     },
-    async ask({ fish = null } = {}) {
+    async ask({ fish = null, icon = null, prompt = null } = {}) {
       const entries = await loadBank();
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       return new Promise((resolve) => {
         pending = { entry, resolve, answered: false, correct: false, tick: null };
         closeBtn.hidden = true;
-        paintIcon(fishIcon, { icon: FISH[fish]?.icon ?? '', art: fish });
+        paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         fishIcon.className = 'kanji-fish hooked';
         word.textContent = entry.word;
         level.textContent = entry.level;
-        result.textContent = 'Chọn cách đọc đúng để kéo cá lên!';
+        result.textContent = prompt ?? 'Chọn cách đọc đúng để kéo cá lên!';
         result.className = 'kanji-result';
         options.replaceChildren(
           ...shuffle([entry.reading, ...entry.distractors]).map((reading) => {

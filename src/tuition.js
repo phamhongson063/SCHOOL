@@ -111,9 +111,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
         return;
       }
       const short = purse.money < SCHOOL.tuition;
-      const text = phase.paying
-        ? `📖 Tiết ${period} sắp bắt đầu — đóng ${SCHOOL.tuition} ${MONEY.icon} để học?`
-        : `📖 Tiết ${period} đang học — đóng ${SCHOOL.tuition} ${MONEY.icon} để vào học?`;
+      const text = `📖 Tiết ${period} đang học — đóng ${SCHOOL.tuition} ${MONEY.icon} để vào học?`;
       if (popupText.textContent !== text) popupText.textContent = text;
       if (popup.hidden || popupBtn.disabled !== short) {
         popupNote.textContent = short ? 'Bạn chưa đủ tiền. Ra ruộng thu hoạch rồi bán ở tiệm nhé!' : '';

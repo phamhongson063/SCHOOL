@@ -6,7 +6,7 @@ import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { CROPS, RIPE, SPENT, mound, stageName } from './crops.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
-import { CROP_ECONOMY, FARMING, SHOP, growDays } from './config.js';
+import { CROP_ECONOMY, ENERGY, FARMING, SHOP, growDays } from './config.js';
 import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
 
@@ -621,6 +621,7 @@ export function createFarm({ ledger, nameOf, nav }) {
       let owned = 0;
       let best = null;
       const consider = (index, action, rank, choice) => {
+        if ((ENERGY.costs[action] ?? 0) > purse.energy) return;
         const claimant = claims.get(index);
         if (claimant && claimant !== worker.id) return;
         const spot = spots[index];

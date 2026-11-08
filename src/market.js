@@ -1,6 +1,6 @@
 import { CROPS } from './crops.js';
-import { ITEMS, seedId, fishId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, growDays } from './config.js';
+import { ITEMS, seedId, fishId, gameId } from './inventory.js';
+import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, WILDLIFE, growDays } from './config.js';
 import { minuteOfDay, clockText } from './clock.js';
 import { amount, coins } from './format.js';
 import { iconTag, paintIcon } from './itemArt.js';
@@ -12,12 +12,13 @@ export function priceOf(item) {
   if (info.kind === 'seed') return CROP_ECONOMY[info.crop]?.seed ?? 0;
   if (info.kind === 'fertilizer') return SHOP.fertilizer;
   if (info.kind === 'fish') return FISH[info.fish]?.price ?? 0;
+  if (info.kind === 'game') return WILDLIFE[info.animal]?.price ?? 0;
   if (item === 'rod') return FISHING.rod;
   if (item === 'bait') return FISHING.baitPack;
   return 0;
 }
 
-const SELLABLE = new Set(['produce', 'fish']);
+const SELLABLE = new Set(['produce', 'fish', 'game']);
 
 function packSize(item) {
   return item === 'bait' ? FISHING.baitPerPack : 1;
@@ -95,7 +96,7 @@ export function createMarket() {
     buy,
     wantsTrade(villager) {
       const purse = villager.purse;
-      if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('fish') >= 3) return true;
+      if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('fish') >= 3 || purse.total('game') >= 1) return true;
       if (purse.total('seed') > 0) return false;
       const plots = villager.town.farm.plots(villager.id);
       if (plots.owned >= FARMING.villagerPlots) return false;
@@ -186,7 +187,8 @@ export function createShopUI({ market, purse }) {
   function sellRows() {
     const fish = Object.keys(FISH).map(fishId);
     const owned = fish.filter((item) => purse.count(item) > 0);
-    return [...Object.keys(CROPS), ...(owned.length ? fish : [])].map(sellRow);
+    const game = Object.keys(WILDLIFE).map(gameId).filter((item) => ITEMS[item] && purse.count(item) > 0);
+    return [...Object.keys(CROPS), ...(owned.length ? fish : []), ...game].map(sellRow);
   }
 
   function buyRow(item, detail, { unit = ITEMS[item].unit, many = 5, owned = false } = {}) {

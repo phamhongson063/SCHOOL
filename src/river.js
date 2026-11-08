@@ -6,24 +6,31 @@ import { FISH, FISHING, WORLD } from './config.js';
 import { minuteOfDay } from './clock.js';
 import { moonLight, moonPhase } from './sky.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { ServiceQueue } from './queue.js';
 
 const KEY = 'truong-lang-xua.river';
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
 const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
 const DOCK = { x0: 44.6, x1: 46.4, z0: 68.8, z1: 76.6 };
 const DOCK_X = (DOCK.x0 + DOCK.x1) / 2;
-const PATH = { x0: 44.4, x1: 46.6, z0: 37 };
+const PATH = { x0: 44.4, x1: 46.6, z0: 37, bypassX0: 47.8, bypassX1: 49.8, bendZ0: 53.6, bendZ1: 55.6 };
 const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
 const SEGMENT = 3;
 const STEP = 1;
+const FISH_PICK_RADIUS = 6;
+const QUEUE_DEPTH = 9;
+const QUEUE_PENALTY = 12;
 const BOAT_X = 38.5;
 const BANK_RANGE = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5, step: 5 };
 const BANK_SPOTS = [];
 for (let x = BANK_RANGE.x0; x <= BANK_RANGE.x1; x += BANK_RANGE.step) {
   if (Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3) BANK_SPOTS.push(x);
 }
-const DROPS = 160;
-const RING_SECONDS = 1.1;
+const DROPS = 300;
+const RING_SECONDS = 1.3;
+const SPLASH_GROW = 4.5;
+const RIPPLE_GROW = 2.2;
+const RIPPLE_REACH = 2;
 const WOOD = 0x7a5232;
 const WOOD_DARK = 0x553820;
 const REED = [0x7fa443, 0x9ab84a, 0x6a8a3a];
@@ -58,13 +65,21 @@ function lowestNorth(x, half) {
 
 function makeSpots() {
   const spots = [];
-  const add = (stand, float) => spots.push({ id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), angler: null, fish: 0, jumpAt: 0 });
-  add({ x: DOCK_X, z: DOCK.z1 - 0.5 }, { x: DOCK_X, z: DOCK.z1 + 1.7 });
+  const add = (stand, float, line) =>
+    spots.push({ id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), queue: new ServiceQueue(line, float), fish: 0, jumpAt: 0, rippleAt: 0 });
+  const dockLine = (stand) => [stand, { x: DOCK_X, z: stand.z - 0.8 }, { x: DOCK_X, z: DOCK.z0 - QUEUE_DEPTH }];
+  const dockEnd = { x: DOCK_X, z: DOCK.z1 - 0.5 };
+  add(dockEnd, { x: DOCK_X, z: DOCK.z1 + 1.7 }, [dockEnd, { x: DOCK_X, z: DOCK.z0 - QUEUE_DEPTH }]);
   for (const z of [72.6, 74.6]) {
-    add({ x: DOCK.x0 + 0.3, z }, { x: DOCK.x0 - 2.4, z });
-    add({ x: DOCK.x1 - 0.3, z }, { x: DOCK.x1 + 2.4, z });
+    const west = { x: DOCK.x0 + 0.3, z };
+    const east = { x: DOCK.x1 - 0.3, z };
+    add(west, { x: DOCK.x0 - 2.4, z }, dockLine(west));
+    add(east, { x: DOCK.x1 + 2.4, z }, dockLine(east));
   }
-  for (const x of BANK_SPOTS) add({ x, z: lowestNorth(x, SEGMENT) - 0.5 }, { x, z: northBank(x) + 2.5 });
+  for (const x of BANK_SPOTS) {
+    const stand = { x, z: lowestNorth(x, SEGMENT) - 0.5 };
+    add(stand, { x, z: northBank(x) + 2.5 }, [stand, { x, z: stand.z - QUEUE_DEPTH }]);
+  }
   return spots;
 }
 
@@ -285,7 +300,9 @@ export function createRiver() {
   const banks = [
     groundDecal(ribbon(SPAN.x0, SPAN.x1, (x) => northBank(x) - 1.8, (x) => northBank(x) + 0.35), earth, GROUND_LAYER.earth, 0.012),
     groundDecal(ribbon(SPAN.x0, SPAN.x1, (x) => southBank(x) - 0.35, (x) => southBank(x) + 1.6), earth, GROUND_LAYER.earth, 0.012),
-    groundDecal(roundedRectGeometry(PATH.x0, PATH.z0, PATH.x1, northBank(DOCK_X) - 0.2, 0.5), earth, GROUND_LAYER.earth),
+    groundDecal(roundedRectGeometry(PATH.bypassX0, PATH.z0, PATH.bypassX1, PATH.bendZ1, 0.5), earth, GROUND_LAYER.earth),
+    groundDecal(roundedRectGeometry(PATH.x0, PATH.bendZ0, PATH.bypassX1, PATH.bendZ1, 0.5), earth, GROUND_LAYER.earth),
+    groundDecal(roundedRectGeometry(PATH.x0, PATH.bendZ0, PATH.x1, northBank(DOCK_X) - 0.2, 0.5), earth, GROUND_LAYER.earth),
   ];
   group.add(...banks);
   const b = new Batch();
@@ -331,7 +348,7 @@ export function createRiver() {
 
   const fishMaterial = vertexMaterial();
   const fishShape = fishGeometry();
-  const jumpers = Array.from({ length: FISHING.zones * 3 }, () => {
+  const jumpers = Array.from({ length: FISHING.zones * 6 }, () => {
     const mesh = new THREE.Mesh(fishShape, fishMaterial);
     mesh.rotation.order = 'YXZ';
     mesh.visible = false;
@@ -341,12 +358,12 @@ export function createRiver() {
   });
   const ringShape = new THREE.RingGeometry(0.12, 0.2, 24);
   ringShape.rotateX(-Math.PI / 2);
-  const rings = Array.from({ length: FISHING.zones * 6 }, () => {
+  const rings = Array.from({ length: FISHING.zones * 16 }, () => {
     const mesh = new THREE.Mesh(ringShape, new THREE.MeshBasicMaterial({ color: 0xeaf6ff, transparent: true, depthWrite: false }));
     mesh.visible = false;
     mesh.renderOrder = 2;
     group.add(mesh);
-    return { mesh, t: -1 };
+    return { mesh, t: -1, grow: SPLASH_GROW, alpha: 0.75 };
   });
   const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.025, 6, 4), new THREE.MeshBasicMaterial({ color: 0xdff2ff }), DROPS);
   drops.count = 0;
@@ -365,7 +382,10 @@ export function createRiver() {
     } catch {}
   };
 
+  const zoneCount = () => spots.reduce((count, spot) => count + (spot.fish > 0 ? 1 : 0), 0);
+
   function openZone() {
+    if (zoneCount() >= FISHING.zones) return;
     const empty = spots.filter((spot) => spot.fish <= 0);
     if (!empty.length) return;
     const spot = empty[Math.floor(Math.random() * empty.length)];
@@ -376,15 +396,13 @@ export function createRiver() {
   if (saved) {
     for (const [id, count] of Object.entries(saved.zones)) {
       const spot = spots[Number(id)];
-      if (spot && Number.isFinite(count) && count > 0) spot.fish = Math.floor(count);
+      if (spot && Number.isFinite(count) && count > 0 && zoneCount() < FISHING.zones) spot.fish = Math.floor(count);
     }
-    pending.push(...saved.pending.filter(Number.isFinite).sort((a, b) => a - b));
+    pending.push(...saved.pending.filter(Number.isFinite).sort((a, b) => a - b).slice(0, Math.max(0, FISHING.zones - zoneCount())));
   } else {
     for (let i = 0; i < FISHING.zones; i++) openZone();
     save();
   }
-
-  const zoneCount = () => spots.reduce((count, spot) => count + (spot.fish > 0 ? 1 : 0), 0);
 
   function refill(minutes) {
     let changed = false;
@@ -401,12 +419,27 @@ export function createRiver() {
     if (changed) save();
   }
 
+  function ring(x, z, grow, alpha) {
+    const item = rings.find((candidate) => candidate.t < 0);
+    if (!item) return;
+    item.t = 0;
+    item.grow = grow;
+    item.alpha = alpha;
+    item.mesh.position.set(x, 0.06, z);
+    item.mesh.scale.setScalar(1);
+    item.mesh.visible = true;
+  }
+
+  function ripple(spot) {
+    const angle = Math.random() * Math.PI * 2;
+    const reach = Math.sqrt(Math.random()) * RIPPLE_REACH;
+    const z = Math.max(spot.float.z - 0.4, spot.float.z + Math.sin(angle) * reach);
+    ring(spot.float.x + Math.cos(angle) * reach, z, RIPPLE_GROW * between(0.7, 1.2), 0.45);
+  }
+
   function splash(x, z, strength = 1) {
-    const ring = rings.find((item) => item.t < 0) ?? rings[0];
-    ring.t = 0;
-    ring.mesh.position.set(x, 0.06, z);
-    ring.mesh.visible = true;
-    const count = Math.round(5 + strength * 5);
+    ring(x, z, SPLASH_GROW * strength, 0.75);
+    const count = Math.round(5 + strength * 8);
     for (let i = 0; i < count && flying.length < DROPS; i++) {
       const angle = Math.random() * Math.PI * 2;
       const out = between(0.3, 0.9) * strength;
@@ -416,9 +449,9 @@ export function createRiver() {
 
   function jump(spot) {
     const roll = Math.random();
-    const count = roll < 0.35 ? 1 : roll < 0.7 ? 2 : roll < 0.9 ? 3 : 4;
+    const count = roll < 0.2 ? 1 : roll < 0.5 ? 2 : roll < 0.75 ? 3 : roll < 0.92 ? 4 : 5;
     const angle = Math.random() * Math.PI * 2;
-    const reach = between(0.4, 1.8);
+    const reach = between(0.3, 1.3);
     const cx = spot.float.x + Math.cos(angle) * reach;
     const cz = Math.max(spot.float.z - 0.4, spot.float.z + Math.sin(angle) * reach);
     const heading = Math.random() * Math.PI * 2;
@@ -428,18 +461,23 @@ export function createRiver() {
       const turn = heading + between(-0.6, 0.6);
       jumper.from.set(cx + between(-0.5, 0.5), 0, Math.max(spot.float.z - 0.4, cz + between(-0.5, 0.5)));
       jumper.dir.set(Math.sin(turn), 0, Math.cos(turn));
-      jumper.duration = between(0.75, 1.05);
-      jumper.height = between(0.45, 0.9);
-      jumper.travel = between(0.5, 1.1);
-      jumper.wait = i === 0 ? 0.001 : between(0.08, 0.45) * i;
+      jumper.duration = between(0.8, 1.15);
+      jumper.height = between(0.55, 1.15);
+      jumper.travel = between(0.6, 1.4);
+      jumper.wait = i === 0 ? 0.001 : between(0.08, 0.4) * i;
       jumper.mesh.rotation.y = turn;
     }
   }
 
   function animateJumps(dt) {
     for (const spot of spots) {
-      if (spot.fish <= 0 || clock < spot.jumpAt) continue;
-      spot.jumpAt = clock + between(2.5, 6);
+      if (spot.fish <= 0) continue;
+      if (clock >= spot.rippleAt) {
+        spot.rippleAt = clock + between(0.4, 1.1);
+        ripple(spot);
+      }
+      if (clock < spot.jumpAt) continue;
+      spot.jumpAt = clock + between(1.2, 3.2);
       jump(spot);
     }
     for (const jumper of jumpers) {
@@ -449,7 +487,7 @@ export function createRiver() {
         jumper.wait = 0;
         jumper.t = 0;
         jumper.mesh.visible = true;
-        splash(jumper.from.x, jumper.from.z, 0.8);
+        splash(jumper.from.x, jumper.from.z, 0.9);
       }
       if (jumper.t < 0) continue;
       jumper.t += dt / jumper.duration;
@@ -461,7 +499,7 @@ export function createRiver() {
       if (jumper.t < 1) continue;
       jumper.t = -1;
       mesh.visible = false;
-      splash(mesh.position.x, mesh.position.z, 1);
+      splash(mesh.position.x, mesh.position.z, 1.15);
     }
     for (const ring of rings) {
       if (ring.t < 0) continue;
@@ -471,8 +509,8 @@ export function createRiver() {
         ring.mesh.visible = false;
         continue;
       }
-      ring.mesh.scale.setScalar(1 + ring.t * 3);
-      ring.mesh.material.opacity = 0.75 * (1 - ring.t);
+      ring.mesh.scale.setScalar(1 + ring.t * ring.grow);
+      ring.mesh.material.opacity = ring.alpha * (1 - ring.t);
     }
     let alive = 0;
     for (const drop of flying) {
@@ -489,12 +527,11 @@ export function createRiver() {
     if (alive) drops.instanceMatrix.needsUpdate = true;
   }
 
-  function nearestFree(point, who, radius = Infinity, withFish = false) {
+  function nearestFish(point, radius) {
     let best = null;
     let bestD = radius;
     for (const spot of spots) {
-      if (spot.angler && spot.angler !== who) continue;
-      if (withFish && spot.fish <= 0) continue;
+      if (spot.fish <= 0) continue;
       const d = Math.hypot(spot.float.x - point.x, spot.float.z - point.z);
       if (d < bestD) {
         bestD = d;
@@ -511,19 +548,34 @@ export function createRiver() {
       return spot.fish > 0;
     },
     get hasOpenZone() {
-      return spots.some((spot) => spot.fish > 0 && !spot.angler);
+      return spots.some((spot) => spot.fish > 0);
     },
     get anglers() {
-      return spots.filter((spot) => spot.angler).length;
+      return spots.reduce((count, spot) => count + spot.queue.members.length, 0);
     },
-    claim(who, point, radius, withFish = false) {
-      for (const spot of spots) if (spot.angler === who) spot.angler = null;
-      const spot = nearestFree(point, who, radius, withFish);
-      if (spot) spot.angler = who;
-      return spot;
+    pick(point) {
+      let best = null;
+      let bestScore = Infinity;
+      for (const spot of spots) {
+        if (spot.fish <= 0) continue;
+        const score = Math.hypot(spot.stand.x - point.x, spot.stand.z - point.z) + spot.queue.members.length * QUEUE_PENALTY;
+        if (score < bestScore) {
+          bestScore = score;
+          best = spot;
+        }
+      }
+      return best;
     },
-    release(who) {
-      for (const spot of spots) if (spot.angler === who) spot.angler = null;
+    join(who, spot) {
+      for (const other of spots) if (other !== spot) other.queue.leave(who);
+      return spot.queue.join(who);
+    },
+    rotate(who, spot) {
+      spot.queue.leave(who);
+      return spot.queue.join(who);
+    },
+    leave(who) {
+      for (const spot of spots) spot.queue.leave(who);
     },
     take(spot) {
       if (spot.fish <= 0) return false;
@@ -586,9 +638,15 @@ export function createRiver() {
         overview: { position: new THREE.Vector3(45, 40, 140), target: new THREE.Vector3(45, 0, 96) },
         target(hit) {
           if (hit.object !== water) return null;
-          const spot = nearestFree(hit.point, options.player, 12);
+          const spot = nearestFish(hit.point, FISH_PICK_RADIUS);
           if (!spot) return null;
-          return { kind: 'fish', spot, index: `fish:${spot.id}`, x: spot.float.x, z: spot.float.z, stand: spot.stand };
+          const queue = spot.queue;
+          const place = queue.indexOf(options.player);
+          const stand = queue.slot(place >= 0 ? place : queue.members.length);
+          return { kind: 'fish', spot, index: `fish:${spot.id}`, x: spot.float.x, z: spot.float.z, stand };
+        },
+        blankTap(hit) {
+          return hit.object === water ? 'Chỗ này không có cá.' : null;
         },
         actionFor() {
           return { id: 'fish', hint: 'hand' };

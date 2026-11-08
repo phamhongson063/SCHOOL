@@ -23,7 +23,6 @@ export const SCHOOL = {
   evening: 19 * 60,
   plans: [{ morning: 2, afternoon: 2, evening: 1 }],
   alertBefore: 10,
-  payWindowSeconds: 5,
   tuition: 1,
   maxPrepaid: 30,
 };
@@ -68,8 +67,8 @@ export const FISHING = {
   rod: 40,
   baitPack: 3,
   baitPerPack: 10,
-  zones: 8,
-  zoneFish: [3, 8],
+  zones: 5,
+  zoneFish: [8, 15],
   zoneRespawn: [60, 180],
   biteSeconds: [10, 40],
   quizSeconds: 20,
@@ -79,6 +78,28 @@ export const FISHING = {
   villagerCasts: [3, 7],
 };
 
+export const WILDLIFE = {
+  rabbit: { name: 'Thỏ rừng', icon: '🐇', price: 12, gentle: true, count: 7, speed: 1.5, flee: 5.4, wary: 0.35 },
+  pheasant: { name: 'Gà rừng', icon: '🐓', price: 18, gentle: true, count: 5, speed: 1.2, flee: 4.6, wary: 0.3 },
+  deer: { name: 'Hoẵng', icon: '🦌', price: 45, gentle: true, count: 4, speed: 1.6, flee: 6.4, wary: 0.45 },
+  boar: { name: 'Lợn rừng', icon: '🐗', gentle: false, count: 3, speed: 1.3, charge: 5.2 },
+};
+
+export const HUNTING = {
+  energy: 2,
+  catchRange: 2.4,
+  watchRange: 8,
+  noticeRange: 3.6,
+  runNotice: 9,
+  respawn: [60, 180],
+  boarSight: 7,
+  boarHit: 6,
+  boarCooldown: 6,
+  knockback: 6,
+  villagerHunters: 2,
+  villagerSkill: { student: 0.45, farmer: 0.55 },
+};
+
 export const HOUSE_PRICES = { small: 350000, medium: 600000, large: 1000000 };
 
 export const VILLAGER = {
@@ -86,6 +107,7 @@ export const VILLAGER = {
   seedStock: 4,
   houseReserve: 30,
   sitWithoutPaying: 0.3,
+  restUntil: 10,
 };
 
 export const ENERGY = {
@@ -95,6 +117,7 @@ export const ENERGY = {
   nightFactor: 2,
   sleepPerHour: 8,
   restPerHour: 4,
+  shelterPerHour: 14,
   tiredSpeed: 0.6,
   low: 20,
 };

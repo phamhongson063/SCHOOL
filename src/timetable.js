@@ -1,6 +1,6 @@
 import { SCHOOL } from './config.js';
 import { makeRandom } from './random.js';
-import { dayOf, minuteOfDay, DAY_MINUTES, gameMinutesOf } from './clock.js';
+import { dayOf, minuteOfDay, DAY_MINUTES } from './clock.js';
 
 const cache = new Map();
 
@@ -37,8 +37,6 @@ export function scheduleFor(day) {
   return schedule;
 }
 
-export const payWindow = () => gameMinutesOf(SCHOOL.payWindowSeconds);
-
 export function phaseAt(minutes) {
   const day = dayOf(minutes);
   const t = minuteOfDay(minutes);
@@ -47,8 +45,7 @@ export function phaseAt(minutes) {
   for (const seg of schedule.segments) {
     if (t < seg.start || t >= seg.end) continue;
     const key = `${day}:${seg.kind}:${seg.start}`;
-    const paying = seg.kind === 'period' && t - seg.start < payWindow();
-    return { ...seg, key, day, schedule, paying, startAt: base + seg.start, endAt: base + seg.end, remaining: seg.end - t };
+    return { ...seg, key, day, schedule, startAt: base + seg.start, endAt: base + seg.end, remaining: seg.end - t };
   }
   const next = schedule.segments.find((seg) => seg.kind === 'period' && seg.start > t) ?? null;
   const done = !next;
@@ -58,7 +55,6 @@ export function phaseAt(minutes) {
     key,
     day,
     schedule,
-    paying: false,
     done,
     next,
     startAt: next ? base + next.start : null,

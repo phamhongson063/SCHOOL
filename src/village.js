@@ -14,6 +14,8 @@ export const VILLAGE_BOUNDS = { x0: 47, z0: 18, x1: 100, z1: 52 };
 
 const NORTH_FRONT = 29.4;
 const SOUTH_FRONT = 40.6;
+const STREET_LAYER = GROUND_LAYER.mark + 1;
+const ABOVE_PAVING = STREET_LAYER + 1;
 const EXITS = [
   { x: -43, z: 35 },
   { x: 99, z: 35 },
@@ -63,7 +65,7 @@ function placeBuilding(built, spec) {
   return f;
 }
 
-function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8a1d14 } = {}) {
+export function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8a1d14 } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 144;
@@ -156,7 +158,7 @@ function brickTexture() {
   );
 }
 
-function paving() {
+export function paving() {
   return toonMaterial({
     map: brickTexture(),
     depthWrite: false,
@@ -168,7 +170,7 @@ function paving() {
 
 function decor() {
   const group = new THREE.Group();
-  const street = groundDecal(roundedRectGeometry(48.5, NORTH_FRONT - 0.6, 98, SOUTH_FRONT + 0.6, 0.6), paving(), GROUND_LAYER.mark + 1, 0.014);
+  const street = groundDecal(roundedRectGeometry(48.5, NORTH_FRONT - 0.6, 98, SOUTH_FRONT + 0.6, 0.6), paving(), STREET_LAYER, 0.014);
   const walks = [street];
   group.add(street);
   const rand = makeRandom(4646);
@@ -242,6 +244,9 @@ export function createVillage() {
     building.proxy = proxy;
     building.sign = sign;
     building.group.add(sign.mesh);
+    building.group.traverse((node) => {
+      if (node.isMesh) node.renderOrder = ABOVE_PAVING;
+    });
     zone.group.add(building.group, proxy);
     freeze(building.group);
     freeze(proxy);

@@ -17,29 +17,29 @@ import {
 
 export const CX = 0.5;
 export const FLOOR = 1;
-const SHIFT = -39;
+const SHIFT = -26;
 export const HOUSE = {
-  back: -13 + SHIFT,
-  front: 6 + SHIFT,
-  foundationBack: -14 + SHIFT,
-  midColumn: -4 + SHIFT,
+  back: -10 + SHIFT,
+  front: 5 + SHIFT,
+  foundationBack: -11 + SHIFT,
+  midColumn: -3 + SHIFT,
   windows: [
-    [-10 + SHIFT, -7 + SHIFT],
-    [0 + SHIFT, 3 + SHIFT],
+    [-8 + SHIFT, -5 + SHIFT],
+    [-1 + SHIFT, 2 + SHIFT],
   ],
 };
-export const ENCLOSURE = { x0: -28, x1: 28, front: 28, back: -59 };
-export const CROSS_WALLS = [28, -22];
-export const SIDE_GATES = [-11, 12];
-export const HO_VAN = { x0: -16, z0: 40, x1: 17, z1: 62, island: { x: 0.5, z: 51, r: 3.2 } };
+export const ENCLOSURE = { x0: -22, x1: 22, front: 28, back: -42 };
+export const CROSS_WALLS = [28, -12];
+export const SIDE_GATES = [-8.5, 9.5];
+export const HO_VAN = { x0: -13, z0: 40, x1: 14, z1: 58, island: { x: 0.5, z: 49, r: 2.6 } };
 const LAKE_KEEP_OUT = 0.65;
-export const POND = { x: 0.5, z: 15.5, half: 5 };
-export const THUONG_DIEN = { x: 0.5, z: -8.5, hx: 11, hz: 4 };
-export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -22 : 23, z0: -16, z1: 2 }));
-export const STELE_SHEDS = [-1, 1].map((side) => ({ x: side < 0 ? -18.5 : 19.5, z0: 4, z1: 24 }));
+export const POND = { x: 0.5, z: 18, half: 4 };
+export const THUONG_DIEN = { x: 0.5, z: -1.2, hx: 8.8, hz: 3.2 };
+export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -17.5 : 18.5, z0: -7, z1: 7 }));
+export const STELE_SHEDS = [-1, 1].map((side) => ({ x: side < 0 ? -14.5 : 15.5, z0: 9, z1: 25 }));
 export const KHUE_VAN_CAC = { x: 0.5, z: 28.5, half: 2 };
-export const STELES = STELE_SHEDS.flatMap(({ x }, i) => [-2, 2].flatMap((dx) => Array.from({ length: 5 }, (_, k) => ({ x: x + dx, z: 22.5 - k * 4, side: i === 0 ? -1 : 1 }))));
-export const STAIRS = { x0: -3, x1: 4, top: 8 + SHIFT, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
+export const STELES = STELE_SHEDS.flatMap(({ x }, i) => [-2, 2].flatMap((dx) => Array.from({ length: 5 }, (_, k) => ({ x: x + dx, z: 23.5 - k * 3.2, side: i === 0 ? -1 : 1 }))));
+export const STAIRS = { x0: -3, x1: 4, top: 7 + SHIFT, count: 4, rise: 0.2, tread: 0.3, cheek: 0.42, post: 0.46 };
 
 export function stairHeight(x, z) {
   const { x0, x1, top, count, rise, tread } = STAIRS;
@@ -47,8 +47,8 @@ export function stairHeight(x, z) {
   return (count - Math.floor((z - top) / tread)) * rise;
 }
 
-const ROWS = [-6.6, -3.6, -0.6, 2.4].map((z) => z + SHIFT);
-const COLUMNS = [-10.5, -6.5, -2.5, 2.5, 6.5, 10.5];
+const ROWS = [-4.8, -2.3, 0.2, 2.7].map((z) => z + SHIFT);
+const COLUMNS = [-8.4, -5.2, -2, 2, 5.2, 8.4];
 const WALL_Z = HOUSE.back + 0.6;
 export const TEACHER_Z = WALL_Z + 0.33 + 1.125;
 export const TEACHER_STAND = { x: CX + 2.1, z: TEACHER_Z + 1.9 };
@@ -61,44 +61,44 @@ function terrain(world) {
       world.set(x, -3, z, 'stone');
     }
   }
-  world.fill(-15, -1, 8, 15, -1, 26, 'earth');
+  world.fill(-12, -1, 12, 12, -1, 26, 'earth');
   world.fill(-2, -1, 27, 2, -1, 46, 'earth');
 }
 
 function house(world) {
   const { back, front, foundationBack, midColumn, windows } = HOUSE;
-  world.fill(-15, 0, foundationBack, 15, 0, front + 1, 'foundation');
+  world.fill(-12, 0, foundationBack, 12, 0, front + 1, 'foundation');
 
-  world.fill(-13, 1, back, 13, 5, back, 'plaster');
-  world.fill(-14, 1, back + 1, -14, 5, front - 1, 'plaster');
-  world.fill(14, 1, back + 1, 14, 5, front - 1, 'plaster');
-  world.fill(-13, 1, back, 13, 1, back, 'brick');
-  world.fill(-14, 1, back + 1, -14, 1, front - 1, 'brick');
-  world.fill(14, 1, back + 1, 14, 1, front - 1, 'brick');
+  world.fill(-10, 1, back, 10, 5, back, 'plaster');
+  world.fill(-11, 1, back + 1, -11, 5, front - 1, 'plaster');
+  world.fill(11, 1, back + 1, 11, 5, front - 1, 'plaster');
+  world.fill(-10, 1, back, 10, 1, back, 'brick');
+  world.fill(-11, 1, back + 1, -11, 1, front - 1, 'brick');
+  world.fill(11, 1, back + 1, 11, 1, front - 1, 'brick');
 
-  for (const x of [-14, 14]) {
+  for (const x of [-11, 11]) {
     for (const [z0, z1] of windows) world.fill(x, 3, z0, x, 4, z1 - 1, 'lattice');
   }
 
-  for (const x of [-14, -5, 5, 14]) {
+  for (const x of [-11, -4, 4, 11]) {
     world.fill(x, 1, back, x, 5, back, 'log');
     world.fill(x, 1, front, x, 5, front, 'log');
   }
-  world.fill(-14, 1, midColumn, -14, 5, midColumn, 'log');
-  world.fill(14, 1, midColumn, 14, 5, midColumn, 'log');
+  world.fill(-11, 1, midColumn, -11, 5, midColumn, 'log');
+  world.fill(11, 1, midColumn, 11, 5, midColumn, 'log');
 
-  world.fill(-14, 6, back, 14, 6, back, 'darkPlanks');
-  world.fill(-14, 6, front, 14, 6, front, 'darkPlanks');
-  world.fill(-14, 6, back + 1, -14, 6, front - 1, 'darkPlanks');
-  world.fill(14, 6, back + 1, 14, 6, front - 1, 'darkPlanks');
-  for (const x of [-5, 5]) world.fill(x, 6, back + 1, x, 6, front - 1, 'darkPlanks');
+  world.fill(-11, 6, back, 11, 6, back, 'darkPlanks');
+  world.fill(-11, 6, front, 11, 6, front, 'darkPlanks');
+  world.fill(-11, 6, back + 1, -11, 6, front - 1, 'darkPlanks');
+  world.fill(11, 6, back + 1, 11, 6, front - 1, 'darkPlanks');
+  for (const x of [-4, 4]) world.fill(x, 6, back + 1, x, 6, front - 1, 'darkPlanks');
 }
 
 const ROOF_PITCH = 0.45;
 
 function roof(world) {
-  const X0 = -16;
-  const X1 = 16;
+  const X0 = -13;
+  const X1 = 13;
   const Z0 = HOUSE.back - 2;
   const Z1 = HOUSE.front + 3;
   const BASE = 6;
@@ -289,11 +289,11 @@ export function populate(scene) {
 
   const glows = [];
   const lanternSpots = [
-    ...[CX - 9.5, CX - 3, CX + 3, CX + 9.5].map((x) => [x, 6.15, HOUSE.front + 0.95]),
+    ...[CX - 7.6, CX - 2.4, CX + 2.4, CX + 7.6].map((x) => [x, 6.15, HOUSE.front + 0.95]),
     [CX - 2.4, 5.6, TEACHER_Z + 1.2],
     [CX + 2.4, 5.6, TEACHER_Z + 1.2],
-    [CX - 6.5, 5.6, HOUSE.back + 10.9],
-    [CX + 6.5, 5.6, HOUSE.back + 10.9],
+    [CX - 5.2, 5.6, HOUSE.back + 8.7],
+    [CX + 5.2, 5.6, HOUSE.back + 8.7],
   ];
   for (const [x, y, z] of lanternSpots) {
     const lamp = lantern();
@@ -305,7 +305,7 @@ export function populate(scene) {
   const lanternGlow = createLanternGlow(lanternSpots.map(([x, y, z]) => ({ position: new THREE.Vector3(x, y - 0.41, z), tint: 0xd8321e })));
   root.add(lanternGlow.object);
   let night = 0;
-  const classLights = [[CX, TEACHER_Z + 2], [CX - 6.5, HOUSE.back + 11.5], [CX + 6.5, HOUSE.back + 11.5]].map(([x, z]) => {
+  const classLights = [[CX, TEACHER_Z + 2], [CX - 5.2, HOUSE.back + 9.2], [CX + 5.2, HOUSE.back + 9.2]].map(([x, z]) => {
     const light = new THREE.PointLight(0xffb36a, 0, 15, 2);
     light.position.set(x, 4.8, z);
     root.add(light);
@@ -313,20 +313,20 @@ export function populate(scene) {
   });
 
   const shelf = bookshelf(360);
-  shelf.position.set(CX - 9.5, FLOOR, WALL_Z);
+  shelf.position.set(CX - 7.6, FLOOR, WALL_Z);
   root.add(shelf);
-  block(CX - 10.3, WALL_Z + 0.15, CX - 8.7, WALL_Z + 0.7);
+  block(CX - 8.4, WALL_Z + 0.15, CX - 6.8, WALL_Z + 0.7);
 
   const drumMesh = drum();
-  drumMesh.position.set(CX + 9.5, FLOOR, WALL_Z + 1.2);
+  drumMesh.position.set(CX + 7.6, FLOOR, WALL_Z + 1.2);
   root.add(drumMesh);
-  block(CX + 9.05, WALL_Z + 0.75, CX + 9.95, WALL_Z + 1.65);
+  block(CX + 7.15, WALL_Z + 0.75, CX + 8.05, WALL_Z + 1.65);
 
   const stairEnd = STAIRS.top + STAIRS.count * STAIRS.tread + STAIRS.post;
   block(STAIRS.x0 - STAIRS.cheek - 0.02, STAIRS.top, STAIRS.x0 + 0.02, stairEnd, 0);
   block(STAIRS.x1 - 0.02, STAIRS.top, STAIRS.x1 + STAIRS.cheek + 0.02, stairEnd, 0);
 
-  for (const [x, z, s] of [[-16.4, 4.2, 370], [-16.7, 5.6, 371]]) {
+  for (const [x, z, s] of [[-12.4, 8.3, 370], [-12.7, 9.4, 371]]) {
     const jarMesh = jar(s);
     jarMesh.position.set(x, 0, z);
     root.add(jarMesh);

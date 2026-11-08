@@ -954,7 +954,6 @@ export function createMarket({ seed = 1 } = {}) {
   }
 
   b.add(shapes.box(W - 2 * T, 0.03, D - T), 0xb4704c, { p: [0, 0.015, -(D - T) / 2] });
-  b.add(shapes.box(W - 2 * P, 0.05, 0.3), PAL.stoneDark, { p: [0, 0.025, 0.05] });
   for (const x of [xa + 0.1, -1.5, 1.5, xb - 0.1]) {
     b.add(shapes.box(0.2, beamY, 0.2), PAL.woodMid, { p: [x, beamY / 2, 0] });
     b.add(shapes.box(0.3, 0.12, 0.3), PAL.stone, { p: [x, 0.06, 0] });

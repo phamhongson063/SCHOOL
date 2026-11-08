@@ -11,6 +11,7 @@ export function isNight(minutes) {
 export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
   if (activity === 'rest') return -ENERGY.restPerHour;
+  if (activity === 'shelter') return -ENERGY.shelterPerHour;
   if (activity === 'inn') return -LODGING.perHour;
   const base = ENERGY.drain[activity] ?? ENERGY.drain.idle;
   return night ? base * ENERGY.nightFactor : base;

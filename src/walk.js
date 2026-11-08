@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Gait } from './gait.js';
 import { ENERGY } from './config.js';
+import { ObstacleGrid } from './obstacleGrid.js';
 
 const RADIUS = 0.3;
 const MAX_STEP = 0.55;
@@ -20,13 +21,19 @@ const WORK_SIDE = 1.75;
 const WORK_PITCH = 0.28;
 const WORK_DROP = 0.5;
 const WORK_DISTANCE = 6.6;
+const TARGET_LIFT = 0.3;
+const SCREEN_MARGIN = 0.8;
+const BODY_HEIGHT = 1.7;
+const BODY_RADIUS = 0.7;
+const TERRAIN_CLEARANCE = 0.35;
+const KNOCK_LIFT = 3.5;
 const DOUBLE_CLICK_MS = 320;
 const DOUBLE_CLICK_PX = 24;
 const SENSITIVITY = 0.005;
 const DRAG_THRESHOLD = 6;
 const EPS = 1e-4;
 const REST_TILT = Math.PI / 2 - 0.33;
-const REST_TIME = 0.6;
+export const REST_TIME = 0.6;
 const REST_SHIFT = 0.6;
 const REST_LIFT = 0.04;
 const REST_PIVOT = 0.55;
@@ -36,15 +43,32 @@ const REST_ARM_OUT = 0.55;
 const REST_HEAD = 0.3;
 const REST_BREATH = 0.035;
 
+export const restEase = (amount) => amount * amount * (3 - 2 * amount);
+
+export function layDown(avatar, position, facing, k, t) {
+  const lerp = THREE.MathUtils.lerp;
+  avatar.leftArm.rotation.set(lerp(avatar.leftArm.rotation.x, REST_ARM_UP, k), 0, REST_ARM_OUT * k);
+  avatar.rightArm.rotation.set(lerp(avatar.rightArm.rotation.x, REST_ARM_UP, k), 0, -REST_ARM_OUT * k);
+  avatar.leftLeg.rotation.set(lerp(avatar.leftLeg.rotation.x, -0.24, k), 0, (-0.2 + Math.sin(t * 1.7) * 0.08) * k);
+  avatar.rightLeg.rotation.set(lerp(avatar.rightLeg.rotation.x, -0.04, k), 0, 0.05 * k);
+  avatar.head.rotation.x = (REST_HEAD + Math.sin(t * 0.6) * 0.04) * k;
+  if (avatar.body) avatar.body.scale.z = 1 + Math.sin(t * 1.9) * REST_BREATH * k;
+  const ahead = REST_SHIFT * k;
+  avatar.group.position.set(position.x + Math.sin(facing) * ahead, position.y + REST_LIFT * k, position.z + Math.cos(facing) * ahead);
+  avatar.group.rotation.set(-REST_TILT * k, facing, 0);
+}
+
 export class PlayerController {
   constructor({ camera, domElement, world, obstacles, avatar, footprints = null, shadow = null }) {
     this.camera = camera;
     this.dom = domElement;
     this.world = world;
     this.obstacles = obstacles;
+    this.obstacleGrid = new ObstacleGrid(obstacles);
     this.footprints = footprints;
     this.shadow = shadow;
     this.surfaceAt = null;
+    this.terrainAt = null;
     this.posture = 'free';
     this.seat = null;
     this.seating = null;
@@ -201,7 +225,7 @@ export class PlayerController {
   }
 
   get restAmount() {
-    return this.rest * this.rest * (3 - 2 * this.rest);
+    return restEase(this.rest);
   }
 
   lieDown() {
@@ -228,11 +252,9 @@ export class PlayerController {
     this.velocity.set(0, 0, 0);
     const k = this.restAmount;
     const p = this.position;
-    const ahead = REST_SHIFT * k;
     this.gait.update(this.avatar, 0, dt, true);
-    this.restPose(k, dt);
-    this.avatar.group.position.set(p.x + Math.sin(this.facing) * ahead, p.y + REST_LIFT * k, p.z + Math.cos(this.facing) * ahead);
-    this.avatar.group.rotation.set(-REST_TILT * k, this.facing, 0);
+    this.restTime += dt;
+    layDown(this.avatar, p, this.facing, k, this.restTime);
     this.shadow?.place(p.x, p.y, p.z, 0);
     if (!this.lying) {
       const then = this.afterRest;
@@ -240,19 +262,6 @@ export class PlayerController {
       then?.();
     }
     if (this.enabled) this.updateCamera(dt);
-  }
-
-  restPose(k, dt) {
-    const a = this.avatar;
-    this.restTime += dt;
-    const t = this.restTime;
-    const lerp = THREE.MathUtils.lerp;
-    a.leftArm.rotation.set(lerp(a.leftArm.rotation.x, REST_ARM_UP, k), 0, REST_ARM_OUT * k);
-    a.rightArm.rotation.set(lerp(a.rightArm.rotation.x, REST_ARM_UP, k), 0, -REST_ARM_OUT * k);
-    a.leftLeg.rotation.set(lerp(a.leftLeg.rotation.x, -0.24, k), 0, (-0.2 + Math.sin(t * 1.7) * 0.08) * k);
-    a.rightLeg.rotation.set(lerp(a.rightLeg.rotation.x, -0.04, k), 0, 0.05 * k);
-    a.head.rotation.x = (REST_HEAD + Math.sin(t * 0.6) * 0.04) * k;
-    if (a.body) a.body.scale.z = 1 + Math.sin(t * 1.9) * REST_BREATH * k;
   }
 
   requestMove(point, run = false) {
@@ -340,7 +349,27 @@ export class PlayerController {
     else this.completeFacing();
   }
 
+  targetHidden(target) {
+    const camera = this.camera;
+    const p = this.position;
+    const point = new THREE.Vector3(target.x, (target.y ?? p.y) + TARGET_LIFT, target.z);
+    const screen = point.clone().project(camera);
+    if (screen.z > 1 || Math.abs(screen.x) > SCREEN_MARGIN || Math.abs(screen.y) > SCREEN_MARGIN) return true;
+    if (this.firstPerson) return false;
+    const toTarget = point.clone().sub(camera.position);
+    const reach = toTarget.length();
+    const ray = new THREE.Ray(camera.position.clone(), toTarget.normalize());
+    const onRay = new THREE.Vector3();
+    const gap = ray.distanceSqToSegment(new THREE.Vector3(p.x, p.y + 0.1, p.z), new THREE.Vector3(p.x, p.y + BODY_HEIGHT, p.z), onRay);
+    return gap < BODY_RADIUS * BODY_RADIUS && onRay.distanceTo(camera.position) < reach;
+  }
+
   faceTarget(target, { work = false, then = null } = {}) {
+    if (work && !this.targetHidden(target)) {
+      this.cameraGoal = null;
+      then?.();
+      return;
+    }
     let yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
     if (work && !this.firstPerson) {
       const left = Math.atan2(Math.sin(yaw + WORK_SIDE - this.yaw), Math.cos(yaw + WORK_SIDE - this.yaw));
@@ -586,12 +615,20 @@ export class PlayerController {
   castCamera(origin, dir, maxDistance) {
     const step = 0.1;
     for (let d = step; d <= maxDistance; d += step) {
-      const x = Math.floor(origin.x + dir.x * d);
-      const y = Math.floor(origin.y + dir.y * d);
-      const z = Math.floor(origin.z + dir.z * d);
-      if (this.world.blocksView(x, y, z, this.hiddenLayers)) return Math.max(0.3, d - 0.35);
+      const px = origin.x + dir.x * d;
+      const py = origin.y + dir.y * d;
+      const pz = origin.z + dir.z * d;
+      if (this.world.blocksView(Math.floor(px), Math.floor(py), Math.floor(pz), this.hiddenLayers)) return Math.max(0.3, d - 0.35);
+      if (this.terrainAt && py < this.terrainAt(px, pz) + TERRAIN_CLEARANCE) return Math.max(0.3, d - 0.35);
     }
     return maxDistance;
+  }
+
+  knockBack(dx, dz, power) {
+    if (this.posture !== 'free' || this.lying) return;
+    this.clearPath();
+    this.velocity.set(dx * power, KNOCK_LIFT, dz * power);
+    this.onGround = false;
   }
 
   moveHorizontal(axis, amount) {
@@ -666,18 +703,12 @@ export class PlayerController {
         }
       }
     }
-    for (const b of this.obstacles) {
-      if (
-        p.x + RADIUS > b.minX &&
-        p.x - RADIUS < b.maxX &&
-        p.z + RADIUS > b.minZ &&
-        p.z - RADIUS < b.maxZ &&
-        p.y + HEIGHT > b.minY &&
-        p.y < b.maxY
-      ) {
-        return true;
-      }
-    }
-    return false;
+    return this.obstacleGrid.some(
+      p.x - RADIUS,
+      p.z - RADIUS,
+      p.x + RADIUS,
+      p.z + RADIUS,
+      (b) => p.x + RADIUS > b.minX && p.x - RADIUS < b.maxX && p.z + RADIUS > b.minZ && p.z - RADIUS < b.maxZ && p.y + HEIGHT > b.minY && p.y < b.maxY,
+    );
   }
 }

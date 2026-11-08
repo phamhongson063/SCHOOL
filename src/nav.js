@@ -106,7 +106,7 @@ export class NavGrid {
         const n = j * this.w + i;
         this.heights[n] = NaN;
         const y = this.surfaceAt?.(x, z) ?? surface(this.world, Math.floor(x), Math.floor(z));
-        if (y === null) continue;
+        if (y === null || Number.isNaN(y)) continue;
         if (!this.collides({ x, y, z }) || !this.collides({ x, y: y + 1, z })) this.heights[n] = y;
       }
     }

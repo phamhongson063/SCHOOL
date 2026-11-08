@@ -51,6 +51,7 @@ export class RegionManager {
     region.handle = { ...EMPTY_HANDLE, ...(region.load?.() ?? {}) };
     if (region.handle.group) this.scene.add(region.handle.group);
     this.obstacles.push(...region.handle.obstacles);
+    this.obstacles.version = (this.obstacles.version ?? 0) + 1;
     this.onLoad?.(region);
   }
 
@@ -62,6 +63,7 @@ export class RegionManager {
       const i = this.obstacles.indexOf(box);
       if (i >= 0) this.obstacles.splice(i, 1);
     }
+    this.obstacles.version = (this.obstacles.version ?? 0) + 1;
     handle.dispose?.();
     region.handle = null;
     this.onUnload?.(region);

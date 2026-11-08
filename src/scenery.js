@@ -33,8 +33,8 @@ const C = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
-const HALL_Z = HOUSE.back + 10;
 const HALL_FRONT = HOUSE.front + 2;
+const HALL_Z = (HOUSE.foundationBack + HALL_FRONT) / 2;
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const css = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 
@@ -64,6 +64,115 @@ function blotchTexture(base, spots, repeat, seed) {
     },
     repeat,
   );
+}
+
+const GROUND = {
+  size: 1000,
+  segments: 200,
+  shade: 0xd0d0d0,
+  grass: 0x8cc152,
+  lush: 0x77ad47,
+  dry: 0xb2b264,
+  dirt: 0x9c7c56,
+  gravel: 0x9b978d,
+};
+
+function valueNoise(seed) {
+  const hash = (ix, iz) => {
+    let h = Math.imul(ix, 374761393) + Math.imul(iz, 668265263) + Math.imul(seed, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+  };
+  return (x, z) => {
+    const ix = Math.floor(x);
+    const iz = Math.floor(z);
+    const fx = x - ix;
+    const fz = z - iz;
+    const sx = fx * fx * (3 - 2 * fx);
+    const sz = fz * fz * (3 - 2 * fz);
+    const a = hash(ix, iz);
+    const b = hash(ix + 1, iz);
+    const c = hash(ix, iz + 1);
+    const d = hash(ix + 1, iz + 1);
+    return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+  };
+}
+
+export function patchField(seed, scale) {
+  const noise = valueNoise(seed);
+  return (x, z) => {
+    const u = x / scale;
+    const v = z / scale;
+    return noise(u, v) * 0.57 + noise(u * 2.1 + 5.3, v * 2.1 + 1.7) * 0.29 + noise(u * 4.3 + 9.1, v * 4.3 + 3.2) * 0.14;
+  };
+}
+
+export const smoothstep = (a, b, x) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+let groundPalette = null;
+
+function palette() {
+  if (groundPalette) return groundPalette;
+  const shade = new THREE.Color(GROUND.shade);
+  const tone = (hex) => {
+    const c = new THREE.Color(hex);
+    return new THREE.Color(c.r / shade.r, c.g / shade.g, c.b / shade.b);
+  };
+  groundPalette = {
+    tone,
+    grass: tone(GROUND.grass),
+    lush: tone(GROUND.lush),
+    dry: tone(GROUND.dry),
+    dirt: tone(GROUND.dirt),
+    gravel: tone(GROUND.gravel),
+    lushness: patchField(11, 40),
+    dryness: patchField(23, 70),
+    bare: patchField(37, 45),
+    stony: patchField(53, 30),
+  };
+  return groundPalette;
+}
+
+export function groundTone(hex) {
+  return palette().tone(hex);
+}
+
+export function groundColorAt(x, z, target) {
+  const p = palette();
+  target.copy(p.grass).lerp(p.lush, smoothstep(0.45, 0.7, p.lushness(x, z)));
+  target.lerp(p.dry, smoothstep(0.56, 0.72, p.dryness(x, z)) * 0.85);
+  target.lerp(p.dirt, smoothstep(0.62, 0.76, p.bare(x, z)) * 0.8);
+  target.lerp(p.gravel, smoothstep(0.66, 0.8, p.stony(x, z)) * 0.85);
+  return target;
+}
+
+let sharedGroundMaterial = null;
+
+export function groundMaterial() {
+  sharedGroundMaterial ??= toonMaterial({
+    map: blotchTexture(GROUND.shade, [[0xe9e9e9, 70, 6, 14], [0xb7b7b7, 70, 4, 10]], [GROUND.size / 4, GROUND.size / 4], 1),
+    vertexColors: true,
+  });
+  return sharedGroundMaterial;
+}
+
+export const GROUND_SIZE = GROUND.size;
+
+function groundMesh() {
+  const { size, segments } = GROUND;
+  const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+  const position = geometry.attributes.position;
+  const colors = new Float32Array(position.count * 3);
+  const color = new THREE.Color();
+  for (let i = 0; i < position.count; i++) {
+    groundColorAt(position.getX(i), -position.getY(i), color);
+    color.toArray(colors, i * 3);
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return new THREE.Mesh(geometry, groundMaterial());
 }
 
 function floorTexture(repeat) {
@@ -310,7 +419,7 @@ function foundation(scene, b, clickables) {
   const material = toonMaterial({ map: brickTexture() });
   const depth = HALL_FRONT - HOUSE.foundationBack;
   const centerZ = (HALL_FRONT + HOUSE.foundationBack) / 2;
-  const parts = [texturedBox(31, 1, depth).translate(0.5, 0.5, centerZ)];
+  const parts = [texturedBox(25, 1, depth).translate(0.5, 0.5, centerZ)];
   const { x0, x1, top, count, rise, tread, cheek, post } = STAIRS;
   const width = x1 - x0;
   const cx = (x0 + x1) / 2;
@@ -326,10 +435,10 @@ function foundation(scene, b, clickables) {
 
   const TREAD = 0xd3cab9;
   const COPING = 0xddd4c4;
-  b.add(shapes.box(31.3, 0.18, depth + 0.3), C.stoneDark, { p: [0.5, 0.09, centerZ] });
-  b.add(shapes.rounded(31.2, 0.14, 0.42, 0.03), COPING, { p: [0.5, 0.94, HALL_FRONT - 0.15] });
-  b.add(shapes.rounded(31.2, 0.14, 0.42, 0.03), COPING, { p: [0.5, 0.94, HOUSE.foundationBack + 0.15] });
-  for (const x of [-14.85, 15.85]) b.add(shapes.rounded(0.42, 0.14, depth + 0.2, 0.03), COPING, { p: [x, 0.94, centerZ] });
+  b.add(shapes.box(25.3, 0.18, depth + 0.3), C.stoneDark, { p: [0.5, 0.09, centerZ] });
+  b.add(shapes.rounded(25.2, 0.14, 0.42, 0.03), COPING, { p: [0.5, 0.94, HALL_FRONT - 0.15] });
+  b.add(shapes.rounded(25.2, 0.14, 0.42, 0.03), COPING, { p: [0.5, 0.94, HOUSE.foundationBack + 0.15] });
+  for (const x of [-11.85, 12.85]) b.add(shapes.rounded(0.42, 0.14, depth + 0.2, 0.03), COPING, { p: [x, 0.94, centerZ] });
 
   for (let k = 1; k <= count; k++) {
     const front = top + (count + 1 - k) * tread;
@@ -368,11 +477,11 @@ function house(b, walls) {
   const T = 0.2;
   const panel = (w, h, d, x, y, z) => walls.push(texturedBox(w, h, d, 3).translate(x, y, z));
 
-  panel(27, 4.5, T, 0.5, 3.75, backZ);
-  b.add(shapes.box(27, 0.5, T + 0.06), C.dado, { p: [0.5, 1.25, backZ] });
-  b.add(shapes.box(27, 0.18, T + 0.08), C.beam, { p: [0.5, 5.9, backZ] });
+  panel(21, 4.5, T, 0.5, 3.75, backZ);
+  b.add(shapes.box(21, 0.5, T + 0.06), C.dado, { p: [0.5, 1.25, backZ] });
+  b.add(shapes.box(21, 0.18, T + 0.08), C.beam, { p: [0.5, 5.9, backZ] });
 
-  for (const x of [-13.5, 14.5]) {
+  for (const x of [-10.5, 11.5]) {
     let z = sideStart;
     for (const [z0, z1] of windows) {
       panel(T, 4.5, z0 - z, x, 3.75, (z + z0) / 2);
@@ -390,18 +499,18 @@ function house(b, walls) {
   }
 
   const columns = [];
-  for (const x of [-13.5, -4.5, 5.5, 14.5]) columns.push([x, backZ], [x, frontZ]);
-  columns.push([-13.5, midColumn + 0.5], [14.5, midColumn + 0.5]);
+  for (const x of [-10.5, -3.5, 4.5, 11.5]) columns.push([x, backZ], [x, frontZ]);
+  columns.push([-10.5, midColumn + 0.5], [11.5, midColumn + 0.5]);
   for (const [x, z] of columns) {
     b.add(shapes.cylinder(0.42, 0.48, 0.26, 14), C.stone, { p: [x, 1.13, z] });
     b.add(shapes.cylinder(0.25, 0.28, 5.1, 16), C.lacquer, { p: [x, 3.81, z] });
     b.add(shapes.cylinder(0.3, 0.3, 0.1, 16), C.gold, { p: [x, 6.05, z] });
   }
 
-  for (const z of [backZ, frontZ]) b.add(shapes.box(29.6, 0.42, 0.36), C.beam, { p: [0.5, 6.35, z] });
-  for (const x of [-13.5, 14.5, -4.5, 5.5]) b.add(shapes.box(0.36, 0.42, span), C.beam, { p: [x, 6.35, centerZ] });
+  for (const z of [backZ, frontZ]) b.add(shapes.box(23.6, 0.42, 0.36), C.beam, { p: [0.5, 6.35, z] });
+  for (const x of [-10.5, 11.5, -3.5, 4.5]) b.add(shapes.box(0.36, 0.42, span), C.beam, { p: [x, 6.35, centerZ] });
 
-  const posts = [-13.5, -4.5, 5.5, 14.5];
+  const posts = [-10.5, -3.5, 4.5, 11.5];
   const z = frontZ + 0.05;
   for (let k = 0; k < posts.length - 1; k++) {
     const x0 = posts[k] + 0.3;
@@ -420,16 +529,16 @@ function house(b, walls) {
 
   const gableTop = 7.2;
   const gableH = gableTop - 6.55;
-  panel(29.6, gableH, 0.1, 0.5, 6.55 + gableH / 2, frontZ + 0.3);
-  panel(29.6, gableH, 0.1, 0.5, 6.55 + gableH / 2, backZ - 0.3);
-  for (const x of [-13.8, 14.8]) panel(0.1, gableH, span, x, 6.55 + gableH / 2, centerZ);
+  panel(23.6, gableH, 0.1, 0.5, 6.55 + gableH / 2, frontZ + 0.3);
+  panel(23.6, gableH, 0.1, 0.5, 6.55 + gableH / 2, backZ - 0.3);
+  for (const x of [-10.8, 11.8]) panel(0.1, gableH, span, x, 6.55 + gableH / 2, centerZ);
 }
 
 function trusses(b, roof) {
   const yAt = (d) => roof.eaveY + roof.height * Math.pow(Math.max(0, 1 - d / roof.hz), roof.curve);
   const top = yAt(0) - 0.45;
   const beam = HOUSE.front + 0.5 - roof.cz;
-  for (const x of [-4.5, 5.5]) {
+  for (const x of [-3.5, 4.5]) {
     for (const side of [-1, 1]) {
       const rafter = beam + 0.6;
       b.limb([x, yAt(rafter) - 0.35, roof.cz + side * rafter], [x, top, roof.cz], 0.17, C.beam, { capsule: false, seg: 6 });
@@ -773,12 +882,7 @@ export function createScenery(scene, layout) {
     return mesh;
   };
 
-  const ground = addFlat(
-    new THREE.Mesh(
-      new THREE.PlaneGeometry(1000, 1000),
-      toonMaterial({ map: blotchTexture(0x8cc152, [[0x9fd162, 70, 6, 14], [0x7bb045, 70, 4, 10]], [250, 250], 1) }),
-    ),
-  );
+  const ground = addFlat(groundMesh());
   ground.rotation.x = -Math.PI / 2;
 
   const paving = toonMaterial({ map: brickTexture(), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -815,7 +919,7 @@ export function createScenery(scene, layout) {
   well.receiveShadow = false;
 
   const floorDepth = HALL_FRONT - HOUSE.foundationBack;
-  const floor = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(31, floorDepth), toonMaterial({ map: floorTexture([15.5, floorDepth / 2]) })));
+  const floor = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(25, floorDepth), toonMaterial({ map: floorTexture([12.5, floorDepth / 2]) })));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0.5, 1.003, (HALL_FRONT + HOUSE.foundationBack) / 2);
 
@@ -837,8 +941,8 @@ export function createScenery(scene, layout) {
   clickables.push(brickWalls);
   for (const tree of layout.trees) roundTree(env, rand, tree);
 
-  const main = hipRoof({ cx: 0.5, cz: HALL_Z, hx: 16.6, hz: 12.1, ridge: 6.5, eaveY: 6.4, height: 5, lift: 0.8, falloff: 4, thickness: 0.3, rings: 18, tile: 0.9, curve: 1 });
-  const upper = hipRoof({ cx: 0.5, cz: HALL_Z, hx: 13.4, hz: 9, ridge: 6.5, eaveY: 8.6, height: 3.6, lift: 0.7, falloff: 3, thickness: 0.3, rings: 14, tile: 0.9, curve: 1 });
+  const main = hipRoof({ cx: 0.5, cz: HALL_Z, hx: 13.6, hz: 10.1, ridge: 5.2, eaveY: 6.4, height: 5, lift: 0.8, falloff: 4, thickness: 0.3, rings: 18, tile: 0.9, curve: 1 });
+  const upper = hipRoof({ cx: 0.5, cz: HALL_Z, hx: 10.4, hz: 7, ridge: 5.2, eaveY: 8.6, height: 3.6, lift: 0.7, falloff: 3, thickness: 0.3, rings: 14, tile: 0.9, curve: 1 });
   trusses(env, main);
 
   const plaster = new THREE.Mesh(mergeGeometries(walls, false), toonMaterial({ map: plasterTexture() }));
@@ -862,14 +966,14 @@ export function createScenery(scene, layout) {
   const roof = new THREE.Group();
   roof.add(...roofMeshes(main.geometry, roofTop, roofUnder), ...roofMeshes(upper.geometry, roofTop, roofUnder));
   const decor = new Batch();
-  const band = { x: 12.5, z: 8.1 };
+  const band = { x: 9.5, z: 6.1 };
   for (const side of [-1, 1]) {
     decor.add(shapes.box(band.x * 2, 1.4, 0.16), C.ochre, { p: [0.5, 8.0, HALL_Z + side * band.z] });
     decor.add(shapes.box(0.16, 1.4, band.z * 2), C.ochre, { p: [0.5 + side * band.x, 8.0, HALL_Z] });
     decor.add(shapes.box(band.x * 2 + 0.3, 0.2, 0.3), C.beam, { p: [0.5, 8.65, HALL_Z + side * band.z] });
     decor.add(shapes.box(0.3, 0.2, band.z * 2 + 0.3), C.beam, { p: [0.5 + side * band.x, 8.65, HALL_Z] });
   }
-  for (let x = -10; x <= 11; x += 3) decor.add(shapes.box(1.2, 0.5, 0.06), C.lacquer, { p: [x, 8.15, HALL_Z + band.z + 0.1] });
+  for (let x = -7; x <= 8; x += 2.5) decor.add(shapes.box(1.2, 0.5, 0.06), C.lacquer, { p: [x, 8.15, HALL_Z + band.z + 0.1] });
   hipRidges(decor, main, 0.14);
   hipRidges(decor, upper, 0.14);
   ridgeDecor(decor, upper, { scale: 1, dragons: true });
