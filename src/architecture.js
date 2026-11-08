@@ -532,9 +532,13 @@ function bush(kit, x, y, z, size, colors) {
   }
 }
 
+const POT_REACH = 0.34;
+const POT_Z = 0.5;
+
 function pottedPlant(kit, x, z, kind) {
   const b = kit.body;
   const rand = kit.rand;
+  block(kit, x - POT_REACH, z - POT_REACH, x + POT_REACH, z + POT_REACH, 1.4);
   if (kind === 0) {
     b.add(shapes.lathe([[0.001, 0], [0.18, 0], [0.26, 0.3], [0.3, 0.36], [0.26, 0.38], [0.001, 0.38]], 8), PAL.pot, { p: [x, 0, z], flat: true });
     b.add(shapes.cylinder(0.24, 0.24, 0.02, 8), PAL.soil, { p: [x, 0.392, z] });
@@ -745,6 +749,16 @@ function lanternColors(rand) {
 
 const PLAQUE_Y = 2.7;
 
+function shophousePotXs(width) {
+  const db = Math.min(1.9, (width - 0.84) * 0.42);
+  const x = db / 2 + 0.42;
+  return [-x, x];
+}
+
+export function shophousePots(width) {
+  return shophousePotXs(width).map((x) => ({ minX: x - POT_REACH, maxX: x + POT_REACH, minZ: POT_Z - POT_REACH, maxZ: POT_Z + POT_REACH, minY: 0, maxY: 1.4 }));
+}
+
 export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}) {
   const kit = createKit(seed);
   const { rand, body: b } = kit;
@@ -872,9 +886,7 @@ export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}
     const topY = levels === 2 ? groundH - 0.25 : wallTop - 0.45;
     bougainvillea(kit, side * (W / 2 - 0.3), topY, -side, Math.max(0.5, W / 2 - 1.6), levels === 2 ? groundH + 0.9 : 0);
   }
-  const potX = db / 2 + 0.42;
-  pottedPlant(kit, -potX, 0.5, Math.floor(rand() * 4));
-  if (rand() < 0.75) pottedPlant(kit, potX, 0.5, Math.floor(rand() * 4));
+  for (const x of shophousePotXs(W)) pottedPlant(kit, x, POT_Z, Math.floor(rand() * 4));
 
   block(kit, -W / 2, -D, W / 2, 0.1, 3.2);
   return { group: assemble(kit), obstacles: kit.obstacles, door: { x: 0, z: 0.85 }, plaque: { x: 0, y: PLAQUE_Y, z: 0.1 } };
@@ -1060,11 +1072,11 @@ export function createMarket({ seed = 1 } = {}) {
   };
 }
 
-function lacquerColumn(kit, x, z, height) {
+function lacquerColumn(kit, x, z, height, floor = 0) {
   const b = kit.body;
-  b.add(shapes.cylinder(0.22, 0.25, 0.16, 8), PAL.stone, { p: [x, 0.08, z], flat: true });
-  b.add(shapes.cylinder(0.14, 0.15, height - 0.16, 8), PAL.lacquer, { p: [x, 0.16 + (height - 0.16) / 2, z] });
-  b.add(shapes.cylinder(0.165, 0.165, 0.06, 8), PAL.gold, { p: [x, 0.22, z] });
+  b.add(shapes.cylinder(0.22, 0.25, 0.16, 8), PAL.stone, { p: [x, floor + 0.08, z], flat: true });
+  b.add(shapes.cylinder(0.14, 0.15, height - floor - 0.16, 8), PAL.lacquer, { p: [x, floor + 0.16 + (height - floor - 0.16) / 2, z] });
+  b.add(shapes.cylinder(0.165, 0.165, 0.06, 8), PAL.gold, { p: [x, floor + 0.22, z] });
   b.add(shapes.cylinder(0.165, 0.165, 0.06, 8), PAL.gold, { p: [x, height - 0.35, z] });
 }
 
@@ -1241,5 +1253,209 @@ export function createChiefHouse({ seed = 1 } = {}) {
     desk: { x: 0, z: -2.95 },
     chief: { x: 0, z: -4.75, facing: 0 },
     plaque: { x: 0, y: 3.0, z: frontZ + 0.1 },
+  };
+}
+
+function abacus(kit, x, y, z) {
+  const b = kit.body;
+  b.add(shapes.box(0.5, 0.03, 0.26), PAL.woodDark, { p: [x, y + 0.015, z] });
+  for (const dz of [-0.12, 0.12]) b.add(shapes.box(0.5, 0.04, 0.03), PAL.woodDark, { p: [x, y + 0.05, z + dz] });
+  b.add(shapes.box(0.5, 0.04, 0.02), PAL.woodDark, { p: [x, y + 0.05, z - 0.04] });
+  for (let i = 0; i < 7; i++) {
+    const rx = x - 0.21 + i * 0.07;
+    b.add(shapes.cylinder(0.006, 0.006, 0.24, 4), PAL.bronze, { p: [rx, y + 0.05, z], r: [Math.PI / 2, 0, 0] });
+    for (const dz of [-0.08, 0.02, 0.05, 0.08]) b.add(shapes.sphere(0.022, 6, 4), PAL.lacquer, { p: [rx, y + 0.05, z + dz], s: [1, 0.7, 1] });
+  }
+}
+
+function coinStack(kit, x, y, z, count) {
+  for (let i = 0; i < count; i++) kit.body.add(shapes.cylinder(0.045, 0.045, 0.014, 10), PAL.gold, { p: [x, y + 0.007 + i * 0.016, z] });
+}
+
+function strongbox(kit, x, z, w, h) {
+  const b = kit.body;
+  b.add(shapes.box(w, h, 0.6), 0x3a3a40, { p: [x, h / 2, z] });
+  b.add(shapes.box(w - 0.1, h - 0.1, 0.03), 0x4a4a52, { p: [x, h / 2, z + 0.31] });
+  b.add(shapes.cylinder(0.09, 0.09, 0.04, 12), PAL.gold, { p: [x + w * 0.18, h * 0.55, z + 0.33], r: [Math.PI / 2, 0, 0] });
+  b.add(shapes.box(0.04, 0.22, 0.04), PAL.gold, { p: [x - w * 0.2, h * 0.55, z + 0.33] });
+  for (const dy of [0.12, h - 0.12]) b.add(shapes.box(w + 0.02, 0.05, 0.62), 0x2a2a2e, { p: [x, dy, z] });
+}
+
+function coinGeometry(r, hole, depth) {
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, r, 0, Math.PI * 2, false);
+  const square = new THREE.Path();
+  square.moveTo(-hole, -hole);
+  square.lineTo(-hole, hole);
+  square.lineTo(hole, hole);
+  square.lineTo(hole, -hole);
+  square.lineTo(-hole, -hole);
+  shape.holes.push(square);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 24 });
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
+}
+
+function giantCoin(kit, x, y, z, r) {
+  const b = kit.body;
+  const hole = r * 0.26;
+  b.add(coinGeometry(r, hole, 0.1), PAL.gold, { p: [x, y, z] });
+  b.add(shapes.torus(r - 0.04, 0.035, 28), shade(PAL.gold, 0.78), { p: [x, y, z + 0.05] });
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(2 * hole + 0.1, 0.05, 0.04), shade(PAL.gold, 0.78), { p: [x, y + side * (hole + 0.025), z + 0.06] });
+    b.add(shapes.box(0.05, 2 * hole, 0.04), shade(PAL.gold, 0.78), { p: [x + side * (hole + 0.025), y, z + 0.06] });
+  }
+}
+
+function coinFrame(kit, x, z, r) {
+  const b = kit.body;
+  const y = r + 0.45;
+  const top = y + r + 0.2;
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(0.12, top, 0.12), PAL.lacquer, { p: [x + side * (r + 0.14), top / 2, z] });
+    b.add(shapes.box(0.3, 0.12, 0.4), PAL.woodDark, { p: [x + side * (r + 0.14), 0.06, z] });
+  }
+  b.add(shapes.box(2 * r + 0.5, 0.12, 0.14), PAL.lacquer, { p: [x, top, z] });
+  b.add(shapes.box(2 * r + 0.3, 0.1, 0.12), PAL.lacquer, { p: [x, 0.35, z] });
+  b.limb([x, top, z], [x, y + r, z], 0.015, PAL.ink, { capsule: false, seg: 4 });
+  giantCoin(kit, x, y, z, r);
+}
+
+function eaveTip(kit, x, y, z, side) {
+  const b = kit.body;
+  b.limb([x, y, z], [x + side * 0.32, y + 0.42, z + 0.22], 0.06, PAL.ridge, { capsule: false, seg: 5 });
+  b.add(shapes.sphere(0.075, 8, 6), PAL.ridge, { p: [x + side * 0.33, y + 0.45, z + 0.23] });
+}
+
+function pentRoof(kit, { x0, x1, zWall, eaveY, run, tint }) {
+  const slope = 0.42;
+  const ridgeY = eaveY + run * slope;
+  roofPitch(kit, { x0, x1, ridgeZ: zWall, ridgeY, run, slope, facing: 1, tint, tileEnds: true });
+  kit.body.add(shapes.box(x1 - x0, 0.14, 0.22), PAL.ridge, { p: [(x0 + x1) / 2, ridgeY + 0.05, zWall + 0.06] });
+  for (const [x, side] of [[x0, -1], [x1, 1]]) eaveTip(kit, x, eaveY, zWall + run, side);
+}
+
+export function createBank({ seed = 1, width = 8.4, depth = 8 } = {}) {
+  const kit = createKit(seed);
+  const b = kit.body;
+  const W = width;
+  const D = depth;
+  const half = W / 2;
+  const T = 0.25;
+  const lip = 0.24;
+  const wall = 0xd9a441;
+  const wood = 0x5a1a12;
+  const roofTint = PAL.roofTints[2];
+  const front = -0.5;
+  const facade = -1.7;
+  const hallBack = -4.6;
+  const floors = [3.8, 2.8, 2.6];
+  const levels = floors.reduce((list, h) => [...list, list[list.length - 1] + h], [0]);
+  const wallTop = levels[3];
+  const g = floors[0];
+  const inner = half - T;
+  const posts = [-(inner - 0.15), -1.4, 1.4, inner - 0.15];
+  const slope = 0.5;
+
+  const ridgeZ = (front - D) / 2;
+  const ridgeY = wallTop + ((front + D) / 2) * slope;
+  for (const side of [-1, 1]) gableWall(kit, wall, side * (half - T / 2), front, -D, wallTop + lip, ridgeY + lip, T);
+  const roof = { x0: -half - 0.1, x1: half + 0.1, ridgeZ, ridgeY, slope, tint: roofTint };
+  const run = (front + D) / 2 + 1.0;
+  roofPitch(kit, { ...roof, run, facing: 1, tileEnds: true });
+  roofPitch(kit, { ...roof, run: (front + D) / 2 + 0.3, facing: -1 });
+  ridgeCrest(kit, -half + T, half - T, ridgeZ, ridgeY, 'dragons');
+  for (const [x, side] of [[-half - 0.1, -1], [half + 0.1, 1]]) eaveTip(kit, x, ridgeY - run * slope, ridgeZ + run, side);
+  plaster(kit, wall, W - 2 * T, wallTop, T, 0, wallTop / 2, -D + T / 2);
+
+  const plinth = 0.15;
+  const porchFront = front + 0.15;
+  b.add(shapes.box(W, plinth, 0.25), PAL.stoneDark, { p: [0, plinth / 2, porchFront + 0.125] });
+  b.add(shapes.box(W - 2 * T, plinth, porchFront - facade), PAL.stone, { p: [0, plinth / 2, (porchFront + facade) / 2] });
+  b.add(shapes.box(W - 2 * T, plinth, facade - hallBack), 0xb0583a, { p: [0, plinth / 2, (facade + hallBack) / 2] });
+  b.add(shapes.box(W - 2 * T, 0.14, hallBack - front), wood, { p: [0, g - 0.07, (front + hallBack) / 2] });
+  plaster(kit, wall, W - 2 * T, g, T, 0, g / 2, hallBack - T / 2);
+
+  for (const x of posts) lacquerColumn(kit, x, front, g, plinth);
+  b.add(shapes.box(W - 2 * T, 0.3, 0.3), PAL.lacquer, { p: [0, g - 0.15, front] });
+  b.add(shapes.box(W - 2 * T, 0.05, 0.32), PAL.gold, { p: [0, g - 0.32, front] });
+  for (const x of posts) {
+    for (const side of [-1, 1]) {
+      if (Math.abs(x + side * 0.5) > inner) continue;
+      b.limb([x, g - 0.95, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    }
+  }
+
+  const door = 1.2;
+  b.add(shapes.box(2 * door, g - 2.9, 0.12), wood, { p: [0, (2.9 + g) / 2, facade] });
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(0.2, g, 0.2), wood, { p: [side * door, g / 2, facade] });
+    const x0 = side < 0 ? -inner : door + 0.1;
+    const x1 = side < 0 ? -door - 0.1 : inner;
+    plankPanel(kit, x0, x1, 0.04, 1.0, facade, wood);
+    lattice(kit, x0, x1, 1.0, 2.7, facade + 0.03);
+    b.add(shapes.box(x1 - x0, g - 2.7, 0.1), wood, { p: [(x0 + x1) / 2, (2.7 + g) / 2, facade] });
+  }
+  b.add(shapes.box(2 * door + 0.4, 0.06, 0.4), PAL.stoneDark, { p: [0, plinth + 0.03, facade] });
+
+  textSign(kit, 0, g - 0.78, front + 0.2, 2.5, 0.64, { text: 'Tiền Trang', bg: PAL.ink, fg: PAL.gold });
+  const couplets = [['Tài', 'Nguyên', 'Quảng', 'Tiến'], ['Lợi', 'Tức', 'Hưng', 'Long']];
+  for (const [k, side] of [-1, 1].entries()) {
+    textSign(kit, side * 1.4, 1.7, front + 0.2, 0.32, 1.8, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
+  }
+  for (const side of [-1, 1]) {
+    const x = side * (1.4 + posts[3]) / 2;
+    coinFrame(kit, x, (front + facade) / 2, 0.62);
+    silkLantern(kit, x, g - 0.32, front + 0.1, PAL.lanterns[0], 1.3);
+  }
+
+  const counterZ = facade - 0.6;
+  const counterW = 2 * door + 0.4;
+  b.add(shapes.box(counterW, 0.72, 0.5), PAL.wood, { p: [0, 0.36, counterZ] });
+  b.add(shapes.box(counterW + 0.1, 0.05, 0.6), PAL.woodDark, { p: [0, 0.745, counterZ] });
+  for (const x of [-0.85, 0, 0.85]) b.add(shapes.box(0.6, 0.4, 0.03), PAL.lacquer, { p: [x, 0.38, counterZ + 0.26] });
+  const barZ = counterZ + 0.22;
+  for (let x = -counterW / 2 + 0.1; x <= counterW / 2 - 0.09; x += 0.14) {
+    if (Math.abs(x) < 0.28) continue;
+    b.add(shapes.cylinder(0.014, 0.014, 0.8, 6), PAL.bronze, { p: [x, 1.17, barZ] });
+  }
+  b.add(shapes.box(counterW, 0.05, 0.08), PAL.bronze, { p: [0, 1.59, barZ] });
+  b.add(shapes.torus(0.27, 0.025, 10, Math.PI), PAL.bronze, { p: [0, 1.05, barZ] });
+  abacus(kit, -0.8, 0.77, counterZ);
+  coinStack(kit, 0.7, 0.77, counterZ, 5);
+  coinStack(kit, 0.84, 0.77, counterZ + 0.07, 3);
+  b.add(shapes.box(0.36, 0.03, 0.26), PAL.cream, { p: [0.2, 0.785, counterZ], r: [0, 0.15, 0] });
+  strongbox(kit, -2.3, hallBack + 0.45, 1.0, 1.3);
+  strongbox(kit, 2.3, hallBack + 0.45, 1.0, 1.3);
+  textSign(kit, 0, 2.5, hallBack + 0.02, 1.6, 0.48, { text: 'Tín Nghĩa' });
+
+  for (const [i, h] of floors.entries()) {
+    if (i === 0) continue;
+    const y0 = levels[i];
+    plaster(kit, wall, W - 2 * T, h, T, 0, y0 + h / 2, front - T / 2);
+    for (const x of posts) b.add(shapes.box(0.2, h, 0.16), wood, { p: [x, y0 + h / 2, front + 0.06] });
+    b.add(shapes.box(W - 2 * T, 0.16, 0.18), wood, { p: [0, y0 + h - 0.1, front + 0.06] });
+    pentRoof(kit, { x0: -half - 0.15, x1: half + 0.15, zWall: front, eaveY: y0 - 0.05, run: 1.1, tint: roofTint });
+    const sides = [[-posts[3] + 0.2, -1.6], [1.6, posts[3] - 0.2]];
+    if (i === 1) {
+      lattice(kit, -1.2, 1.2, y0 + 0.75, y0 + 2.25, front + 0.06);
+      for (const [x0, x1] of sides) lattice(kit, x0, x1, y0 + 0.9, y0 + 2.1, front + 0.06);
+      const railZ = front + 0.3;
+      for (const y of [y0 + 0.55, y0 + 0.95]) b.add(shapes.box(W - 2 * T, 0.06, 0.06), PAL.lacquer, { p: [0, y, railZ] });
+      for (let x = -inner + 0.1; x <= inner - 0.05; x += 0.22) b.add(shapes.box(0.04, 0.4, 0.04), PAL.lacquer, { p: [x, y0 + 0.75, railZ] });
+      for (const side of [-1, 1]) silkLantern(kit, side * 2.6, levels[2] - 0.1, front + 0.85, PAL.lanterns[1], 1.1);
+    } else {
+      giantCoin(kit, 0, y0 + 1.3, front + 0.1, 0.6);
+      for (const [x0, x1] of sides) lattice(kit, x0, x1, y0 + 0.7, y0 + 1.9, front + 0.06);
+    }
+  }
+  for (const side of [-1, 1]) bonsai(kit, side * (half - 0.55), 0.35);
+
+  block(kit, -half, -D, half, 0.1, 3.2);
+  return {
+    group: assemble(kit),
+    obstacles: kit.obstacles,
+    door: { x: 0, z: 0.85 },
+    teller: { x: 0, y: plinth, z: counterZ - 0.65, facing: 0 },
   };
 }

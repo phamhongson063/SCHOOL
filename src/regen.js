@@ -256,3 +256,42 @@ export function createRegen({ scene, camera, purse }) {
     },
   };
 }
+
+export function createRestGlow() {
+  const aura = glowMaterial(auraTexture(), GOLD);
+  const rune = glowMaterial(runeTexture(), GOLD);
+  const pillar = glowMaterial(pillarTexture(), GOLD);
+  const auraGeometry = new THREE.PlaneGeometry(1.9, 1.9);
+  const runeGeometry = new THREE.PlaneGeometry(1.6, 1.6);
+  const pillarGeometry = new THREE.CylinderGeometry(0.65, 0.75, 1.7, 24, 1, true);
+  pillarGeometry.translate(0, 0.85, 0);
+  const runes = [];
+
+  return {
+    spawn() {
+      const group = new THREE.Group();
+      const disc = new THREE.Mesh(auraGeometry, aura);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.04;
+      disc.renderOrder = 5;
+      const ring = new THREE.Mesh(runeGeometry, rune);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.05;
+      ring.renderOrder = 5;
+      const beam = new THREE.Mesh(pillarGeometry, pillar);
+      beam.renderOrder = 5;
+      group.add(disc, ring, beam);
+      group.visible = false;
+      runes.push(ring);
+      return group;
+    },
+    update(t) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
+      const blink = Math.max(0, Math.sin(t * 1.3)) ** 8;
+      aura.opacity = 0.4 + 0.3 * pulse + 0.4 * blink;
+      rune.opacity = 0.55 + 0.25 * pulse + 0.2 * blink;
+      pillar.opacity = 0.14 + 0.12 * pulse + 0.3 * blink;
+      for (const ring of runes) ring.rotation.z = t * 0.35;
+    },
+  };
+}

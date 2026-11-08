@@ -8,7 +8,7 @@ export function createQuiz({ quiz, onPass } = {}) {
     asking = true;
     let passed = false;
     while (!passed) {
-      ({ correct: passed } = await quiz.ask({ icon: '📖', prompt: 'Chọn cách đọc đúng để chơi tiếp!' }));
+      ({ correct: passed } = await quiz.ask({ icon: '📖' }));
     }
     asking = false;
     left = PLAY_SECONDS;

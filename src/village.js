@@ -200,7 +200,7 @@ function decor() {
   return { group, walks, obstacles, lights };
 }
 
-function keeperNPC(look, model) {
+export function keeperNPC(look, model) {
   const walker = model && hasModel(model) ? createModel(model) : createWalker(look);
   walker.group.rotation.order = 'YXZ';
   const bubble = createBubble();

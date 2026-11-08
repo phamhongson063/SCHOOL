@@ -3,8 +3,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, freeze, shapes } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
-import { createShophouse } from './architecture.js';
-import { paving, plaqueBoard } from './village.js';
+import { createShophouse, createBank, shophousePots } from './architecture.js';
+import { paving, plaqueBoard, keeperNPC } from './village.js';
+import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
@@ -22,6 +23,10 @@ const ABOVE_PAVING = PAVING_LAYER + 1;
 const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
 const ROW = { x0: 102, x1: 179 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
+const BANK_PICK = 'south:0';
+const BANK_WIDTH = 8.4;
+const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
+const TELLER_DISTANCE = 60;
 const LODGE_LOOKS = {
   cheap: { stories: 1, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
   cozy: { stories: 1, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
@@ -38,6 +43,12 @@ function footprint(f, width) {
   return f.north
     ? { minX: f.x - half, maxX: f.x + half, minZ: f.front - DEPTH, maxZ: f.front - 0.4, minY: 0, maxY: 3.5 }
     : { minX: f.x - half, maxX: f.x + half, minZ: f.front + 0.4, maxZ: f.front + DEPTH, minY: 0, maxY: 3.5 };
+}
+
+function place(f, box) {
+  return f.north
+    ? { minX: f.x + box.minX, maxX: f.x + box.maxX, minZ: f.front + box.minZ, maxZ: f.front + box.maxZ, minY: box.minY ?? 0, maxY: box.maxY ?? 3 }
+    : { minX: f.x - box.maxX, maxX: f.x - box.minX, minZ: f.front - box.maxZ, maxZ: f.front - box.minZ, minY: box.minY ?? 0, maxY: box.maxY ?? 3 };
 }
 
 function spread(x0, x1, count) {
@@ -61,6 +72,11 @@ function layout() {
       if (lodge) {
         house.lodge = lodge;
         house.stories = LODGE_LOOKS[LODGE_ROOMS[lodge].tier].stories;
+      }
+      if (`${row.side}:${index}` === BANK_PICK) {
+        house.bank = true;
+        house.width = BANK_WIDTH;
+        house.stories = 3;
       }
       const block = x < plaza.x0 ? 0 : x < plaza.x1 ? 1 : 2;
       blocks[block].houses.push(house);
@@ -107,7 +123,7 @@ function mergeByMaterial(root) {
 function buildBlock(block) {
   const root = new THREE.Group();
   for (const house of block.houses) {
-    if (house.lodge) continue;
+    if (house.lodge || house.bank) continue;
     const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
     built.group.position.set(house.x, 0, house.front);
     built.group.rotation.y = house.turn;
@@ -172,7 +188,12 @@ export const DISTRICT_STREETS = [[BOUNDS.x0 + 2, MAIN.z0 + 0.5, EAST_GATE - 2, M
 export function createDistrict() {
   const { blocks, plaza } = layout();
   const obstacles = [];
-  for (const block of blocks) for (const house of block.houses) obstacles.push(footprint(house, house.width));
+  for (const block of blocks) {
+    for (const house of block.houses) {
+      obstacles.push(footprint(house, house.width));
+      if (!house.bank) obstacles.push(...shophousePots(house.width).map((box) => place(house, box)));
+    }
+  }
   obstacles.push(...villageGateObstacles(EAST_GATE));
   const rand = makeRandom(7272);
   const group = new THREE.Group();
@@ -199,6 +220,36 @@ export function createDistrict() {
       lodges.push({ id: house.lodge, stand, look, group: built.group });
     }
   }
+  let bank = null;
+  for (const block of blocks) {
+    for (const house of block.houses) {
+      if (!house.bank) continue;
+      const built = createBank({ seed: house.seed, width: house.width, depth: DEPTH });
+      obstacles.push(...built.obstacles.map((box) => place(house, box)));
+      built.group.position.set(house.x, 0, house.front);
+      built.group.rotation.y = house.turn;
+      group.add(built.group);
+      clickables.push(built.group);
+      const side = house.north ? 1 : -1;
+      const at = (p) => ({ x: house.x + side * p.x, z: house.front + side * p.z });
+      const teller = keeperNPC(TELLER_LOOK, 'aodai-blue');
+      const tellerAt = at(built.teller);
+      teller.walker.group.position.set(tellerAt.x, built.teller.y ?? 0, tellerAt.z);
+      teller.walker.group.rotation.y = house.turn + built.teller.facing;
+      clickables.push(teller.walker.group);
+      bank = {
+        group: built.group,
+        teller,
+        stand: at(built.door),
+        look: tellerAt,
+        line: [built.door, { x: 0, z: 1.9 }, { x: -9, z: 1.9 }].map(at),
+      };
+    }
+  }
+  const ownsBank = (object) => {
+    for (let node = object; node; node = node.parent) if (node === bank?.group || node === bank?.teller.walker.group) return true;
+    return false;
+  };
   const lodgeOf = (object) => {
     for (let node = object; node; node = node.parent) {
       const lodge = lodges.find((item) => item.group === node);
@@ -215,11 +266,29 @@ export function createDistrict() {
   };
   lift(group);
   freeze(group);
+  const root = new THREE.Group();
+  root.add(group);
+  if (bank) root.add(bank.teller.walker.group);
   const pending = [...blocks];
+  let now = 0;
 
   return {
     obstacles,
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
+    bankDesk: bank ? { line: bank.line, look: bank.look } : null,
+    update(t, ctx, camera) {
+      now = t;
+      if (!bank) return;
+      const npc = bank.teller;
+      const near = bankOpen(ctx.minutes) && camera.position.distanceTo(npc.walker.group.position) < TELLER_DISTANCE;
+      npc.walker.group.visible = near;
+      if (!near) return;
+      npc.bubble.update(t);
+      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
+      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
+      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+      npc.walker.pose?.();
+    },
     region(options) {
       return {
         id: 'district',
@@ -227,6 +296,7 @@ export function createDistrict() {
         bounds: BOUNDS,
         staticNav: true,
         target(hit) {
+          if (ownsBank(hit.object)) return { kind: 'bank', id: 'bank', index: 'bank', x: bank.look.x, z: bank.look.z, stand: bank.stand };
           const lodge = lodgeOf(hit.object);
           if (!lodge) return null;
           return { kind: 'lodge', id: lodge.id, index: `lodge:${lodge.id}`, x: lodge.look.x, z: lodge.look.z, stand: lodge.stand };
@@ -235,17 +305,24 @@ export function createDistrict() {
           return { id: 'visit', hint: 'hand' };
         },
         labelOf(target) {
+          if (target.kind === 'bank') return null;
           return lodgeLabel(target.id);
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 3.6, target.z);
         },
         act(action, target) {
+          if (target.kind === 'bank') {
+            if (!bankOpen(options.minutes())) return `Ngân hàng đóng cửa rồi, mở ${bankHours()} nhé!`;
+            bank.teller.bubble.show('Kính chào quý khách!', 1.8, now);
+            options.openBank();
+            return null;
+          }
           return options.rentLodge(target.id);
         },
         load() {
           return {
-            group,
+            group: root,
             clickables,
             obstacles: [],
             update() {

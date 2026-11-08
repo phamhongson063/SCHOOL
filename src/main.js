@@ -54,6 +54,7 @@ import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { activityOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
+import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { loadingStep, loadingDone } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
@@ -158,6 +159,11 @@ const NAMES = new Map(villagerProfiles().map((profile) => [profile.id, profile.n
 const nameOf = (id) => (id === PLAYER ? 'bạn' : NAMES.get(id) ?? 'người khác');
 const chiefUI = createChiefUI({ estate, purse, nameOf });
 const foodUI = createFoodUI({ purse });
+const bank = createBank({ ledger, estate, now: gameNow });
+const bankUI = createBankUI({ bank, purse });
+bank.onCollect((owner, taken) => {
+  if (owner === PLAYER) sayPlayer(`🏦 Ngân hàng trừ ${taken} ${MONEY.icon} nợ quá hạn`, 3);
+});
 
 createFullscreenToggle();
 
@@ -165,6 +171,7 @@ createSettings({
   onReset() {
     renderer.setAnimationLoop(null);
     ledger.halt();
+    bank.halt();
     wipeGame();
     window.location.reload();
   },
@@ -180,7 +187,14 @@ regions.add({
 regions.add(createRoad());
 regions.add(quarter.region());
 for (const region of countryside.regions()) regions.add(region);
-regions.add(district.region({ rentLodge: (id) => rentLodge(id) }));
+regions.add(
+  district.region({
+    rentLodge: (id) => rentLodge(id),
+    bank,
+    openBank: () => bankUI.open(),
+    minutes: () => gameNow(),
+  }),
+);
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
 for (const region of village.regions({
@@ -391,6 +405,8 @@ town = new Town({
   places: village.places,
   lodges: district.lodges,
   river,
+  bank,
+  bankDesk: district.bankDesk,
   footprints,
 });
 
@@ -408,6 +424,7 @@ function contextAt(minutes) {
     night: minute >= ROUTINE.home || minute < ROUTINE.wake,
     shopOpen: shopOpen(minutes),
     chiefOpen: chiefOpen(minutes),
+    bankOpen: bankOpen(minutes),
   };
 }
 context = contextAt(gameNow());
@@ -632,7 +649,7 @@ player.onClick = (clientX, clientY, run) => {
   const kind = target?.kind;
   if (target && town.queues[kind]) {
     const now = gameNow();
-    const open = kind === 'shop' ? shopOpen(now) : kind === 'chief' ? chiefOpen(now) : eateryOpen(now);
+    const open = kind === 'shop' ? shopOpen(now) : kind === 'chief' ? chiefOpen(now) : kind === 'bank' ? bankOpen(now) : eateryOpen(now);
     if (!open) {
       leaveLine();
       sayPlayer(region.act('visit', target), 2.4);
@@ -644,7 +661,7 @@ player.onClick = (clientX, clientY, run) => {
         const reply = region.act('visit', target);
         if (reply) sayPlayer(reply, 2.4);
       },
-      kind === 'shop' ? shopUI : kind === 'chief' ? chiefUI : foodUI,
+      kind === 'shop' ? shopUI : kind === 'chief' ? chiefUI : kind === 'bank' ? bankUI : foodUI,
     );
     return;
   }
@@ -1202,6 +1219,12 @@ renderer.setAnimationLoop((time) => {
     shopUI.close();
     sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
   }
+  bank.tick(context.minutes);
+  if (bankUI.isOpen && !context.bankOpen) {
+    bankUI.close();
+    sayPlayer(`Ngân hàng đóng cửa rồi, mở ${bankHours()} nhé!`, 2.4);
+  }
+  district.update(t, context, camera);
   updateLine();
   school.update(t, context.phase.kind === 'period');
   studyHall.update(t);

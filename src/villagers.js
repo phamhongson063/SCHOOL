@@ -11,7 +11,7 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING, BANK } from './config.js';
 import { INN_STAND } from './inn.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf } from './stamina.js';
@@ -23,6 +23,7 @@ import { ServiceQueue } from './queue.js';
 import { iconTag } from './itemArt.js';
 import { DISTRICT_STREETS } from './district.js';
 import { layDown, restEase, REST_TIME } from './walk.js';
+import { createRestGlow } from './regen.js';
 
 const SPACING = 0.62;
 const LOOKAHEAD = 0.85;
@@ -31,6 +32,8 @@ const AVOID_RANGE = 1.15;
 const QUEUE_DRIFT = 0.5;
 const NO_REST_RADIUS = 3;
 const BED_SCATTER = 1.8;
+const BED_GAP = 1.9;
+const BED_REACH = 7;
 const SELF_STUDY = { chance: 0.25, stay: [90, 240], cooldown: 300 };
 const CLASSROOM = { x: 0.5, z: HOUSE.back + 9 };
 const PATHS_PER_FRAME = 2;
@@ -204,6 +207,10 @@ class Villager {
     this.lodge = null;
     this.lodgeNight = false;
     this.sleepingOut = false;
+    this.bed = null;
+    this.bankDay = null;
+    this.bankRollDay = null;
+    this.bankRoll = 0;
     const model = profile.model && hasModel(profile.model) ? profile.model : null;
     this.walker = model ? createModel(model) : createWalker(profile.look);
     this.walker.group.rotation.order = 'YXZ';
@@ -219,6 +226,8 @@ class Villager {
     this.walker.group.add(this.bubble.sprite);
     this.shadow = createBlobShadow(town.root);
     this.shadow.setVisible(false);
+    this.glow = town.restGlow.spawn();
+    town.root.add(this.glow);
     this.seated = null;
     this.studyIcon = null;
     if (this.kind !== 'teacher') {
@@ -389,6 +398,7 @@ class Villager {
     if (this.wantsInn()) return this.goInn();
     if (this.wantsFood(ctx)) return this.goEat();
     if (this.shouldAttend(ctx)) return this.goToClass();
+    if (ctx.bankOpen && this.wantsBank(ctx)) return this.goBank();
     if (this.wantsSelfStudy(ctx)) return this.goSelfStudy();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
@@ -427,6 +437,7 @@ class Villager {
     if (this.lyingDown && (this.sleepingOut ? !ctx.night : ctx.night || this.purse.energy >= VILLAGER.restUntil)) {
       this.lyingDown = false;
       this.sleepingOut = false;
+      this.bed = null;
     }
     this.restBlend = Math.min(1, Math.max(0, this.restBlend + (this.lyingDown ? dt : -dt) / REST_TIME));
     if (this.lyingDown || this.restBlend > 0) return;
@@ -551,7 +562,7 @@ class Villager {
     this.cancel();
     this.task = 'home';
     const lie = () => this.lieDown(true);
-    this.travel(this.town.bedPoint(this.position), { then: lie, fail: lie });
+    this.travel(this.town.bedPoint(this.position, this), { then: lie, fail: lie });
   }
 
   settleNight() {
@@ -560,7 +571,7 @@ class Villager {
       return;
     }
     const spot = this.pickLodge(true);
-    const at = spot ? spot.stand : this.town.bedPoint(this.homePoint());
+    const at = spot ? spot.stand : this.town.bedPoint(this.homePoint(), this);
     this.position.set(at.x, this.town.nav.heightAt(at.x, at.z) ?? 0, at.z);
     if (spot) {
       this.checkIn(spot);
@@ -707,6 +718,7 @@ class Villager {
     this.afterWait = null;
     this.onRouteEnd = null;
     this.sleepingOut = false;
+    this.bed = null;
     if (this.state !== 'inn') leaveRoom(this);
   }
 
@@ -1451,6 +1463,33 @@ class Villager {
     this.wait(between(1.5, 3), () => this.finishService());
   }
 
+  bankClient() {
+    return { id: this.id, purse: this.purse, thrift: this.thrift, roll: this.bankRoll };
+  }
+
+  wantsBank(ctx) {
+    if (!this.town.bank || !this.town.queues.bank || this.bankDay === ctx.day) return false;
+    if (this.bankRollDay !== ctx.day) {
+      this.bankRollDay = ctx.day;
+      this.bankRoll = Math.random();
+    }
+    const plan = this.town.bank.npcPlan(this.bankClient());
+    if (!plan) return false;
+    return plan.urgent || this.town.queues.bank.members.length < BANK.npc.maxLine;
+  }
+
+  goBank() {
+    this.cancel();
+    this.task = 'bank';
+    this.bankDay = this.town.context.day;
+    this.lineUp(this.town.queues.bank, () => this.visitBank());
+  }
+
+  visitBank() {
+    this.say(this.town.context.bankOpen ? this.town.bank.npcServe(this.bankClient()) : 'Ngân hàng đóng cửa mất rồi!', 2.6);
+    this.wait(between(1.5, 3), () => this.finishService());
+  }
+
   goChief() {
     this.cancel();
     this.task = 'chief';
@@ -1753,6 +1792,11 @@ class Villager {
     const ground = this.town.nav.heightAt(pos.x, pos.z);
     if (ground !== null && this.roaming) pos.y += (ground - pos.y) * (1 - Math.exp(-14 * dt));
     if (this.state !== 'resting') this.restBlend = 0;
+    this.glow.visible = this.near && this.present && this.restBlend > 0;
+    if (this.glow.visible) {
+      this.glow.position.set(pos.x, pos.y, pos.z);
+      this.glow.scale.setScalar(restEase(this.restBlend));
+    }
     if (!this.near) return;
     const w = this.walker;
     const g = this.gait.update(w, this.velocity, dt, true);
@@ -1853,7 +1897,7 @@ class Teacher extends Villager {
 }
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, footprints = null }) {
+  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, footprints = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
@@ -1871,6 +1915,8 @@ export class Town {
       chief: new ServiceQueue(places.chief.line, places.chief.look),
       eatery: new ServiceQueue(places.eatery.line, places.eatery.look),
     };
+    this.bank = bank;
+    if (bank && bankDesk) this.queues.bank = new ServiceQueue(bankDesk.line, bankDesk.look);
     for (const queue of Object.values(this.queues)) queue.snap = (point) => this.walkable(point);
     for (const spot of river.spots) {
       for (const berth of spot.berths) {
@@ -1881,6 +1927,7 @@ export class Town {
     this.footprints = footprints;
     this.context = null;
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
+    this.restGlow = createRestGlow();
     this.members = villagerProfiles().map((profile) => new Villager(profile, this));
     this.teacher = new Teacher(TEACHER, this);
     this.all = [...this.members, this.teacher];
@@ -1960,23 +2007,32 @@ export class Town {
     return new THREE.Vector3(between(x0, x1), 0, between(z0, z1));
   }
 
-  bedPoint(near) {
+  bedTaken(x, z, member) {
+    for (const other of this.members) {
+      if (other === member) continue;
+      const spot = other.bed ?? (other.lyingDown ? other.position : null);
+      if (spot && Math.hypot(spot.x - x, spot.z - z) < BED_GAP) return true;
+    }
+    return false;
+  }
+
+  bedPoint(near, member = null) {
     const options = [...HANGOUTS, ...FIELD_EDGES.map(([x0, z0, x1, z1]) => ({ x: between(x0, x1), z: between(z0, z1) }))];
-    let best = options[0];
-    let bestD = Infinity;
+    options.sort((a, b) => Math.hypot(a.x - near.x, a.z - near.z) - Math.hypot(b.x - near.x, b.z - near.z));
+    const claim = (x, z) => {
+      const point = new THREE.Vector3(x, 0, z);
+      if (member) member.bed = point;
+      return point;
+    };
     for (const option of options) {
-      const d = Math.hypot(option.x - near.x, option.z - near.z);
-      if (d < bestD) {
-        bestD = d;
-        best = option;
+      for (let tries = 0; tries < 10; tries++) {
+        const reach = BED_SCATTER + (BED_REACH - BED_SCATTER) * (tries / 9);
+        const x = option.x + between(-reach, reach);
+        const z = option.z + between(-reach, reach);
+        if (this.nav.bodyClear(x, z) && !this.restBlocked({ x, z }) && !this.bedTaken(x, z, member)) return claim(x, z);
       }
     }
-    for (let tries = 0; tries < 6; tries++) {
-      const x = best.x + between(-BED_SCATTER, BED_SCATTER);
-      const z = best.z + between(-BED_SCATTER, BED_SCATTER);
-      if (this.nav.bodyClear(x, z) && !this.restBlocked({ x, z })) return new THREE.Vector3(x, 0, z);
-    }
-    return new THREE.Vector3(best.x, 0, best.z);
+    return claim(options[0].x + between(-BED_SCATTER, BED_SCATTER), options[0].z + between(-BED_SCATTER, BED_SCATTER));
   }
 
   restBlocked(point) {
@@ -2225,7 +2281,7 @@ export class Town {
         continue;
       }
       if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn') continue;
+      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank') continue;
       if (member.shouldAttend(ctx)) member.goToClass();
     }
     const teacher = this.teacher;
@@ -2297,5 +2353,6 @@ export class Town {
     }
     this.separate(player);
     blinkStudyIcons(t);
+    this.restGlow.update(t);
   }
 }

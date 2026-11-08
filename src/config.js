@@ -151,3 +151,34 @@ export const FOODS = {
   caolau: { icon: '🍜', name: 'Cao lầu', price: 30, energy: 45 },
   comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55 },
 };
+
+export const BANK = {
+  open: 7 * 60,
+  close: 17 * 60,
+  capital: 3000,
+  reserve: 0.2,
+  utilization: 0.3,
+  deposit: { base: 0.006, min: 0.0015, max: 0.02, swing: 0.9 },
+  loan: { spread: 0.007, min: 0.006, max: 0.045, swing: 1.2 },
+  noise: 0.12,
+  smoothing: 0.5,
+  savingTerms: [
+    { days: 0, bonus: 0 },
+    { days: 3, bonus: 0.0015 },
+    { days: 7, bonus: 0.004 },
+    { days: 15, bonus: 0.008 },
+  ],
+  loanTerms: [
+    { days: 3, bonus: -0.001 },
+    { days: 7, bonus: 0 },
+    { days: 15, bonus: 0.003 },
+  ],
+  overdue: 1.5,
+  credit: { base: 200, perRepaid: 100, cap: 1500, house: 0.5 },
+  minDeposit: 10,
+  minLoan: 20,
+  maxLoans: 3,
+  maxTerms: 5,
+  catchUpDays: 60,
+  npc: { keepBase: 40, keepSpread: 60, broke: 15, borrowBase: 60, dueSoon: 1, maxLine: 3 },
+};

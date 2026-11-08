@@ -2633,3 +2633,141 @@ dialog.paper.kanji {
   height: 1.2em;
   overflow: visible;
 }
+
+.bank-rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 12px;
+}
+
+.bank-rate {
+  padding: 4px 10px;
+  border: 1px solid #d9c49a;
+  border-radius: 999px;
+  background: rgba(255, 252, 240, 0.85);
+  color: #4a2e18;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-rate.up {
+  color: #2e6e46;
+}
+
+.bank-rate.down {
+  color: #8a1d14;
+}
+
+.bank-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bank-form input {
+  width: 110px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 2px solid #c9962f;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #2b1c12;
+  font: 700 16px/1 system-ui, -apple-system, sans-serif;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.bank-form input::-webkit-outer-spin-button,
+.bank-form input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bank-form input:focus {
+  outline: 3px solid rgba(201, 150, 47, 0.45);
+  outline-offset: 1px;
+}
+
+.bank-go {
+  flex: none;
+  padding: 0 16px;
+  border: 2px solid #c9962f;
+  border-radius: 10px;
+  background: #8a1d14;
+  color: #fff3d6;
+  font: 700 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.bank-go:hover {
+  background: #a3271b;
+}
+
+.bank-room {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(107, 68, 37, 0.1);
+  color: #4a2e18;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-row.late {
+  border-color: #8a1d14;
+  background: #fff0e8;
+}
+
+@media (max-width: 600px) {
+  .bank-form {
+    flex-wrap: wrap;
+  }
+
+  .bank-form input {
+    flex: 1;
+  }
+}
+
+dialog.paper.kanji.closing {
+  overflow: hidden;
+  pointer-events: none;
+  animation: kanji-close 0.6s cubic-bezier(0.55, 0, 0.75, 0.2) both;
+}
+
+dialog.paper.kanji.closing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.6) 48%, transparent 62%);
+  transform: translateX(-130%);
+  pointer-events: none;
+  animation: lesson-sheen 0.45s ease-out both;
+}
+
+dialog.paper.kanji.closing::backdrop {
+  animation: kanji-backdrop-out 0.6s ease-in both;
+}
+
+@keyframes kanji-close {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.07);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(60px) scale(0.2);
+  }
+}
+
+@keyframes kanji-backdrop-out {
+  to {
+    opacity: 0;
+  }
+}

@@ -2,6 +2,8 @@ import { FISH, FISHING } from './config.js';
 import { paintIcon } from './itemArt.js';
 
 const RECENT = 40;
+const AUTO_CLOSE_MS = 5000;
+const CLOSE_ANIMATION_MS = 600;
 
 let bank = null;
 
@@ -39,6 +41,21 @@ export function createKanjiQuiz() {
   const fishIcon = document.getElementById('kanjiFish');
   const recent = [];
   let pending = null;
+  let closing = null;
+
+  function hide() {
+    dialog.classList.remove('closing');
+    if (dialog.open) dialog.close();
+  }
+
+  function endClosing() {
+    if (!closing) return;
+    const { timer, done } = closing;
+    clearTimeout(timer);
+    closing = null;
+    hide();
+    done();
+  }
 
   function pick(entries) {
     const fresh = entries.filter((entry) => !recent.includes(entry.word));
@@ -68,14 +85,24 @@ export function createKanjiQuiz() {
       : `✘ ${chosen ? 'Sai rồi' : 'Hết giờ'}! ${current.entry.word} đọc là「${current.entry.reading}」: ${current.entry.meaning}`;
     closeBtn.hidden = false;
     closeBtn.focus({ preventScroll: true });
+    if (correct) current.closeAt = setTimeout(finish, AUTO_CLOSE_MS);
   }
 
   function finish() {
     const current = pending;
     if (!current?.answered) return;
+    clearTimeout(current.closeAt);
     pending = null;
-    if (dialog.open) dialog.close();
-    current.resolve({ correct: current.correct, entry: current.entry });
+    if (!dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      hide();
+      current.resolve({ correct: current.correct, entry: current.entry });
+      return;
+    }
+    dialog.classList.add('closing');
+    closing = {
+      timer: setTimeout(endClosing, CLOSE_ANIMATION_MS),
+      done: () => current.resolve({ correct: current.correct, entry: current.entry }),
+    };
   }
 
   closeBtn.addEventListener('click', finish);
@@ -88,20 +115,21 @@ export function createKanjiQuiz() {
 
   return {
     get open() {
-      return !!pending;
+      return !!pending || !!closing;
     },
-    async ask({ fish = null, icon = null, prompt = null } = {}) {
+    async ask({ fish = null, icon = null } = {}) {
       const entries = await loadBank();
+      endClosing();
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       return new Promise((resolve) => {
-        pending = { entry, resolve, answered: false, correct: false, tick: null };
+        pending = { entry, resolve, answered: false, correct: false, tick: null, closeAt: null };
         closeBtn.hidden = true;
         paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         fishIcon.className = 'kanji-fish hooked';
         word.textContent = entry.word;
         level.textContent = entry.level;
-        result.textContent = prompt ?? 'Chọn cách đọc đúng để kéo cá lên!';
+        result.textContent = '';
         result.className = 'kanji-result';
         options.replaceChildren(
           ...shuffle([entry.reading, ...entry.distractors]).map((reading) => {
@@ -130,8 +158,9 @@ export function createKanjiQuiz() {
       if (!pending) return;
       const current = pending;
       clearInterval(current.tick);
+      clearTimeout(current.closeAt);
       pending = null;
-      if (dialog.open) dialog.close();
+      hide();
       current.resolve({ correct: false, entry: current.entry, cancelled: true });
     },
   };
