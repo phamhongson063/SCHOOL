@@ -1,12 +1,20 @@
-import { FISHING } from './config.js';
+import { FISH, FISHING } from './config.js';
+import { paintIcon } from './itemArt.js';
 
 const RECENT = 40;
 
 let bank = null;
 
 function loadBank() {
-  bank ??= import('./kanji.js').then(
-    (module) => module.KANJI,
+  bank ??= import('./vocabN2.js').then(
+    (module) =>
+      module.N2_VOCAB.filter((entry) => entry.distractors?.length).map((entry) => ({
+        word: entry.word,
+        reading: entry.reading,
+        distractors: entry.distractors,
+        meaning: entry.meaning,
+        level: 'N2',
+      })),
     () => [],
   );
   return bank;
@@ -28,6 +36,7 @@ export function createKanjiQuiz() {
   const bar = document.getElementById('kanjiBar');
   const result = document.getElementById('kanjiResult');
   const closeBtn = document.getElementById('kanjiClose');
+  const fishIcon = document.getElementById('kanjiFish');
   const recent = [];
   let pending = null;
 
@@ -36,7 +45,7 @@ export function createKanjiQuiz() {
     const pool = fresh.length ? fresh : entries;
     const entry = pool[Math.floor(Math.random() * pool.length)];
     recent.push(entry.word);
-    if (recent.length > RECENT) recent.shift();
+    while (recent.length > Math.min(RECENT, entries.length - 1)) recent.shift();
     return entry;
   }
 
@@ -46,6 +55,8 @@ export function createKanjiQuiz() {
     current.answered = true;
     current.correct = correct;
     clearInterval(current.tick);
+    fishIcon.classList.remove('hooked');
+    fishIcon.classList.add(correct ? 'caught' : 'escaped');
     for (const button of options.children) {
       button.disabled = true;
       if (button.dataset.reading === current.entry.reading) button.classList.add('right');
@@ -79,13 +90,15 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending;
     },
-    async ask() {
+    async ask({ fish = null } = {}) {
       const entries = await loadBank();
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       return new Promise((resolve) => {
         pending = { entry, resolve, answered: false, correct: false, tick: null };
         closeBtn.hidden = true;
+        paintIcon(fishIcon, { icon: FISH[fish]?.icon ?? '', art: fish });
+        fishIcon.className = 'kanji-fish hooked';
         word.textContent = entry.word;
         level.textContent = entry.level;
         result.textContent = 'Chọn cách đọc đúng để kéo cá lên!';

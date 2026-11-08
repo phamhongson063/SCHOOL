@@ -163,7 +163,7 @@ function tileTexture() {
   });
 }
 
-function plasterMaterial() {
+export function plasterMaterial() {
   shared.plaster ??= toonMaterial({ map: plasterTexture(), vertexColors: true });
   return shared.plaster;
 }
@@ -206,7 +206,7 @@ export function setNightGlow(k) {
   applyGlow();
 }
 
-function texturedBox(w, h, d) {
+export function texturedBox(w, h, d) {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.attributes.uv;
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];

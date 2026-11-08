@@ -207,7 +207,6 @@ function roofMeshes(geometry, top, under) {
   outer.castShadow = true;
   outer.receiveShadow = true;
   const inner = new THREE.Mesh(geometry, under);
-  inner.receiveShadow = true;
   return [outer, inner];
 }
 

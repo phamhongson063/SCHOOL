@@ -36,9 +36,9 @@ const MARKET = { side: 'north', x: 55, seed: 7 };
 const CHIEF_HOUSE = { side: 'south', x: 55.5, seed: 5 };
 const EATERY_SPOT = { side: 'north', x: 41, seed: 9 };
 
-const KEEPER_LOOK = { shirt: 0x9a3a4a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x5a3220 };
-const COOK_LOOK = { shirt: 0x5a7a4a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'khan', khan: 0x8a3a2a, iris: 0x4a2a18 };
-const CHIEF_LOOK = { shirt: 0x2e2a4a, pants: 0xf1ebdc, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, iris: 0x3a2214 };
+const KEEPER_LOOK = { shirt: 0x9a3a4a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x5a3220, apron: 0x6a4a8a };
+const COOK_LOOK = { shirt: 0x5a7a4a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'curly', hairColor: 0x3a2418, iris: 0x4a2a18, apron: 0xf4efe2 };
+const CHIEF_LOOK = { shirt: 0x2e2a4a, pants: 0xf1ebdc, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x9a958e, old: true, beardColor: 0xdedad2, iris: 0x3a2214 };
 
 const LANTERN_COLORS = [0xd8321e, 0xf2b630, 0xe0622a, 0x2f7ab8, 0xc0281a, 0x3a9a5a];
 

@@ -1,4 +1,4 @@
-import { ENERGY, ROUTINE } from './config.js';
+import { ENERGY, LODGING, ROUTINE } from './config.js';
 import { DAY_MINUTES, minuteOfDay } from './clock.js';
 
 export const OFFLINE_GAP = 5;
@@ -10,6 +10,8 @@ export function isNight(minutes) {
 
 export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
+  if (activity === 'rest') return -ENERGY.restPerHour;
+  if (activity === 'inn') return -LODGING.perHour;
   const base = ENERGY.drain[activity] ?? ENERGY.drain.idle;
   return night ? base * ENERGY.nightFactor : base;
 }

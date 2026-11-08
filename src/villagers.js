@@ -10,7 +10,8 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, LODGING } from './config.js';
+import { INN_STAND } from './inn.js';
 import { activityOf } from './stamina.js';
 import { payWindow } from './timetable.js';
 import { amount } from './format.js';
@@ -18,6 +19,7 @@ import { realSeconds } from './clock.js';
 import { TEACHER_STAND, FLOOR, HOUSE } from './school.js';
 import { FIELD_TREES, FARM_X } from './farm.js';
 import { ServiceQueue } from './queue.js';
+import { iconTag } from './itemArt.js';
 
 const SPACING = 0.62;
 const LOOKAHEAD = 0.85;
@@ -85,12 +87,12 @@ const STUDENTS = [
 ];
 
 const FARMERS = [
-  { id: 'tu', name: 'Bác Tư', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', iris: 0x4a2a18, hat: 0xe8d9a8 } },
-  { id: 'ba', name: 'Chú Ba', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c } },
+  { id: 'tu', name: 'Bác Tư', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', hairColor: 0x8a8580, old: true, iris: 0x4a2a18, hat: 0xe8d9a8, scarf: 0x2f3a4a } },
+  { id: 'ba', name: 'Chú Ba', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c, scarf: 0x8a3a2a } },
   { id: 'hai', name: 'Cô Hai', look: { shirt: 0x9a4a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xeadcae } },
-  { id: 'nam', name: 'Anh Năm', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', iris: 0x4a2a18, hat: 0xe5d6a2 } },
-  { id: 'sau', name: 'Ông Sáu', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'khan', khan: 0x3a3430, iris: 0x3a2214, hat: 0xdccb94 } },
-  { id: 'bay', name: 'Chị Bảy', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'nam', name: 'Anh Năm', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', hairColor: 0x3a2618, iris: 0x4a2a18, hat: 0xe5d6a2, scarf: 0x4a6a9a } },
+  { id: 'sau', name: 'Ông Sáu', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xdccb94 } },
+  { id: 'bay', name: 'Chị Bảy', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
   { id: 'tam', name: 'Út Tám', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
 ];
 
@@ -98,14 +100,15 @@ const TEACHER = {
   id: 'teacher',
   name: 'Thầy đồ',
   kind: 'teacher',
-  look: { shirt: 0x26252e, pants: 0x26252e, skin: 0xeab08a, style: 'khan', khan: 0x1f1e26, iris: 0x3a2a20 },
+  look: { shirt: 0x26252e, pants: 0x26252e, skin: 0xeab08a, style: 'khan', khan: 0x1f1e26, hairColor: 0xdedad2, old: true, beardColor: 0xf6f3ec, iris: 0x3a2a20 },
   exit: 0,
 };
 
 const SHIRTS = [0x8a5a34, 0x6e4a30, 0xa0703f, 0x4a6a9a, 0x5a7a4a, 0xb0804a];
 const PANTS = [0xf1ebdc, 0x3a3430, 0xe0d4b8];
 const SKINS = [0xf0c09a, 0xe6b08a, 0xf5caa6];
-const STYLES = ['chom', 'bachom', 'toc', 'bui', 'khan'];
+const STYLES = ['chom', 'bachom', 'toc', 'bui', 'khan', 'bob', 'curly'];
+const HAIRS = [0x2a201b, 0x2a201b, 0x3a2418, 0x4a2e1e];
 const KHANS = [0x3a3430, 0x8a3a2a, 0x4a6a9a];
 const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 
@@ -122,8 +125,10 @@ function canMove(nav, y, x, z) {
 export function villagerProfiles() {
   const rand = makeRandom(77);
   const choose = (list) => list[Math.floor(rand() * list.length)];
+  const tint = makeRandom(91);
   const students = STUDENTS.map(([id, name]) => {
     const look = { shirt: choose(SHIRTS), pants: choose(PANTS), skin: choose(SKINS), style: choose(STYLES), khan: choose(KHANS), iris: choose(IRISES) };
+    look.hairColor = HAIRS[Math.floor(tint() * HAIRS.length)];
     return { id, name, kind: 'student', look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
   });
   const farmers = FARMERS.map((farmer) => ({ ...farmer, kind: 'farmer', diligence: 0.3 + rand() * 0.3, exit: rand() < 0.5 ? 0 : 1 }));
@@ -175,6 +180,7 @@ class Villager {
     this.kind = profile.kind;
     this.town = town;
     this.diligence = profile.diligence ?? 0;
+    this.innGoer = Math.random() < 0.35;
     this.walker = createWalker(profile.look);
     this.walker.group.rotation.order = 'YXZ';
     this.walker.group.visible = false;
@@ -301,7 +307,7 @@ class Villager {
     if (this.state === 'idle') this.facing = Math.atan2(from.x - this.position.x, from.z - this.position.z);
     const purse = this.purse;
     const parts = [`${MONEY.icon} ${amount(purse.money)}`];
-    for (const [id, amount] of purse.entries('produce')) parts.push(`${ITEMS[id].icon} ${amount}`);
+    for (const [id, amount] of purse.entries('produce')) parts.push(`${iconTag(ITEMS[id])} ${amount}`);
     const seeds = purse.total('seed');
     if (seeds) parts.push(`🌱 ${seeds}`);
     const house = this.town.estate.houseOf(this.id);
@@ -350,6 +356,7 @@ class Villager {
     this.lookAt = null;
     this.task = null;
     if (ctx.night) return this.goHome();
+    if (this.wantsInn()) return this.goInn();
     if (this.wantsFood(ctx)) return this.goEat();
     if (this.shouldAttend(ctx)) return this.goToClass();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
@@ -360,6 +367,7 @@ class Villager {
 
   activityNow(ctx) {
     if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
+    if (this.state === 'inn') return 'inn';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
   }
@@ -372,6 +380,41 @@ class Villager {
   wantsFood(ctx) {
     if (this.purse.energy >= ENERGY.low || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
     return Object.values(FOODS).some((food) => food.price <= this.purse.money);
+  }
+
+  wantsInn() {
+    return this.innGoer && this.purse.energy < ENERGY.low && this.purse.money >= LODGING.price;
+  }
+
+  goInn() {
+    this.cancel();
+    this.task = 'inn';
+    this.travel(INN_STAND, { then: () => this.checkIn(), fail: () => this.wait(between(2, 4)) });
+  }
+
+  checkIn() {
+    if (!this.purse.spend(LODGING.price)) {
+      this.say('Hết tiền thuê phòng rồi...', 2);
+      this.wait(between(1.5, 3));
+      return;
+    }
+    this.cancel();
+    this.task = 'inn';
+    this.route = null;
+    this.velocity = 0;
+    this.state = 'inn';
+    this.setVisible(false);
+  }
+
+  leaveInn() {
+    this.task = null;
+    this.position.set(INN_STAND.x, this.town.nav.heightAt(INN_STAND.x, INN_STAND.z) ?? 0, INN_STAND.z);
+    this.facing = 0;
+    this.velocity = 0;
+    this.pop = 0.25;
+    this.setVisible(true);
+    this.wait(between(0.6, 1.5));
+    this.say('Khoẻ re rồi!', 1.8);
   }
 
   goEat() {
@@ -879,7 +922,7 @@ class Villager {
       this.purse.markFish(ctx.day);
       const float = session.spot.float;
       this.effects.harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });
-      if (Math.random() < 0.6) this.say(`${pick(CAUGHT)} ${FISH[fish].icon}`, 1.8);
+      if (Math.random() < 0.6) this.say(`${pick(CAUGHT)} ${iconTag(ITEMS[fishId(fish)])}`, 1.8);
     } else if (Math.random() < 0.5) {
       this.say(pick(ESCAPED), 1.8);
     }
@@ -1301,6 +1344,9 @@ class Villager {
           this.appear();
         }
         return;
+      case 'inn':
+        if (this.purse.energy >= ENERGY.max - 0.5) this.leaveInn();
+        return;
       case 'teaching':
         return;
       case 'seated':
@@ -1719,7 +1765,7 @@ export class Town {
         continue;
       }
       if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat') continue;
+      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn') continue;
       if (member.shouldAttend(ctx)) member.goToClass();
     }
     const teacher = this.teacher;
@@ -1749,7 +1795,7 @@ export class Town {
       this.lastNight = ctx.night;
       if (ctx.night) {
         for (const member of this.all) {
-          if (member.state === 'away') continue;
+          if (member.state === 'away' || member.state === 'inn') continue;
           if (member === this.teacher && member.state === 'teaching') {
             member.stopTeaching();
             continue;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { itemImage } from './itemArt.js';
 
 const WIDTH = 512;
 const HEIGHT = 200;
@@ -13,11 +14,24 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+const ICON = 64;
+const ICON_GAP = 6;
+
+function pieces(ctx, text) {
+  return text.split(/\[\[(\w+)\]\]/).flatMap((part, i) => {
+    if (i % 2 === 0) return part ? [{ text: part, width: ctx.measureText(part).width }] : [];
+    const image = itemImage(part);
+    return image ? [{ image, width: ICON + ICON_GAP }] : [];
+  });
+}
+
 function draw(ctx, text) {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
   ctx.font = 'bold 46px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-  const textWidth = Math.min(WIDTH - 90, ctx.measureText(text).width);
-  const w = textWidth + 60;
+  const parts = pieces(ctx, text);
+  const natural = parts.reduce((sum, part) => sum + part.width, 0);
+  const fit = Math.min(1, (WIDTH - 90) / Math.max(1, natural));
+  const w = natural * fit + 60;
   const h = 96;
   const x = (WIDTH - w) / 2;
   const y = 16;
@@ -36,10 +50,19 @@ function draw(ctx, text) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(WIDTH / 2 - 15, y + h - 6, 30, 8);
 
+  ctx.save();
+  ctx.translate((WIDTH - natural * fit) / 2, y + h / 2 + 2);
+  ctx.scale(fit, fit);
   ctx.fillStyle = INK;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, WIDTH / 2, y + h / 2 + 2, WIDTH - 90);
+  let cursor = 0;
+  for (const part of parts) {
+    if (part.image) ctx.drawImage(part.image, cursor + ICON_GAP / 2, -ICON / 2 - 2, ICON, ICON);
+    else ctx.fillText(part.text, cursor, 0);
+    cursor += part.width;
+  }
+  ctx.restore();
 }
 
 export function createBubble() {

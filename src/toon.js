@@ -10,7 +10,7 @@ let sharedOutline = null;
 
 export function characterGradient() {
   if (!celGradient) {
-    celGradient = new THREE.DataTexture(new Uint8Array([170, 255]), 2, 1, THREE.RedFormat);
+    celGradient = new THREE.DataTexture(new Uint8Array([212, 255]), 2, 1, THREE.RedFormat);
     celGradient.minFilter = THREE.NearestFilter;
     celGradient.magFilter = THREE.NearestFilter;
     celGradient.generateMipmaps = false;

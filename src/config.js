@@ -34,7 +34,7 @@ export const SHOP = { open: 5 * 60 + 30, close: 21 * 60, fertilizer: 2 };
 
 export const CHIEF = { open: 6 * 60, close: 20 * 60 };
 
-export const CROP_TIME_FACTOR = 0.2;
+export const CROP_TIME_FACTOR = 0.05;
 
 export const CROP_ECONOMY = {
   waterSpinach: { days: 20, seed: 1, price: 3 },
@@ -58,10 +58,10 @@ export const STARTER = { 'seed:waterSpinach': 6, rod: 1, bait: 10 };
 
 export const FISH = {
   carp: { name: 'Cá diếc', icon: '🐟', price: 4, weight: 30, color: 0xa8b0a0 },
-  perch: { name: 'Cá rô đồng', icon: '🐠', price: 6, weight: 30, color: 0x7a8a3a },
+  perch: { name: 'Cá rô đồng', icon: '🐟', price: 6, weight: 30, color: 0x7a8a3a },
   shrimp: { name: 'Tôm càng', icon: '🦐', price: 12, weight: 15, color: 0x5a7a9a },
-  catfish: { name: 'Cá trê', icon: '🐡', price: 15, weight: 17, color: 0x4a4038 },
-  snakehead: { name: 'Cá lóc', icon: '🦈', price: 35, weight: 8, color: 0x3a4a3a },
+  catfish: { name: 'Cá trê', icon: '🐟', price: 15, weight: 17, color: 0x4a4038 },
+  snakehead: { name: 'Cá lóc', icon: '🐟', price: 35, weight: 8, color: 0x3a4a3a },
 };
 
 export const FISHING = {
@@ -94,9 +94,12 @@ export const ENERGY = {
   drain: { seated: 0.5, idle: 1, walk: 2, run: 4 },
   nightFactor: 2,
   sleepPerHour: 8,
+  restPerHour: 4,
   tiredSpeed: 0.6,
   low: 20,
 };
+
+export const LODGING = { price: 20, perHour: 15 };
 
 export const EATERY = { open: 5 * 60, close: 21 * 60 + 30 };
 

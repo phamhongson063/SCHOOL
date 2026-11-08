@@ -18,6 +18,96 @@
   </script>
 </head>
 <body>
+  <div id="loader" class="loader booting" role="progressbar" aria-label="Đang tải" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="loader-scene" aria-hidden="true">
+      <div class="loader-sun"><span></span></div>
+      <svg class="loader-cloud loader-cloud-a" viewBox="0 0 200 60"><path d="M20 52Q0 52 6 39Q12 27 30 31Q33 13 56 15Q70 1 92 11Q110 3 124 17Q146 13 152 31Q174 27 182 41Q190 53 170 53Z" /></svg>
+      <svg class="loader-cloud loader-cloud-b" viewBox="0 0 200 60"><path d="M20 52Q0 52 6 39Q12 27 30 31Q33 13 56 15Q70 1 92 11Q110 3 124 17Q146 13 152 31Q174 27 182 41Q190 53 170 53Z" /></svg>
+      <div class="loader-birds">
+        <svg viewBox="0 0 120 40">
+          <path d="M0 14Q7 6 14 14Q21 6 28 14" />
+          <path d="M40 4Q46 -2 52 4Q58 -2 64 4" />
+          <path d="M70 26Q76 20 82 26Q88 20 94 26" />
+        </svg>
+      </div>
+      <svg class="loader-layer" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
+        <path fill="#b8cfd9" d="M0 640V520C90 472 160 456 240 488C300 512 340 470 420 440C500 410 560 450 620 478C700 516 760 470 840 450C920 430 980 470 1060 498C1140 526 1200 472 1290 442C1380 412 1460 458 1520 486C1560 502 1590 498 1600 494V640Z" />
+        <path fill="#97b5bf" d="M0 660V566C80 546 150 524 230 548C310 572 360 600 440 586C520 572 570 532 650 526C730 520 790 560 860 574C930 588 1000 560 1080 546C1160 532 1240 560 1320 578C1400 596 1480 574 1600 560V660Z" />
+      </svg>
+      <div class="loader-mist"></div>
+      <svg class="loader-layer" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
+        <g fill="#4f6e5f">
+          <path d="M0 900V650C200 640 400 646 600 648C800 652 1000 640 1200 644C1400 648 1500 642 1600 646V900Z" />
+          <circle cx="300" cy="572" r="50" />
+          <circle cx="252" cy="592" r="38" />
+          <circle cx="350" cy="590" r="42" />
+          <circle cx="276" cy="552" r="34" />
+          <circle cx="326" cy="548" r="32" />
+          <circle cx="214" cy="612" r="22" />
+          <circle cx="390" cy="612" r="24" />
+          <path d="M290 650L295 600H307L314 650Z" />
+          <rect x="452" y="626" width="48" height="24" />
+          <path d="M440 630Q452 628 458 610H494Q500 628 512 630Z" />
+          <rect x="530" y="632" width="36" height="18" />
+          <path d="M520 635Q530 633 535 619H561Q566 633 576 635Z" />
+          <rect x="640" y="630" width="92" height="20" />
+          <path d="M634 632H738L732 623H640Z" />
+          <rect x="868" y="630" width="92" height="20" />
+          <path d="M862 632H966L960 623H868Z" />
+          <rect x="732" y="634" width="136" height="16" rx="2" />
+          <rect x="758" y="600" width="84" height="36" />
+          <path d="M706 580Q728 596 754 594L772 570H828L846 594Q872 596 894 580Q886 600 862 606H738Q714 600 706 580Z" />
+          <rect x="778" y="546" width="44" height="28" />
+          <path d="M750 532Q766 546 784 545L794 526H806L816 545Q834 546 850 532Q844 550 826 554H774Q756 550 750 532Z" />
+          <path d="M796 527L800 512L804 527Z" />
+          <rect x="1082" y="624" width="52" height="26" />
+          <path d="M1070 628Q1082 626 1088 606H1128Q1134 626 1146 628Z" />
+          <rect x="1170" y="632" width="38" height="18" />
+          <path d="M1160 635Q1170 633 1175 618H1203Q1208 633 1218 635Z" />
+        </g>
+        <g fill="none" stroke="#4f6e5f" stroke-linecap="round">
+          <path stroke-width="2.5" d="M250 604V648M352 602V648M232 616V648" />
+          <path stroke-width="5" d="M968 652Q974 590 962 524M1010 652Q1006 600 1018 548M612 652Q606 600 616 540" />
+          <path stroke-width="4" d="M962 524q24-18 46 6M962 524q18-24 40-24M962 524q-20-20-42-14M962 524q-26-6-40 16M962 524q2-22 8-34M1018 548q22-16 42 6M1018 548q16-22 36-22M1018 548q-20-18-40-8M1018 548q-22-4-34 18M1018 548q4-20 10-30M616 540q22-18 44 4M616 540q16-22 38-22M616 540q-20-18-40-10M616 540q-24-4-36 16M616 540q2-20 8-32" />
+        </g>
+        <g class="loader-windows" fill="#ffd89a">
+          <circle cx="800" cy="560" r="8" />
+          <path d="M786 636V621Q800 605 814 621V636Z" />
+          <rect x="469" y="633" width="10" height="9" />
+          <rect x="1113" y="632" width="11" height="10" />
+        </g>
+        <path fill="#c9dfd5" d="M0 900V676C300 664 620 686 920 674C1180 664 1420 680 1600 672V900Z" />
+        <path fill="#8db368" d="M0 900V712C280 698 560 724 860 708C1120 694 1380 716 1600 704V900Z" />
+        <path fill="#77a056" d="M0 900V776C260 758 540 786 840 768C1110 752 1360 778 1600 764V900Z" />
+        <path fill="#628c46" d="M0 900V846C300 828 640 856 960 838C1240 824 1440 844 1600 834V900Z" />
+        <g fill="none" stroke-linecap="round" stroke-width="5" stroke-dasharray="0.1 17">
+          <path stroke="#a9cd82" d="M0 742C280 728 560 754 860 738C1120 724 1380 746 1600 734" />
+          <path stroke="#93bd6c" d="M0 810C260 792 540 820 840 802C1110 786 1360 812 1600 798" />
+          <path stroke="#7fae5c" d="M0 874C300 856 640 884 960 866C1240 852 1440 872 1600 862" />
+        </g>
+      </svg>
+    </div>
+    <div class="loader-card">
+      <h1 class="loader-title">Trường Làng Xưa</h1>
+      <svg class="loader-ornament" viewBox="0 0 240 18" aria-hidden="true">
+        <path d="M8 9H98M142 9H232" />
+        <circle cx="106" cy="9" r="2.2" />
+        <circle cx="134" cy="9" r="2.2" />
+        <path class="fill" d="M120 1.5L127.5 9L120 16.5L112.5 9Z" />
+      </svg>
+      <div class="loader-track"><span class="loader-fill"></span></div>
+      <p class="loader-stage"><span class="loader-label">Đang tải</span><span class="loader-dots" aria-hidden="true"><i></i><i></i><i></i></span></p>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const loader = document.getElementById('loader');
+      const ready = () => loader.classList.add('ready');
+      setTimeout(ready, 1500);
+      if (!document.fonts) return ready();
+      Promise.all([document.fonts.load('64px "Water Brush"'), document.fonts.load('600 20px "Dancing Script"')]).then(ready, ready);
+    })();
+  </script>
   <div id="app"></div>
   <div id="hud">
     <button id="vitals" class="vitals" type="button" aria-describedby="vitalsInfo">
@@ -54,6 +144,7 @@
       <span id="vitalsText"></span>
     </div>
   </div>
+  <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
   <div id="toolbar">
     <div id="wallet" class="wallet" role="status" aria-live="polite" title="Tiền">
       <span aria-hidden="true">🪙</span>
@@ -154,6 +245,19 @@
     <span id="phaseIcon" aria-hidden="true"></span>
     <span id="phaseTime"></span>
   </button>
+  <div id="actionBar" role="toolbar" aria-label="Hành động">
+    <button id="restBtn" class="slot-btn" type="button" title="Nằm nghỉ" aria-label="Nằm nghỉ" aria-pressed="false">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M3 26h26" />
+        <circle cx="8" cy="20" r="3.2" />
+        <path d="M12 22.5h8l3-3.5 3 3.5" />
+        <g class="rest-z">
+          <path d="M17 5h5l-5 5.5h5" />
+          <path d="M24 11h3.2l-3.2 3.4h3.2" />
+        </g>
+      </svg>
+    </button>
+  </div>
   <div id="payPopup" class="pay-popup" role="alertdialog" aria-labelledby="payText" hidden>
     <p id="payText"></p>
     <p id="payNote" class="pay-note"></p>
@@ -283,7 +387,7 @@
   <dialog id="kanjiDialog" class="paper kanji" aria-label="Cá cắn câu">
     <div class="paper-body">
       <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">🎣</span>
+        <span id="kanjiFish" class="kanji-fish" aria-hidden="true"></span>
         <span class="sched-fill"></span>
         <span id="kanjiLevel" class="paper-money"></span>
         <button id="kanjiClose" class="sched-x" type="button" aria-label="Đóng" hidden>×</button>

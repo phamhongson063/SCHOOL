@@ -8,6 +8,7 @@ import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, FARMING, SHOP, growDays } from './config.js';
 import { PLAYER, seedId } from './inventory.js';
+import { iconTag } from './itemArt.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const LEGACY_KEY = 'truong-lang-xua.farm';
@@ -63,7 +64,7 @@ function nextStageIn(spot, now) {
 function seedOptions(purse) {
   return Object.keys(CROPS)
     .filter((id) => purse.count(seedId(id)) > 0)
-    .map((id) => ({ id, icon: CROPS[id].icon, name: `${CROPS[id].name} ×${purse.count(seedId(id))}` }));
+    .map((id) => ({ id, icon: CROPS[id].icon, art: id, name: `×${purse.count(seedId(id))}`, label: `${CROPS[id].name} ×${purse.count(seedId(id))}` }));
 }
 
 const C = {
@@ -118,7 +119,7 @@ const ACTIONS = {
     farm.ledger.purse(actor).add(spot.crop, count);
     spot.stage = SPENT;
     spot.watered = false;
-    return `${cropOf(spot).icon} +${count}`;
+    return `${iconTag({ icon: cropOf(spot).icon, art: spot.crop })} +${count}`;
   },
   clear(spot) {
     if (spot.stage !== SPENT) return 'Chưa cần dọn!';

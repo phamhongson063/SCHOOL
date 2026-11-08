@@ -38,12 +38,12 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     const current = session;
     current.phase = 'quiz';
     angler.bite();
-    const { correct, entry } = await quiz.ask();
+    const fish = river.rollFish(minutes());
+    const { correct, entry } = await quiz.ask({ fish });
     if (session !== current) return;
     angler.reel();
     const float = current.spot.float;
     if (correct && river.take(current.spot)) {
-      const fish = river.rollFish(minutes());
       purse.add(fishId(fish), 1);
       purse.markFish(day());
       harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });

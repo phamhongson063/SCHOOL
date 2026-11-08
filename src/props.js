@@ -31,7 +31,7 @@ export function studentFurniture(seed) {
   const b = new Batch();
   b.add(shapes.box(1.0, 0.02, 0.72), STRAW, { p: [0, 0.01, -0.03] });
   for (let x = -0.4; x <= 0.41; x += 0.1) b.add(shapes.box(0.012, 0.022, 0.6), STRAW_DARK, { p: [x, 0.011, -0.03] });
-  for (const z of [-0.36, 0.3]) b.add(shapes.box(1.0, 0.024, 0.06), MAT_EDGE, { p: [0, 0.012, z] });
+  for (const z of [-0.36, 0.3]) b.add(shapes.box(1.02, 0.032, 0.07), MAT_EDGE, { p: [0, 0.016, z] });
 
   b.add(shapes.rounded(0.86, 0.05, 0.42, 0.02), WOOD, { p: [0, 0.275, 0.44] });
   for (const x of [-0.38, 0.38]) {
@@ -54,8 +54,8 @@ export function teacherPlatform() {
   for (const z of [-1.1, 1.1]) b.add(shapes.box(2.7, 0.1, 0.04), shade(WOOD_DARK, 0.75), { p: [0, 0.33, z] });
 
   b.add(shapes.box(2.5, 0.02, 1.9), STRAW, { p: [0, 0.51, 0] });
-  for (const z of [-0.92, 0.92]) b.add(shapes.box(2.5, 0.024, 0.07), MAT_EDGE, { p: [0, 0.512, z] });
-  for (const x of [-1.22, 1.22]) b.add(shapes.box(0.07, 0.024, 1.9), MAT_EDGE, { p: [x, 0.512, 0] });
+  for (const z of [-0.92, 0.92]) b.add(shapes.box(2.52, 0.032, 0.08), MAT_EDGE, { p: [0, 0.516, z] });
+  for (const x of [-1.22, 1.22]) b.add(shapes.box(0.08, 0.03, 1.92), MAT_EDGE, { p: [x, 0.515, 0] });
   for (let x = -1.0; x <= 1.01; x += 0.5) {
     for (let z = -0.65; z <= 0.66; z += 0.43) {
       b.add(shapes.cylinder(0.07, 0.07, 0.006, 10), 0xc4473a, { p: [x, 0.523, z] });

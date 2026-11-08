@@ -1,3 +1,5 @@
+import { paintIcon } from './itemArt.js';
+
 const MARGIN = 12;
 
 export function createPicker() {
@@ -14,11 +16,13 @@ export function createPicker() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'picker-option';
+    if (item.label) button.setAttribute('aria-label', item.label);
     const icon = document.createElement('span');
     icon.className = 'picker-option-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = item.icon;
+    paintIcon(icon, item);
     const name = document.createElement('span');
+    name.className = 'picker-option-label';
     name.textContent = item.name;
     button.append(icon, name);
     button.addEventListener('click', () => {
@@ -39,6 +43,8 @@ export function createPicker() {
     const top = Math.min(Math.max(MARGIN, y - height - 18), window.innerHeight - height - MARGIN);
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
+    panel.style.setProperty('--tail', `${Math.min(width - 18, Math.max(18, x - left))}px`);
+    panel.classList.toggle('tailless', top + height > y - 4);
     list.firstElementChild?.focus({ preventScroll: true });
   }
 

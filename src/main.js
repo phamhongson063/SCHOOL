@@ -27,7 +27,7 @@ import { LOW_POWER } from './quality.js';
 import { outlineMaterial, freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
-import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD } from './config.js';
+import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, LODGING } from './config.js';
 import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -41,9 +41,13 @@ import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
 import { buildStudyHall, createStudyHall } from './studyHall.js';
+import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { activityOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
+import { loadingStep, loadingDone } from './loading.js';
+import { createRegen } from './regen.js';
+import { loadItemImages } from './itemArt.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
@@ -76,6 +80,8 @@ sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
 
+const itemImages = loadItemImages();
+await loadingStep(0.4, 'Dựng trường làng');
 const world = new VoxelWorld();
 const layout = buildWorld(world);
 buildStudyHall(world);
@@ -86,14 +92,17 @@ for (const child of scene.children) {
   if (child.isMesh || child === roof) freeze(child);
 }
 
+await loadingStep(0.52, 'Dựng nhà, khơi sông');
 const school = populate(scene);
 const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
 const village = createVillage();
 const river = createRiver();
 const studyHall = createStudyHall(scene);
-school.obstacles.push(...notice.obstacles, ...village.obstacles, ...river.obstacles, ...studyHall.obstacles);
+const inn = createInn(scene);
+school.obstacles.push(...notice.obstacles, ...village.obstacles, ...river.obstacles, ...studyHall.obstacles, ...inn.obstacles);
 
+await loadingStep(0.62, 'Gieo mạ, mở chợ');
 const avatar = createPlayer();
 scene.add(avatar.group);
 const footprints = new Footprints(scene);
@@ -176,6 +185,7 @@ function loadPlace() {
 const savedPlace = loadPlace();
 regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
+await loadingStep(0.72, 'Mở lối đi');
 player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, { surfaceAt: stairHeight });
 regions.onLoad = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
@@ -202,6 +212,14 @@ const playerBubble = createBubble();
 playerBubble.sprite.position.set(0, 1.95, 0);
 avatar.group.add(playerBubble.sprite);
 const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
+const BUBBLE_STAND = new THREE.Vector3(0, 1.95, 0);
+const BUBBLE_LYING = new THREE.Vector3(0, 1.15, -1.1);
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+function placeBubble() {
+  const k = player.restAmount;
+  const anchor = playerBubble.sprite.position.lerpVectors(BUBBLE_STAND, BUBBLE_LYING, k);
+  if (k > 0) anchor.applyAxisAngle(X_AXIS, -avatar.group.rotation.x);
+}
 
 const quiz = createQuiz({ onPass: () => sayPlayer('🎉 Đúng rồi! Chơi tiếp nào!') });
 
@@ -210,6 +228,7 @@ const effects = {
   harvest: createHarvesting(scene, avatar),
   clear: createClearing(scene, avatar),
 };
+const regen = createRegen({ scene, camera, purse });
 const busyEffect = () => Object.values(effects).find((effect) => effect.busy);
 let effectTask = null;
 
@@ -233,6 +252,14 @@ player.onArrive = () => {
     },
   });
 };
+
+function stopWork() {
+  fieldTask = null;
+  fishing.stop();
+  busyEffect()?.cancel();
+  if (effectTask) effectTask.region.animate?.(effectTask.target, null);
+  effectTask = null;
+}
 
 function perform(task, cost) {
   const finish = () => {
@@ -260,7 +287,8 @@ function perform(task, cost) {
   });
 }
 const savedY = savedPlace ? player.nav.heightAt(savedPlace.x, savedPlace.z) : null;
-if (savedY !== null) player.place(new THREE.Vector3(savedPlace.x, savedY, savedPlace.z), savedPlace.yaw);
+const savedClear = savedY !== null && !player.collides({ x: savedPlace.x, y: savedY, z: savedPlace.z });
+if (savedClear) player.place(new THREE.Vector3(savedPlace.x, savedY, savedPlace.z), savedPlace.yaw);
 else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
 
 function savePlace() {
@@ -293,6 +321,7 @@ player.onTarget = (point) => {
   if (point) marker.position.set(point.x, point.y + 0.03, point.z);
 };
 
+await loadingStep(0.82, 'Gọi dân làng');
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
@@ -393,6 +422,14 @@ const noticeSpot = {
     return null;
   },
 };
+const innDesk = {
+  act() {
+    if (purse.energy >= ENERGY.max - 0.5) return 'Còn khoẻ lắm, chưa cần nghỉ!';
+    if (!purse.spend(LODGING.price)) return `Không đủ tiền! Cần ${LODGING.price} ${MONEY.icon}.`;
+    sleepAtInn();
+    return null;
+  },
+};
 
 let playerLine = null;
 
@@ -417,7 +454,7 @@ function joinLine(kind, open, dialog) {
   }
   leaveLine();
   queue.join(player);
-  playerLine = { queue, open, dialog, index: -1, served: false };
+  playerLine = { queue, open, dialog, index: -1, served: false, retries: 0 };
   stepInLine();
 }
 
@@ -433,10 +470,11 @@ function updateLine() {
     stepInLine();
     return;
   }
-  if (player.path || player.posture !== 'free') return;
+  if (player.path || player.posture !== 'free' || player.lying) return;
   const spot = line.queue.slot(index);
   if (Math.hypot(spot.x - player.position.x, spot.z - player.position.z) > 1.5) {
-    leaveLine();
+    if (line.retries++ < 3) stepInLine();
+    else leaveLine();
     return;
   }
   const look = index === 0 ? line.queue.look : line.queue.slot(index - 1);
@@ -454,16 +492,13 @@ function goDo(region, target, id) {
 player.onClick = (clientX, clientY, run) => {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group];
+  const targets = [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group, inn.group];
   if (roof.visible) targets.push(roof);
   const hit = raycaster.intersectObjects(targets, true)[0];
   if (!hit) return;
-  fieldTask = null;
-  fishing.stop();
-  busyEffect()?.cancel();
+  player.getUp();
+  stopWork();
   const queueing = playerLine;
-  if (effectTask) effectTask.region.animate?.(effectTask.target, null);
-  effectTask = null;
   const villager = town.villagerAt(hit.object);
   if (villager) {
     villager.greet(player.position);
@@ -472,6 +507,11 @@ player.onClick = (clientX, clientY, run) => {
   if (school.isTeacher(hit.object)) {
     leaveLine();
     goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    return;
+  }
+  if (inn.owns(hit.object)) {
+    leaveLine();
+    goDo(innDesk, { stand: INN_STAND, x: INN_DOOR.x, z: INN_DOOR.z }, 'inn');
     return;
   }
   if (notice.owns(hit.object)) {
@@ -668,7 +708,30 @@ ui.viewBtn.addEventListener('click', () => {
   refreshUI();
 });
 ui.modeBtn.addEventListener('click', () => setMode(mode === 'play' ? 'overview' : 'play'));
-for (const button of [ui.viewBtn, ui.modeBtn]) {
+
+const restBtn = document.getElementById('restBtn');
+let restShown = '';
+function refreshRest() {
+  const lying = player.resting;
+  const usable = lying || (mode === 'play' && player.posture === 'free' && !purse.sleeping);
+  const key = `${lying}|${usable}`;
+  if (key === restShown) return;
+  restShown = key;
+  restBtn.disabled = !usable;
+  restBtn.setAttribute('aria-pressed', String(lying));
+  setLabel(restBtn, lying ? 'Đứng dậy' : 'Nằm nghỉ');
+}
+restBtn.addEventListener('click', () => {
+  if (player.resting) player.getUp();
+  else {
+    leaveLine();
+    stopWork();
+    player.lieDown();
+  }
+  refreshRest();
+});
+
+for (const button of [ui.viewBtn, ui.modeBtn, restBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
@@ -905,12 +968,18 @@ function showSleep(on) {
 
 function drainEnergy() {
   const asleep = purse.sleeping;
+  const lodging = asleep && purse.lodging;
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
-  const activity = asleep ? 'sleep' : player.posture === 'seated' ? 'seated' : moving;
-  purse.liveEnergy(context.minutes, activity, asleep ? 'sleep' : 'idle');
+  const resting = lodging ? 'inn' : 'sleep';
+  const activity = asleep ? resting : player.resting ? 'rest' : player.posture === 'seated' ? 'seated' : moving;
+  purse.liveEnergy(context.minutes, activity, asleep ? resting : 'idle');
   player.tired = purse.energy <= 0;
   if (!asleep) return;
-  if (!context.night) {
+  if (lodging && purse.energy >= ENERGY.max - 0.01) {
+    wakeUp('Khoẻ re rồi, đi tiếp thôi!');
+    return;
+  }
+  if (!lodging && !context.night) {
     wakeUp('☀️ Sáng rồi, dậy thôi!');
     return;
   }
@@ -925,6 +994,14 @@ function sleepAtHome() {
   showSleep(true);
 }
 
+function sleepAtInn() {
+  if (purse.sleeping) return;
+  fishing.stop();
+  player.getUp();
+  purse.setSleeping(true, true);
+  showSleep(true);
+}
+
 function wakeUp(message) {
   purse.setSleeping(false);
   showSleep(false);
@@ -934,7 +1011,13 @@ function wakeUp(message) {
 document.getElementById('wakeBtn').addEventListener('click', () => wakeUp('Dậy rồi!'));
 if (purse.sleeping) showSleep(true);
 
+await itemImages;
+await loadingStep(0.9, 'Thắp đèn lồng');
+await renderer.compileAsync(scene, camera).catch(() => {});
+await loadingStep(0.97);
+
 let shownNight = -1;
+let framesShown = 0;
 renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const popup = popupOpen();
@@ -961,6 +1044,8 @@ renderer.setAnimationLoop((time) => {
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
     school.setNight(night);
+    studyHall.setNight(night);
+    inn.setNight(night);
     village.setNight(night);
     river.setNight(night);
   }
@@ -973,14 +1058,19 @@ renderer.setAnimationLoop((time) => {
   tuition.update(context, inClass());
   playerStudyIcon.visible = inClass() && learningNow() && !context.phase.paying;
   refreshPhase();
+  refreshRest();
   farm.tick();
   town.update(t, dt, context, player, camera);
   updateLine();
   school.update(t, context.phase.kind === 'period' && !context.phase.paying);
+  studyHall.update(t);
+  inn.update(t);
   village.update(t, context, camera);
   river.update(dt, context.minutes);
   clouds.update(dt, night);
   player.update(dt);
+  placeBubble();
+  regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);
   for (const effect of Object.values(effects)) effect.update(dt);
   fishing.update();
   angler.update(dt);
@@ -989,7 +1079,7 @@ renderer.setAnimationLoop((time) => {
   updateHover(t);
   updateOutlines(t);
   playerBubble.update(t);
-  avatar.face.update(t);
+  avatar.face.update(t, player.restAmount > 0.6 ? 'blink' : 'open');
   if (seatedAvatar.group.visible) {
     seatedAvatar.face.update(t);
     seatedAvatar.head.rotation.x = 0.12 + Math.sin(t * 1.1) * 0.05;
@@ -998,4 +1088,5 @@ renderer.setAnimationLoop((time) => {
   if (mode === 'overview') orbit.update();
   if (marker.visible) marker.scale.setScalar(1 + Math.sin(t * 6) * 0.15);
   renderer.render(scene, camera);
+  if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });

@@ -4,9 +4,14 @@ import { makeRandom } from './random.js';
 import { ENERGY, FOODS, MONEY, EATERY } from './config.js';
 import { minuteOfDay, clockText } from './clock.js';
 import { amount, coins } from './format.js';
+import { plasterMaterial, texturedBox } from './architecture.js';
 
-const W = 5;
-const D = 4.5;
+const W = 6.6;
+const D = 5.8;
+const H = 3.7;
+const LIFT = H - 3.2;
+const RISE = 1.3;
+const LAMP_X = 2.1;
 const WALL = 0xe8b84a;
 const WOOD = 0x6a3f24;
 const WOOD_DARK = 0x3f2516;
@@ -39,26 +44,29 @@ function roofPlane(b, z0, y0, z1, y1) {
 export function createEatery({ seed = 9 } = {}) {
   const rand = makeRandom(seed);
   const b = new Batch();
+  const walls = new Batch();
   const obstacles = [];
   const block = (minX, minZ, maxX, maxZ, maxY = 3) => obstacles.push({ minX, minZ, maxX, maxZ, minY: 0, maxY });
 
   b.add(shapes.box(W, 0.06, D + 0.3), STONE, { p: [0, 0.03, -D / 2 + 0.15] });
-  b.add(shapes.box(W, 3.2, 0.2), WALL, { p: [0, 1.6, -D + 0.1] });
+  walls.add(texturedBox(W, H, 0.2), WALL, { p: [0, H / 2, -D + 0.1] });
   block(-W / 2, -D, W / 2, -D + 0.3);
   for (const side of [-1, 1]) {
-    b.add(shapes.box(0.2, 3.2, D), WALL, { p: [side * (W / 2 - 0.1), 1.6, -D / 2] });
-    b.add(shapes.box(0.26, 0.5, D + 0.02), shade(WALL, 0.7), { p: [side * (W / 2 - 0.1), 0.25, -D / 2] });
+    walls.add(texturedBox(0.2, H, D), WALL, { p: [side * (W / 2 - 0.1), H / 2, -D / 2] });
+    walls.add(texturedBox(0.26, 0.5, D + 0.02), shade(WALL, 0.7), { p: [side * (W / 2 - 0.1), 0.25, -D / 2] });
     block(side < 0 ? -W / 2 : W / 2 - 0.3, -D, side < 0 ? -W / 2 + 0.3 : W / 2, 0);
-    b.add(shapes.box(0.22, 3.0, 0.22), WOOD_DARK, { p: [side * (W / 2 - 0.15), 1.5, -0.06] });
+    b.add(shapes.box(0.22, H - 0.2, 0.22), WOOD_DARK, { p: [side * (W / 2 - 0.15), (H - 0.2) / 2, -0.06] });
   }
-  b.add(shapes.box(W - 0.04, 0.2, 0.22), WOOD, { p: [0, 2.98, -0.09] });
+  b.add(shapes.box(W - 0.04, 0.2, 0.22), WOOD, { p: [0, H - 0.22, -0.09] });
 
-  roofPlane(b, 0.9, 3.05, -D / 2, 4.2);
-  roofPlane(b, -D / 2, 4.2, -D - 0.4, 3.05);
-  b.limb([-W / 2 - 0.35, 4.27, -D / 2], [W / 2 + 0.35, 4.27, -D / 2], 0.11, RIDGE, { capsule: false, seg: 8 });
+  const eave = H - 0.15;
+  const ridge = eave + RISE;
+  roofPlane(b, 0.9, eave, -D / 2, ridge);
+  roofPlane(b, -D / 2, ridge, -D - 0.4, eave);
+  b.limb([-W / 2 - 0.35, ridge + 0.07, -D / 2], [W / 2 + 0.35, ridge + 0.07, -D / 2], 0.12, RIDGE, { capsule: false, seg: 8 });
   for (const side of [-1, 1]) {
-    b.add(shapes.sphere(0.16, 8, 6), RIDGE, { p: [side * (W / 2 + 0.35), 4.32, -D / 2] });
-    b.limb([side * (W / 2 + 0.35), 4.32, -D / 2], [side * (W / 2 + 0.6), 4.62, -D / 2], 0.06, RIDGE, { capsule: false, seg: 5 });
+    b.add(shapes.sphere(0.17, 8, 6), RIDGE, { p: [side * (W / 2 + 0.35), ridge + 0.12, -D / 2] });
+    b.limb([side * (W / 2 + 0.35), ridge + 0.12, -D / 2], [side * (W / 2 + 0.62), ridge + 0.44, -D / 2], 0.065, RIDGE, { capsule: false, seg: 5 });
   }
 
   const counterW = W - 1.2;
@@ -80,40 +88,43 @@ export function createEatery({ seed = 9 } = {}) {
     b.add(shapes.ico(0.06, 0), i % 2 ? 0x5fae48 : 0x86c75a, { p: [0.15 + Math.cos(a) * 0.08, 1.1, -0.75 + Math.sin(a) * 0.08], s: [1, 0.5, 1], flat: true });
   }
 
-  b.add(shapes.box(1.1, 0.06, 0.75), WOOD, { p: [1.25, 0.62, -3.05] });
-  for (const [dx, dz] of [[-0.45, -0.28], [0.45, -0.28], [-0.45, 0.28], [0.45, 0.28]]) {
-    b.add(shapes.box(0.05, 0.6, 0.05), WOOD_DARK, { p: [1.25 + dx, 0.3, -3.05 + dz] });
+  const tableZ = -D + 1.45;
+  for (const tx of [-1.7, 1.7]) {
+    b.add(shapes.box(1.1, 0.06, 0.75), WOOD, { p: [tx, 0.62, tableZ] });
+    for (const [dx, dz] of [[-0.45, -0.28], [0.45, -0.28], [-0.45, 0.28], [0.45, 0.28]]) {
+      b.add(shapes.box(0.05, 0.6, 0.05), WOOD_DARK, { p: [tx + dx, 0.3, tableZ + dz] });
+    }
+    for (const [x, z] of [[tx - 0.8, tableZ], [tx + 0.8, tableZ], [tx, tableZ + 0.65]]) {
+      b.add(shapes.cylinder(0.16, 0.16, 0.05, 10), 0xc0392b, { p: [x, 0.36, z] });
+      b.add(shapes.cylinder(0.12, 0.14, 0.34, 8), 0xa02a1e, { p: [x, 0.17, z] });
+    }
+    block(tx - 1.0, tableZ - 0.45, tx + 1.0, tableZ + 0.85, 1);
   }
-  for (const [x, z] of [[0.45, -3.05], [2.05, -3.05], [1.25, -2.4]]) {
-    b.add(shapes.cylinder(0.16, 0.16, 0.05, 10), 0xc0392b, { p: [x, 0.36, z] });
-    b.add(shapes.cylinder(0.12, 0.14, 0.34, 8), 0xa02a1e, { p: [x, 0.17, z] });
-  }
-  block(0.25, -3.5, 2.25, -2.2, 1);
-  b.add(shapes.box(0.9, 1.2, 0.05), 0x2a2a2a, { p: [-1.4, 1.7, -D + 0.23] });
-  b.add(shapes.box(0.96, 1.26, 0.03), WOOD, { p: [-1.4, 1.7, -D + 0.21] });
+  b.add(shapes.box(0.9, 1.2, 0.05), 0x2a2a2a, { p: [0, 1.7 + LIFT, -D + 0.23] });
+  b.add(shapes.box(0.96, 1.26, 0.03), WOOD, { p: [0, 1.7 + LIFT, -D + 0.21] });
 
-  for (const x of [-1.6, 1.6]) b.limb([x, 2.74, 0.35], [x, 2.98, 0.2], 0.008, 0x3a2414, { capsule: false, seg: 4 });
+  for (const x of [-LAMP_X, LAMP_X]) b.limb([x, 2.74 + LIFT, 0.35], [x, H - 0.22, 0.2], 0.008, 0x3a2414, { capsule: false, seg: 4 });
   const mesh = b.mesh();
   const group = new THREE.Group();
-  group.add(mesh);
+  group.add(mesh, walls.mesh(plasterMaterial()));
 
   glowMaterial ??= toonMaterial({ vertexColors: true, emissive: 0xff7a2a, emissiveIntensity: 0 });
   const lamps = new Batch();
-  for (const x of [-1.6, 1.6]) {
-    lamps.add(shapes.sphere(0.2, 10, 8), x < 0 ? 0xd8321e : 0xf2b630, { p: [x, 2.45, 0.35], s: [1, 1.25, 1] });
-    lamps.add(shapes.cylinder(0.09, 0.1, 0.05, 8), 0xf2c14e, { p: [x, 2.71, 0.35] });
-    lamps.add(shapes.cylinder(0.1, 0.09, 0.05, 8), 0xf2c14e, { p: [x, 2.19, 0.35] });
+  for (const x of [-LAMP_X, LAMP_X]) {
+    lamps.add(shapes.sphere(0.22, 10, 8), x < 0 ? 0xd8321e : 0xf2b630, { p: [x, 2.45 + LIFT, 0.35], s: [1, 1.25, 1] });
+    lamps.add(shapes.cylinder(0.1, 0.11, 0.05, 8), 0xf2c14e, { p: [x, 2.73 + LIFT, 0.35] });
+    lamps.add(shapes.cylinder(0.11, 0.1, 0.05, 8), 0xf2c14e, { p: [x, 2.17 + LIFT, 0.35] });
   }
   const glow = lamps.mesh(glowMaterial, { shadow: false });
   group.add(glow);
-  group.userData.lights = [-1.6, 1.6].map((x) => ({ position: new THREE.Vector3(x, 2.45, 0.35), tint: x < 0 ? 0xd8321e : 0xf2b630 }));
+  group.userData.lights = [-LAMP_X, LAMP_X].map((x) => ({ position: new THREE.Vector3(x, 2.45 + LIFT, 0.35), tint: x < 0 ? 0xd8321e : 0xf2b630 }));
 
   return {
     group,
     obstacles,
     counter: { x: 0, z: 0.2 },
     keeper: { x: 0, z: -1.6, facing: 0 },
-    plaque: { x: 0, y: 2.62, z: 0.06 },
+    plaque: { x: 0, y: 2.62 + LIFT, z: 0.06 },
   };
 }
 

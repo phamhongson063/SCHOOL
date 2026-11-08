@@ -11,21 +11,21 @@ export const seedId = (crop) => `seed:${crop}`;
 
 export const ITEMS = {};
 for (const [id, crop] of Object.entries(CROPS)) {
-  ITEMS[id] = { icon: crop.icon, name: crop.name, kind: 'produce', crop: id, unit: crop.unit };
+  ITEMS[id] = { icon: crop.icon, art: id, name: crop.name, kind: 'produce', crop: id, unit: crop.unit };
 }
 for (const [id, crop] of Object.entries(CROPS)) {
-  ITEMS[seedId(id)] = { icon: crop.icon, name: crop.seedName, kind: 'seed', crop: id, unit: 'gói' };
+  ITEMS[seedId(id)] = { icon: crop.icon, art: id, name: crop.seedName, kind: 'seed', crop: id, unit: 'gói' };
 }
 ITEMS.fertilizer = { icon: '🧪', name: 'Phân bón', kind: 'fertilizer', unit: 'bao' };
 export const fishId = (fish) => `fish:${fish}`;
 for (const [id, fish] of Object.entries(FISH)) {
-  ITEMS[fishId(id)] = { icon: fish.icon, name: fish.name, kind: 'fish', fish: id, unit: 'con' };
+  ITEMS[fishId(id)] = { icon: fish.icon, art: id, name: fish.name, kind: 'fish', fish: id, unit: 'con' };
 }
 ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' };
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 
 const GIFTS = ['fishing'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false });
+const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
 
 function starter() {
   const account = blank();
@@ -50,6 +50,7 @@ function clean(raw) {
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
   account.sleeping = raw.sleeping === true;
+  account.lodging = account.sleeping && raw.lodging === true;
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
@@ -162,9 +163,15 @@ export class Purse {
     return this.data.sleeping;
   }
 
-  setSleeping(on) {
-    if (this.data.sleeping === on) return;
+  get lodging() {
+    return this.data.lodging;
+  }
+
+  setSleeping(on, lodging = false) {
+    const stay = on && lodging;
+    if (this.data.sleeping === on && this.data.lodging === stay) return;
     this.data.sleeping = on;
+    this.data.lodging = stay;
     this.ledger.save();
   }
 

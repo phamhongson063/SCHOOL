@@ -1,3 +1,4 @@
+import { paintIcon } from './itemArt.js';
 import { ITEMS } from './inventory.js';
 import { MONEY } from './config.js';
 import { amount } from './format.js';
@@ -22,12 +23,13 @@ function slot(id, amount) {
   const item = ITEMS[id];
   const node = document.createElement('div');
   node.className = item.kind === 'seed' ? 'bag-slot seed' : 'bag-slot';
-  node.title = `${item.name}: ${amount}`;
-  node.setAttribute('aria-label', `${item.name}: ${amount}`);
+  node.dataset.id = id;
+  node.dataset.tip = `${item.name}: ${amount}`;
+  node.setAttribute('aria-label', node.dataset.tip);
   const icon = document.createElement('span');
   icon.className = 'bag-slot-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = item.icon;
+  paintIcon(icon, item);
   const count = document.createElement('span');
   count.className = 'bag-slot-count';
   count.textContent = amount;
@@ -53,6 +55,36 @@ export function createBag(purse) {
   const wallet = document.getElementById('walletAmount');
   const walletPill = document.getElementById('wallet');
   let current = loadTab();
+  const tip = document.createElement('div');
+  tip.className = 'bag-tip';
+  tip.setAttribute('aria-hidden', 'true');
+  tip.hidden = true;
+  document.body.append(tip);
+  let hovered = null;
+
+  function showTip() {
+    const node = hovered && !panel.hidden ? slots.querySelector(`[data-id="${CSS.escape(hovered)}"]`) : null;
+    tip.hidden = !node;
+    if (!node) return;
+    tip.textContent = node.dataset.tip;
+    const box = node.getBoundingClientRect();
+    const half = tip.offsetWidth / 2;
+    const x = Math.min(window.innerWidth - half - 8, Math.max(half + 8, box.left + box.width / 2));
+    tip.style.left = `${x}px`;
+    tip.style.top = `${box.top - 6}px`;
+  }
+
+  slots.addEventListener('pointerover', (event) => {
+    const node = event.target.closest('.bag-slot');
+    if (!node || node.dataset.id === hovered) return;
+    hovered = node.dataset.id;
+    showTip();
+  });
+  slots.addEventListener('pointerleave', () => {
+    hovered = null;
+    showTip();
+  });
+  slots.addEventListener('scroll', showTip, { passive: true });
 
   const entriesOf = (tab) => tab.kinds.flatMap((kind) => purse.entries(kind));
 
@@ -107,11 +139,14 @@ export function createBag(purse) {
     slots.replaceChildren(...entries.map(([id, value]) => slot(id, value)));
     empty.textContent = tab.empty;
     empty.hidden = entries.length > 0;
+    showTip();
   }
 
   function setOpen(open) {
     if (open) render();
     panel.hidden = !open;
+    if (!open) hovered = null;
+    showTip();
     button.classList.toggle('active', open);
     button.setAttribute('aria-expanded', String(open));
   }

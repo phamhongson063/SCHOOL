@@ -32,6 +32,7 @@ export const ENCLOSURE = { x0: -28, x1: 28, front: 28, back: -59 };
 export const CROSS_WALLS = [28, -22];
 export const SIDE_GATES = [-11, 12];
 export const HO_VAN = { x0: -16, z0: 40, x1: 17, z1: 62, island: { x: 0.5, z: 51, r: 3.2 } };
+const LAKE_KEEP_OUT = 0.65;
 export const POND = { x: 0.5, z: 15.5, half: 5 };
 export const THUONG_DIEN = { x: 0.5, z: -8.5, hx: 11, hz: 4 };
 export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -22 : 23, z0: -16, z1: 2 }));
@@ -219,6 +220,7 @@ export function populate(scene) {
   const block = (minX, minZ, maxX, maxZ, minY = FLOOR) => {
     obstacles.push({ minX, minZ, maxX, maxZ, minY, maxY: minY + 3 });
   };
+  block(HO_VAN.x0 - LAKE_KEEP_OUT, HO_VAN.z0 - LAKE_KEEP_OUT, HO_VAN.x1 + LAKE_KEEP_OUT, HO_VAN.z1 + LAKE_KEEP_OUT, -1);
 
   const area = new THREE.Group();
   area.position.set(CX, FLOOR, TEACHER_Z);

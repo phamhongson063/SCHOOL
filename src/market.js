@@ -3,6 +3,7 @@ import { ITEMS, seedId, fishId } from './inventory.js';
 import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, growDays } from './config.js';
 import { minuteOfDay, clockText } from './clock.js';
 import { amount, coins } from './format.js';
+import { iconTag, paintIcon } from './itemArt.js';
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -108,7 +109,7 @@ export function createMarket() {
       if (earned) lines.push(`Bán được ${coins(earned)}`);
       const reserve = villager.kind === 'student' ? SCHOOL.tuition * 4 : 0;
       const plan = seedPlan(purse, purse.money - reserve);
-      if (plan && buy(purse, plan.item, plan.count)) lines.push(`Mua ${plan.count} gói ${ITEMS[plan.item].icon}`);
+      if (plan && buy(purse, plan.item, plan.count)) lines.push(`Mua ${plan.count} gói ${iconTag(ITEMS[plan.item])}`);
       if (purse.count('fertilizer') === 0 && purse.money - reserve >= SHOP.fertilizer * 8 && Math.random() < 0.4) {
         if (buy(purse, 'fertilizer', 2)) lines.push('Mua 2 bao 🧪');
       }
@@ -121,13 +122,13 @@ export function createMarket() {
   };
 }
 
-function row({ icon, title, detail, actions }) {
+function row({ icon, art, title, detail, actions }) {
   const node = document.createElement('div');
   node.className = 'shop-row';
   const badge = document.createElement('span');
   badge.className = 'shop-icon';
   badge.setAttribute('aria-hidden', 'true');
-  badge.textContent = icon;
+  paintIcon(badge, { icon, art });
   const text = document.createElement('div');
   text.className = 'shop-text';
   const name = document.createElement('strong');
@@ -172,6 +173,7 @@ export function createShopUI({ market, purse }) {
     };
     return row({
       icon: info.icon,
+      art: info.art,
       title: info.name,
       detail: `${coins(price)}/${info.unit} · đang có ${have}`,
       actions: [
@@ -201,6 +203,7 @@ export function createShopUI({ market, purse }) {
     if (many > 1 && !owned) actions.push({ label: `Mua ${many}`, disabled: purse.money < price * many, run: purchase(many) });
     return row({
       icon: info.icon,
+      art: info.art,
       title: info.name,
       detail: `${coins(price)}/${unit} · ${detail} · đang có ${purse.count(item)}`,
       actions,
