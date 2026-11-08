@@ -238,6 +238,17 @@ export class PlayerController {
     return true;
   }
 
+  restoreRest() {
+    if (this.posture !== 'free') return;
+    this.clearPath();
+    this.pendingSeat = null;
+    this.afterRest = null;
+    this.resting = true;
+    this.rest = 1;
+    this.onGround = true;
+    this.velocity.set(0, 0, 0);
+  }
+
   getUp(then = null) {
     if (!this.lying) {
       then?.();

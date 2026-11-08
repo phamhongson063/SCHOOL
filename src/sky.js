@@ -311,12 +311,12 @@ export function createSky(scene, { renderer }) {
 
       hemi.color.copy(NIGHT.hemiSky).lerp(DAY.hemiSky, dayK);
       hemi.groundColor.copy(NIGHT.hemiGround).lerp(DAY.hemiGround, dayK);
-      hemi.intensity = 0.42 + 0.58 * dayK;
+      hemi.intensity = 0.84 + 0.16 * dayK;
       ambient.color.copy(NIGHT.ambient).lerp(DAY.ambient, dayK);
-      ambient.intensity = 0.32 + 0.13 * dayK + 0.08 * moonBright * night;
+      ambient.intensity = 0.64 - 0.19 * dayK + 0.16 * moonBright * night;
 
       const sunPower = 2.2 * smooth(-0.04, 0.25, sunUp);
-      const moonPower = 0.55 * moonBright * smooth(-0.02, 0.2, moonUp) * night;
+      const moonPower = 1.1 * moonBright * smooth(-0.02, 0.2, moonUp) * night;
       if (sunPower >= moonPower) {
         lightDir.copy(sunLightDir);
         sunTint.copy(SUN_COLOR).lerp(SUNSET_COLOR, duskK * 0.8);

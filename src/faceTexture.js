@@ -48,6 +48,46 @@ function openEye(ctx, cx, cy, iris, old) {
   }
 }
 
+function heroEye(ctx, cx, cy, iris) {
+  const rx = 17;
+  const ry = 23;
+  const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
+  g.addColorStop(0, rgba(shade(iris, 0.35)));
+  g.addColorStop(0.55, rgba(iris));
+  g.addColorStop(1, rgba(shade(iris, 1.6)));
+  ellipse(ctx, cx, cy, rx, ry, g);
+  ellipse(ctx, cx, cy + 2, rx * 0.45, ry * 0.45, rgba(shade(iris, 0.3)));
+  const side = Math.sign(cx - 128);
+  stroke(ctx, 5, '#1e120c', () => ctx.ellipse(cx, cy + 1, rx + 1.5, ry + 1, 0, Math.PI * 1.08, Math.PI * 1.92));
+  stroke(ctx, 3.5, '#1e120c', () => {
+    ctx.moveTo(cx + side * (rx - 1), cy - ry * 0.55);
+    ctx.lineTo(cx + side * (rx + 6), cy - ry * 0.8);
+  });
+  ellipse(ctx, cx - rx * 0.3, cy - ry * 0.32, rx * 0.4, rx * 0.4, '#ffffff');
+  ellipse(ctx, cx + rx * 0.34, cy + ry * 0.36, rx * 0.2, rx * 0.2, 'rgba(255,255,255,0.9)');
+}
+
+function smile(ctx, bottom) {
+  const path = () => {
+    ctx.moveTo(113, 151);
+    ctx.quadraticCurveTo(128, 156, 143, 151);
+    ctx.quadraticCurveTo(141, bottom - 1, 128, bottom);
+    ctx.quadraticCurveTo(115, bottom - 1, 113, 151);
+  };
+  ctx.beginPath();
+  path();
+  ctx.closePath();
+  ctx.fillStyle = '#7a2a24';
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(112, 148, 32, 7);
+  ellipse(ctx, 128, bottom, 9, 6, '#f08a8a');
+  ctx.restore();
+  stroke(ctx, 3, MOUTH, path);
+}
+
 function closedEye(ctx, cx, cy, old) {
   const r = old ? 11 : 14;
   stroke(ctx, 5, LINE, () => ctx.arc(cx, cy - r * 0.45, r, Math.PI * 0.18, Math.PI * 0.82));
@@ -117,8 +157,30 @@ function mouth(ctx, state) {
   stroke(ctx, 3.5, MOUTH, () => ctx.arc(128, 154, 9, Math.PI * 0.2, Math.PI * 0.8));
 }
 
-function draw(ctx, { iris, brow, old, beard, state }) {
+function drawHero(ctx, { iris, brow, state }) {
+  const eyes = [84, 172];
+  const cy = 108;
+  cheeks(ctx, 1.15);
+  for (const cx of eyes) {
+    const side = Math.sign(cx - 128);
+    stroke(ctx, 6, brow, () => {
+      ctx.moveTo(cx - side * 14, 72);
+      ctx.quadraticCurveTo(cx, 63, cx + side * 15, 69);
+    });
+    if (state === 'blink') stroke(ctx, 5, '#1e120c', () => ctx.arc(cx, cy - 6, 16, Math.PI * 0.15, Math.PI * 0.85));
+    else heroEye(ctx, cx, cy, iris);
+  }
+  ellipse(ctx, 128, 137, 3.5, 2.5, 'rgba(190,100,80,0.55)');
+  if (state === 'stern') stroke(ctx, 3.5, MOUTH, () => ctx.arc(128, 160, 8, Math.PI * 1.15, Math.PI * 1.85));
+  else smile(ctx, state === 'talk' ? 180 : 168);
+}
+
+function draw(ctx, { iris, brow, old, beard, state, hero }) {
   ctx.clearRect(0, 0, SIZE, SIZE);
+  if (hero) {
+    drawHero(ctx, { iris, brow, state });
+    return;
+  }
   const eyes = [86, 170];
   const cy = old ? 114 : 112;
   cheeks(ctx, old ? 0.55 : 1);
@@ -145,7 +207,7 @@ export function faceTexture(options) {
   return texture;
 }
 
-export function faceSet({ iris, brow, old = false, beard = false }) {
+export function faceSet({ iris, brow, old = false, beard = false, hero = false }) {
   const states = ['open', 'blink', 'talk', 'stern'];
-  return Object.fromEntries(states.map((state) => [state, faceTexture({ iris, brow, old, beard, state })]));
+  return Object.fromEntries(states.map((state) => [state, faceTexture({ iris, brow, old, beard, state, hero })]));
 }

@@ -18,6 +18,7 @@
 #app,
 #hud,
 #toolbar,
+#bagPanel,
 #phasePill,
 #payPopup,
 #lessonOpen,
@@ -346,31 +347,127 @@ body {
   }
 }
 
+.bag-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  background: rgba(10, 6, 3, 0.35);
+}
+
+body.bag-open #toolbar {
+  z-index: 5;
+}
+
 .bag-panel {
-  position: absolute;
-  top: 50px;
-  right: calc(100% + 8px);
-  width: min(320px, calc(100vw - 84px));
+  position: fixed;
+  top: 66px;
+  right: 16px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100vw - 32px));
+  max-height: calc(100dvh - 82px);
   padding: 12px 14px 14px;
   border: 2px solid #c9962f;
   border-radius: 10px;
-  background: rgba(28, 20, 14, 0.92);
+  background: rgba(28, 20, 14, 0.96);
   color: #f4ead2;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
   animation: bag-open 0.18s ease-out;
   transform-origin: top right;
 }
 
-.bag-panel h2 {
-  margin: 0 0 10px;
+.bag-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bag-head h2 {
+  margin: 0;
   color: #f2cf63;
-  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.bag-category {
+  color: #cbbf9f;
+  font-weight: 600;
+}
+
+.bag-close {
+  width: 40px;
+  height: 34px;
+}
+
+.bag-credits {
+  margin: -4px 0 10px;
+  color: #cbe7a8;
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.bag-tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+  padding-left: 6px;
+}
+
+.bag-tab {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid #6b4425;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: #22180f;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s, transform 0.15s;
+}
+
+.bag-tab:hover {
+  background: #2e2014;
+}
+
+.bag-tab[aria-selected="true"] {
+  height: 46px;
+  margin-top: -4px;
+  margin-bottom: -2px;
+  border-color: #c9962f;
+  background: #3a2717;
+}
+
+.bag-tab.empty:not([aria-selected="true"]) {
+  opacity: 0.45;
+}
+
+.bag-tab:focus-visible {
+  outline: 2px solid #f2cf63;
+  outline-offset: -4px;
+}
+
+.bag-well {
+  display: flex;
+  min-height: 0;
+  padding: 8px;
+  border: 2px solid #c9962f;
+  border-radius: 0 9px 9px 9px;
+  background: #3a2717;
 }
 
 .bag-slots {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .bag-slot {
@@ -378,29 +475,60 @@ body {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border: 2px solid #6b4425;
-  border-radius: 8px;
-  background: rgba(58, 38, 22, 0.9);
+  min-width: 0;
+  padding: 0;
+  border: 1.5px solid rgba(20, 12, 6, 0.7);
+  border-radius: 7px;
+  background: rgba(20, 13, 8, 0.55);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.bag-slot.filled {
+  border-color: #7a5230;
+  background: #4a3220;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.12);
+  cursor: pointer;
+}
+
+.bag-slot.filled:hover {
+  border-color: #c9962f;
+}
+
+.bag-slot.filled[aria-pressed="true"] {
+  border-color: #f2cf63;
+  box-shadow: 0 0 0 1.5px #f2cf63, inset 0 1px 0 rgba(255, 220, 160, 0.12);
+}
+
+.bag-slot.filled:focus-visible {
+  outline: 2px solid #f2cf63;
+  outline-offset: 1px;
 }
 
 .bag-slot-icon {
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1;
 }
 
 .bag-slot-count {
   position: absolute;
-  right: 5px;
-  bottom: 3px;
-  color: #f2cf63;
-  font: 700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  right: 4px;
+  bottom: 2px;
+  color: #fff3d6;
+  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
 }
 
-.bag-empty {
-  margin: 4px 0 0;
+.bag-info {
+  min-height: 18px;
+  margin: 10px 2px 0;
+  color: #f2cf63;
+  font: 700 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.bag-info.muted {
   color: #cbbf9f;
+  font-weight: 600;
   font-size: 13px;
 }
 
@@ -1364,49 +1492,6 @@ dialog.paper::backdrop {
   animation: bag-bump 0.45s ease-out;
 }
 
-.bag-money {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 12px;
-  margin: -4px 0 10px;
-  color: #f2cf63;
-  font: 700 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
-.bag-money #bagCredits {
-  color: #cbe7a8;
-  font-weight: 600;
-}
-
-.bag-groups {
-  display: grid;
-  gap: 10px;
-  max-height: min(60vh, 420px);
-  overflow-y: auto;
-}
-
-.bag-group h3 {
-  margin: 0 0 6px;
-  color: #cbbf9f;
-  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.bag-slot.seed {
-  border-style: dashed;
-  background: rgba(46, 70, 30, 0.85);
-}
-
-.bag-slot-badge {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  font-size: 14px;
-  line-height: 1;
-}
-
 #phaseClock {
   font-size: 16px;
   font-variant-numeric: tabular-nums;
@@ -1849,72 +1934,6 @@ dialog.paper.kanji {
 .kanji-result.wrong {
   color: #8a1d14;
   font-weight: 700;
-}
-
-.bag-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.bag-tab {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: 6px 2px 5px;
-  border: 2px solid #6b4425;
-  border-radius: 8px;
-  min-width: 0;
-  background: rgba(58, 38, 22, 0.9);
-  color: #cbbf9f;
-  font: 600 10.5px/1.15 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
-}
-
-.bag-tab:hover {
-  border-color: #c9962f;
-  color: #f4ead2;
-}
-
-.bag-tab[aria-selected="true"] {
-  border-color: #f2cf63;
-  background: #8a1d14;
-  color: #fff3d6;
-}
-
-.bag-tab:focus-visible {
-  outline: 2px solid #f2cf63;
-  outline-offset: 2px;
-}
-
-.bag-tab-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-
-.bag-tab-label {
-  white-space: nowrap;
-}
-
-.bag-tab-count {
-  position: absolute;
-  top: -7px;
-  right: -5px;
-  min-width: 18px;
-  padding: 2px 5px;
-  border-radius: 999px;
-  background: #f2cf63;
-  color: #2b1c12;
-  font: 700 10px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-
-#bagSlots {
-  max-height: min(48vh, 320px);
-  overflow-y: auto;
 }
 
 .sleep-veil {
@@ -2742,18 +2761,4 @@ dialog.paper.kanji {
   width: 1.2em;
   height: 1.2em;
   overflow: visible;
-}
-
-.bag-tip {
-  position: fixed;
-  z-index: 6;
-  padding: 5px 9px;
-  border: 1.5px solid #c9962f;
-  border-radius: 6px;
-  background: rgba(28, 20, 14, 0.95);
-  color: #fff3d6;
-  font: 700 13px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translate(-50%, -100%);
 }

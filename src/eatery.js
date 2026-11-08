@@ -70,22 +70,22 @@ export function createEatery({ seed = 9 } = {}) {
   }
 
   const counterW = W - 1.2;
-  b.add(shapes.box(counterW, 0.9, 0.55), WOOD, { p: [0, 0.45, -0.75] });
-  b.add(shapes.box(counterW + 0.1, 0.06, 0.65), WOOD_DARK, { p: [0, 0.93, -0.75] });
+  b.add(shapes.box(counterW, 0.6, 0.55), WOOD, { p: [0, 0.3, -0.75] });
+  b.add(shapes.box(counterW + 0.1, 0.06, 0.65), WOOD_DARK, { p: [0, 0.63, -0.75] });
   block(-counterW / 2, -1.05, counterW / 2, -0.45, 1.2);
-  b.add(shapes.cylinder(0.3, 0.26, 0.42, 14), 0x4a4a4a, { p: [-1.05, 1.17, -0.8] });
-  b.add(shapes.cylinder(0.31, 0.31, 0.04, 14), 0x5a5a5a, { p: [-1.05, 1.4, -0.8] });
-  b.add(shapes.sphere(0.05, 6, 4), 0x2a2a2a, { p: [-1.05, 1.44, -0.8] });
-  b.add(shapes.cylinder(0.24, 0.24, 0.2, 10), 0x8a8a8a, { p: [-1.05, 0.98, -0.8] });
+  b.add(shapes.cylinder(0.3, 0.26, 0.42, 14), 0x4a4a4a, { p: [-1.05, 0.87, -0.8] });
+  b.add(shapes.cylinder(0.31, 0.31, 0.04, 14), 0x5a5a5a, { p: [-1.05, 1.1, -0.8] });
+  b.add(shapes.sphere(0.05, 6, 4), 0x2a2a2a, { p: [-1.05, 1.14, -0.8] });
+  b.add(shapes.cylinder(0.24, 0.24, 0.2, 10), 0x8a8a8a, { p: [-1.05, 0.68, -0.8] });
   for (let i = 0; i < 6; i++) {
-    b.add(shapes.lathe([[0.001, 0], [0.06, 0], [0.11, 0.04], [0.12, 0.07], [0.001, 0.07]], 10), 0xf4efe2, { p: [0.9, 0.96 + i * 0.045, -0.7], flat: true });
+    b.add(shapes.lathe([[0.001, 0], [0.06, 0], [0.11, 0.04], [0.12, 0.07], [0.001, 0.07]], 10), 0xf4efe2, { p: [0.9, 0.66 + i * 0.045, -0.7], flat: true });
   }
-  b.add(shapes.cylinder(0.04, 0.04, 0.2, 8), 0x9a6438, { p: [1.25, 1.06, -0.62] });
-  for (let i = 0; i < 6; i++) b.limb([1.25 + (rand() - 0.5) * 0.04, 1.1, -0.62], [1.25 + (rand() - 0.5) * 0.08, 1.28, -0.62 + (rand() - 0.5) * 0.06], 0.006, 0xd8c08a, { capsule: false, seg: 4 });
-  b.add(shapes.cylinder(0.2, 0.16, 0.12, 10), 0x9a7a4a, { p: [0.15, 1.02, -0.75] });
+  b.add(shapes.cylinder(0.04, 0.04, 0.2, 8), 0x9a6438, { p: [1.25, 0.76, -0.62] });
+  for (let i = 0; i < 6; i++) b.limb([1.25 + (rand() - 0.5) * 0.04, 0.8, -0.62], [1.25 + (rand() - 0.5) * 0.08, 0.98, -0.62 + (rand() - 0.5) * 0.06], 0.006, 0xd8c08a, { capsule: false, seg: 4 });
+  b.add(shapes.cylinder(0.2, 0.16, 0.12, 10), 0x9a7a4a, { p: [0.15, 0.72, -0.75] });
   for (let i = 0; i < 7; i++) {
     const a = rand() * Math.PI * 2;
-    b.add(shapes.ico(0.06, 0), i % 2 ? 0x5fae48 : 0x86c75a, { p: [0.15 + Math.cos(a) * 0.08, 1.1, -0.75 + Math.sin(a) * 0.08], s: [1, 0.5, 1], flat: true });
+    b.add(shapes.ico(0.06, 0), i % 2 ? 0x5fae48 : 0x86c75a, { p: [0.15 + Math.cos(a) * 0.08, 0.8, -0.75 + Math.sin(a) * 0.08], s: [1, 0.5, 1], flat: true });
   }
 
   const tableZ = -D + 1.45;

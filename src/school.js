@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makeRandom } from './random.js';
 import { freeze } from './toon.js';
 import { createTeacher } from './characters.js';
+import { hasModel, createModel } from './characterModels.js';
 import { createLanternGlow } from './lanternGlow.js';
 import {
   studentFurniture,
@@ -231,7 +232,7 @@ export function populate(scene) {
   const tea = teaSet();
   tea.position.set(1.15, 0.52, -0.45);
   area.add(tea);
-  const teacher = createTeacher();
+  const teacher = hasModel('scholar-ink') ? createModel('scholar-ink', { seated: true }) : createTeacher();
   teacher.group.position.set(0, 0.62, -0.34);
   area.add(teacher.group);
   root.add(area);
@@ -375,6 +376,7 @@ export function populate(scene) {
       const tap = teaching ? Math.pow(Math.max(0, Math.sin(t * 0.8)), 12) : 0;
       teacher.rightArm.rotation.x = -tap * 0.7;
       teacher.face.update(t, tap > 0.2 ? 'stern' : 'open');
+      teacher.pose?.();
     },
   };
 }

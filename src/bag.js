@@ -4,6 +4,8 @@ import { MONEY } from './config.js';
 import { amount } from './format.js';
 
 const TAB_KEY = 'truong-lang-xua.bagTab';
+const COLUMNS = 5;
+const MIN_SLOTS = 20;
 const TABS = [
   { key: 'seed', icon: '🌱', label: 'Hạt giống', kinds: ['seed'], empty: 'Chưa có hạt giống. Ra tiệm buôn mua nhé!' },
   { key: 'produce', icon: '🥬', label: 'Nông sản', kinds: ['produce'], empty: 'Chưa thu hoạch được gì.' },
@@ -20,74 +22,51 @@ function loadTab() {
   return TABS[0].key;
 }
 
-function slot(id, amount) {
+function filledSlot(id, value, selected) {
   const item = ITEMS[id];
-  const node = document.createElement('div');
-  node.className = item.kind === 'seed' ? 'bag-slot seed' : 'bag-slot';
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.className = 'bag-slot filled';
   node.dataset.id = id;
-  node.dataset.tip = `${item.name}: ${amount}`;
-  node.setAttribute('aria-label', node.dataset.tip);
+  node.setAttribute('aria-label', `${item.name}: ${value}`);
+  node.setAttribute('aria-pressed', String(selected));
   const icon = document.createElement('span');
   icon.className = 'bag-slot-icon';
   icon.setAttribute('aria-hidden', 'true');
   paintIcon(icon, item);
   const count = document.createElement('span');
   count.className = 'bag-slot-count';
-  count.textContent = amount;
+  count.setAttribute('aria-hidden', 'true');
+  count.textContent = value > 999 ? '999+' : String(value);
   node.append(icon, count);
-  if (item.kind === 'seed') {
-    const badge = document.createElement('span');
-    badge.className = 'bag-slot-badge';
-    badge.setAttribute('aria-hidden', 'true');
-    badge.textContent = '🌱';
-    node.append(badge);
-  }
+  return node;
+}
+
+function emptySlot() {
+  const node = document.createElement('span');
+  node.className = 'bag-slot';
+  node.setAttribute('aria-hidden', 'true');
   return node;
 }
 
 export function createBag(purse) {
   const button = document.getElementById('bagBtn');
   const panel = document.getElementById('bagPanel');
+  const veil = document.getElementById('bagVeil');
+  const close = document.getElementById('bagClose');
   const tabBar = panel.querySelector('.bag-tabs');
   const slots = document.getElementById('bagSlots');
-  const empty = panel.querySelector('.bag-empty');
-  const money = document.getElementById('bagMoney');
+  const category = document.getElementById('bagCategory');
+  const info = document.getElementById('bagInfo');
   const credits = document.getElementById('bagCredits');
   const wallet = document.getElementById('walletAmount');
   const walletPill = document.getElementById('wallet');
   let current = loadTab();
-  const tip = document.createElement('div');
-  tip.className = 'bag-tip';
-  tip.setAttribute('aria-hidden', 'true');
-  tip.hidden = true;
-  document.body.append(tip);
+  let selected = null;
   let hovered = null;
 
-  function showTip() {
-    const node = hovered && !panel.hidden ? slots.querySelector(`[data-id="${CSS.escape(hovered)}"]`) : null;
-    tip.hidden = !node;
-    if (!node) return;
-    tip.textContent = node.dataset.tip;
-    const box = node.getBoundingClientRect();
-    const half = tip.offsetWidth / 2;
-    const x = Math.min(window.innerWidth - half - 8, Math.max(half + 8, box.left + box.width / 2));
-    tip.style.left = `${x}px`;
-    tip.style.top = `${box.top - 6}px`;
-  }
-
-  slots.addEventListener('pointerover', (event) => {
-    const node = event.target.closest('.bag-slot');
-    if (!node || node.dataset.id === hovered) return;
-    hovered = node.dataset.id;
-    showTip();
-  });
-  slots.addEventListener('pointerleave', () => {
-    hovered = null;
-    showTip();
-  });
-  slots.addEventListener('scroll', showTip, { passive: true });
-
   const entriesOf = (tab) => tab.kinds.flatMap((kind) => purse.entries(kind));
+  const currentTab = () => TABS.find((item) => item.key === current);
 
   const tabs = TABS.map((tab) => {
     const node = document.createElement('button');
@@ -96,26 +75,33 @@ export function createBag(purse) {
     node.setAttribute('role', 'tab');
     node.id = `bagTab-${tab.key}`;
     node.setAttribute('aria-controls', 'bagSlots');
-    const icon = document.createElement('span');
-    icon.className = 'bag-tab-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = tab.icon;
-    const label = document.createElement('span');
-    label.className = 'bag-tab-label';
-    label.textContent = tab.label;
-    const count = document.createElement('span');
-    count.className = 'bag-tab-count';
-    node.append(icon, label, count);
+    node.setAttribute('aria-label', tab.label);
+    node.title = tab.label;
+    node.textContent = tab.icon;
     node.addEventListener('click', () => {
+      if (current === tab.key) return;
       current = tab.key;
+      selected = null;
+      hovered = null;
       try {
         localStorage.setItem(TAB_KEY, current);
       } catch {}
       render();
     });
     tabBar.append(node);
-    return { tab, node, count };
+    return { tab, node };
   });
+
+  function renderInfo() {
+    const id = hovered ?? selected;
+    const value = id ? purse.count(id) : 0;
+    info.classList.toggle('muted', !id);
+    if (id && value > 0) {
+      info.textContent = `${ITEMS[id].name} × ${value}`;
+      return;
+    }
+    info.textContent = entriesOf(currentTab()).length ? '' : currentTab().empty;
+  }
 
   function renderWallet() {
     wallet.textContent = amount(purse.money);
@@ -123,40 +109,61 @@ export function createBag(purse) {
   }
 
   function render() {
-    money.textContent = `${MONEY.icon} ${amount(purse.money)} ${MONEY.name}`;
     credits.textContent = purse.credits ? `📖 Đã đóng trước ${purse.credits} tiết` : '';
     credits.hidden = !purse.credits;
-    for (const { tab, node, count } of tabs) {
-      const selected = tab.key === current;
-      const total = entriesOf(tab).reduce((sum, [, value]) => sum + value, 0);
-      node.setAttribute('aria-selected', String(selected));
-      node.tabIndex = selected ? 0 : -1;
-      count.textContent = total > 99 ? '99+' : String(total);
-      count.hidden = total === 0;
-      if (selected) slots.setAttribute('aria-labelledby', node.id);
+    const tab = currentTab();
+    category.textContent = ` · ${tab.label}`;
+    for (const { tab: item, node } of tabs) {
+      const active = item.key === current;
+      node.setAttribute('aria-selected', String(active));
+      node.tabIndex = active ? 0 : -1;
+      node.classList.toggle('empty', entriesOf(item).length === 0);
+      if (active) slots.setAttribute('aria-labelledby', node.id);
     }
-    const tab = TABS.find((item) => item.key === current);
     const entries = entriesOf(tab);
-    slots.replaceChildren(...entries.map(([id, value]) => slot(id, value)));
-    empty.textContent = tab.empty;
-    empty.hidden = entries.length > 0;
-    showTip();
+    if (selected && purse.count(selected) <= 0) selected = null;
+    if (hovered && purse.count(hovered) <= 0) hovered = null;
+    const total = Math.max(MIN_SLOTS, Math.ceil(entries.length / COLUMNS) * COLUMNS);
+    const nodes = entries.map(([id, value]) => filledSlot(id, value, id === selected));
+    while (nodes.length < total) nodes.push(emptySlot());
+    slots.replaceChildren(...nodes);
+    renderInfo();
   }
+
+  slots.addEventListener('click', (event) => {
+    const node = event.target.closest('.bag-slot.filled');
+    if (!node) return;
+    selected = selected === node.dataset.id ? null : node.dataset.id;
+    for (const slot of slots.querySelectorAll('.bag-slot.filled')) slot.setAttribute('aria-pressed', String(slot.dataset.id === selected));
+    renderInfo();
+  });
+  slots.addEventListener('pointerover', (event) => {
+    if (event.pointerType !== 'mouse') return;
+    const id = event.target.closest('.bag-slot.filled')?.dataset.id ?? null;
+    if (id === hovered) return;
+    hovered = id;
+    renderInfo();
+  });
+  slots.addEventListener('pointerleave', () => {
+    if (!hovered) return;
+    hovered = null;
+    renderInfo();
+  });
 
   function setOpen(open) {
     if (open) render();
+    else hovered = null;
     panel.hidden = !open;
-    if (!open) hovered = null;
-    showTip();
+    veil.hidden = !open;
+    document.body.classList.toggle('bag-open', open);
     button.classList.toggle('active', open);
     button.setAttribute('aria-expanded', String(open));
+    if (open) close.focus({ preventScroll: true });
   }
 
   button.addEventListener('click', () => setOpen(panel.hidden));
   button.addEventListener('pointerup', () => button.blur());
-  document.addEventListener('pointerdown', (event) => {
-    if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
-  });
+  close.addEventListener('click', () => setOpen(false));
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !panel.hidden) setOpen(false);
   });

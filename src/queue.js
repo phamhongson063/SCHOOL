@@ -1,4 +1,5 @@
 export const QUEUE_STEP = 1.3;
+export const JOIN_RADIUS = 2.5;
 const ASIDE = 1.3;
 
 export class ServiceQueue {
@@ -22,6 +23,29 @@ export class ServiceQueue {
 
   indexOf(member) {
     return this.members.indexOf(member);
+  }
+
+  tail() {
+    return this.slot(this.members.length);
+  }
+
+  reached(position) {
+    const tail = this.tail();
+    return Math.hypot(tail.x - position.x, tail.z - position.z) <= JOIN_RADIUS;
+  }
+
+  distanceTo(point) {
+    let best = Infinity;
+    for (let i = 0; i < this.line.length - 1; i++) {
+      const a = this.line[i];
+      const b = this.line[i + 1];
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const length2 = dx * dx + dz * dz;
+      const t = length2 > 1e-9 ? Math.min(1, Math.max(0, ((point.x - a.x) * dx + (point.z - a.z) * dz) / length2)) : 0;
+      best = Math.min(best, Math.hypot(point.x - (a.x + dx * t), point.z - (a.z + dz * t)));
+    }
+    return best;
   }
 
   slot(index) {

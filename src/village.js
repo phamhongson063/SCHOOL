@@ -5,6 +5,7 @@ import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './sce
 import { createShophouse, createMarket, createChiefHouse, setNightGlow } from './architecture.js';
 import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
+import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
 import { SHOP, CHIEF, EATERY } from './config.js';
 import { coins } from './format.js';
@@ -195,8 +196,8 @@ function decor() {
   return { group, walks, obstacles, lights };
 }
 
-function keeperNPC(look) {
-  const walker = createWalker(look);
+function keeperNPC(look, model) {
+  const walker = model && hasModel(model) ? createModel(model) : createWalker(look);
   walker.group.rotation.order = 'YXZ';
   const bubble = createBubble();
   bubble.sprite.position.set(0, 2.05, 0);
@@ -212,6 +213,7 @@ const ZONES = [
 const DETAIL_DISTANCE = 70;
 const SIGN_DISTANCE = 45;
 const KEEPER_DISTANCE = 60;
+const FLOOR_HEIGHT = 0.3;
 
 let hitMaterial = null;
 
@@ -234,6 +236,7 @@ export function createVillage() {
     const box = new THREE.Box3().setFromObject(building.group);
     const size = box.getSize(new THREE.Vector3());
     building.center = box.getCenter(new THREE.Vector3());
+    building.base = building.group.getWorldPosition(new THREE.Vector3()).y;
     const proxy = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), hitMaterial);
     proxy.position.copy(building.center);
     proxy.raycast = (raycaster, intersects) => {
@@ -263,7 +266,7 @@ export function createVillage() {
   obstacles.push(...market.obstacles.map(marketFrame.box));
   const counter = marketFrame.toWorld(market.counter);
   const keeperAt = marketFrame.toWorld(market.keeper);
-  const keeper = keeperNPC(KEEPER_LOOK);
+  const keeper = keeperNPC(KEEPER_LOOK, 'granny');
   keeper.walker.group.position.set(keeperAt.x, 0, keeperAt.z);
   keeper.walker.group.rotation.y = marketFrame.facing(market.keeper.facing ?? 0);
   const marketSign = plaqueBoard(['TIỆM BUÔN'], { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e });
@@ -275,7 +278,7 @@ export function createVillage() {
   obstacles.push(...chief.obstacles.map(chiefFrame.box));
   const desk = chiefFrame.toWorld(chief.desk);
   const chiefAt = chiefFrame.toWorld(chief.chief);
-  const chiefNPC = keeperNPC(CHIEF_LOOK);
+  const chiefNPC = keeperNPC(CHIEF_LOOK, 'scholar');
   chiefNPC.walker.group.position.set(chiefAt.x, 0, chiefAt.z);
   chiefNPC.walker.group.rotation.y = chiefFrame.facing(chief.chief.facing ?? 0);
   const chiefSign = plaqueBoard(['NHÀ LÝ TRƯỞNG'], { bg: 0x1c1310, fg: '#f2c14e', border: 0xa12a1c });
@@ -287,7 +290,7 @@ export function createVillage() {
   obstacles.push(...eatery.obstacles.map(eateryFrame.box));
   const eateryCounter = eateryFrame.toWorld(eatery.counter);
   const cookAt = eateryFrame.toWorld(eatery.keeper);
-  const cook = keeperNPC(COOK_LOOK);
+  const cook = keeperNPC(COOK_LOOK, 'granny-navy');
   cook.walker.group.position.set(cookAt.x, 0, cookAt.z);
   cook.walker.group.rotation.y = eateryFrame.facing(eatery.keeper.facing ?? 0);
   const eaterySign = plaqueBoard(['QUÁN ĂN'], { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e });
@@ -327,6 +330,14 @@ export function createVillage() {
     }
     return null;
   };
+
+  const touchesNpc = (building, object) => {
+    for (let node = object; node; node = node.parent) if (node === building.npc?.walker.group) return true;
+    return false;
+  };
+
+  const walksOnFloor = (building, hit) =>
+    !touchesNpc(building, hit.object) && !!hit.face && hit.face.normal.y > 0.7 && hit.point.y <= building.base + FLOOR_HEIGHT;
 
   const marketLine = [market.counter, { x: market.counter.x, z: 1.5 }, { x: market.counter.x - 12, z: 1.5 }].map(marketFrame.toWorld);
   const chiefLine = [chief.desk, { x: chief.desk.x, z: 1.5 }, { x: chief.desk.x + 12, z: 1.5 }].map(chiefFrame.toWorld);
@@ -373,7 +384,7 @@ export function createVillage() {
     overview: { position: new THREE.Vector3(73, 22, 62), target: new THREE.Vector3(73, 2, 35) },
     target(hit) {
       const building = buildingOf(hit.object);
-      if (!building) return null;
+      if (!building || walksOnFloor(building, hit)) return null;
       return { kind: building.kind, id: building.id, index: `${building.kind}:${building.id ?? ''}`, x: building.look.x, z: building.look.z, stand: building.stand };
     },
     actionFor() {
@@ -440,6 +451,7 @@ export function createVillage() {
         npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
         npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
         npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+        npc.walker.pose?.();
       }
       if (t < lodAt) return;
       lodAt = t + 0.5;

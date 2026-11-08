@@ -246,7 +246,7 @@ function hair(b, c, R, { style, khan, color = HAIR }) {
     return;
   }
   if (style !== 'khan') crown(b, c, R, color, 'short');
-  fringe(b, c, R, color, 'swept', style === 'player' ? -1 : 1);
+  fringe(b, c, R, color, 'swept', style === 'player' || style === 'hero' ? -1 : 1);
   sideburns(b, c, R, color, -0.12);
   if (style === 'player') curl(b, c, R, color, 0, 0.05, 1.3, 0.28);
   if (style === 'khan') {
@@ -308,7 +308,7 @@ function scarfShape(b, color, y) {
 export function createStudent(options) {
   const { shirt, pants, skin, hairColor = HAIR } = options;
   const group = new THREE.Group();
-  const trim = shade(shirt, 0.7);
+  const trim = options.trim ?? shade(shirt, 0.7);
 
   part(group, [0, 0, 0], (b) => {
     b.add(shapes.sphere(0.2, 16, 12), pants, { p: [0, 0.09, 0], s: [1.2, 0.5, 0.95] });
@@ -332,7 +332,7 @@ export function createStudent(options) {
     if (options.beardColor) beard(b, c, R, options.beardColor);
   });
   part(head, [0, 0, 0], (b) => hair(b, c, R, { ...options, color: hairColor }), HAIR_OUTLINE);
-  const face = attachFace(head, c, R, faceSet({ iris: options.iris ?? IRIS[0], brow: browOf(hairColor), old: !!options.old, beard: !!options.beardColor }));
+  const face = attachFace(head, c, R, faceSet({ iris: options.iris ?? IRIS[0], brow: browOf(hairColor), old: !!options.old, beard: !!options.beardColor, hero: !!options.hero }));
 
   const arm = (side, extra) =>
     part(group, [side * 0.17, 0.43, 0], (b) => {
@@ -487,6 +487,117 @@ export function createWalker({
   return { group, body, head, leftLeg, rightLeg, leftArm, rightArm, face };
 }
 
+const PLAYER_LOOK = {
+  aoDai: 0x2152b8,
+  lining: 0x173c8a,
+  trim: 0xe3b44c,
+  pants: 0xf6f2e8,
+  skin: 0xf7cfae,
+  hair: 0x1d1715,
+  iris: 0x4a2a1a,
+  shoes: 0x2b2622,
+};
+
+function innerSide(geometry) {
+  const g = geometry.index ? geometry.toNonIndexed() : geometry;
+  for (const name of ['position', 'normal', 'uv']) {
+    const attribute = g.attributes[name];
+    if (!attribute) continue;
+    const size = attribute.itemSize;
+    const array = attribute.array;
+    for (let i = 0; i < attribute.count; i += 3) {
+      for (let k = 0; k < size; k++) {
+        const a = (i + 1) * size + k;
+        const b = (i + 2) * size + k;
+        [array[a], array[b]] = [array[b], array[a]];
+      }
+    }
+  }
+  const normal = g.attributes.normal.array;
+  for (let i = 0; i < normal.length; i++) normal[i] = -normal[i];
+  return g;
+}
+
+const FLAP = { top: 0.5, bottom: 0.2, topRadius: 0.19, bottomRadius: 0.27, arc: 2.0 };
+
+function flapPoint(height, angle) {
+  const k = (FLAP.top - height) / (FLAP.top - FLAP.bottom);
+  const r = FLAP.topRadius + (FLAP.bottomRadius - FLAP.topRadius) * k;
+  return [Math.sin(angle) * r, height, Math.cos(angle) * r];
+}
+
+function aoDaiFlap(b, center) {
+  const { top, bottom, topRadius, bottomRadius, arc } = FLAP;
+  const height = top - bottom;
+  const y = (top + bottom) / 2;
+  const start = center - arc / 2;
+  b.add(new THREE.CylinderGeometry(topRadius, bottomRadius, height, 20, 1, true, start, arc), PLAYER_LOOK.aoDai, { p: [0, y, 0] });
+  b.add(innerSide(new THREE.CylinderGeometry(topRadius - 0.006, bottomRadius - 0.006, height, 20, 1, true, start, arc)), PLAYER_LOOK.lining, { p: [0, y, 0] });
+  b.add(new THREE.TorusGeometry(bottomRadius, 0.011, 6, 24, arc), PLAYER_LOOK.trim, { p: [0, bottom, 0], r: [Math.PI / 2, 0, Math.PI / 2 - center - arc / 2] });
+  for (const edge of [start, start + arc]) b.limb(flapPoint(top - 0.06, edge), flapPoint(bottom, edge), 0.01, PLAYER_LOOK.trim, { capsule: false, seg: 6 });
+}
+
+function aoDaiClosure(b) {
+  const points = [
+    [0, 0.85, 0.104],
+    [-0.04, 0.825, 0.12],
+    [-0.09, 0.79, 0.12],
+    [-0.14, 0.75, 0.1],
+    [-0.175, 0.71, 0.075],
+  ].map((point) => new THREE.Vector3(...point));
+  b.add(shapes.tube(points, 0.009, 16), PLAYER_LOOK.trim);
+  for (const [x, y, z] of [[-0.05, 0.818, 0.127], [-0.115, 0.77, 0.115], [-0.165, 0.725, 0.088]]) {
+    b.add(shapes.sphere(0.014, 8, 6), shade(PLAYER_LOOK.trim, 1.15), { p: [x, y, z] });
+  }
+}
+
 export function createPlayer() {
-  return createWalker({ shirt: 0x3b6fb0, pants: 0xf4efe2, skin: 0xf6caa4, style: 'player', iris: 0x7a4422, sash: 0xd8443a });
+  const look = PLAYER_LOOK;
+  const group = new THREE.Group();
+
+  const body = part(group, [0, 0, 0], (b) => {
+    b.add(shapes.sphere(0.175, 16, 12), look.pants, { p: [0, 0.44, 0], s: [1.1, 0.55, 0.92] });
+    b.add(shapes.lathe([[0, 0], [0.2, 0], [0.222, 0.06], [0.22, 0.18], [0.198, 0.3], [0.152, 0.4], [0.085, 0.46], [0, 0.47]], 24), look.aoDai, {
+      p: [0, 0.4, 0],
+      s: [1, 1, 0.84],
+    });
+    aoDaiFlap(b, 0);
+    aoDaiFlap(b, Math.PI);
+    aoDaiClosure(b);
+    b.add(shapes.cylinder(0.07, 0.078, 0.065, 18), look.aoDai, { p: [0, 0.875, 0] });
+    b.add(shapes.torus(0.07, 0.011, 18), look.trim, { p: [0, 0.907, 0], r: [Math.PI / 2, 0, 0] });
+    b.add(shapes.cylinder(0.05, 0.05, 0.06, 10), look.skin, { p: [0, 0.91, 0] });
+  });
+
+  const R = 0.4;
+  const c = R * 0.95;
+  const head = part(group, [0, 0.9, 0], (b) => skull(b, c, R, look.skin));
+  part(head, [0, 0, 0], (b) => hair(b, c, R, { style: 'hero', color: look.hair }), HAIR_OUTLINE);
+  const face = attachFace(head, c, R, faceSet({ iris: look.iris, brow: look.hair, hero: true }));
+
+  const leg = (side) =>
+    part(group, [side * 0.075, 0.42, 0], (b) => {
+      b.limb([0, -0.02, 0], [0, -0.32, 0], 0.075, look.pants, { capsule: false, radiusEnd: 0.095 });
+      b.add(shapes.sphere(0.062, 12, 10), look.shoes, { p: [0, -0.35, 0.035], s: [1, 0.68, 1.45] });
+      b.add(shapes.rounded(0.11, 0.03, 0.18, 0.012), shade(look.shoes, 0.7), { p: [0, -0.4, 0.035] });
+    });
+  const leftLeg = leg(1);
+  const rightLeg = leg(-1);
+
+  const arm = (side) =>
+    part(group, [side * 0.18, 0.82, 0], (b) => {
+      b.limb([0, 0, 0], [side * 0.03, -0.22, 0], 0.058, look.aoDai, { capsule: false, radiusEnd: 0.074 });
+      b.add(shapes.sphere(0.06, 12, 10), look.aoDai, { p: [0, 0, 0] });
+      b.add(shapes.torus(0.07, 0.013, 16), look.trim, { p: [side * 0.028, -0.215, 0], r: [Math.PI / 2, 0, 0] });
+      b.add(shapes.sphere(0.06, 12, 10), look.skin, { p: [side * 0.035, -0.285, 0], s: [1, 1.05, 0.95] });
+    });
+  const leftArm = arm(1);
+  const rightArm = arm(-1);
+
+  return { group, body, head, leftLeg, rightLeg, leftArm, rightArm, face };
+}
+
+export function createSeatedPlayer() {
+  const look = PLAYER_LOOK;
+  return createStudent({ shirt: look.aoDai, trim: look.trim, pants: look.pants, skin: look.skin, style: 'hero', hairColor: look.hair, iris: look.iris, hero: true });
 }

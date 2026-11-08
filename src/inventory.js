@@ -192,10 +192,10 @@ export class Purse {
     this.changed({ energy: amount });
   }
 
-  liveEnergy(minutes, activity, offlineNight) {
+  liveEnergy(minutes, activity, offlineNight, offlineDay = 'idle') {
     const last = this.data.energyAt;
     if (last === null || minutes - last > OFFLINE_GAP) {
-      this.catchUpEnergy(minutes, offlineNight);
+      this.catchUpEnergy(minutes, offlineNight, offlineDay);
       return;
     }
     this.tickEnergy(minutes, energyRate(activity, isNight(minutes)));
@@ -207,13 +207,13 @@ export class Purse {
     if (minutes > last) this.shiftEnergy((-ratePerHour * (minutes - last)) / 60);
   }
 
-  catchUpEnergy(minutes, nightActivity) {
+  catchUpEnergy(minutes, nightActivity, dayActivity = 'idle') {
     let t = this.data.energyAt ?? minutes;
     let energy = this.data.energy;
     while (t < minutes) {
       const night = isNight(t);
       const end = Math.min(minutes, nextShift(t));
-      energy -= (energyRate(night ? nightActivity : 'idle', night) * (end - t)) / 60;
+      energy -= (energyRate(night ? nightActivity : dayActivity, night) * (end - t)) / 60;
       energy = Math.min(ENERGY.max, Math.max(0, energy));
       t = end;
     }

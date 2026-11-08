@@ -3,7 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
 import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
-import { createPlayer, createStudent } from './characters.js';
+import { createPlayer, createSeatedPlayer } from './characters.js';
+import { loadCharacterModels, hasModel, createModel } from './characterModels.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
 import { LESSONS } from './lessons.js';
@@ -54,6 +55,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { loadingStep, loadingDone } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
+import { JOIN_RADIUS } from './queue.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
@@ -99,6 +101,7 @@ for (const child of scene.children) {
 }
 
 await loadingStep(0.52, 'Dựng nhà, khơi sông');
+await loadCharacterModels();
 const school = populate(scene);
 const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
@@ -121,7 +124,8 @@ school.obstacles.push(
 );
 
 await loadingStep(0.62, 'Gieo mạ, mở chợ');
-const avatar = createPlayer();
+const modelReady = hasModel('player');
+const avatar = modelReady ? createModel('player') : createPlayer();
 scene.add(avatar.group);
 const footprints = new Footprints(scene);
 const player = new PlayerController({
@@ -233,10 +237,10 @@ regions.onChange = (region) => {
 };
 
 const playerBubble = createBubble();
-playerBubble.sprite.position.set(0, 1.95, 0);
+playerBubble.sprite.position.set(0, modelReady ? 2.12 : 1.95, 0);
 avatar.group.add(playerBubble.sprite);
 const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
-const BUBBLE_STAND = new THREE.Vector3(0, 1.95, 0);
+const BUBBLE_STAND = new THREE.Vector3(0, modelReady ? 2.12 : 1.95, 0);
 const BUBBLE_LYING = new THREE.Vector3(0, 1.15, -1.1);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 function placeBubble() {
@@ -312,13 +316,16 @@ function perform(task, cost) {
 }
 const savedY = savedPlace ? player.nav.heightAt(savedPlace.x, savedPlace.z) : null;
 const savedClear = savedY !== null && !player.collides({ x: savedPlace.x, y: savedY, z: savedPlace.z });
-if (savedClear) player.place(new THREE.Vector3(savedPlace.x, savedY, savedPlace.z), savedPlace.yaw);
-else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
+if (savedClear) {
+  player.place(new THREE.Vector3(savedPlace.x, savedY, savedPlace.z), savedPlace.yaw);
+  if (Number.isFinite(savedPlace.facing)) player.facing = savedPlace.facing;
+  if (savedPlace.resting) player.restoreRest();
+} else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
 
 function savePlace() {
   const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
   try {
-    localStorage.setItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw }));
+    localStorage.setItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
   } catch {}
 }
 let placeSavedAt = 0;
@@ -351,9 +358,9 @@ const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
 const playerSeats = new Seats([...school.seats, ...studyHall.seats]);
-const seatedAvatar = createStudent({ shirt: 0x3b6fb0, pants: 0xf4efe2, skin: 0xf6caa4, style: 'player', iris: 0x7a4422 });
+const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();
-playerStudyIcon.position.set(0, 1.3, 0);
+playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
 seatedAvatar.group.add(playerStudyIcon);
 scene.add(seatedAvatar.group);
 player.attachSeating({
@@ -482,6 +489,11 @@ function stepInLine() {
   player.requestMove(new THREE.Vector3(spot.x, 0, spot.z), false);
 }
 
+function approachLine() {
+  const tail = playerLine.queue.tail();
+  player.requestMove(new THREE.Vector3(tail.x, 0, tail.z), false);
+}
+
 function leaveLine() {
   if (!playerLine) return;
   playerLine.queue.leave(player);
@@ -491,13 +503,20 @@ function leaveLine() {
 function joinLine(kind, open, dialog) {
   const queue = town.queues[kind];
   if (playerLine?.queue === queue) {
-    stepInLine();
+    if (playerLine.joined) stepInLine();
+    else approachLine();
     return;
   }
   leaveLine();
-  queue.join(player);
-  playerLine = { queue, open, dialog, index: -1, served: false, retries: 0 };
-  stepInLine();
+  playerLine = { queue, open, dialog, index: -1, joined: false, served: false, retries: 0, retryAt: 0 };
+  approachLine();
+}
+
+function retryLine(line, move) {
+  const t = clock.elapsedTime;
+  if (t < line.retryAt) return;
+  line.retryAt = t + (line.retries++ < 3 ? 0 : 1);
+  move();
 }
 
 function updateLine() {
@@ -507,18 +526,32 @@ function updateLine() {
     if (!line.dialog.isOpen) leaveLine();
     return;
   }
+  if (!line.joined) {
+    if (line.queue.reached(player.position)) {
+      line.joined = true;
+      line.retries = 0;
+      line.queue.join(player);
+      stepInLine();
+      return;
+    }
+    if (player.path || player.posture !== 'free' || player.lying) return;
+    retryLine(line, approachLine);
+    return;
+  }
   const index = line.queue.indexOf(player);
   if (index !== line.index) {
+    line.retries = 0;
     stepInLine();
     return;
   }
   if (player.path || player.posture !== 'free' || player.lying) return;
   const spot = line.queue.slot(index);
-  if (Math.hypot(spot.x - player.position.x, spot.z - player.position.z) > 1.5) {
-    if (line.retries++ < 3) stepInLine();
-    else leaveLine();
+  const reach = index === 0 ? JOIN_RADIUS : 1.5;
+  if (Math.hypot(spot.x - player.position.x, spot.z - player.position.z) > reach) {
+    retryLine(line, stepInLine);
     return;
   }
+  line.retries = 0;
   const look = index === 0 ? line.queue.look : line.queue.slot(index - 1);
   player.faceToward(look.x, look.z);
   if (index > 0) return;
@@ -763,7 +796,7 @@ let restShown = '';
 function refreshRest() {
   const lying = player.resting;
   const seated = player.posture !== 'free';
-  const usable = lying || (mode === 'play' && !seated && !purse.sleeping);
+  const usable = lying || (mode === 'play' && !seated && !purse.sleeping && !town.restBlocked(player.position));
   const key = `${lying}|${usable}|${seated}`;
   if (key === restShown) return;
   restShown = key;
@@ -774,7 +807,7 @@ function refreshRest() {
 }
 restBtn.addEventListener('click', () => {
   if (player.resting) player.getUp();
-  else {
+  else if (!town.restBlocked(player.position)) {
     leaveLine();
     stopWork();
     player.lieDown();
@@ -1013,7 +1046,8 @@ function drainEnergy() {
   const resting = lodging ? 'inn' : 'sleep';
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : 'rest';
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? 'seated' : moving;
-  purse.liveEnergy(context.minutes, activity, asleep ? resting : 'idle');
+  const offline = asleep ? 'idle' : player.resting ? lying : 'idle';
+  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;
   if (!asleep) return;
   if (lodging && purse.energy >= ENERGY.max - 0.01) {
@@ -1103,6 +1137,10 @@ renderer.setAnimationLoop((time) => {
   refreshRest();
   farm.tick();
   town.update(t, dt, context, player, camera);
+  if (shopUI.isOpen && !context.shopOpen) {
+    shopUI.close();
+    sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
+  }
   updateLine();
   school.update(t, context.phase.kind === 'period');
   studyHall.update(t);
@@ -1128,7 +1166,9 @@ renderer.setAnimationLoop((time) => {
     seatedAvatar.face.update(t);
     seatedAvatar.head.rotation.x = 0.12 + Math.sin(t * 1.1) * 0.05;
     seatedAvatar.head.rotation.y = Math.sin(t * 0.4) * 0.2;
+    seatedAvatar.pose?.();
   }
+  avatar.pose?.();
   if (mode === 'overview') {
     orbit.update();
     clampMapView();

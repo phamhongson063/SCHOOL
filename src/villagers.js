@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createWalker, createStudent } from './characters.js';
+import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
 import { Gait } from './gait.js';
 import { createBlobShadow } from './groundfx.js';
@@ -27,6 +28,7 @@ const LOOKAHEAD = 0.85;
 const MAX_STEP = 0.55;
 const AVOID_RANGE = 1.15;
 const QUEUE_DRIFT = 0.5;
+const NO_REST_RADIUS = 3;
 const CLASSROOM = { x: 0.5, z: HOUSE.back + 9 };
 const PATHS_PER_FRAME = 2;
 const STUCK_TIME = 1.2;
@@ -76,6 +78,8 @@ const MISSED = ['Chạy mất rồi...', 'Nhanh quá!', 'Hụt mất!'];
 const BROKE = ['Hết tiền đóng học rồi...', 'Đi làm ruộng kiếm tiền đã!', 'Mai em đi học sau.'];
 const PAID = ['Em nộp học phí ạ!', 'Thưa thầy, tiền học ạ.', 'Dạ nộp tiền ạ!'];
 
+const STUDENT_MODELS = { na: 'farmgirl', bong: 'farmgirl-blue', mit: 'aodai', su: 'aodai-blue' };
+
 const STUDENTS = [
   ['ti', 'Tí'],
   ['teo', 'Tèo'],
@@ -92,19 +96,20 @@ const STUDENTS = [
 ];
 
 const FARMERS = [
-  { id: 'tu', name: 'Bác Tư', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', hairColor: 0x8a8580, old: true, iris: 0x4a2a18, hat: 0xe8d9a8, scarf: 0x2f3a4a } },
-  { id: 'ba', name: 'Chú Ba', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c, scarf: 0x8a3a2a } },
-  { id: 'hai', name: 'Cô Hai', look: { shirt: 0x9a4a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xeadcae } },
-  { id: 'nam', name: 'Anh Năm', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', hairColor: 0x3a2618, iris: 0x4a2a18, hat: 0xe5d6a2, scarf: 0x4a6a9a } },
+  { id: 'tu', name: 'Bác Tư', model: 'worker-brown', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', hairColor: 0x8a8580, old: true, iris: 0x4a2a18, hat: 0xe8d9a8, scarf: 0x2f3a4a } },
+  { id: 'ba', name: 'Chú Ba', model: 'man', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c, scarf: 0x8a3a2a } },
+  { id: 'hai', name: 'Cô Hai', model: 'girl', look: { shirt: 0x9a4a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'nam', name: 'Anh Năm', model: 'man-brown', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', hairColor: 0x3a2618, iris: 0x4a2a18, hat: 0xe5d6a2, scarf: 0x4a6a9a } },
   { id: 'sau', name: 'Ông Sáu', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xdccb94 } },
-  { id: 'bay', name: 'Chị Bảy', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
-  { id: 'tam', name: 'Út Tám', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
+  { id: 'bay', name: 'Chị Bảy', model: 'girl-jade', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'tam', name: 'Út Tám', model: 'worker', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
 ];
 
 const TEACHER = {
   id: 'teacher',
   name: 'Thầy đồ',
   kind: 'teacher',
+  model: 'scholar-ink',
   look: { shirt: 0x26252e, pants: 0x26252e, skin: 0xeab08a, style: 'khan', khan: 0x1f1e26, hairColor: 0xdedad2, old: true, beardColor: 0xf6f3ec, iris: 0x3a2a20 },
   exit: 0,
 };
@@ -134,7 +139,7 @@ export function villagerProfiles() {
   const students = STUDENTS.map(([id, name]) => {
     const look = { shirt: choose(SHIRTS), pants: choose(PANTS), skin: choose(SKINS), style: choose(STYLES), khan: choose(KHANS), iris: choose(IRISES) };
     look.hairColor = HAIRS[Math.floor(tint() * HAIRS.length)];
-    return { id, name, kind: 'student', look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
+    return { id, name, kind: 'student', model: STUDENT_MODELS[id], look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
   });
   const farmers = FARMERS.map((farmer) => ({ ...farmer, kind: 'farmer', diligence: 0.3 + rand() * 0.3, exit: rand() < 0.5 ? 0 : 1 }));
   return [...students, ...farmers];
@@ -186,7 +191,8 @@ class Villager {
     this.town = town;
     this.diligence = profile.diligence ?? 0;
     this.innGoer = Math.random() < 0.35;
-    this.walker = createWalker(profile.look);
+    const model = profile.model && hasModel(profile.model) ? profile.model : null;
+    this.walker = model ? createModel(model) : createWalker(profile.look);
     this.walker.group.rotation.order = 'YXZ';
     this.walker.group.visible = false;
     town.root.add(this.walker.group);
@@ -203,14 +209,14 @@ class Villager {
     this.seated = null;
     this.studyIcon = null;
     if (this.kind !== 'teacher') {
-      this.seated = createStudent(profile.look);
+      this.seated = model ? createModel(model, { seated: true }) : createStudent(profile.look);
       this.seated.group.visible = false;
       town.root.add(this.seated.group);
       this.studyIcon = createStudyIcon();
-      this.studyIcon.position.set(0, 1.3, 0);
+      this.studyIcon.position.set(0, model ? 1.62 : 1.3, 0);
       this.seated.group.add(this.studyIcon);
       this.seatBubble = createBubble();
-      this.seatBubble.sprite.position.set(0, 1.55, 0);
+      this.seatBubble.sprite.position.set(0, model ? 1.85 : 1.55, 0);
       this.seated.group.add(this.seatBubble.sprite);
     }
     this.fx = null;
@@ -373,13 +379,18 @@ class Villager {
     return this.goFarm();
   }
 
-  goRest() {
+  goRest(tries = 0) {
     this.task = 'rest';
     this.lookAt = null;
+    const settle = () => {
+      if (!this.town.restBlocked(this.position)) this.lieDown();
+      else if (tries < 3) this.goRest(tries + 1);
+      else this.wait(between(2, 4), () => this.think());
+    };
     this.travel(this.town.fieldEdgePoint(), {
       speed: this.walkSpeed * 0.8,
-      then: () => this.lieDown(),
-      fail: () => this.lieDown(),
+      then: settle,
+      fail: settle,
     });
   }
 
@@ -460,7 +471,7 @@ class Villager {
   goEat() {
     this.cancel();
     this.task = 'eat';
-    this.enqueue(this.town.queues.eatery, () => this.eat());
+    this.lineUp(this.town.queues.eatery, () => this.eat());
   }
 
   eat() {
@@ -1156,6 +1167,36 @@ class Villager {
     this.followQueue();
   }
 
+  lineUp(queue, serve) {
+    this.queue = queue;
+    this.serve = serve;
+    this.approachQueue();
+  }
+
+  approachQueue() {
+    const queue = this.queue;
+    if (!queue) return;
+    if (queue.reached(this.position)) {
+      queue.join(this);
+      this.followQueue();
+      return;
+    }
+    this.travel(queue.tail(), {
+      then: () => this.approachQueue(),
+      fail: () => this.retryQueue(() => this.approachQueue()),
+    });
+  }
+
+  retryQueue(next) {
+    this.queueTries = (this.queueTries ?? 0) + 1;
+    if (this.queueTries > 3) {
+      this.queueTries = 0;
+      this.finishService();
+      return;
+    }
+    this.wait(between(0.6, 1.4), next);
+  }
+
   leaveQueue() {
     if (!this.queue) return;
     this.queue.leave(this);
@@ -1178,15 +1219,7 @@ class Villager {
         this.queueTries = 0;
         this.queued();
       },
-      fail: () => {
-        this.queueTries = (this.queueTries ?? 0) + 1;
-        if (this.queueTries > 3) {
-          this.queueTries = 0;
-          this.finishService();
-          return;
-        }
-        this.wait(between(0.6, 1.4), () => this.followQueue());
-      },
+      fail: () => this.retryQueue(() => this.followQueue()),
     });
   }
 
@@ -1224,7 +1257,7 @@ class Villager {
   goShop() {
     this.cancel();
     this.task = 'shop';
-    this.enqueue(this.town.queues.shop, () => this.trade());
+    this.lineUp(this.town.queues.shop, () => this.trade());
   }
 
   trade() {
@@ -1241,7 +1274,7 @@ class Villager {
   goChief() {
     this.cancel();
     this.task = 'chief';
-    this.enqueue(this.town.queues.chief, () => this.visitChief());
+    this.lineUp(this.town.queues.chief, () => this.visitChief());
   }
 
   visitChief() {
@@ -1438,12 +1471,14 @@ class Villager {
       s.rightArm.rotation.x = -(0.03 + (Math.sin(t * 6 + this.seatPhase) * 0.5 + 0.5) * 0.06);
       s.rightArm.rotation.y = Math.sin(t * 3 + this.seatPhase) * 0.06;
       s.face.update(t, 'open');
+      s.pose?.();
       return;
     }
     s.rightArm.rotation.x = 0;
     s.head.rotation.x = -0.05 + Math.sin(t * 2.4 + this.seatPhase) * 0.08;
     s.head.rotation.y = Math.sin(t * 0.5 + this.seatPhase) * (learning ? 0.12 : 0.4);
     s.face.update(t, !learning && Math.sin(t * 9 + this.seatPhase) > 0.1 ? 'talk' : 'open');
+    s.pose?.();
   }
 
   update(t, dt) {
@@ -1527,6 +1562,7 @@ class Villager {
     }
     if (this.state !== 'seated' && this.state !== 'away') this.animate(t, dt);
     if (this.fx) for (const effect of Object.values(this.fx)) effect.update(dt, this.walker.group.visible);
+    if (this.near && this.state !== 'seated' && this.state !== 'away') this.walker.pose?.();
   }
 
   animate(t, dt) {
@@ -1693,6 +1729,10 @@ export class Town {
   fieldEdgePoint() {
     const [x0, z0, x1, z1] = pick(FIELD_EDGES);
     return new THREE.Vector3(between(x0, x1), 0, between(z0, z1));
+  }
+
+  restBlocked(point) {
+    return Object.values(this.queues).some((queue) => queue.distanceTo(point) <= NO_REST_RADIUS);
   }
 
   companion(member, radius) {

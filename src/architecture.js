@@ -979,24 +979,24 @@ export function createMarket({ seed = 1 } = {}) {
   for (const dz of [0.48, 0.98]) b.limb([-1.5, 3.0, dz], [-1.5, 2.96, dz], 0.012, PAL.ink, { capsule: false, seg: 4 });
   textSign(kit, -1.5, 2.55, 0.73, 0.7, 0.8, { text: ['NÔNG', 'SẢN'], across: true, bg: 0xe8c45a, fg: PAL.lacquer, brush: false });
 
-  b.add(shapes.box(2.4, 0.9, 0.55), PAL.woodMid, { p: [0, 0.45, -1.3] });
+  b.add(shapes.box(2.4, 0.6, 0.55), PAL.woodMid, { p: [0, 0.3, -1.3] });
   b.add(shapes.box(2.5, 0.08, 0.62), PAL.woodDark, { p: [0, 0.04, -1.3] });
-  b.add(shapes.box(2.56, 0.07, 0.7), PAL.woodDark, { p: [0, 0.935, -1.3] });
-  for (const x of [-0.8, 0, 0.8]) b.add(shapes.box(0.66, 0.56, 0.03), PAL.wood, { p: [x, 0.48, -1.012] });
-  b.add(shapes.box(0.3, 0.03, 0.18), PAL.woodDark, { p: [0.7, 0.985, -1.35] });
-  b.add(shapes.cylinder(0.018, 0.018, 0.45, 6), PAL.bronze, { p: [0.7, 1.22, -1.35] });
-  b.add(shapes.box(0.56, 0.025, 0.025), PAL.bronze, { p: [0.7, 1.44, -1.35] });
+  b.add(shapes.box(2.56, 0.07, 0.7), PAL.woodDark, { p: [0, 0.635, -1.3] });
+  for (const x of [-0.8, 0, 0.8]) b.add(shapes.box(0.66, 0.36, 0.03), PAL.wood, { p: [x, 0.33, -1.012] });
+  b.add(shapes.box(0.3, 0.03, 0.18), PAL.woodDark, { p: [0.7, 0.685, -1.35] });
+  b.add(shapes.cylinder(0.018, 0.018, 0.45, 6), PAL.bronze, { p: [0.7, 0.92, -1.35] });
+  b.add(shapes.box(0.56, 0.025, 0.025), PAL.bronze, { p: [0.7, 1.14, -1.35] });
   for (const dx of [-0.26, 0.26]) {
-    b.limb([0.7 + dx, 1.44, -1.35], [0.7 + dx, 1.2, -1.35], 0.006, PAL.ink, { capsule: false, seg: 4 });
-    b.add(shapes.cylinder(0.11, 0.08, 0.03, 8), PAL.bronze, { p: [0.7 + dx, 1.19, -1.35] });
+    b.limb([0.7 + dx, 1.14, -1.35], [0.7 + dx, 0.9, -1.35], 0.006, PAL.ink, { capsule: false, seg: 4 });
+    b.add(shapes.cylinder(0.11, 0.08, 0.03, 8), PAL.bronze, { p: [0.7 + dx, 0.89, -1.35] });
   }
-  b.add(shapes.box(0.44, 0.03, 0.24), PAL.woodDark, { p: [-0.65, 0.985, -1.3] });
+  b.add(shapes.box(0.44, 0.03, 0.24), PAL.woodDark, { p: [-0.65, 0.685, -1.3] });
   for (let row = 0; row < 5; row++) {
     for (let k = 0; k < 5; k++) {
-      b.add(shapes.box(0.05, 0.035, 0.03), k % 2 ? 0x8a2a1c : 0x3a2418, { p: [-0.83 + k * 0.09, 1.017, -1.39 + row * 0.045] });
+      b.add(shapes.box(0.05, 0.035, 0.03), k % 2 ? 0x8a2a1c : 0x3a2418, { p: [-0.83 + k * 0.09, 0.717, -1.39 + row * 0.045] });
     }
   }
-  produceBasket(kit, 0.05, 0.97, -1.3, 0.16, PRODUCE.eggs);
+  produceBasket(kit, 0.05, 0.67, -1.3, 0.16, PRODUCE.eggs);
   block(kit, -1.28, -1.65, 1.28, -0.95, 1.2);
 
   const tables = [PRODUCE.greens, PRODUCE.warm, PRODUCE.fruit, PRODUCE.roots];

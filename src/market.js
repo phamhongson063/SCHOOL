@@ -123,7 +123,7 @@ export function createMarket() {
   };
 }
 
-function row({ icon, art, title, detail, actions }) {
+function row({ key, icon, art, title, detail, actions }) {
   const node = document.createElement('div');
   node.className = 'shop-row';
   const badge = document.createElement('span');
@@ -139,9 +139,10 @@ function row({ icon, art, title, detail, actions }) {
   text.append(name, info);
   const buttons = document.createElement('div');
   buttons.className = 'shop-actions';
-  for (const action of actions) {
+  for (const [index, action] of actions.entries()) {
     const button = document.createElement('button');
     button.type = 'button';
+    button.dataset.key = `${key}#${index}`;
     button.textContent = action.label;
     button.disabled = !!action.disabled;
     button.addEventListener('click', action.run);
@@ -173,6 +174,7 @@ export function createShopUI({ market, purse }) {
       render();
     };
     return row({
+      key: `sell:${item}`,
       icon: info.icon,
       art: info.art,
       title: info.name,
@@ -204,6 +206,7 @@ export function createShopUI({ market, purse }) {
       : [{ label: 'Mua 1', disabled: purse.money < price, run: purchase(1) }];
     if (many > 1 && !owned) actions.push({ label: `Mua ${many}`, disabled: purse.money < price * many, run: purchase(many) });
     return row({
+      key: `buy:${item}`,
       icon: info.icon,
       art: info.art,
       title: info.name,
@@ -222,11 +225,25 @@ export function createShopUI({ market, purse }) {
     return rows;
   }
 
+  function refocus(key) {
+    if (!key) return;
+    const same = [...list.querySelectorAll('button')].find((button) => button.dataset.key === key);
+    const target = same && !same.disabled ? same : same?.parentElement.querySelector('button:not(:disabled)');
+    target?.focus({ preventScroll: true });
+  }
+
   function render() {
+    const active = list.contains(document.activeElement) ? document.activeElement.dataset.key : null;
     money.textContent = `${MONEY.icon} ${amount(purse.money)}`;
     for (const button of tabs) button.setAttribute('aria-selected', String(button.dataset.tab === tab));
     list.replaceChildren(...(tab === 'sell' ? sellRows() : buyRows()));
+    refocus(active);
   }
+
+  const outside = (event) => {
+    const box = dialog.getBoundingClientRect();
+    return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+  };
 
   for (const button of tabs) {
     button.addEventListener('click', () => {
@@ -237,18 +254,22 @@ export function createShopUI({ market, purse }) {
   }
   dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
+    if (event.target === dialog && outside(event)) dialog.close();
   });
-  purse.onChange(() => {
-    if (dialog.open) render();
+  purse.onChange((detail) => {
+    if (!dialog.open || 'energy' in detail || 'credits' in detail) return;
+    render();
   });
 
   return {
     open() {
-      tab = purse.total('produce') + purse.total('fish') > 0 ? 'sell' : 'buy';
+      tab = [...SELLABLE].some((kind) => purse.total(kind) > 0) ? 'sell' : 'buy';
       say('Bà chủ: "Mua gì bán gì cứ tự nhiên nghen!"');
       render();
       dialog.showModal();
+    },
+    close() {
+      dialog.close();
     },
     get isOpen() {
       return dialog.open;
