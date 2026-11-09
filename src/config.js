@@ -165,6 +165,7 @@ export const VENDOR = {
   hold: 8,
   reach: 2.4,
   pace: 0.7,
+  roamPause: [8, 18],
   foods: {
     cheden: { icon: '🍧', name: 'Chè đậu đen', price: 8, energy: 10 },
     banhgio: { icon: '🥟', name: 'Bánh giò', price: 15, energy: 20 },

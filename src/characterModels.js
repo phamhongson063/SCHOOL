@@ -13,6 +13,10 @@ const MODELS = {
   farmgirl: { url: 'assets/npc/farmgirl.glb', height: 1.6, posed: true },
   worker: { url: 'assets/npc/worker.glb', height: 1.72, posed: true },
   aodai: { url: 'assets/npc/aodai.glb', height: 1.62 },
+  police: { url: 'assets/npc/police.glb', height: 1.72 },
+  monk: { url: 'assets/npc/monk.glb', height: 1.7 },
+  vendor: { url: 'assets/npc/vendor.glb', height: 1.65 },
+  schoolboy: { url: 'assets/npc/schoolboy.glb', height: 1.62 },
 };
 const SKINS = {
   'girl-jade': { model: 'girl', texture: 'assets/npc/girl_jade.jpg' },
@@ -22,6 +26,9 @@ const SKINS = {
   'farmgirl-blue': { model: 'farmgirl', texture: 'assets/npc/farmgirl_blue.jpg' },
   'worker-brown': { model: 'worker', texture: 'assets/npc/worker_brown.jpg' },
   'aodai-blue': { model: 'aodai', texture: 'assets/npc/aodai_blue.jpg' },
+  'monk-brown': { model: 'monk', texture: 'assets/npc/monk_brown.jpg' },
+  'vendor-indigo': { model: 'vendor', texture: 'assets/npc/vendor_indigo.jpg' },
+  'schoolboy-blue': { model: 'schoolboy', texture: 'assets/npc/schoolboy_blue.jpg' },
 };
 const ARM_DROP = 1.32;
 const OUTLINE = 0.007;

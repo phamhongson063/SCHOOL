@@ -353,8 +353,8 @@ const VENDOR_MENU = {
   title: 'Gánh hàng rong',
   icon: '🏮',
   foods: VENDOR.foods,
-  hungry: 'Bà hàng: "Ăn gì con? Nóng hổi đây!"',
-  full: 'Bà hàng: "Con còn no mà, lát đói gọi bà nghen!"',
+  hungry: 'Cô hàng: "Ăn gì không em? Nóng hổi đây!"',
+  full: 'Cô hàng: "Em còn no mà, lát đói gọi cô nghen!"',
 };
 let vendorVisit = false;
 let servingVendor = false;
@@ -366,7 +366,7 @@ function visitVendor() {
     vendorVisit = false;
     servingVendor = true;
     player.faceToward(vendor.position.x, vendor.position.z);
-    vendor.say('Ăn gì con ơi?', 2);
+    vendor.say('Ăn gì không em?', 2);
     foodUI.open(VENDOR_MENU);
     return;
   }

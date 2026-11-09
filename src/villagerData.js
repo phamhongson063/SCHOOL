@@ -66,7 +66,7 @@ export const MISSED = ['Chạy mất rồi...', 'Nhanh quá!', 'Hụt mất!'];
 export const BROKE = ['Hết tiền đóng học rồi...', 'Đi làm ruộng kiếm tiền đã!', 'Mai em đi học sau.'];
 export const PAID = ['Em nộp học phí ạ!', 'Thưa thầy, tiền học ạ.', 'Dạ nộp tiền ạ!'];
 
-const STUDENT_MODELS = { na: 'farmgirl', bong: 'farmgirl-blue', mit: 'aodai', su: 'aodai-blue' };
+const STUDENT_MODELS = { na: 'farmgirl', bong: 'farmgirl-blue', mit: 'aodai', su: 'aodai-blue', hen: 'vendor-indigo', ti: 'schoolboy', teo: 'schoolboy-blue' };
 
 const STUDENTS = [
   ['ti', 'Tí'],
@@ -104,8 +104,9 @@ export const TEACHER = {
 
 export const PEDDLER = {
   id: 'vendor',
-  name: 'Bà hàng rong',
+  name: 'Cô hàng rong',
   kind: 'vendor',
+  model: 'vendor',
   look: { shirt: 0x5a4a6a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'bui', hairColor: 0x4a3a30, old: true, iris: 0x4a2a18, hat: 0xe5d6a2 },
   exit: 0,
 };
@@ -119,10 +120,11 @@ export const GUARDS = [
   { id: 'guard-dung', name: 'Dân binh Dũng', shift: 'day', follower: true, exit: 0, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
   { id: 'guard-luc', name: 'Dân binh Lực', shift: 'night', follower: false, exit: 1, look: { ...GUARD_LOOK, shirt: 0x3a3a3a, skin: 0xe6b08a } },
   { id: 'guard-manh', name: 'Dân binh Mạnh', shift: 'night', follower: true, exit: 1, look: { ...GUARD_LOOK, shirt: 0x34302c, skin: 0xd9a479 } },
-].map((guard) => ({ ...guard, kind: 'guard' }));
+].map((guard) => ({ ...guard, kind: 'guard', model: 'police' }));
 export const GUARD_DAY_CALLS = ['Dân binh đi tuần đây!', 'Bà con yên tâm làm ăn nhé!', 'Trật tự, trật tự nào!'];
 export const GUARD_NIGHT_CALLS = ['Cốc! Cốc! Bình an vô sự!', 'Khuya rồi, đóng cửa cẩn thận nhé!', 'Canh khuya, giữ lửa cẩn thận!'];
 
+export const PEDDLER_DAY_CALLS = ['Rau tươi đây, ai mua rau không!', 'Hàng rong đi một vòng đây!'];
 export const PEDDLER_CALLS = ['Ai chè đậu đen, bánh giò đâyyy!', 'Phở nóng đâyyy!', 'Xôi xéo nóng hổi đâyyy!', 'Ai ăn gì không nàooo!'];
 
 const SHIRTS = [0x8a5a34, 0x6e4a30, 0xa0703f, 0x4a6a9a, 0x5a7a4a, 0xb0804a];

@@ -4,7 +4,8 @@ import { ROUTINE, VENDOR, GUARD } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { isOpenAt } from './clock.js';
 import { TEACHER_STAND, FLOOR, PACE_SPOTS } from './school.js';
-import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PACE, PEDDLER_CALLS, pick } from './villagerData.js';
+import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PACE, PEDDLER_CALLS, PEDDLER_DAY_CALLS, pick } from './villagerData.js';
+import { PAGODA, SHELTERS } from './terrain.js';
 import { Villager } from './villager.js';
 
 export class Teacher extends Villager {
@@ -162,18 +163,48 @@ class ShiftWorker extends Villager {
 export class Peddler extends ShiftWorker {
   constructor(profile, town) {
     super(profile, town);
-    this.walker.group.add(carryingPole());
+    if (!this.walker.model) this.walker.group.add(carryingPole());
     this.walkSpeed *= VENDOR.pace;
   }
 
+  roamsAt(ctx) {
+    return ctx.minute >= ROUTINE.wake && ctx.minute < VENDOR.open;
+  }
+
   onDuty(ctx) {
-    return isOpenAt(VENDOR, ctx.minutes);
+    return isOpenAt(VENDOR, ctx.minutes) || this.roamsAt(ctx);
+  }
+
+  roamSpot() {
+    const town = this.town;
+    const choices = [
+      () => pick(town.streetStops),
+      () => town.fieldEdgePoint(),
+      () => pick(town.river.spots).stand,
+      () => pick(SHELTERS),
+      () => PAGODA.stand,
+    ];
+    return town.walkable(pick(choices)());
+  }
+
+  roam() {
+    this.task = 'roam';
+    const spot = this.roamSpot();
+    const rest = () => this.wait(between(...VENDOR.roamPause), () => this.think());
+    this.travel(new THREE.Vector3(spot.x, 0, spot.z), {
+      then: () => {
+        if (Math.random() < 0.5) this.say(pick(PEDDLER_DAY_CALLS), 2.6);
+        rest();
+      },
+      fail: rest,
+    });
   }
 
   think() {
     const ctx = this.town.context;
     this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
+    if (this.roamsAt(ctx)) return this.roam();
     this.task = 'peddle';
     const stop = this.nextStop();
     const rest = () => this.wait(between(...VENDOR.pause), () => this.think());
@@ -199,7 +230,7 @@ export class Peddler extends ShiftWorker {
 
   greet() {
     this.hold();
-    this.say('Ăn gì con ơi?', 2);
+    this.say('Ăn gì không em?', 2);
   }
 }
 
