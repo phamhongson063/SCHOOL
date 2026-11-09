@@ -132,7 +132,7 @@ const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const between = (a, b) => a + Math.random() * (b - a);
-const PACE = { chance: 0.4, every: [25, 50], stops: [1, 3], pause: [3, 7] };
+const PACE = { chance: 0.4, every: [25, 50], stops: [1, 3], pause: [4, 8], speed: 0.5, watch: 3 };
 const LANE = 0.7;
 const GROUP = { size: [2, 4], start: [0.3, 7], spread: 0.8, lanes: [-0.7, -0.2, 0.3, 0.8], speed: [0.95, 1.05], together: 40 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1834,10 +1834,27 @@ class Teacher extends Villager {
 
   think() {
     const ctx = this.town.context;
+    const pacing = this.task === 'pace';
     this.task = null;
+    this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
     this.task = 'teach';
-    this.travel(TEACHER_STAND, { then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
+    const speed = pacing ? this.walkSpeed * PACE.speed : this.walkSpeed;
+    this.travel(TEACHER_STAND, { speed, then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
+  }
+
+  watchedStudent() {
+    let best = null;
+    let bestD = PACE.watch;
+    for (const seat of this.town.seats.list) {
+      if (!seat.occupant) continue;
+      const d = Math.hypot(seat.x - this.position.x, seat.z - this.position.z);
+      if (d < bestD) {
+        bestD = d;
+        best = seat.sit;
+      }
+    }
+    return best;
   }
 
   beginTeaching() {
@@ -1874,8 +1891,13 @@ class Teacher extends Villager {
     }
     this.paceStops -= 1;
     const spot = pick(PACE_SPOTS);
+    this.lookAt = null;
     this.travel(new THREE.Vector3(spot.x, FLOOR, spot.z), {
-      then: () => this.wait(between(...PACE.pause), () => this.paceNext()),
+      speed: this.walkSpeed * PACE.speed,
+      then: () => {
+        this.lookAt = this.watchedStudent();
+        this.wait(between(...PACE.pause), () => this.paceNext());
+      },
       fail: () => this.think(),
     });
   }

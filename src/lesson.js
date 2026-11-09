@@ -1,6 +1,5 @@
 import { LESSONS } from './lessons.js';
-
-const RUBY = /([\u3400-\u9fff\u3005\u3006\uff21-\uff3a\uff41-\uff5a]+)\{([^}]+)\}/g;
+import { japanese } from './ruby.js';
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -15,33 +14,6 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-}
-
-function appendRuby(target, text) {
-  let last = 0;
-  for (const match of text.matchAll(RUBY)) {
-    if (match.index > last) target.append(document.createTextNode(text.slice(last, match.index)));
-    const ruby = el('ruby');
-    ruby.append(document.createTextNode(match[1]), el('rt', null, match[2]));
-    target.append(ruby);
-    last = match.index + match[0].length;
-  }
-  if (last < text.length) target.append(document.createTextNode(text.slice(last)));
-}
-
-function japanese(text) {
-  const fragment = document.createDocumentFragment();
-  for (const part of text.split(/(\[[^\]]+\])/)) {
-    if (!part) continue;
-    if (part.startsWith('[')) {
-      const mark = el('mark');
-      appendRuby(mark, part.slice(1, -1));
-      fragment.append(mark);
-    } else {
-      appendRuby(fragment, part);
-    }
-  }
-  return fragment;
 }
 
 const MODE_KEY = 'truong-lang-xua.lessonMode';

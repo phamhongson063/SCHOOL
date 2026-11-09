@@ -53,6 +53,16 @@ export function clockText(minutes) {
   return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 }
 
+export function countdownText(minutes) {
+  const total = Math.max(1, Math.ceil(minutes));
+  const days = Math.floor(total / DAY_MINUTES);
+  const hours = Math.floor((total % DAY_MINUTES) / 60);
+  const mins = total % 60;
+  if (days > 0) return hours ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  return `${mins}m`;
+}
+
 export function durationText(minutes) {
   const total = Math.max(1, Math.ceil(minutes));
   const days = Math.floor(total / DAY_MINUTES);

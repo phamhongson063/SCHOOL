@@ -28,7 +28,7 @@ import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { LOW_POWER } from './quality.js';
 import { outlineMaterial, freeze } from './toon.js';
-import { gameNow, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
+import { gameNow, dayOf, minuteOfDay, clockText, countdownText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
 import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING } from './config.js';
 import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
@@ -53,6 +53,7 @@ import { createVitals } from './vitals.js';
 import { buildStudyHall, createStudyHall } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
+import { createSummon } from './summon.js';
 import { activityOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
@@ -487,7 +488,7 @@ context = contextAt(gameNow());
 
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz();
-const quiz = createQuiz({ quiz: kanjiQuiz, onPass: () => sayPlayer('🎉 Đúng rồi! Chơi tiếp nào!') });
+const quiz = createQuiz({ quiz: kanjiQuiz });
 const fishing = createPlayerFishing({
   river,
   purse,
@@ -522,7 +523,17 @@ let lastDay = context.day;
 if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3), 1500);
 
 const lesson = createLesson();
-const study = createStudy();
+const STUDY_REWARD_KEY = 'truong-lang-xua.studyRewardDay';
+const study = createStudy({ onComplete: rewardStudy });
+function rewardStudy() {
+  const day = String(context.day);
+  try {
+    if (localStorage.getItem(STUDY_REWARD_KEY) === day) return;
+    localStorage.setItem(STUDY_REWARD_KEY, day);
+  } catch {}
+  purse.addCredits(1);
+  sayPlayer('🎓 +1 tiết học', 2.4);
+}
 const inClass = () => player.posture === 'seated' && !player.seat?.study;
 const learningNow = () => context.phase.kind === 'period' && tuition.studying;
 const tuition = createTuition({
@@ -542,6 +553,45 @@ player.onStand = () => {
   lesson.close();
   study.close();
 };
+
+const summon = createSummon({
+  scene,
+  models: () => [avatar.group],
+  ready: () =>
+    mode === 'play' &&
+    player.posture === 'free' &&
+    !player.lying &&
+    !purse.sleeping &&
+    !popupOpen() &&
+    !kanjiQuiz.open &&
+    !quiz.open &&
+    !fishing.active &&
+    !fieldTask &&
+    !effectTask,
+  inClass,
+  prepare() {
+    stopWork();
+    leaveLine();
+    player.setEnabled(false);
+    player.shadow?.setVisible(false);
+    return player.position.clone();
+  },
+  teleport() {
+    const free = school.seats.filter((seat) => seats.isFreeFor(seat, 'player'));
+    const seat = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+    const spot = (seat ?? school.seats[0]).spot.clone();
+    player.place(spot, 0);
+    player.clearPath();
+    player.shadow?.setVisible(true);
+    player.setEnabled(mode === 'play');
+    return { spot, seat };
+  },
+  settle({ seat }) {
+    if (!seat || player.posture !== 'free' || player.path || !playerSeats.canTake(seat, 'player')) return;
+    if (Math.hypot(seat.spot.x - player.position.x, seat.spot.z - player.position.z) > 0.7) return;
+    player.beginSit(seat);
+  },
+});
 
 const teacherDesk = {
   act() {
@@ -747,6 +797,9 @@ player.onClick = (clientX, clientY, run) => {
 
 const hoverPointer = new THREE.Vector2();
 const hoverTip = document.getElementById('hoverTip');
+const hoverTipText = document.getElementById('hoverTipText');
+const hoverTipBar = document.getElementById('hoverTipBar');
+const hoverTipFill = hoverTipBar.firstElementChild;
 let hovering = false;
 renderer.domElement.addEventListener('pointermove', (event) => {
   hovering = event.pointerType === 'mouse';
@@ -760,15 +813,21 @@ let hoverDirty = true;
 let hoverPick = { region: null, target: null };
 let tipSize = null;
 window.addEventListener('resize', () => (tipSize = null));
-function showHoverTip(text, anchor) {
+function showHoverTip(text, anchor, progress = null) {
   let visible = !!text && !!anchor;
   if (visible) visible = tipAnchor.copy(anchor).project(camera).z < 1;
   hoverTip.hidden = !visible;
   if (!visible) return;
-  if (hoverTip.textContent !== text) {
-    hoverTip.textContent = text;
+  if (hoverTipText.textContent !== text) {
+    hoverTipText.textContent = text;
     tipSize = null;
   }
+  const timed = progress != null;
+  if (hoverTipBar.hidden === timed) {
+    hoverTipBar.hidden = !timed;
+    tipSize = null;
+  }
+  if (timed) hoverTipFill.style.transform = `scaleX(${progress})`;
   tipSize ??= hoverTip.getBoundingClientRect();
   const { width, height } = tipSize;
   const x = ((tipAnchor.x + 1) / 2) * window.innerWidth - width / 2;
@@ -783,6 +842,7 @@ const HOVER_INTERVAL = 0.1;
 let hoverAt = 0;
 let hoverText = null;
 let hoverAnchor = null;
+let hoverProgress = null;
 
 function updateHover(t) {
   if (player.drag) {
@@ -790,7 +850,7 @@ function updateHover(t) {
     return;
   }
   if (t < hoverAt) {
-    showHoverTip(hoverText, hoverAnchor);
+    showHoverTip(hoverText, hoverAnchor, hoverProgress);
     return;
   }
   hoverAt = t + HOVER_INTERVAL;
@@ -823,9 +883,10 @@ function updateHover(t) {
   renderer.domElement.style.cursor = hint ? CURSORS[hint] : '';
   const label = target ? region.labelOf?.(target) : null;
   const left = target && !label ? region.timeLeft?.(target) : null;
-  hoverText = label ?? (left == null ? null : durationText(left));
+  hoverText = label ?? (left == null ? null : countdownText(left));
+  hoverProgress = left == null ? null : region.growth?.(target) ?? null;
   hoverAnchor = hoverText == null ? null : region.topOf(target);
-  showHoverTip(hoverText, hoverAnchor);
+  showHoverTip(hoverText, hoverAnchor, hoverProgress);
 }
 
 const MAP_VIEW = { height: 95, tilt: 0.45, near: 2, min: 25, max: 170, fogNear: 400, fogFar: 900, tapGap: 350, tapSlop: 12 };
@@ -1343,7 +1404,8 @@ renderer.setAnimationLoop((time) => {
   mountain.update(dt, { camera, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
   regions.update(t, dt, mode === 'overview' ? orbit.target : player.position);
-  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active);
+  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
+  summon.update(dt, context);
   updateHover(t);
   updateOutlines(t);
   playerBubble.update(t);

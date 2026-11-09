@@ -219,24 +219,34 @@
       </header>
       <div id="studyStart" class="study-start">
         <button class="study-pick" type="button" data-mode="random"><span aria-hidden="true">🔀</span>Ngẫu nhiên</button>
-        <button class="study-pick" type="button" data-mode="order"><span aria-hidden="true">🔢</span>Theo thứ tự</button>
+        <button class="study-pick" type="button" data-mode="smart"><span aria-hidden="true">🧠</span>Thông minh</button>
       </div>
       <div id="studyBody" class="study-body" hidden>
         <p id="studyReading" class="study-reading" lang="ja"></p>
         <p id="studyWord" class="study-word" lang="ja"></p>
         <p id="studyHanViet" class="study-hanviet"></p>
         <p id="studyMeaning" class="study-meaning"></p>
+        <div class="study-example">
+          <button id="studyFurigana" class="lesson-hint lesson-furigana study-furigana" type="button" aria-pressed="true">F</button>
+          <p id="studyExample" class="study-example-ja" lang="ja"></p>
+          <p id="studyExampleVi" class="study-example-vi"></p>
+        </div>
         <div class="study-progress"><span id="studyBar"></span></div>
         <div class="study-nav">
           <button id="studyPrev" class="study-step" type="button" aria-label="Từ trước">‹</button>
+          <button id="studyForgot" class="study-step forgot" type="button" aria-label="Quên" hidden>✗</button>
           <span id="studyCount" class="study-count"></span>
+          <button id="studyRemembered" class="study-step remembered" type="button" aria-label="Nhớ" hidden>✓</button>
           <button id="studyNext" class="study-step" type="button" aria-label="Từ sau">›</button>
         </div>
       </div>
     </div>
   </section>
   <button id="studyOpen" type="button" hidden>📜 Từ vựng N2</button>
-  <div id="hoverTip" class="hover-tip" role="status" hidden></div>
+  <div id="hoverTip" class="hover-tip" role="status" hidden>
+    <span id="hoverTipText"></span>
+    <span id="hoverTipBar" class="hover-bar" hidden><span></span></span>
+  </div>
   <div id="sleepVeil" class="sleep-veil" role="dialog" aria-label="Đang ngủ">
     <p class="sleep-title">💤 Đang ngủ...</p>
     <p id="sleepEnergy" class="sleep-energy"></p>
@@ -355,6 +365,20 @@
       </div>
     </form>
   </dialog>
+  <dialog id="summonDialog" class="paper" aria-labelledby="summonTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">📜</span>
+        <h2 id="summonTitle">Triệu hồi</h2>
+      </header>
+      <p class="paper-note">Bạn bị triệu hồi vào lớp học!</p>
+      <div class="sched-actions">
+        <span class="spacer"></span>
+        <button id="summonOk" class="sched-primary" type="button">OK</button>
+      </div>
+    </div>
+  </dialog>
+  <div id="summonVeil" class="summon-veil" aria-hidden="true"></div>
   <dialog id="settingsDialog" class="paper" aria-labelledby="settingsTitle">
     <div class="paper-body">
       <header class="sched-head">

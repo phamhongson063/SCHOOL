@@ -247,6 +247,30 @@ body {
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.hover-bar {
+  display: block;
+  width: 64px;
+  height: 8px;
+  padding: 1px;
+  border: 1.5px solid #2b1c12;
+  border-radius: 5px;
+  background: rgba(43, 28, 18, 0.55);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.hover-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #a6e05a, #5fa83a);
+  transform-origin: left;
 }
 
 .picker {
@@ -1829,6 +1853,21 @@ dialog.paper.kanji {
   pointer-events: auto;
 }
 
+.summon-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: radial-gradient(circle at 50% 50%, #fffdf2, #ffeeb8 60%, #f6d77a);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+.summon-veil.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .sleep-veil p {
   margin: 0;
 }
@@ -2002,6 +2041,92 @@ dialog.paper.kanji {
 
 .study-step:hover {
   background: #f2e3bd;
+}
+
+.study-step.forgot {
+  border-color: #8a1d14;
+  color: #8a1d14;
+}
+
+.study-step.forgot:hover {
+  background: rgba(138, 29, 20, 0.12);
+}
+
+.study-step.remembered {
+  border-color: #1f5534;
+  color: #1f5534;
+}
+
+.study-step.remembered:hover {
+  background: rgba(31, 85, 52, 0.12);
+}
+
+.study-body.covered {
+  cursor: pointer;
+}
+
+.study-body.done .study-progress span {
+  background: #2f7a46;
+}
+
+.study-body.covered .study-reading,
+.study-body.covered .study-hanviet,
+.study-body.covered .study-example {
+  visibility: hidden;
+}
+
+.study-example {
+  position: relative;
+  max-width: 380px;
+  margin: 0 auto 14px;
+  padding: 0 28px;
+}
+
+.study-furigana {
+  position: absolute;
+  top: 6px;
+  right: 0;
+}
+
+.study-example-ja {
+  margin: 0;
+  color: #2b1c12;
+  font: 500 17px/2 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+}
+
+.study-example-ja ruby {
+  ruby-position: over;
+}
+
+.study-example-ja rt {
+  font-size: 0.55em;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #8a6a3a;
+}
+
+.study-example-ja mark {
+  background: none;
+  color: #c2287e;
+  font-weight: 700;
+}
+
+.study-example-ja mark rt {
+  color: #c2287e;
+}
+
+.study-card.no-furigana .study-example-ja rt {
+  visibility: hidden;
+}
+
+.study-example-vi {
+  margin: 2px 0 0;
+  color: #6b4425;
+  font-size: 14px;
+}
+
+.study-body.covered .study-meaning {
+  color: #8a6a3a;
 }
 
 .study-count {

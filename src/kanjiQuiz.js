@@ -1,5 +1,6 @@
 import { FISH, FISHING } from './config.js';
 import { paintIcon } from './itemArt.js';
+import { recall } from './recall.js';
 
 const RECENT = 40;
 const AUTO_CLOSE_MS = 5000;
@@ -80,9 +81,8 @@ export function createKanjiQuiz() {
       else if (button.dataset.reading === chosen) button.classList.add('wrong');
     }
     result.className = correct ? 'kanji-result right' : 'kanji-result wrong';
-    result.textContent = correct
-      ? `✔ Đúng rồi! ${current.entry.word}（${current.entry.reading}）: ${current.entry.meaning}`
-      : `✘ ${chosen ? 'Sai rồi' : 'Hết giờ'}! ${current.entry.word} đọc là「${current.entry.reading}」: ${current.entry.meaning}`;
+    result.textContent = `${current.entry.word}（${current.entry.reading}）: ${current.entry.meaning}`;
+    recall.record(current.entry.word, correct);
     closeBtn.hidden = false;
     closeBtn.focus({ preventScroll: true });
     if (correct) current.closeAt = setTimeout(finish, AUTO_CLOSE_MS);

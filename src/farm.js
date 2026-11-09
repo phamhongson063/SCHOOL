@@ -207,7 +207,14 @@ class FarmState {
   timeLeft(index, now) {
     const spot = this.spots[index];
     if (!growing(spot)) return null;
-    return Math.max(0, stageMinutes(spot) - (now - spot.stageStart));
+    return Math.max(0, (RIPE - spot.stage) * stageMinutes(spot) - (now - spot.stageStart));
+  }
+
+  growth(index, now) {
+    const spot = this.spots[index];
+    if (!growing(spot)) return null;
+    const span = stageMinutes(spot);
+    return Math.min(1, Math.max(0, ((spot.stage - 1) * span + (now - spot.stageStart)) / (GROWTH_STEPS * span)));
   }
 
   actionFor(index, actor = PLAYER) {
@@ -667,6 +674,9 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     timeLeft(target) {
       return state.timeLeft(target.index, gameNow());
+    },
+    growth(target) {
+      return state.growth(target.index, gameNow());
     },
     topOf(target) {
       const spot = spots[target.index];

@@ -1,6 +1,6 @@
 const PLAY_SECONDS = 5 * 60;
 
-export function createQuiz({ quiz, onPass } = {}) {
+export function createQuiz({ quiz } = {}) {
   let left = PLAY_SECONDS;
   let asking = false;
 
@@ -12,7 +12,6 @@ export function createQuiz({ quiz, onPass } = {}) {
     }
     asking = false;
     left = PLAY_SECONDS;
-    onPass?.();
   }
 
   return {
