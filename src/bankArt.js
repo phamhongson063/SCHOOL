@@ -114,6 +114,13 @@ export const BANK_ART = {
     <path d="M23 21 C26 25 30 24 33 27 C36 30 33 34 37 36 M40 22 C38 26 42 28 44 30" fill="none" stroke="#8a9098" stroke-width="1.6"/>
     <path d="M12 26 A21 21 0 0 1 26 11" fill="none" stroke="#fff" stroke-width="2.4" opacity="0.85"/>
   `),
+  ledger: svg(`
+    <path d="M9 12 C17 9 26 10 32 14 C38 10 47 9 55 12 V55 C47 52 38 53 32 57 C26 53 17 52 9 55 Z" fill="#c93a24"/>
+    <path d="M13 14 C20 12 27 13 32 17 V53 C27 50 20 49 13 51 Z" fill="#fffaf0"/>
+    <path d="M51 14 C44 12 37 13 32 17 V53 C37 50 44 49 51 51 Z" fill="#fffaf0"/>
+    <path d="M17 24 H28 M17 30 H28 M17 36 H25 M17 42 H27" stroke="#b08850" stroke-width="1.6"/>
+    ${goldCoin(42, 32, 7)}
+  `),
   scroll: svg(`
     <path d="M14 14 H50 V50 H14 Z" fill="#f6e7c0"/>
     <path d="M10 9 H54 C57 9 57 17 54 17 H10 C7 17 7 9 10 9 Z" fill="#e2c68a"/>

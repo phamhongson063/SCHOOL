@@ -2770,8 +2770,19 @@ dialog.paper.kanji:focus {
 dialog.paper.bank {
   width: min(580px, calc(100vw - 24px));
   max-height: calc(100dvh - 16px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
+}
+
+.bank .paper-body {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 28px);
+}
+
+.bank .paper-body > *,
+.bank-panel > *,
+.bank-ribbon {
+  flex-shrink: 0;
 }
 
 .bank .bank-head {
@@ -2890,8 +2901,8 @@ dialog.paper.bank {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
   padding: 0 6px;
 }
 
@@ -2899,7 +2910,8 @@ dialog.paper.bank {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
   height: 54px;
   margin-bottom: -2px;
   border: 2px solid #e2cfa4;
@@ -2907,7 +2919,8 @@ dialog.paper.bank {
   border-radius: 16px 16px 0 0;
   background: linear-gradient(180deg, #fbf3e0, #ecdcb6);
   color: #4a2e18;
-  font: 800 19px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 800 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -2926,7 +2939,14 @@ dialog.paper.bank {
   text-shadow: 0 2px 0 rgba(60, 10, 4, 0.5);
 }
 
+.bank .paper-body > .bank-panel {
+  flex-shrink: 1;
+}
+
 .bank-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 12px;
   border: 2px solid #e2cfa4;
   border-radius: 14px;
@@ -3061,15 +3081,61 @@ dialog.paper.bank {
   font-variant-numeric: tabular-nums;
 }
 
-.bank-holdings {
-  margin-top: 16px;
+.bank-panel > .bank-holdings {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.bank-note:not(:empty) ~ .bank-holdings {
+  margin-top: 10px;
+}
+
+.bank-empty {
+  margin: 18px 0;
+  color: #8a6a3a;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bank-mini {
+  width: 78px;
+  height: 38px;
+  padding: 0 8px;
+  border: 2px solid #e2cfa4;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #2b1c12;
+  font: 700 15px/1 system-ui, -apple-system, sans-serif;
+  text-align: right;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.bank-mini::-webkit-outer-spin-button,
+.bank-mini::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bank-mini::placeholder {
+  color: #a08a68;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.bank-mini:focus {
+  border-color: #c9962f;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.3);
 }
 
 .bank-ribbon {
   position: relative;
   z-index: 1;
   width: fit-content;
-  margin: 0 auto -14px;
+  margin: 4px auto 0;
   padding: 6px 26px;
   border: 2px solid #c9962f;
   border-radius: 999px;
@@ -3097,9 +3163,13 @@ dialog.paper.bank {
 
 .bank-list {
   display: grid;
+  align-content: start;
   gap: 10px;
-  max-height: min(40vh, 340px);
-  padding: 24px 10px 10px;
+  flex-shrink: 1;
+  min-height: 90px;
+  max-height: min(62vh, 540px);
+  overscroll-behavior: contain;
+  padding: 10px;
   overflow-y: auto;
   border: 2px solid #e2cfa4;
   border-radius: 14px;
@@ -3272,19 +3342,20 @@ dialog.paper.bank {
   }
 
   .bank-tabs {
-    gap: 8px;
-    padding: 0 4px;
+    gap: 6px;
+    padding: 0 2px;
   }
 
   .bank-tabs button {
-    gap: 6px;
+    gap: 4px;
     height: 44px;
-    font-size: 15px;
+    border-radius: 12px 12px 0 0;
+    font-size: 14px;
   }
 
   .bank-tab-art {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   .bank-panel {
@@ -3314,14 +3385,9 @@ dialog.paper.bank {
     padding: 0 18px;
   }
 
-  .bank-holdings {
-    margin-top: 14px;
-  }
-
   .bank-list {
     max-height: none;
-    overflow: visible;
-    padding: 22px 8px 8px;
+    padding: 8px;
   }
 
   .bank-card {
