@@ -1,5 +1,6 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS } from './config.js';
+import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf, moodOf } from './stamina.js';
 import { REST_TIME } from './walk.js';
@@ -63,6 +64,7 @@ export class RestBehavior {
     const stay = this.state === 'inn' ? activity : null;
     this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle');
     this.tired = this.purse.energy <= 0;
+    if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
     const mood = moodOf(this.purse.energy);
     this.bubble.setMood(mood);
     this.seatBubble?.setMood(mood);
@@ -230,6 +232,34 @@ export class RestBehavior {
   vendorOut() {
     const vendor = this.town.vendor;
     return !vendor || vendor.state === 'away' || vendor.task === 'home';
+  }
+
+  snack() {
+    const purse = this.purse;
+    const energyOf = ([item]) => SNACKS[ITEMS[item].snack].energy;
+    const [item] = purse.entries('snack').sort((a, b) => energyOf(a) - energyOf(b))[0] ?? [];
+    if (item && purse.take(item, 1)) purse.addEnergy(SNACKS[ITEMS[item].snack].energy);
+  }
+
+  nearestMart() {
+    const stands = this.town.martStands ?? [];
+    return stands.reduce((best, stand) => (!best || Math.hypot(stand.x - this.position.x, stand.z - this.position.z) < Math.hypot(best.x - this.position.x, best.z - this.position.z) ? stand : best), null);
+  }
+
+  wantsMart() {
+    return !!this.nearestMart() && this.purse.total('snack') === 0 && this.purse.money >= MART.reserve && Math.random() < MART.chance;
+  }
+
+  goMart() {
+    this.cancel();
+    this.task = 'shop';
+    const buy = () => {
+      const [id, snack] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
+      if (!this.town.context.martOpen) this.say('Siêu thị đóng cửa mất rồi!', 1.8);
+      else if (this.town.market.buy(this.purse, snackId(id), MART.stock)) this.say(`Mua ${MART.stock} gói ${snack.icon} để dành`, 2.2);
+      this.wait(between(1.5, 3), () => this.think());
+    };
+    this.travel(this.nearestMart(), { then: buy, fail: () => this.think() });
   }
 
   canEat(ctx) {

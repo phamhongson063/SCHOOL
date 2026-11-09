@@ -6,6 +6,7 @@ import { createShophouse, createChiefHouse } from './architecture.js';
 import { paving, plaqueBoard } from './village.js';
 import { HO_VAN, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
+import { MART } from './config.js';
 
 const NORTH_FRONT = 29.4;
 const SOUTH_FRONT = 40.6;
@@ -140,7 +141,13 @@ export function createQuarter() {
 
   for (const spec of HOUSES) {
     const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
-    addPlace(house, spec, 'Nhà dân', spec.side === 'north' ? NORTH_FRONT : SOUTH_FRONT, { x: house.door.x, z: house.door.z + 0.4 });
+    const mart = spec.id === MART.house;
+    if (mart) {
+      const board = plaqueBoard(['SIÊU THỊ'], { bg: 0x1f4a6e, fg: '#fff3c4', border: 0xf2c14e });
+      board.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
+      house.group.add(board.mesh);
+    }
+    addPlace(house, spec, mart ? 'Siêu thị' : 'Nhà dân', spec.side === 'north' ? NORTH_FRONT : SOUTH_FRONT, { x: house.door.x, z: house.door.z + 0.4 });
   }
 
   const dinh = createChiefHouse({ seed: DINH.seed });
@@ -202,7 +209,8 @@ export function createQuarter() {
 
   return {
     obstacles,
-    region() {
+    martStand: places.find((place) => place.id === MART.house).stand,
+    region(options = {}) {
       return {
         id: 'quarter',
         name: 'Xóm Văn Miếu',
@@ -222,7 +230,10 @@ export function createQuarter() {
         topOf(target) {
           return new THREE.Vector3(target.x, 3.8, target.z);
         },
-        act() {
+        act(action, target) {
+          if (target.id !== MART.house) return null;
+          if (!options.isMartOpen()) return `Siêu thị đóng cửa rồi, mở ${options.martHours()} nhé!`;
+          options.openMart();
           return null;
         },
         load() {

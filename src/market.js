@@ -1,6 +1,6 @@
 import { CROPS } from './crops.js';
-import { ITEMS, seedId, fishId, gameId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, growDays } from './config.js';
+import { ITEMS, seedId, fishId, gameId, snackId } from './inventory.js';
+import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
 import { isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { iconTag, paintIcon } from './itemArt.js';
@@ -15,6 +15,7 @@ export function priceOf(item) {
   if (info.kind === 'fertilizer') return SHOP.fertilizer;
   if (info.kind === 'fish') return FISH[info.fish]?.price ?? 0;
   if (info.kind === 'game') return WILDLIFE[info.animal]?.price ?? 0;
+  if (info.kind === 'snack') return SNACKS[info.snack]?.price ?? 0;
   if (item === 'rod') return FISHING.rod;
   if (item === 'bait') return FISHING.baitPack;
   return 0;
@@ -23,6 +24,15 @@ export function priceOf(item) {
 const SELLABLE = new Set(['produce', 'fish', 'game']);
 const SHOP_KINDS = ['produce', 'game'];
 const FISH_KINDS = ['fish'];
+
+function sellerOf(item) {
+  if (item === 'rod' || item === 'bait') return 'fishmonger';
+  if (ITEMS[item]?.kind === 'snack') return 'grocer';
+  return 'keeper';
+}
+
+export const martOpen = (minutes) => isOpenAt(MART, minutes);
+export const martHours = () => hoursText(MART);
 
 function packSize(item) {
   return item === 'bait' ? FISHING.baitPerPack : 1;
@@ -83,7 +93,7 @@ export function createMarket() {
   function buy(purse, item, count) {
     const price = priceOf(item);
     if (!(count > 0) || !price || !purse.spend(price * count)) return false;
-    economy.income(item === 'rod' || item === 'bait' ? 'fishmonger' : 'keeper', price * count);
+    economy.income(sellerOf(item), price * count);
     purse.add(item, count * packSize(item));
     return true;
   }
@@ -283,6 +293,17 @@ export function createShopUI({ market, purse }) {
         .map((crop) => [seedId(crop), `thu sau ${growDays(crop)} ngày`]),
       ['fertilizer', 'bù lại 1 lần lỡ tưới'],
     ],
+  });
+}
+
+export function createMartUI({ market, purse }) {
+  return createStallUI({
+    market,
+    purse,
+    ids: { dialog: 'martDialog', list: 'martList', money: 'martMoney', note: 'martNote' },
+    greeting: 'Chị chủ siêu thị: "Đồ ăn đóng gói tiện mang theo nè!"',
+    sellItems: () => [],
+    buyItems: () => Object.entries(SNACKS).map(([id, snack]) => [snackId(id), `+${snack.energy} năng lượng`]),
   });
 }
 

@@ -11,6 +11,7 @@ export const SHOPKEEPERS = [
   { id: 'keeper', name: 'Bà chủ tạp hoá' },
   { id: 'cook', name: 'Bà chủ quán' },
   { id: 'fishmonger', name: 'Chú hàng cá' },
+  { id: 'grocer', name: 'Chị chủ siêu thị' },
   { id: 'chief', name: 'Ông Lý trưởng', role: 'chief' },
 ];
 

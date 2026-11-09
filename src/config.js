@@ -172,6 +172,14 @@ export const STUDY = {
   refund: 0.5,
 };
 
+export const MART = { open: 6 * 60, close: 22 * 60, house: 'd1', reserve: 80, chance: 0.15, stock: 2 };
+
+export const SNACKS = {
+  banhngot: { icon: '🥐', name: 'Bánh ngọt', price: 15, energy: 8 },
+  migoi: { icon: '🍜', name: 'Mì ly', price: 22, energy: 12 },
+  comnam: { icon: '🍙', name: 'Cơm nắm', price: 32, energy: 18 },
+};
+
 export const VENDOR = {
   open: 21 * 60,
   close: 60,
@@ -213,7 +221,7 @@ export const FIREFLY = {
 
 export const ECONOMY = {
   vat: 0.1,
-  keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3 },
+  keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3, grocer: 0.3 },
   wages: { guard: 35, teacher: 30, chief: 40 },
   fundSeed: 20000,
   living: 12,

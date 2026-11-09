@@ -3,7 +3,6 @@ import { STUDY_HALL } from './studyHall.js';
 import { HOUSE } from './school.js';
 
 const WALL = 0.25;
-const DOOR_TOP = 2.6;
 const DOOR_MARGIN = 0.3;
 const PASS = new THREE.Plane(new THREE.Vector3(0, 1, 0), 1e9);
 
@@ -15,7 +14,7 @@ function studyHallRoom() {
     z0: front + WALL,
     z1: front + depth - WALL,
     top: height + 2,
-    door: { x0: x - door / 2, x1: x + door / 2, z: front, out: -1 },
+    door: { x0: x - door / 2, x1: x + door / 2, top: STUDY_HALL.doorHeight, z: front, out: -1 },
   };
 }
 
@@ -41,9 +40,9 @@ export function createRooms() {
     const z = door.z;
     corners[0].set(door.x0, 0, z);
     corners[1].set(door.x1, 0, z);
-    corners[2].set(door.x1, DOOR_TOP, z);
-    corners[3].set(door.x0, DOOR_TOP, z);
-    beyond.set((door.x0 + door.x1) / 2, DOOR_TOP / 2, z + door.out);
+    corners[2].set(door.x1, door.top, z);
+    corners[3].set(door.x0, door.top, z);
+    beyond.set((door.x0 + door.x1) / 2, door.top / 2, z + door.out);
     for (let i = 0; i < 4; i++) {
       const plane = portal.planes[i].setFromCoplanarPoints(eye, corners[i], corners[(i + 1) % 4]);
       if (plane.distanceToPoint(beyond) < 0) plane.negate();

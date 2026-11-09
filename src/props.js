@@ -193,9 +193,46 @@ function cssColor(hex) {
 }
 
 const CALLIGRAPHY = '"Water Brush", "Dancing Script", cursive';
+const PLAIN_FONT = '"BIZ UDPGothic", system-ui, sans-serif';
+const PLAIN_SCALE = 0.62;
 const PX_PER_M = 256;
 
-function drawBoard(ctx, w, h, { lines, bg, fg, border, seal }) {
+function wordFont(word, size, plain) {
+  return plain.has(word) ? `700 ${size * PLAIN_SCALE}px ${PLAIN_FONT}` : `${size}px ${CALLIGRAPHY}`;
+}
+
+function lineWidth(ctx, line, size, plain) {
+  if (!plain.size) {
+    ctx.font = `${size}px ${CALLIGRAPHY}`;
+    return ctx.measureText(line).width;
+  }
+  ctx.font = `${size}px ${CALLIGRAPHY}`;
+  const space = ctx.measureText(' ').width;
+  return line.split(' ').reduce((sum, word, i) => {
+    ctx.font = wordFont(word, size, plain);
+    return sum + ctx.measureText(word).width + (i ? space : 0);
+  }, 0);
+}
+
+function drawLine(ctx, line, cx, y, size, plain) {
+  if (!plain.size) {
+    ctx.fillText(line, cx, y);
+    return;
+  }
+  ctx.font = `${size}px ${CALLIGRAPHY}`;
+  const space = ctx.measureText(' ').width;
+  let left = cx - lineWidth(ctx, line, size, plain) / 2;
+  ctx.textAlign = 'left';
+  for (const word of line.split(' ')) {
+    ctx.font = wordFont(word, size, plain);
+    ctx.fillText(word, left, y);
+    left += ctx.measureText(word).width + space;
+  }
+  ctx.textAlign = 'center';
+  ctx.font = `${size}px ${CALLIGRAPHY}`;
+}
+
+function drawBoard(ctx, w, h, { lines, bg, fg, border, seal, plain = new Set() }) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = cssColor(bg);
   ctx.fillRect(0, 0, w, h);
@@ -211,8 +248,7 @@ function drawBoard(ctx, w, h, { lines, bg, fg, border, seal }) {
   const maxW = w - pad * 2;
   let size = lineH * 0.72;
   for (const line of lines) {
-    ctx.font = `${size}px ${CALLIGRAPHY}`;
-    const measured = ctx.measureText(line).width;
+    const measured = lineWidth(ctx, line, size, plain);
     if (measured > maxW) size *= maxW / measured;
   }
   ctx.font = `${size}px ${CALLIGRAPHY}`;
@@ -221,9 +257,9 @@ function drawBoard(ctx, w, h, { lines, bg, fg, border, seal }) {
   lines.forEach((line, i) => {
     const y = pad + lineH * (i + 0.55);
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillText(line, w / 2 + size * 0.03, y + size * 0.03);
+    drawLine(ctx, line, w / 2 + size * 0.03, y + size * 0.03, size, plain);
     ctx.fillStyle = fg;
-    ctx.fillText(line, w / 2, y);
+    drawLine(ctx, line, w / 2, y, size, plain);
   });
 
   if (seal) {
@@ -244,7 +280,8 @@ function drawBoard(ctx, w, h, { lines, bg, fg, border, seal }) {
   }
 }
 
-export function textBoard({ lines, width, height, depth, bg, fg, border, seal = false }) {
+export function textBoard({ lines, width, height, depth, bg, fg, border, seal = false, plain = [] }) {
+  const plainWords = new Set(plain);
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(width * PX_PER_M);
   canvas.height = Math.round(height * PX_PER_M);
@@ -253,10 +290,10 @@ export function textBoard({ lines, width, height, depth, bg, fg, border, seal = 
   texture.anisotropy = 4;
 
   const paint = () => {
-    drawBoard(canvas.getContext('2d'), canvas.width, canvas.height, { lines, bg, fg, border, seal });
+    drawBoard(canvas.getContext('2d'), canvas.width, canvas.height, { lines, bg, fg, border, seal, plain: plainWords });
     texture.needsUpdate = true;
   };
-  keepCanvas(texture, (ctx) => drawBoard(ctx, canvas.width, canvas.height, { lines, bg, fg, border, seal }));
+  keepCanvas(texture, (ctx) => drawBoard(ctx, canvas.width, canvas.height, { lines, bg, fg, border, seal, plain: plainWords }));
   paint();
   document.fonts?.load(`64px "Water Brush"`, lines.join(' ')).then(paint, () => {});
 

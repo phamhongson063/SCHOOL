@@ -228,6 +228,7 @@ export class Villager {
     if (this.wantsInn()) return this.goInn();
     if (this.wantsVendor()) return this.goVendor();
     if (this.wantsFood(ctx)) return this.goEat();
+    if (ctx.martOpen && this.wantsMart()) return this.goMart();
     if (this.shouldAttend(ctx)) return this.goToClass();
     if (ctx.bankOpen && this.wantsBank(ctx)) return this.goBank();
     if (this.wantsSelfStudy(ctx)) return this.goSelfStudy();

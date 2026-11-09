@@ -30,7 +30,7 @@ import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay } from './clock.js';
 import { phaseAt } from './timetable.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
-import { createMarket, createShopUI, createFishShopUI, shopOpen, shopHours, fishShopOpen, fishShopHours } from './market.js';
+import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
 import { Town } from './villagers.js';
@@ -38,6 +38,7 @@ import { createStudyIcon } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter } from './quarter.js';
+import { createFieldMart } from './fieldMart.js';
 import { createMountain } from './mountain.js';
 import { createCountryside } from './countryside.js';
 import { createDistrict } from './district.js';
@@ -171,6 +172,7 @@ createVitals(purse);
 const market = createMarket();
 const shopUI = createShopUI({ market, purse });
 const fishShopUI = createFishShopUI({ market, purse });
+const martUI = createMartUI({ market, purse });
 const estate = createEstate({ houses: village.houses });
 let town = null;
 const NAMES = new Map(villagerProfiles().map((profile) => [profile.id, profile.name]));
@@ -209,7 +211,10 @@ regions.add({
   pinned: true,
 });
 regions.add(createRoad());
-regions.add(quarter.region());
+const martOptions = { openMart: () => martUI.open(), isMartOpen: () => martOpen(gameNow()), martHours };
+const fieldMart = createFieldMart(martOptions);
+regions.add(quarter.region(martOptions));
+regions.add(fieldMart.region);
 for (const region of countryside.regions()) regions.add(region);
 regions.add(
   district.region({
@@ -512,6 +517,7 @@ town = new Town({
 });
 
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
+town.martStands = [quarter.martStand, fieldMart.stand];
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 economy.start({
   ledger,
@@ -539,6 +545,7 @@ function contextAt(minutes) {
     night: minute >= ROUTINE.home || minute < ROUTINE.wake,
     shopOpen: shopOpen(minutes),
     fishOpen: fishShopOpen(minutes),
+    martOpen: martOpen(minutes),
     chiefOpen: chiefOpen(minutes),
     bankOpen: bankOpen(minutes),
   };

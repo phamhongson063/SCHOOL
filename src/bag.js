@@ -1,6 +1,6 @@
 import { paintIcon } from './itemArt.js';
 import { ITEMS } from './inventory.js';
-import { MONEY } from './config.js';
+import { MONEY, SNACKS } from './config.js';
 import { amount } from './format.js';
 
 const TAB_KEY = 'truong-lang-xua.bagTab';
@@ -11,6 +11,7 @@ const TABS = [
   { key: 'produce', icon: '🥬', label: 'Nông sản', kinds: ['produce'], empty: 'Chưa thu hoạch được gì.' },
   { key: 'fish', icon: '🐟', label: 'Thủy sản', kinds: ['fish'], empty: 'Chưa câu được con nào.' },
   { key: 'game', icon: '🐇', label: 'Thú rừng', kinds: ['game'], empty: 'Chưa bắt được con nào.' },
+  { key: 'food', icon: '🍱', label: 'Đồ ăn', kinds: ['snack'], empty: 'Chưa có đồ ăn mang theo.' },
   { key: 'tools', icon: '🎣', label: 'Đồ nghề', kinds: ['gear', 'fertilizer'], empty: 'Chưa có đồ nghề.' },
 ];
 
@@ -97,10 +98,25 @@ export function createBag(purse) {
     const value = id ? purse.count(id) : 0;
     info.classList.toggle('muted', !id);
     if (id && value > 0) {
-      info.textContent = `${ITEMS[id].name} × ${value}`;
+      const snack = SNACKS[ITEMS[id].snack];
+      info.textContent = snack ? `${ITEMS[id].name} × ${value} · +${snack.energy} năng lượng` : `${ITEMS[id].name} × ${value}`;
+      if (snack && id === selected) info.append(eatButton(id, snack));
       return;
     }
     info.textContent = entriesOf(currentTab()).length ? '' : currentTab().empty;
+  }
+
+  function eatButton(id, snack) {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'bag-eat';
+    node.textContent = 'Ăn';
+    node.disabled = purse.full;
+    node.addEventListener('click', () => {
+      if (purse.full || !purse.take(id, 1)) return;
+      purse.addEnergy(snack.energy);
+    });
+    return node;
   }
 
   function renderWallet() {

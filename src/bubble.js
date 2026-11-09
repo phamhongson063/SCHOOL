@@ -4,6 +4,8 @@ import { itemImage } from './itemArt.js';
 const FAR = 40;
 const OCCLUSION_EVERY = 0.25;
 const TAIL = 9;
+const MOOD_DROP = 0.3;
+const MOOD_GAP = 4;
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
 const MOODS = {
@@ -20,6 +22,7 @@ const MOODS = {
 const active = new Set();
 const head = new THREE.Vector3();
 const screen = new THREE.Vector3();
+const low = new THREE.Vector3();
 let layer = null;
 let blocked = () => false;
 
@@ -69,6 +72,7 @@ export function createBubble() {
   const badge = document.createElement('div');
   badge.className = 'mood';
   let mood = null;
+  let bubbleHeight = 0;
   let until = 0;
   let shown = false;
   let checkAt = 0;
@@ -90,16 +94,26 @@ export function createBubble() {
       }
       visible &&= !hiddenBehind;
       element.hidden = !visible || !shown;
-      badge.hidden = !visible || !mood || shown;
+      badge.hidden = !visible || !mood;
       if (!visible) return;
-      const x = ((screen.x + 1) / 2) * window.innerWidth;
-      const y = ((1 - screen.y) / 2) * window.innerHeight - TAIL;
-      const transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
+      const x = Math.round(((screen.x + 1) / 2) * window.innerWidth);
+      const y = Math.round(((1 - screen.y) / 2) * window.innerHeight - TAIL);
       const depth = String(1000 - Math.round(distance * 10));
-      for (const node of [element, badge]) {
-        node.style.transform = transform;
-        node.style.zIndex = depth;
+      if (shown) {
+        element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+        element.style.zIndex = depth;
+        bubbleHeight ||= element.offsetHeight;
       }
+      if (!mood) return;
+      if (shown) {
+        badge.style.transform = `translate(${x}px, ${y - bubbleHeight - MOOD_GAP}px) translate(-50%, -100%)`;
+      } else {
+        low.set(head.x, head.y - MOOD_DROP, head.z).project(camera);
+        const lowX = Math.round(((low.x + 1) / 2) * window.innerWidth);
+        const lowY = Math.round(((1 - low.y) / 2) * window.innerHeight);
+        badge.style.transform = `translate(${lowX}px, ${lowY}px) translate(-50%, -100%)`;
+      }
+      badge.style.zIndex = depth;
     },
   };
 
@@ -132,6 +146,7 @@ export function createBubble() {
     show(text, duration, now) {
       element.replaceChildren(...content(text));
       element.hidden = true;
+      bubbleHeight = 0;
       if (!element.isConnected) speechLayer().append(element);
       shown = true;
       until = now + duration;

@@ -1,5 +1,5 @@
 import { CROPS } from './crops.js';
-import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS } from './config.js';
+import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 import { createStore } from './persist.js';
 
@@ -26,6 +26,10 @@ for (const [id, fish] of Object.entries(FISH)) {
 export const gameId = (animal) => `game:${animal}`;
 for (const [id, animal] of Object.entries(WILDLIFE)) {
   if (animal.gentle) ITEMS[gameId(id)] = { icon: animal.icon, name: animal.name, kind: 'game', animal: id, unit: 'con' };
+}
+export const snackId = (snack) => `snack:${snack}`;
+for (const [id, snack] of Object.entries(SNACKS)) {
+  ITEMS[snackId(id)] = { icon: snack.icon, name: snack.name, kind: 'snack', snack: id, unit: 'gói' };
 }
 ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' };
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };

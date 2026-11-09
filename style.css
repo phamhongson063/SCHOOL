@@ -568,6 +568,22 @@ body.bag-open #toolbar {
   font: 700 14px/1.3 var(--font-ui);
 }
 
+.bag-eat {
+  margin-left: 10px;
+  padding: 3px 14px;
+  border: 2px solid var(--gold);
+  border-radius: 999px;
+  background: #fbf5e4;
+  color: var(--bark);
+  font: 800 13px/1.2 var(--font-ui);
+  cursor: pointer;
+}
+
+.bag-eat:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .bag-info.muted {
   color: #cbbf9f;
   font-weight: 600;

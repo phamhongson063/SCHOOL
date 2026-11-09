@@ -72,8 +72,14 @@ function fieldObstacles() {
 
 const ROAD_EDGE = 36.6;
 const bedOf = (index) => Math.floor(index / PER_BED);
-const leaseOptions = () =>
-  FARMING.leases.map((offer, i) => ({ id: String(i), icon: '📜', name: `${offer.days} ngày · ${coins(offer.price)}`, label: `Thuê ${offer.days} ngày, ${coins(offer.price)}` }));
+const LEASE_CHOICE = 'lease:';
+const leaseOptions = (renew = false) =>
+  FARMING.leases.map((offer, i) => ({
+    id: `${LEASE_CHOICE}${i}`,
+    icon: '📜',
+    name: `${renew ? '+' : ''}${offer.days} ngày · ${coins(offer.price)}`,
+    label: `${renew ? 'Gia hạn' : 'Thuê'} ${offer.days} ngày, ${coins(offer.price)}`,
+  }));
 
 class Leases {
   constructor(count) {
@@ -300,8 +306,9 @@ class FarmState {
         if (this.leases.holder(bed, now)) return { id: 'look', hint: null };
         return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
       }
-      const options = seedOptions(purse);
-      return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
+      const left = this.leases.holder(bed, now).until - now;
+      const options = [...seedOptions(purse), ...leaseOptions(true)];
+      return { id: 'plant', hint: 'seed', choices: { title: `Luống còn ${durationText(left)}`, options } };
     }
     if (spot.stage === RIPE) {
       const pick = { kind: 'harvest', applyAt: 'start', count: yieldOf(spot), item: spot.crop };
@@ -314,25 +321,26 @@ class FarmState {
   }
 
   rent(index, now, choice, actor) {
-    const offer = FARMING.leases[Number(choice)];
+    const offer = FARMING.leases[Number(String(choice).slice(LEASE_CHOICE.length))];
     if (!offer) return null;
     const bed = bedOf(index);
+    const renew = this.leases.holds(bed, actor, now);
     const lease = this.leases.rent(bed, actor, offer, this.ledger.purse(actor), now);
     if (lease === null) return `Luống của ${this.nameOf(this.leases.holder(bed, now).owner)} rồi!`;
     if (lease === false) return notEnough(offer.price);
-    return `📜 Thuê luống xong, còn ${durationText(lease.until - now)}`;
+    return `📜 ${renew ? 'Gia hạn' : 'Thuê luống'} xong, còn ${durationText(lease.until - now)}`;
   }
 
   label(index, now) {
     if (this.spots[index].stage !== 0) return null;
     const lease = this.leases.holder(bedOf(index), now);
-    if (!lease) return 'Luống trống';
-    return lease.owner === PLAYER ? `Luống của bạn · còn ${durationText(lease.until - now)}` : `Luống của ${this.nameOf(lease.owner)}`;
+    if (lease?.owner !== PLAYER || lease.until - now >= DAY_MINUTES) return null;
+    return `Còn ${durationText(lease.until - now)}`;
   }
 
   act(name, index, now, choice, actor = PLAYER) {
     this.changed = false;
-    if (name === 'rent') return this.rent(index, now, choice, actor);
+    if (name === 'rent' || String(choice).startsWith(LEASE_CHOICE)) return this.rent(index, now, choice, actor);
     if (name === 'plant' && !this.leases.holds(bedOf(index), actor, now)) return 'Phải thuê luống này trước!';
     const spot = this.spots[index];
     const shared = name === 'clear' && spot?.stage === SPENT;
@@ -460,7 +468,52 @@ class FarmView {
       child.updateMatrix();
       child.matrixAutoUpdate = false;
     }
+    this.buildStakes();
     this.refresh();
+  }
+
+  buildStakes() {
+    const marker = (build) => {
+      const b = new Batch();
+      build(b);
+      const mesh = new THREE.InstancedMesh(b.geometry(), vertexMaterial(), BEDS.length);
+      mesh.count = 0;
+      mesh.castShadow = true;
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.group.add(mesh);
+      return mesh;
+    };
+    this.stakes = marker((b) => {
+      b.add(shapes.box(0.08, 0.75, 0.08), 0x8a5a2b, { p: [0, 0.375, 0] });
+      b.add(shapes.box(0.12, 0.05, 0.12), 0x6a4422, { p: [0, 0.77, 0] });
+    });
+    this.flags = marker((b) => b.add(shapes.box(0.3, 0.2, 0.025), C.mine, { p: [0.19, 0.62, 0] }));
+    this.stakeKey = null;
+    this.stakeAt = 0;
+  }
+
+  refreshStakes() {
+    const now = gameNow();
+    const leases = this.state.leases;
+    const key = BEDS.map((_, bed) => {
+      const lease = leases.holder(bed, now);
+      return lease ? (lease.owner === PLAYER ? 'p' : 'o') : '-';
+    }).join('');
+    if (key === this.stakeKey) return;
+    this.stakeKey = key;
+    let stakes = 0;
+    let flags = 0;
+    BEDS.forEach(({ x, shape }, bed) => {
+      if (key[bed] === '-') return;
+      matrix.makeTranslation(x + shape.offset(FRONT), 0, FRONT - 0.35);
+      this.stakes.setMatrixAt(stakes++, matrix);
+      if (key[bed] === 'p') this.flags.setMatrixAt(flags++, matrix);
+    });
+    this.stakes.count = stakes;
+    this.flags.count = flags;
+    this.stakes.instanceMatrix.needsUpdate = true;
+    this.flags.instanceMatrix.needsUpdate = true;
   }
 
   buildField() {
@@ -555,6 +608,7 @@ class FarmView {
   }
 
   refresh() {
+    this.refreshStakes();
     const lists = new Map();
     const wet = [];
     const mine = [];
@@ -618,6 +672,10 @@ class FarmView {
 
   update(t) {
     if (this.state.tick(gameNow())) this.refresh();
+    if (t >= this.stakeAt) {
+      this.stakeAt = t + 1;
+      this.refreshStakes();
+    }
     for (const [index, anim] of this.anims) this.wither(index, anim);
     this.drops.position.y = Math.sin(t * 3) * 0.05;
     if (this.ring.visible) this.ring.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
