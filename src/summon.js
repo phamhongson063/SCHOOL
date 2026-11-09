@@ -4,6 +4,7 @@ import { makeRandom } from './random.js';
 
 const DAY_KEY = 'truong-lang-xua.summonDay';
 const MIN_LEFT = 40;
+const GRACE = 90;
 const SUMMON_TEXT = 'Bạn bị triệu hồi vào lớp học!';
 const LATE_TEXT = 'Rất tiếc, tiết học sắp hết rồi, không kịp vào lớp! Thầy sẽ gọi lại vào tiết sau.';
 const timeLeft = (ctx) => ctx?.phase.kind === 'period' && ctx.phase.remaining >= MIN_LEFT;
@@ -194,6 +195,7 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
   let active = false;
   let late = false;
   let context = null;
+  let played = 0;
 
   const fade = (on) =>
     new Promise((done) => {
@@ -247,6 +249,8 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
     update(dt, ctx) {
       context = ctx;
       fx.update(dt);
+      played += dt;
+      if (played < GRACE) return;
       if (active || String(ctx.day) === firedDay) return;
       const phase = ctx.phase;
       if (phase.kind !== 'period') return;

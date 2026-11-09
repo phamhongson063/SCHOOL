@@ -26,8 +26,11 @@ import { DISTRICT_STREETS } from './district.js';
 import { layDown, restEase, REST_TIME } from './walk.js';
 import { createRestGlow } from './regen.js';
 import { keepCanvas } from './canvasRestore.js';
+import { ROAD } from './road.js';
 
 const SPACING = 0.62;
+const STREET_MID = (ROAD.z0 + ROAD.z1) / 2;
+const STOP_SPACING = 2;
 const LOOKAHEAD = 0.85;
 const MAX_STEP = 0.55;
 const AVOID_RANGE = 1.15;
@@ -2198,8 +2201,10 @@ export class Town {
       ...places.doors.values(),
       ...[places.shop, places.chief, places.eatery].map((place) => place.line[place.line.length - 1]),
     ]
-      .map((point) => this.walkable({ x: point.x, z: point.z }))
-      .sort((a, b) => a.x - b.x);
+      .map((point) => point.x)
+      .sort((a, b) => a - b)
+      .filter((x, i, xs) => i === 0 || x - xs[i - 1] >= STOP_SPACING)
+      .map((x) => this.walkable({ x, z: STREET_MID }));
     this.vendor = new Peddler(PEDDLER, this);
     this.guards = GUARDS.map((profile) => new Guard(profile, this));
     this.shiftWorkers = [this.vendor, ...this.guards];
