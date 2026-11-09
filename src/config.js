@@ -152,6 +152,29 @@ export const FOODS = {
   comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55 },
 };
 
+export const VENDOR = {
+  open: 21 * 60,
+  close: 60,
+  pause: [5, 9],
+  hold: 8,
+  reach: 2.4,
+  pace: 0.7,
+  foods: {
+    cheden: { icon: '🍧', name: 'Chè đậu đen', price: 8, energy: 10 },
+    banhgio: { icon: '🥟', name: 'Bánh giò', price: 15, energy: 20 },
+    xoixeo: { icon: '🍙', name: 'Xôi xéo', price: 18, energy: 25 },
+    phoganh: { icon: '🍜', name: 'Phở gánh', price: 30, energy: 45 },
+  },
+};
+
+export const FIREFLY = {
+  count: 40,
+  catchRadius: 0.9,
+  respawn: [25, 60],
+  lampMin: 3,
+  lampMinutesPerFly: 60,
+};
+
 export const BANK = {
   open: 7 * 60,
   close: 17 * 60,

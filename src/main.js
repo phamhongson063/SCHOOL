@@ -20,7 +20,8 @@ import { createWatering } from './watering.js';
 import { createHarvesting } from './harvesting.js';
 import { createClearing } from './clearing.js';
 import { createQuiz } from './quiz.js';
-import { createFarm } from './farm.js';
+import { createFarm, FARM_X } from './farm.js';
+import { createFireflies, createFireflyLamp } from './fireflies.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
 import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
@@ -30,7 +31,7 @@ import { LOW_POWER } from './quality.js';
 import { outlineMaterial, freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, clockText, countdownText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
-import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING } from './config.js';
+import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
 import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -340,7 +341,37 @@ const busyEffect = () => Object.values(effects).find((effect) => effect.busy);
 let effectTask = null;
 
 let fieldTask = null;
+const VENDOR_MENU = {
+  title: 'Gánh hàng rong',
+  icon: '🏮',
+  foods: VENDOR.foods,
+  hungry: 'Bà hàng: "Ăn gì con? Nóng hổi đây!"',
+  full: 'Bà hàng: "Con còn no mà, lát đói gọi bà nghen!"',
+};
+let vendorVisit = false;
+let servingVendor = false;
+
+function visitVendor() {
+  const vendor = town.vendor;
+  vendor.hold();
+  if (Math.hypot(vendor.position.x - player.position.x, vendor.position.z - player.position.z) <= VENDOR.reach) {
+    vendorVisit = false;
+    servingVendor = true;
+    player.faceToward(vendor.position.x, vendor.position.z);
+    vendor.say('Ăn gì con ơi?', 2);
+    foodUI.open(VENDOR_MENU);
+    return;
+  }
+  vendorVisit = true;
+  player.requestMove(new THREE.Vector3(vendor.position.x, 0, vendor.position.z), false);
+}
+
 player.onArrive = () => {
+  if (vendorVisit) {
+    vendorVisit = false;
+    visitVendor();
+    return;
+  }
   const task = fieldTask;
   fieldTask = null;
   if (!task || Math.hypot(task.target.stand.x - player.position.x, task.target.stand.z - player.position.z) > 0.8) return;
@@ -362,6 +393,7 @@ player.onArrive = () => {
 
 function stopWork() {
   fieldTask = null;
+  vendorVisit = false;
   fishing.stop();
   busyEffect()?.cancel();
   if (effectTask) effectTask.region.animate?.(effectTask.target, null);
@@ -554,6 +586,53 @@ player.onStand = () => {
   study.close();
 };
 
+const fireflies = createFireflies({
+  scene,
+  zones: [
+    { x0: -30 + FARM_X, x1: 31 + FARM_X, z0: 40, z1: 62, weight: 3 },
+    ...river.spots.map(({ stand }) => ({ x0: stand.x - 4, x1: stand.x + 4, z0: stand.z - 2.5, z1: stand.z + 1, weight: 1 })),
+  ],
+  heightAt: (x, z) => player.nav.heightAt(x, z),
+});
+const fireflyLamp = createFireflyLamp(scene);
+let lampSeat = null;
+let lampMinutes = 0;
+let lampAt = null;
+
+function lampLit() {
+  return context.night && player.posture === 'seated' && !!player.seat?.study && purse.count('firefly') >= FIREFLY.lampMin;
+}
+
+function updateLamp(t) {
+  const lit = lampLit();
+  const seat = lit ? player.seat : null;
+  if (seat !== lampSeat) {
+    lampSeat = seat;
+    fireflyLamp.show(seat);
+  }
+  fireflyLamp.update(t);
+  const now = context.minutes;
+  if (lit && lampAt !== null && now > lampAt) {
+    lampMinutes += now - lampAt;
+    if (lampMinutes >= FIREFLY.lampMinutesPerFly) {
+      lampMinutes -= FIREFLY.lampMinutesPerFly;
+      purse.take('firefly', 1);
+    }
+  }
+  lampAt = lit ? now : null;
+}
+
+function catchFireflies(t, dt) {
+  const caught = fireflies.update(t, dt, {
+    night: context.night,
+    player: player.position,
+    catching: mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !summon.active,
+  });
+  if (!caught) return;
+  purse.add('firefly', caught);
+  sayPlayer(`✨ ${purse.count('firefly')}`, 1.2);
+}
+
 const summon = createSummon({
   scene,
   models: () => [avatar.group],
@@ -721,6 +800,11 @@ player.onClick = (clientX, clientY, run) => {
   stopWork();
   const queueing = playerLine;
   const villager = town.villagerAt(hit.object);
+  if (villager === town.vendor) {
+    leaveLine();
+    visitVendor();
+    return;
+  }
   if (villager) {
     villager.greet(player.position);
     return;
@@ -1277,7 +1361,7 @@ function drainEnergy() {
   const resting = lodging || 'sleep';
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : 'rest';
   const studying = player.seat?.study || (inClass() && learningNow());
-  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? 'study' : 'seated') : moving;
+  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? 'idle' : player.resting ? lying : 'idle';
   purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;
@@ -1406,6 +1490,12 @@ renderer.setAnimationLoop((time) => {
   regions.update(t, dt, mode === 'overview' ? orbit.target : player.position);
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
   summon.update(dt, context);
+  catchFireflies(t, dt);
+  updateLamp(t);
+  if (servingVendor) {
+    if (foodUI.isOpen) town.vendor.hold(2);
+    else servingVendor = false;
+  }
   updateHover(t);
   updateOutlines(t);
   playerBubble.update(t);

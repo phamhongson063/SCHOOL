@@ -12,6 +12,7 @@ export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
   if (activity === 'rest') return -ENERGY.restPerHour;
   if (activity === 'shelter') return -ENERGY.shelterPerHour;
+  if (activity === 'lampStudy') return ENERGY.drain.study;
   if (LODGE_ROOMS[activity]) return -LODGES[LODGE_ROOMS[activity].tier].perHour;
   const base = ENERGY.drain[activity] ?? ENERGY.drain.idle;
   return night ? base * ENERGY.nightFactor : base;

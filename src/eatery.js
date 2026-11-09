@@ -137,12 +137,22 @@ export function createFoodUI({ purse }) {
   const list = document.getElementById('foodList');
   const header = document.getElementById('foodMoney');
   const note = document.getElementById('foodNote');
+  const title = document.getElementById('foodTitle');
+  const badge = dialog.querySelector('.sched-badge');
+  const EATERY_MENU = {
+    title: title.textContent,
+    icon: badge.textContent,
+    foods: FOODS,
+    hungry: 'Bà chủ quán: "Ăn gì con? Đồ ăn nóng hổi đây!"',
+    full: 'Bà chủ quán: "Con còn no mà, lát đói ghé lại nghen!"',
+  };
+  let menu = EATERY_MENU;
 
   function render() {
     header.textContent = `⚡ ${Math.floor(purse.energy)}/${ENERGY.max} · ${MONEY.icon} ${amount(purse.money)}`;
     const full = purse.energy >= ENERGY.max - 0.5;
     list.replaceChildren(
-      ...Object.entries(FOODS).map(([, food]) => {
+      ...Object.entries(menu.foods).map(([, food]) => {
         const node = document.createElement('div');
         node.className = 'shop-row';
         const icon = document.createElement('span');
@@ -190,8 +200,11 @@ export function createFoodUI({ purse }) {
     get isOpen() {
       return dialog.open;
     },
-    open() {
-      note.textContent = purse.energy >= ENERGY.max - 0.5 ? 'Bà chủ quán: "Con còn no mà, lát đói ghé lại nghen!"' : 'Bà chủ quán: "Ăn gì con? Đồ ăn nóng hổi đây!"';
+    open(next = EATERY_MENU) {
+      menu = next;
+      title.textContent = menu.title;
+      badge.textContent = menu.icon;
+      note.textContent = purse.energy >= ENERGY.max - 0.5 ? menu.full : menu.hungry;
       render();
       dialog.showModal();
     },

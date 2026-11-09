@@ -11,7 +11,8 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING, BANK } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING, BANK, VENDOR } from './config.js';
+import { Batch, shapes } from './toon.js';
 import { INN_STAND } from './inn.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf } from './stamina.js';
@@ -121,6 +122,19 @@ const TEACHER = {
   look: { shirt: 0x26252e, pants: 0x26252e, skin: 0xeab08a, style: 'khan', khan: 0x1f1e26, hairColor: 0xdedad2, old: true, beardColor: 0xf6f3ec, iris: 0x3a2a20 },
   exit: 0,
 };
+
+const PEDDLER = {
+  id: 'vendor',
+  name: 'Bà hàng rong',
+  kind: 'vendor',
+  look: { shirt: 0x5a4a6a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'bui', hairColor: 0x4a3a30, old: true, iris: 0x4a2a18, hat: 0xe5d6a2 },
+  exit: 0,
+};
+
+const BLOCKED = { radius: 0.8, nagEvery: 8 };
+const NAGS = ['Mua xong rồi thì nhường chỗ với!', 'Xong rồi thì tránh ra cho người ta mua với!', 'Đứng mãi thế, người ta chờ nãy giờ!'];
+
+const PEDDLER_CALLS = ['Ai chè đậu đen, bánh giò đâyyy!', 'Phở nóng đâyyy!', 'Xôi xéo nóng hổi đâyyy!', 'Ai ăn gì không nàooo!'];
 
 const SHIRTS = [0x8a5a34, 0x6e4a30, 0xa0703f, 0x4a6a9a, 0x5a7a4a, 0xb0804a];
 const PANTS = [0xf1ebdc, 0x3a3430, 0xe0d4b8];
@@ -234,7 +248,7 @@ class Villager {
     town.root.add(this.glow);
     this.seated = null;
     this.studyIcon = null;
-    if (this.kind !== 'teacher') {
+    if (this.kind !== 'teacher' && this.kind !== 'vendor') {
       this.seated = model ? createModel(model, { seated: true }) : createStudent(profile.look);
       this.seated.group.visible = false;
       town.root.add(this.seated.group);
@@ -1399,6 +1413,10 @@ class Villager {
     this.queue = null;
     this.queueIndex = -1;
     this.serve = null;
+    if (this.blocked) {
+      this.blocked = false;
+      this.lookAt = null;
+    }
   }
 
   followQueue() {
@@ -1410,6 +1428,14 @@ class Villager {
     }
     this.queueIndex = index;
     const spot = this.queue.slot(index);
+    if (this.town.playerBlocks(this.queue, spot)) {
+      this.waitForPlayer();
+      return;
+    }
+    if (this.blocked) {
+      this.blocked = false;
+      this.lookAt = null;
+    }
     this.travel(spot, {
       then: () => {
         this.queueTries = 0;
@@ -1441,6 +1467,16 @@ class Villager {
       return;
     }
     this.state = 'queued';
+  }
+
+  waitForPlayer() {
+    this.route = null;
+    this.state = 'queued';
+    this.blocked = true;
+    this.lookAt = this.town.player?.position ?? null;
+    if (this.now < (this.nagAt ?? 0)) return;
+    this.nagAt = this.now + BLOCKED.nagEvery;
+    this.say(pick(NAGS), 2.6);
   }
 
   finishService() {
@@ -1781,7 +1817,11 @@ class Villager {
         if (!this.queue || this.queue.indexOf(this) !== this.queueIndex) this.queued();
         else {
           const slot = this.queue.slot(this.queueIndex);
-          if (Math.hypot(slot.x - this.position.x, slot.z - this.position.z) > QUEUE_DRIFT) this.followQueue();
+          if (this.blocked) {
+            const p = this.town.player?.position;
+            if (p) this.turnTo(Math.atan2(p.x - this.position.x, p.z - this.position.z), 4, dt);
+            this.followQueue();
+          } else if (Math.hypot(slot.x - this.position.x, slot.z - this.position.z) > QUEUE_DRIFT) this.followQueue();
           else this.turnTo(this.queue.facingAt(this.queueIndex), 4, dt);
         }
         break;
@@ -1922,6 +1962,100 @@ class Teacher extends Villager {
   }
 }
 
+function carryingPole() {
+  const b = new Batch();
+  b.add(shapes.box(0.045, 0.045, 1.9), 0x8a5a2b);
+  for (const end of [-1, 1]) {
+    const z = end * 0.82;
+    for (const [dx, dz] of [[0.15, 0], [-0.15, 0], [0, 0.15], [0, -0.15]]) {
+      b.limb([0, 0, z], [dx, -0.52, z + dz], 0.007, 0x5a3a20, { capsule: false, seg: 4 });
+    }
+    b.add(shapes.cylinder(0.2, 0.15, 0.2, 12), 0xb8894a, { p: [0, -0.62, z] });
+    b.add(shapes.torus(0.2, 0.018, 12), 0x8a6a3a, { p: [0, -0.52, z], r: [Math.PI / 2, 0, 0] });
+  }
+  b.add(shapes.cylinder(0.12, 0.13, 0.13, 10), 0x6a3a2a, { p: [0, -0.46, 0.82] });
+  b.add(shapes.cylinder(0.125, 0.125, 0.02, 10), 0x4a2a1a, { p: [0, -0.39, 0.82] });
+  b.add(shapes.cylinder(0.15, 0.15, 0.08, 10), 0xe8dcc0, { p: [0, -0.48, -0.82] });
+  const group = new THREE.Group();
+  group.add(b.mesh());
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb64a }));
+  lamp.position.set(0, -0.14, 0.98);
+  group.add(lamp);
+  group.position.set(-0.17, 0.9, 0);
+  return group;
+}
+
+class Peddler extends Villager {
+  constructor(profile, town) {
+    super(profile, town);
+    this.walker.group.add(carryingPole());
+    this.walkSpeed *= VENDOR.pace;
+    this.stop = 0;
+    this.step = 1;
+  }
+
+  onDuty(ctx) {
+    return ctx.minute >= VENDOR.open || ctx.minute < VENDOR.close;
+  }
+
+  tickEnergy() {
+    this.tired = false;
+  }
+
+  nextStop() {
+    const stops = this.town.vendorStops;
+    if (this.stop + this.step < 0 || this.stop + this.step >= stops.length) this.step = -this.step;
+    this.stop += this.step;
+    return stops[this.stop];
+  }
+
+  think() {
+    const ctx = this.town.context;
+    this.lookAt = null;
+    if (!this.onDuty(ctx)) return this.goHome();
+    this.task = 'peddle';
+    const stop = this.nextStop();
+    const rest = () => this.wait(between(...VENDOR.pause), () => this.think());
+    this.travel(new THREE.Vector3(stop.x, 0, stop.z), {
+      then: () => {
+        this.say(pick(PEDDLER_CALLS), 2.6);
+        rest();
+      },
+      fail: rest,
+    });
+  }
+
+  hold(seconds = VENDOR.hold) {
+    if (this.state === 'away' || this.task === 'home') return;
+    if (this.task === 'serve' && this.state === 'idle') {
+      this.timer = Math.max(this.timer, seconds);
+      return;
+    }
+    this.task = 'serve';
+    this.lookAt = this.town.player?.position ?? null;
+    this.wait(seconds, () => this.think());
+  }
+
+  greet() {
+    this.hold();
+    this.say('Ăn gì con ơi?', 2);
+  }
+
+  goHome() {
+    this.cancel();
+    this.task = 'home';
+    this.lookAt = null;
+    const home = this.homePoint();
+    this.travel(home, { then: () => this.vanish(), fail: () => this.vanish() });
+  }
+
+  appear() {
+    super.appear();
+    this.stop = this.homePoint().x < 0 ? -1 : this.town.vendorStops.length;
+    this.step = this.stop < 0 ? 1 : -1;
+  }
+}
+
 export class Town {
   constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, footprints = null }) {
     this.root = root;
@@ -1958,7 +2092,14 @@ export class Town {
     this.posing = true;
     this.members = villagerProfiles().map((profile) => new Villager(profile, this));
     this.teacher = new Teacher(TEACHER, this);
-    this.all = [...this.members, this.teacher];
+    this.vendorStops = [
+      ...places.doors.values(),
+      ...[places.shop, places.chief, places.eatery].map((place) => place.line[place.line.length - 1]),
+    ]
+      .map((point) => this.walkable({ x: point.x, z: point.z }))
+      .sort((a, b) => a.x - b.x);
+    this.vendor = new Peddler(PEDDLER, this);
+    this.all = [...this.members, this.teacher, this.vendor];
     this.budget = PATHS_PER_FRAME;
     this.frustum = new THREE.Frustum();
     this.viewProjection = new THREE.Matrix4();
@@ -1967,6 +2108,12 @@ export class Town {
     this.lastNight = null;
     this.reviewAt = 0;
     this.started = false;
+  }
+
+  playerBlocks(queue, spot) {
+    const player = this.player;
+    if (!player || player.posture !== 'free' || queue.members.includes(player)) return false;
+    return Math.hypot(player.position.x - spot.x, player.position.z - spot.z) < BLOCKED.radius;
   }
 
   walkable(point) {
@@ -2227,6 +2374,7 @@ export class Town {
     if (this.teacher.onDuty(ctx)) this.teacher.beginTeaching();
     else if (ctx.night) this.teacher.settleNight();
     else this.teacher.vanish();
+    this.vendor.vanish();
     for (const member of this.members) {
       if (ctx.night) {
         member.settleNight();
@@ -2315,6 +2463,8 @@ export class Town {
     const teacher = this.teacher;
     if (teacher.state === 'teaching' && !teacher.onDuty(ctx)) teacher.stopTeaching();
     else if (teacher.state === 'away' && teacher.onDuty(ctx) && teacher.wakeAt === null) teacher.wakeAt = teacher.now + between(0.5, 3);
+    const vendor = this.vendor;
+    if (vendor.state === 'away' && vendor.onDuty(ctx) && vendor.wakeAt === null) vendor.wakeAt = vendor.now + between(0.5, 3);
   }
 
   updateLod(camera) {

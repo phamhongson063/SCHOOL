@@ -27,6 +27,7 @@ for (const [id, animal] of Object.entries(WILDLIFE)) {
 }
 ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' };
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
+ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
 
 const GIFTS = ['fishing'];
 const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
