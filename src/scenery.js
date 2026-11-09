@@ -932,7 +932,6 @@ export function createScenery(scene, layout) {
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0.5, 1.003, (HALL_FRONT + HOUSE.foundationBack) / 2);
 
-
   const roofTop = toonMaterial({ muted: true, map: roofTexture(), shadowSide: THREE.DoubleSide });
   const roofUnder = toonMaterial({ muted: true, color: C.roofUnder, side: THREE.BackSide });
 
@@ -970,7 +969,6 @@ export function createScenery(scene, layout) {
       clickables.push(mesh);
     }
   }
-
 
   const roof = new THREE.Group();
   roof.add(...roofMeshes(main.geometry, roofTop, roofUnder), ...roofMeshes(upper.geometry, roofTop, roofUnder));

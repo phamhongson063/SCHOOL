@@ -1,3 +1,5 @@
+import { closable } from './dialog.js';
+
 const PREFIX = 'truong-lang-xua.';
 const KEEP = new Set(['lessonMode', 'lessonChoice', 'furigana', 'translate', 'bagTab'].map((key) => PREFIX + key));
 
@@ -36,8 +38,5 @@ export function createSettings({ onReset }) {
     confirm.disabled = true;
     onReset();
   });
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
-  });
+  closable(dialog);
 }

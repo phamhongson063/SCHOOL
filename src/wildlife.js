@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, shapes, vertexMaterial } from './toon.js';
 import { WILDLIFE, HUNTING } from './config.js';
+import { between } from './random.js';
 import { gameId } from './inventory.js';
 import { MOUNTAIN, terrainHeight, onMountain } from './terrain.js';
 
@@ -10,7 +11,6 @@ const SPAWN_TRIES = 40;
 const TURN_RATE = 6;
 const STEP_TRIES = [0, 0.6, -0.6, 1.2, -1.2, 2, -2];
 
-const between = (a, b) => a + Math.random() * (b - a);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 function rabbitShape() {

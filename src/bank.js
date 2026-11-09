@@ -1,17 +1,15 @@
 import { BANK, VILLAGER } from './config.js';
-import { DAY_MINUTES, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
-import { amount, coins } from './format.js';
+import { DAY_MINUTES, dayOf, durationText, isOpenAt, hoursText } from './clock.js';
+import { amount, coins, notEnough } from './format.js';
 import { PLAYER } from './inventory.js';
 import { BANK_ART } from './bankArt.js';
+import { closable } from './dialog.js';
+import { createStore } from './persist.js';
 
 const KEY = 'truong-lang-xua.bank';
 
-export function bankOpen(minutes) {
-  const t = minuteOfDay(minutes);
-  return t >= BANK.open && t < BANK.close;
-}
-
-export const bankHours = () => `${clockText(BANK.open)}–${clockText(BANK.close)}`;
+export const bankOpen = (minutes) => isOpenAt(BANK, minutes);
+export const bankHours = () => hoursText(BANK);
 
 export const percent = (rate) => `${(rate * 100).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
@@ -63,25 +61,10 @@ export function createBank({ ledger, estate, now }) {
   const state = load(now());
   const listeners = [];
   const collectors = [];
-  let pending = false;
-  let halted = false;
-
-  function flush() {
-    pending = false;
-    if (halted) return;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch {}
-  }
-
-  function save() {
-    if (pending || halted) return;
-    pending = true;
-    queueMicrotask(flush);
-  }
+  const store = createStore(KEY, () => state);
 
   function changed() {
-    save();
+    store.save();
     for (const listener of listeners) listener();
   }
 
@@ -222,7 +205,7 @@ export function createBank({ ledger, estate, now }) {
     const term = BANK.savingTerms[termIndex] ?? BANK.savingTerms[0];
     if (!(cash >= BANK.minDeposit)) return fail(`Gửi tối thiểu ${coins(BANK.minDeposit)}.`);
     if (term.days && account.terms.length >= BANK.maxTerms) return fail(`Tối đa ${BANK.maxTerms} sổ có kỳ hạn.`);
-    if (!purse.spend(cash)) return fail('Không đủ tiền!');
+    if (!purse.spend(cash)) return fail(notEnough(cash));
     state.vault += cash;
     if (!term.days) {
       account.savings += cash;
@@ -370,9 +353,6 @@ export function createBank({ ledger, estate, now }) {
     repay,
     npcPlan,
     npcServe,
-    halt() {
-      halted = true;
-    },
     onChange(listener) {
       listeners.push(listener);
     },
@@ -593,10 +573,7 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     const index = Number(termSelect.value) || 0;
     report(tab === 'save' ? bank.deposit(owner, purse, typed(), index) : bank.borrow(owner, purse, typed(), index));
   });
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
-  });
+  closable(dialog);
   purse.onChange(() => {
     if (dialog.open) header.textContent = amount(purse.money);
   });

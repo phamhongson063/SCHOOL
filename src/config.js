@@ -58,42 +58,47 @@ export const FARMING = {
 export const STARTER = { 'seed:waterSpinach': 6, rod: 1, bait: 10 };
 
 export const FISH = {
-  carp: { name: 'Cá diếc', icon: '🐟', price: 4, weight: 30, color: 0xa8b0a0 },
-  perch: { name: 'Cá rô đồng', icon: '🐟', price: 6, weight: 30, color: 0x7a8a3a },
-  shrimp: { name: 'Tôm càng', icon: '🦐', price: 12, weight: 15, color: 0x5a7a9a },
-  catfish: { name: 'Cá trê', icon: '🐟', price: 15, weight: 17, color: 0x4a4038 },
-  snakehead: { name: 'Cá lóc', icon: '🐟', price: 35, weight: 8, color: 0x3a4a3a },
+  carp: { name: 'Cá diếc', icon: '🐟', price: 2, weight: 30, color: 0xa8b0a0 },
+  perch: { name: 'Cá rô đồng', icon: '🐟', price: 3, weight: 30, color: 0x7a8a3a },
+  shrimp: { name: 'Tôm càng', icon: '🦐', price: 6, weight: 15, color: 0x5a7a9a },
+  catfish: { name: 'Cá trê', icon: '🐟', price: 8, weight: 17, color: 0x4a4038 },
+  snakehead: { name: 'Cá lóc', icon: '🐟', price: 18, weight: 8, color: 0x3a4a3a },
 };
 
 export const FISHING = {
   rod: 40,
   baitPack: 3,
-  baitPerPack: 10,
+  baitPerPack: 5,
   zones: 5,
-  zoneFish: [8, 15],
-  zoneRespawn: [60, 180],
-  biteSeconds: [10, 40],
+  zoneFish: [4, 8],
+  zoneRespawn: [180, 360],
+  biteSeconds: 3,
+  villagerAnswer: [2, 6],
   quizSeconds: 20,
   spoilDays: 3,
   villagerSkill: { student: 0.6, farmer: 0.45 },
   villagerAnglers: 3,
   villagerCasts: [3, 7],
+  villagerSellAt: 3,
+  villagerBaitBelow: 3,
+  villagerBaitFunds: 2,
+  castPause: 1.6,
 };
 
 export const WILDLIFE = {
-  rabbit: { name: 'Thỏ rừng', icon: '🐇', price: 12, gentle: true, count: 7, speed: 1.5, flee: 5.4, wary: 0.35 },
-  pheasant: { name: 'Gà rừng', icon: '🐓', price: 18, gentle: true, count: 5, speed: 1.2, flee: 4.6, wary: 0.3 },
-  deer: { name: 'Hoẵng', icon: '🦌', price: 45, gentle: true, count: 4, speed: 1.6, flee: 6.4, wary: 0.45 },
+  rabbit: { name: 'Thỏ rừng', icon: '🐇', price: 6, gentle: true, count: 7, speed: 1.5, flee: 5.4, wary: 0.35 },
+  pheasant: { name: 'Gà rừng', icon: '🐓', price: 9, gentle: true, count: 5, speed: 1.2, flee: 4.6, wary: 0.3 },
+  deer: { name: 'Hoẵng', icon: '🦌', price: 22, gentle: true, count: 4, speed: 1.6, flee: 6.4, wary: 0.45 },
   boar: { name: 'Lợn rừng', icon: '🐗', gentle: false, count: 3, speed: 1.3, charge: 5.2 },
 };
 
 export const HUNTING = {
-  energy: 2,
+  energy: 4,
   catchRange: 2.4,
   watchRange: 8,
   noticeRange: 3.6,
   runNotice: 9,
-  respawn: [60, 180],
+  respawn: [540, 1080],
   boarSight: 7,
   boarHit: 6,
   boarCooldown: 6,
@@ -110,26 +115,25 @@ export const VILLAGER = {
   houseReserve: 30,
   sitWithoutPaying: 0.3,
   restUntil: 10,
+  tuitionReserve: 4,
 };
 
 export const ENERGY = {
   max: 100,
-  costs: { plant: 1, water: 1, fertilize: 1, harvest: 1.5, clear: 3, fish: 0.5 },
+  costs: { plant: 1, water: 1, fertilize: 1, harvest: 1.5, clear: 3, fish: 2 },
   drain: { seated: 0.5, idle: 1, walk: 2, study: 3, run: 4 },
   nightFactor: 2,
   sleepPerHour: 8,
   restPerHour: 4,
-  shelterPerHour: 14,
+  shelterPerHour: 6,
   tiredSpeed: 0.6,
   low: 20,
 };
 
-export const LODGING = { price: 20, perHour: 15 };
-
 export const LODGES = {
-  inn: { price: LODGING.price, perHour: LODGING.perHour, comfort: 0.6 },
-  cheap: { price: 10, perHour: 9, comfort: 0.2 },
-  cozy: { price: 25, perHour: 18, comfort: 0.7 },
+  inn: { price: 25, perHour: 14, comfort: 0.6 },
+  cheap: { price: 20, perHour: 10, comfort: 0.2 },
+  cozy: { price: 30, perHour: 18, comfort: 0.7 },
   grand: { price: 45, perHour: 26, comfort: 1 },
 };
 
@@ -177,6 +181,10 @@ export const GUARD = {
   gap: 1.3,
   callChance: 0.5,
 };
+
+export const PRAYER = { energy: 10 };
+
+export const SUMMON = { minLeft: 40, grace: 90 };
 
 export const FIREFLY = {
   count: 40,

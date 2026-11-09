@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
 import { makeRandom } from './random.js';
+import { dailyMark } from './daily.js';
+import { SUMMON } from './config.js';
 
 const DAY_KEY = 'truong-lang-xua.summonDay';
-const MIN_LEFT = 40;
-const GRACE = 90;
 const SUMMON_TEXT = 'Bạn bị triệu hồi vào lớp học!';
 const LATE_TEXT = 'Rất tiếc, tiết học sắp hết rồi, không kịp vào lớp! Thầy sẽ gọi lại vào tiết sau.';
-const timeLeft = (ctx) => ctx?.phase.kind === 'period' && ctx.phase.remaining >= MIN_LEFT;
+const timeLeft = (ctx) => ctx?.phase.kind === 'period' && ctx.phase.remaining >= SUMMON.minLeft;
 const SPARKS = 90;
 const DURATION = { vanish: 1.3, appear: 1.2 };
 const VEIL_MS = 450;
@@ -171,14 +171,6 @@ function createSummonFx(scene) {
   };
 }
 
-function loadDay() {
-  try {
-    return localStorage.getItem(DAY_KEY);
-  } catch {
-    return null;
-  }
-}
-
 function planFor(day, periods) {
   const rand = makeRandom(day * 104729 + 71);
   rand();
@@ -191,7 +183,7 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
   const ok = document.getElementById('summonOk');
   const veil = document.getElementById('summonVeil');
   const text = document.getElementById('summonText');
-  let firedDay = loadDay();
+  const fired = dailyMark(DAY_KEY);
   let active = false;
   let late = false;
   let context = null;
@@ -203,13 +195,6 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
       setTimeout(done, VEIL_MS);
     });
 
-  function markFired(day) {
-    firedDay = String(day);
-    try {
-      localStorage.setItem(DAY_KEY, firedDay);
-    } catch {}
-  }
-
   async function run() {
     const list = models();
     const bases = list.map((model) => model.scale.clone());
@@ -220,7 +205,7 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
     await fade(false);
     await fx.play('appear', arrival.spot, list, bases);
     settle(arrival);
-    markFired(context.day);
+    fired.mark(context.day);
     active = false;
   }
 
@@ -250,15 +235,15 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
       context = ctx;
       fx.update(dt);
       played += dt;
-      if (played < GRACE) return;
-      if (active || String(ctx.day) === firedDay) return;
+      if (played < SUMMON.grace) return;
+      if (active || fired.done(ctx.day)) return;
       const phase = ctx.phase;
       if (phase.kind !== 'period') return;
       const plan = planFor(ctx.day, phase.schedule.periods);
       if (phase.period < plan.period) return;
       if (phase.period === plan.period && phase.end - phase.start - phase.remaining < plan.offset) return;
       if (inClass()) {
-        markFired(ctx.day);
+        fired.mark(ctx.day);
         return;
       }
       if (!timeLeft(ctx) || !ready()) return;

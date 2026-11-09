@@ -200,7 +200,6 @@ function roundTree(world, rand, x, z) {
   return { x, z, h };
 }
 
-
 export function buildWorld(world) {
   const rand = makeRandom(2024);
   const layout = { trees: [] };

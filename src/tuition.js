@@ -1,5 +1,6 @@
-import { SCHOOL, MONEY } from './config.js';
-import { coins } from './format.js';
+import { SCHOOL } from './config.js';
+import { coins, notEnough } from './format.js';
+import { closable } from './dialog.js';
 
 export function createTuition({ purse, onStudy, onCredit }) {
   const popup = document.getElementById('payPopup');
@@ -26,7 +27,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
   function pay() {
     if (resolved) return;
     if (!purse.spend(SCHOOL.tuition)) {
-      popupNote.textContent = `Không đủ tiền! Cần ${SCHOOL.tuition} ${MONEY.icon}.`;
+      popupNote.textContent = notEnough(SCHOOL.tuition);
       return;
     }
     studying = true;
@@ -42,7 +43,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
   function renderDialog() {
     const count = clampCount(countInput.value);
     countInput.value = count;
-    total.textContent = `${count * SCHOOL.tuition} ${MONEY.icon}`;
+    total.textContent = coins(count * SCHOOL.tuition);
     current.textContent = purse.credits ? `Đã đóng trước: còn ${purse.credits} tiết` : 'Chưa đóng trước tiết nào';
   }
 
@@ -53,7 +54,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
     });
   }
   countInput.addEventListener('input', () => {
-    total.textContent = `${clampCount(countInput.value) * SCHOOL.tuition} ${MONEY.icon}`;
+    total.textContent = coins(clampCount(countInput.value) * SCHOOL.tuition);
   });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -66,11 +67,8 @@ export function createTuition({ purse, onStudy, onCredit }) {
     note.textContent = `Thầy đã ghi sổ ${count} tiết. Ngồi vào lớp là tự trừ, khỏi đóng từng tiết.`;
     renderDialog();
   });
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
+  closable(dialog);
   dialog.querySelector('.sched-ghost').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
-  });
 
   return {
     get studying() {
@@ -78,7 +76,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
     },
     openTeacher() {
       countInput.value = 5;
-      note.textContent = `Thầy đồ: "Mỗi tiết ${SCHOOL.tuition} ${MONEY.icon}. Đóng trước bao nhiêu tiết thì đóng."`;
+      note.textContent = `Thầy đồ: "Mỗi tiết ${coins(SCHOOL.tuition)}. Đóng trước bao nhiêu tiết thì đóng."`;
       renderDialog();
       dialog.showModal();
     },
@@ -111,7 +109,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
         return;
       }
       const short = purse.money < SCHOOL.tuition;
-      const text = `📖 Tiết ${period} đang học — đóng ${SCHOOL.tuition} ${MONEY.icon} để vào học?`;
+      const text = `📖 Tiết ${period} đang học — đóng ${coins(SCHOOL.tuition)} để vào học?`;
       if (popupText.textContent !== text) popupText.textContent = text;
       if (popup.hidden || popupBtn.disabled !== short) {
         popupNote.textContent = short ? 'Bạn chưa đủ tiền. Ra ruộng thu hoạch rồi bán ở tiệm nhé!' : '';

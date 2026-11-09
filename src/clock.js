@@ -53,6 +53,13 @@ export function clockText(minutes) {
   return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 }
 
+export function isOpenAt(hours, minutes) {
+  const t = minuteOfDay(minutes);
+  return hours.open < hours.close ? t >= hours.open && t < hours.close : t >= hours.open || t < hours.close;
+}
+
+export const hoursText = (hours) => `${clockText(hours.open)}–${clockText(hours.close)}`;
+
 export function countdownText(minutes) {
   const total = Math.max(1, Math.ceil(minutes));
   const days = Math.floor(total / DAY_MINUTES);

@@ -1,8 +1,10 @@
 import { CROPS } from './crops.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
+import { createStore } from './persist.js';
 
 const KEY = 'truong-lang-xua.ledger';
+const FULL_MARGIN = 0.5;
 const LEGACY_PLAYER = 'truong-lang-xua.inventory';
 const LEGACY_FARMERS = 'truong-lang-xua.farmers';
 
@@ -184,6 +186,10 @@ export class Purse {
     return this.data.energy;
   }
 
+  get full() {
+    return this.data.energy >= ENERGY.max - FULL_MARGIN;
+  }
+
   get sleeping() {
     return this.data.sleeping;
   }
@@ -293,9 +299,8 @@ export class Ledger {
       giftFishing(this.accounts[id]);
     }
     this.purses = new Map();
-    this.pending = false;
-    this.halted = false;
-    this.flush();
+    this.store = createStore(KEY, () => this.accounts);
+    this.store.flush();
   }
 
   purse(id) {
@@ -330,21 +335,11 @@ export class Ledger {
     return spoiled;
   }
 
-  halt() {
-    this.halted = true;
-  }
-
   save() {
-    if (this.pending || this.halted) return;
-    this.pending = true;
-    queueMicrotask(() => this.flush());
+    this.store.save();
   }
 
   flush() {
-    this.pending = false;
-    if (this.halted) return;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(this.accounts));
-    } catch {}
+    this.store.flush();
   }
 }

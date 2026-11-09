@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { Batch, shapes, shade, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { ENERGY, FOODS, MONEY, EATERY } from './config.js';
-import { minuteOfDay, clockText } from './clock.js';
-import { amount, coins } from './format.js';
+import { isOpenAt, hoursText } from './clock.js';
+import { amount, coins, notEnough } from './format.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
+import { closable } from './dialog.js';
 
 const W = 6.6;
 const D = 5.8;
@@ -21,12 +22,8 @@ const STONE = 0xb3ab99;
 
 let glowMaterial = null;
 
-export function eateryOpen(minutes) {
-  const t = minuteOfDay(minutes);
-  return t >= EATERY.open && t < EATERY.close;
-}
-
-export const eateryHours = () => `${clockText(EATERY.open)}–${clockText(EATERY.close)}`;
+export const eateryOpen = (minutes) => isOpenAt(EATERY, minutes);
+export const eateryHours = () => hoursText(EATERY);
 
 function roofPlane(b, z0, y0, z1, y1) {
   const dz = z1 - z0;
@@ -150,7 +147,7 @@ export function createFoodUI({ purse }) {
 
   function render() {
     header.textContent = `⚡ ${Math.floor(purse.energy)}/${ENERGY.max} · ${MONEY.icon} ${amount(purse.money)}`;
-    const full = purse.energy >= ENERGY.max - 0.5;
+    const full = purse.full;
     list.replaceChildren(
       ...Object.entries(menu.foods).map(([, food]) => {
         const node = document.createElement('div');
@@ -174,7 +171,7 @@ export function createFoodUI({ purse }) {
         button.disabled = full || purse.money < food.price;
         button.addEventListener('click', () => {
           if (!purse.spend(food.price)) {
-            note.textContent = `Không đủ tiền! Cần ${coins(food.price)}.`;
+            note.textContent = notEnough(food.price);
             return;
           }
           purse.addEnergy(food.energy);
@@ -188,10 +185,7 @@ export function createFoodUI({ purse }) {
     );
   }
 
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
-  });
+  closable(dialog);
   purse.onChange(() => {
     if (dialog.open) render();
   });
@@ -204,7 +198,7 @@ export function createFoodUI({ purse }) {
       menu = next;
       title.textContent = menu.title;
       badge.textContent = menu.icon;
-      note.textContent = purse.energy >= ENERGY.max - 0.5 ? menu.full : menu.hungry;
+      note.textContent = purse.full ? menu.full : menu.hungry;
       render();
       dialog.showModal();
     },

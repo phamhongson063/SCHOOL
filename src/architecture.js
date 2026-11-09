@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Batch, shapes, shade, toonMaterial, vertexMaterial, canvasTexture } from './toon.js';
-import { makeRandom } from './random.js';
+import { between, makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
 
 const PAL = {
@@ -48,7 +48,6 @@ const PAL = {
 
 const css = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
-const between = (rand, a, b) => a + rand() * (b - a);
 
 const shared = { plaster: null, roof: null, lantern: null, glass: null };
 let glowLevel = 0;
@@ -771,12 +770,12 @@ export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}
   const shutter = pick(rand, PAL.shutters);
   const doorWood = pick(rand, [PAL.woodDark, 0x4e2e1a, 0x5a3520, 0x34241a]);
   const roofTint = pick(rand, PAL.roofTints);
-  const slope = between(rand, 0.48, 0.58);
+  const slope = between(0.48, 0.58, rand);
   const T = 0.25;
   const P = 0.42;
   const lip = 0.22;
-  const groundH = levels === 2 ? between(rand, 3.2, 3.4) : between(rand, 3.6, 3.9);
-  const upperH = between(rand, 2.55, 2.85);
+  const groundH = levels === 2 ? between(3.2, 3.4, rand) : between(3.6, 3.9, rand);
+  const upperH = between(2.55, 2.85, rand);
   const wallTop = levels === 2 ? groundH + upperH : groundH;
   const xa = -W / 2 + P;
   const xb = W / 2 - P;

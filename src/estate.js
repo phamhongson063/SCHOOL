@@ -1,17 +1,14 @@
 import { HOUSE_PRICES, MONEY, CHIEF } from './config.js';
 import { PLAYER } from './inventory.js';
 import { amount, coins } from './format.js';
-import { minuteOfDay, clockText } from './clock.js';
+import { isOpenAt, hoursText } from './clock.js';
+import { closable } from './dialog.js';
 
 const KEY = 'truong-lang-xua.estate';
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
 
-export function chiefOpen(minutes) {
-  const t = minuteOfDay(minutes);
-  return t >= CHIEF.open && t < CHIEF.close;
-}
-
-export const chiefHours = () => `${clockText(CHIEF.open)}–${clockText(CHIEF.close)}`;
+export const chiefOpen = (minutes) => isOpenAt(CHIEF, minutes);
+export const chiefHours = () => hoursText(CHIEF);
 
 export function createEstate({ houses }) {
   const list = houses.map((house) => ({ ...house, price: HOUSE_PRICES[house.size], owner: null }));
@@ -114,10 +111,7 @@ export function createChiefUI({ estate, purse, nameOf }) {
     );
   }
 
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close();
-  });
+  closable(dialog);
   estate.onChange(() => {
     if (dialog.open) render();
   });

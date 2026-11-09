@@ -120,7 +120,6 @@ function tomatoPlant(b, stage, variety) {
   if (stage === SPENT) bush(b, rand, { ...shape, leafColors: [C.leafDark, C.withered, C.dry, C.withered] });
 }
 
-
 function strapLeaf(b, from, yaw, length, width, lift, droop, color) {
   const segments = 4;
   const step = length / segments;

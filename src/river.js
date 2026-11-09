@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial, vertexMaterial } from './toon.js';
-import { makeRandom } from './random.js';
+import { between, makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
 import { FISH, FISHING, WORLD } from './config.js';
 import { minuteOfDay } from './clock.js';
-import { moonLight, moonPhase } from './sky.js';
 import { createLanternGlow } from './lanternGlow.js';
 
 const KEY = 'truong-lang-xua.river';
@@ -39,7 +38,6 @@ const PEBBLES = [0x9e9484, 0xb3ab99, 0x857c6c];
 const FLOW_SPEED = 0.05;
 const HYACINTHS = 30;
 
-const between = (a, b) => a + Math.random() * (b - a);
 const randomInt = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
 const smooth = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -615,15 +613,6 @@ export function createRiver() {
       spot.fish -= 1;
       save();
       return true;
-    },
-    biteDelay(minutes) {
-      const t = minuteOfDay(minutes);
-      let rate = 1;
-      if ((t >= 300 && t < 450) || (t >= 990 && t < 1140)) rate = 2;
-      else if (t >= 630 && t < 870) rate = 0.5;
-      if (t >= 1140 || t < 300) rate = 0.6 + 0.9 * moonLight(moonPhase(Math.floor(minutes / 1440)));
-      const [lo, hi] = FISHING.biteSeconds;
-      return between(lo, hi) / rate;
     },
     rollFish(minutes) {
       const t = minuteOfDay(minutes);

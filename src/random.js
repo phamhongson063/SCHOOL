@@ -8,3 +8,5 @@ export function makeRandom(seed = 1) {
     return s / 4294967296;
   };
 }
+
+export const between = (a, b, rand = Math.random) => a + rand() * (b - a);

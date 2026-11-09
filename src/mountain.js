@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { HUNTING } from './config.js';
+import { HUNTING, PRAYER } from './config.js';
 import { MOUNTAIN, PAGODA, createMountainScenery, terrainHeight } from './terrain.js';
 import { createWildlife } from './wildlife.js';
+import { dailyMark } from './daily.js';
 
-const PRAYER_ENERGY = 10;
+const PRAYER_KEY = 'truong-lang-xua.prayedDay';
 
 export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }) {
   const scenery = createMountainScenery();
@@ -11,13 +12,13 @@ export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }
   const group = new THREE.Group();
   group.add(scenery.group, wildlife.group);
   let busy = false;
-  let prayedOn = null;
+  const prayer = dailyMark(PRAYER_KEY);
 
   function pray() {
-    if (prayedOn === day()) return 'Hôm nay đã thắp hương rồi.';
-    prayedOn = day();
-    purse.shiftEnergy(PRAYER_ENERGY);
-    return `🙏 Thắp nén hương, lòng nhẹ nhõm. +${PRAYER_ENERGY} sức`;
+    if (prayer.done(day())) return 'Hôm nay đã thắp hương rồi.';
+    prayer.mark(day());
+    purse.shiftEnergy(PRAYER.energy);
+    return `🙏 Thắp nén hương, lòng nhẹ nhõm. +${PRAYER.energy} sức`;
   }
 
   function catchAnimal(animal) {

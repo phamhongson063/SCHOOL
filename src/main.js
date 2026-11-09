@@ -4,18 +4,16 @@ import { VoxelWorld } from './world.js';
 import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer } from './characters.js';
-import { loadCharacterModels, hasModel, createModel, setCharacterShadows, cullCharacterOutlines } from './characterModels.js';
+import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
 import { createRooms } from './rooms.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
-import { LESSONS } from './lessons.js';
 import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
 import { NavGrid } from './nav.js';
 import { createSky, createClouds } from './sky.js';
 import { Footprints, createBlobShadow } from './groundfx.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
-import { CURSORS } from './cursors.js';
 import { createWatering } from './watering.js';
 import { createHarvesting } from './harvesting.js';
 import { createClearing } from './clearing.js';
@@ -28,20 +26,22 @@ import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
 import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { LOW_POWER } from './quality.js';
-import { outlineMaterial, freeze } from './toon.js';
-import { gameNow, dayOf, minuteOfDay, clockText, countdownText } from './clock.js';
-import { phaseAt, sessionLabel } from './timetable.js';
-import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
+import { freeze } from './toon.js';
+import { gameNow, dayOf, minuteOfDay } from './clock.js';
+import { phaseAt } from './timetable.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
 import { createMarket, createShopUI, createFishShopUI, shopOpen, shopHours, fishShopOpen, fishShopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
-import { Town, createStudyIcon, villagerProfiles } from './villagers.js';
+import { Town } from './villagers.js';
+import { createStudyIcon } from './studyIcon.js';
+import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter } from './quarter.js';
 import { createMountain } from './mountain.js';
 import { createCountryside } from './countryside.js';
 import { createDistrict } from './district.js';
-import { book, isFree, leaveRoom, roomTier } from './lodging.js';
+import { book, leaveRoom } from './lodging.js';
 import { MOUNTAIN, terrainHeight, terrainFloor, navSurface, nearShelter } from './terrain.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
@@ -63,6 +63,13 @@ import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
 import { JOIN_RADIUS } from './queue.js';
 import { redrawCanvases } from './canvasRestore.js';
+import { createLodgeDesk } from './lodgeDesk.js';
+import { createScheduleBoard } from './scheduleBoard.js';
+import { createHoverTip } from './hoverTip.js';
+import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
+import { coins } from './format.js';
+import { dailyMark } from './daily.js';
+import { haltStores } from './persist.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -71,19 +78,12 @@ const POPUP_FRAME_RATE = 10;
 const SLEEP_FRAME_RATE = 2;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
-const SHADOW_REFRESH = 2;
-let shadowAt = 0;
 const IDLE_AFTER = 20000;
-const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
-const MIN_PIXEL_RATIO = 0.75;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
-const OUTLINE_DISTANCE = 26;
-const CHARACTER_OUTLINE_DISTANCE = OUTLINE_DISTANCE;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: MOUNTAIN.z0, z1: 84 };
 
-let pixelRatio = MAX_PIXEL_RATIO;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
+renderer.setPixelRatio(MAX_PIXEL_RATIO);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = LOW_POWER ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
@@ -91,7 +91,7 @@ renderer.shadowMap.autoUpdate = false;
 document.getElementById('app').appendChild(renderer.domElement);
 renderer.domElement.addEventListener('webglcontextrestored', () => {
   redrawCanvases();
-  shadowAt = 0;
+  tuning.invalidateShadows();
 });
 
 const scene = new THREE.Scene();
@@ -105,6 +105,7 @@ Object.assign(sun.shadow.camera, { left: -SHADOW_SPAN, right: SHADOW_SPAN, top: 
 sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
+const tuning = createRenderTuning({ renderer, scene, camera, sun, frameRate: FRAME_RATE });
 
 const itemImages = loadItemImages();
 await loadingStep(0.4, 'Dựng trường làng');
@@ -177,8 +178,15 @@ const chiefUI = createChiefUI({ estate, purse, nameOf });
 const foodUI = createFoodUI({ purse });
 const bank = createBank({ ledger, estate, now: gameNow });
 const bankUI = createBankUI({ bank, purse });
+const VENUES = {
+  shop: { isOpen: shopOpen, ui: shopUI },
+  fish: { isOpen: fishShopOpen, ui: fishShopUI },
+  chief: { isOpen: chiefOpen, ui: chiefUI },
+  bank: { isOpen: bankOpen, ui: bankUI },
+  eatery: { isOpen: eateryOpen, ui: foodUI },
+};
 bank.onCollect((owner, taken) => {
-  if (owner === PLAYER) sayPlayer(`🏦 Ngân hàng trừ ${taken} ${MONEY.icon} nợ quá hạn`, 3);
+  if (owner === PLAYER) sayPlayer(`🏦 Ngân hàng trừ ${coins(taken)} nợ quá hạn`, 3);
 });
 
 createFullscreenToggle();
@@ -186,8 +194,7 @@ createFullscreenToggle();
 createSettings({
   onReset() {
     renderer.setAnimationLoop(null);
-    ledger.halt();
-    bank.halt();
+    haltStores();
     wipeGame();
     window.location.reload();
   },
@@ -205,7 +212,7 @@ regions.add(quarter.region());
 for (const region of countryside.regions()) regions.add(region);
 regions.add(
   district.region({
-    rentLodge: (id) => rentLodge(id),
+    rentLodge: (id) => lodgeDesk.rent(id),
     bank,
     openBank: () => bankUI.open(),
     minutes: () => gameNow(),
@@ -230,7 +237,7 @@ for (const region of village.regions({
     chiefHours,
     isNight: () => context.night,
     sleep: () => sleepAtHome(),
-    rentLodge: (id) => rentLodge(id),
+    rentLodge: (id) => lodgeDesk.rent(id),
   })) {
   regions.add(region);
 }
@@ -259,11 +266,11 @@ player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
 });
 regions.onLoad = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
-  shadowAt = 0;
+  tuning.invalidateShadows();
 };
 regions.onUnload = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
-  shadowAt = 0;
+  tuning.invalidateShadows();
 };
 
 const villagerRoot = new THREE.Group();
@@ -271,12 +278,10 @@ scene.add(villagerRoot);
 
 const picker = createPicker();
 const regionControls = [...document.querySelectorAll('[data-region]')];
-let hoverRegion = null;
+const hoverTip = createHoverTip({ renderer, camera, regions, player, playing: () => mode === 'play', working: () => effectTask });
 regions.onChange = (region) => {
   for (const control of regionControls) control.hidden = control.dataset.region !== region?.id;
-  hoverRegion?.highlight?.(null);
-  hoverRegion = null;
-  hoverTip.hidden = true;
+  hoverTip.reset();
   picker.close();
 };
 
@@ -333,7 +338,6 @@ function placeBubble() {
   const anchor = playerBubble.sprite.position.lerpVectors(BUBBLE_STAND, BUBBLE_LYING, k);
   if (k > 0) anchor.applyAxisAngle(X_AXIS, -avatar.group.rotation.x);
 }
-
 
 const effects = {
   water: createWatering(scene, avatar),
@@ -556,18 +560,18 @@ const mountain = createMountain({
 });
 regions.add(mountain.region());
 town.wildlife = mountain.wildlife;
-let lastDay = context.day;
-if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3), 1500);
+function dropSpoiledFish(delay = 0) {
+  if (!ledger.spoilFish(context.day).includes(PLAYER)) return;
+  setTimeout(() => sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3), delay);
+}
+dropSpoiledFish(1500);
 
 const lesson = createLesson();
-const STUDY_REWARD_KEY = 'truong-lang-xua.studyRewardDay';
+const studyReward = dailyMark('truong-lang-xua.studyRewardDay');
 const study = createStudy({ onComplete: rewardStudy });
 function rewardStudy() {
-  const day = String(context.day);
-  try {
-    if (localStorage.getItem(STUDY_REWARD_KEY) === day) return;
-    localStorage.setItem(STUDY_REWARD_KEY, day);
-  } catch {}
+  if (studyReward.done(context.day)) return;
+  studyReward.mark(context.day);
   purse.addCredits(1);
   sayPlayer('🎓 +1 tiết học', 2.4);
 }
@@ -686,23 +690,15 @@ const teacherDesk = {
 };
 const noticeSpot = {
   act() {
-    openSchedule();
+    scheduleBoard.open();
     return null;
   },
 };
-function rentLodge(id) {
-  const tier = roomTier(id);
-  if (!isFree(id, PLAYER)) return 'Phòng có người ở rồi, tìm chỗ khác nhé!';
-  if (purse.energy >= ENERGY.max - 0.5) return 'Còn khoẻ lắm, chưa cần nghỉ!';
-  if (!purse.spend(tier.price)) return `Không đủ tiền! Cần ${tier.price} ${MONEY.icon}.`;
-  book(id, PLAYER);
-  sleepAtLodge(id);
-  return null;
-}
+const lodgeDesk = createLodgeDesk({ purse, onRent: (id) => sleepAtLodge(id) });
 
 const innDesk = {
   act() {
-    return rentLodge('inn');
+    return lodgeDesk.rent('inn');
   },
 };
 
@@ -842,10 +838,9 @@ player.onClick = (clientX, clientY, run) => {
     return;
   }
   const kind = target?.kind;
-  if (target && town.queues[kind]) {
-    const now = gameNow();
-    const open = kind === 'shop' ? shopOpen(now) : kind === 'fish' ? fishShopOpen(now) : kind === 'chief' ? chiefOpen(now) : kind === 'bank' ? bankOpen(now) : eateryOpen(now);
-    if (!open) {
+  const venue = VENUES[kind];
+  if (target && venue && town.queues[kind]) {
+    if (!venue.isOpen(gameNow())) {
       leaveLine();
       sayPlayer(region.act('visit', target), 2.4);
       return;
@@ -856,7 +851,7 @@ player.onClick = (clientX, clientY, run) => {
         const reply = region.act('visit', target);
         if (reply) sayPlayer(reply, 2.4);
       },
-      kind === 'shop' ? shopUI : kind === 'fish' ? fishShopUI : kind === 'chief' ? chiefUI : kind === 'bank' ? bankUI : foodUI,
+      venue.ui,
     );
     return;
   }
@@ -884,100 +879,6 @@ player.onClick = (clientX, clientY, run) => {
   player.requestMove(point, run);
 };
 
-const hoverPointer = new THREE.Vector2();
-const hoverTip = document.getElementById('hoverTip');
-const hoverTipText = document.getElementById('hoverTipText');
-const hoverTipBar = document.getElementById('hoverTipBar');
-const hoverTipFill = hoverTipBar.firstElementChild;
-let hovering = false;
-renderer.domElement.addEventListener('pointermove', (event) => {
-  hovering = event.pointerType === 'mouse';
-  hoverDirty = true;
-  hoverPointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
-});
-
-const tipAnchor = new THREE.Vector3();
-const hoverCamera = new THREE.Matrix4();
-let hoverDirty = true;
-let hoverPick = { region: null, target: null };
-let tipSize = null;
-window.addEventListener('resize', () => (tipSize = null));
-function showHoverTip(text, anchor, progress = null) {
-  let visible = !!text && !!anchor;
-  if (visible) visible = tipAnchor.copy(anchor).project(camera).z < 1;
-  hoverTip.hidden = !visible;
-  if (!visible) return;
-  if (hoverTipText.textContent !== text) {
-    hoverTipText.textContent = text;
-    tipSize = null;
-  }
-  const timed = progress != null;
-  if (hoverTipBar.hidden === timed) {
-    hoverTipBar.hidden = !timed;
-    tipSize = null;
-  }
-  if (timed) hoverTipFill.style.transform = `scaleX(${progress})`;
-  tipSize ??= hoverTip.getBoundingClientRect();
-  const { width, height } = tipSize;
-  const x = ((tipAnchor.x + 1) / 2) * window.innerWidth - width / 2;
-  const y = ((1 - tipAnchor.y) / 2) * window.innerHeight - height;
-  hoverTip.style.transform = `translate(${x}px, ${y}px)`;
-}
-renderer.domElement.addEventListener('pointerleave', () => {
-  hovering = false;
-});
-
-const HOVER_INTERVAL = 0.1;
-let hoverAt = 0;
-let hoverText = null;
-let hoverAnchor = null;
-let hoverProgress = null;
-
-function updateHover(t) {
-  if (player.drag) {
-    hoverTip.hidden = true;
-    return;
-  }
-  if (t < hoverAt) {
-    showHoverTip(hoverText, hoverAnchor, hoverProgress);
-    return;
-  }
-  hoverAt = t + HOVER_INTERVAL;
-  let region = null;
-  let target = null;
-  if (hovering && mode === 'play') {
-    if (hoverDirty || !hoverCamera.equals(camera.matrixWorld)) {
-      hoverDirty = false;
-      hoverCamera.copy(camera.matrixWorld);
-      raycaster.setFromCamera(hoverPointer, camera);
-      const hit = raycaster.intersectObjects(regions.clickables, true)[0];
-      if (hit) {
-        region = regions.regionOf(hit.object);
-        if (region?.target) target = region.target(hit, player.position);
-      }
-      hoverPick = { region, target };
-    } else ({ region, target } = hoverPick);
-  }
-  if (hoverRegion && hoverRegion !== region) hoverRegion.highlight?.(null);
-  if (!target && !hoverRegion) {
-    hoverText = null;
-    hoverAnchor = null;
-    renderer.domElement.style.cursor = '';
-    return;
-  }
-  region?.highlight?.(target);
-  hoverRegion = target ? region : null;
-  const working = target && effectTask?.region === region && effectTask.target.index === target.index;
-  const hint = target && !working ? region.actionFor(target).hint : null;
-  renderer.domElement.style.cursor = hint ? CURSORS[hint] : '';
-  const label = target ? region.labelOf?.(target) : null;
-  const left = target && !label ? region.timeLeft?.(target) : null;
-  hoverText = label ?? (left == null ? null : countdownText(left));
-  hoverProgress = left == null ? null : region.growth?.(target) ?? null;
-  hoverAnchor = hoverText == null ? null : region.topOf(target);
-  showHoverTip(hoverText, hoverAnchor, hoverProgress);
-}
-
 const MAP_VIEW = { height: 95, tilt: 0.45, near: 2, min: 25, max: 170, fogNear: 400, fogFar: 900, tapGap: 350, tapSlop: 12 };
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
@@ -994,7 +895,6 @@ const ui = {
   viewBtn: document.getElementById('viewBtn'),
   modeBtn: document.getElementById('modeBtn'),
 };
-
 
 let mode = 'play';
 
@@ -1115,132 +1015,7 @@ for (const button of [ui.viewBtn, ui.modeBtn, restBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
-const phaseUI = {
-  pill: document.getElementById('phasePill'),
-  clock: document.getElementById('phaseClock'),
-  dialog: document.getElementById('scheduleDialog'),
-  form: document.getElementById('scheduleForm'),
-  dayClock: document.getElementById('scheduleClock'),
-  list: document.getElementById('scheduleList'),
-  hint: document.getElementById('scheduleHint'),
-  cancel: document.getElementById('cancelBtn'),
-  close: document.getElementById('scheduleClose'),
-  modes: [...document.querySelectorAll('.mode-option')],
-};
-
-const lessonChoice = document.getElementById('lessonChoice');
-const lessonSelect = document.getElementById('lessonSelect');
-lessonSelect.replaceChildren(
-  ...LESSONS.map((item) => {
-    const phrase = item.phrase.replace(/\{[^}]*\}/g, '').replace(/[[\]]/g, '');
-    return new Option(`Bài ${item.no} · ${phrase} (${item.romaji})`, String(item.no));
-  }),
-);
-
-let pendingMode = lesson.mode;
-function showMode(next) {
-  pendingMode = next;
-  for (const option of phaseUI.modes) option.setAttribute('aria-checked', String(option.dataset.mode === next));
-  lessonChoice.hidden = next !== 'choose';
-}
-for (const option of phaseUI.modes) option.addEventListener('click', () => showMode(option.dataset.mode));
-
-const MOONS = [
-  [0.03, '🌑 Trăng non'],
-  [0.22, '🌒 Trăng lưỡi liềm'],
-  [0.28, '🌓 Trăng thượng huyền'],
-  [0.47, '🌔 Trăng gần rằm'],
-  [0.53, '🌕 Trăng rằm'],
-  [0.72, '🌖 Trăng khuyết dần'],
-  [0.78, '🌗 Trăng hạ huyền'],
-  [0.97, '🌘 Trăng lưỡi liềm cuối'],
-  [1.01, '🌑 Trăng non'],
-];
-const moonName = (phase) => MOONS.find(([max]) => phase <= max)[1];
-const minutesLeft = (m) => `${Math.max(1, Math.ceil(m))}'`;
-
-function phaseStatus(ctx) {
-  const phase = ctx.phase;
-  if (phase.kind === 'period') return { icon: '📖', text: `Tiết ${phase.period} · còn ${minutesLeft(phase.remaining)}`, tone: '' };
-  if (phase.kind === 'rest') return { icon: '☕', text: `Nghỉ tại chỗ · ${minutesLeft(phase.remaining)}`, tone: 'break' };
-  if (phase.kind === 'recess') return { icon: '🪁', text: `Ra chơi · ${minutesLeft(phase.remaining)}`, tone: 'break' };
-  if (ctx.night) return { icon: '🌙', text: 'Ban đêm', tone: 'night' };
-  if (phase.next) {
-    const soon = phase.remaining <= SCHOOL.alertBefore;
-    return {
-      icon: soon ? '🔔' : '⏳',
-      text: soon ? `Tiết ${phase.next.period} sau ${minutesLeft(phase.remaining)}` : `Tiết ${phase.next.period} lúc ${clockText(phase.next.start)}`,
-      tone: '',
-      alert: soon,
-    };
-  }
-  return { icon: '🏡', text: 'Tan học', tone: '' };
-}
-
-let shownKey = '';
-function refreshPhase(force = false) {
-  const clockLabel = clockText(context.minutes);
-  if (!force && clockLabel === shownKey) return;
-  shownKey = clockLabel;
-  phaseUI.clock.textContent = clockLabel;
-  const label = `Ngày ${context.day}, ${clockLabel}`;
-  phaseUI.pill.title = label;
-  phaseUI.pill.setAttribute('aria-label', `${label}. Mở thời khoá biểu`);
-  if (phaseUI.dialog.open) renderSchedule();
-}
-
-function renderSchedule() {
-  const { phase, minute, day } = context;
-  const schedule = phase.schedule;
-  phaseUI.dayClock.textContent = `Ngày ${day} · ${clockText(context.minutes)} · ${moonName(sky.phase)} · ${sessionLabel(schedule.plan)}`;
-  const items = [];
-  let lastEnd = 0;
-  for (const seg of schedule.segments) {
-    if (lastEnd && seg.start - lastEnd > 60) {
-      const li = document.createElement('li');
-      li.className = 'lunch';
-      li.textContent = `${seg.start >= 18 * 60 ? 'Nghỉ tối' : 'Nghỉ trưa'} · ${clockText(lastEnd)} – ${clockText(seg.start)}`;
-      items.push(li);
-    }
-    lastEnd = seg.end;
-    const li = document.createElement('li');
-    const name = seg.kind === 'period' ? `📖 Tiết ${seg.period}` : seg.kind === 'rest' ? '☕ Nghỉ tại chỗ' : '🪁 Ra chơi';
-    const label = document.createElement('span');
-    label.textContent = name;
-    const time = document.createElement('span');
-    time.textContent = `${clockText(seg.start)} – ${clockText(seg.end)}`;
-    li.append(label, time);
-    li.classList.toggle('break', seg.kind !== 'period');
-    li.classList.toggle('now', minute >= seg.start && minute < seg.end);
-    li.classList.toggle('past', minute >= seg.end);
-    items.push(li);
-  }
-  phaseUI.list.replaceChildren(...items);
-  const status = phaseStatus(context);
-  const credits = purse.credits ? ` · đã đóng trước ${purse.credits} tiết` : '';
-  phaseUI.hint.textContent = `${status.icon} ${status.text} · học phí ${SCHOOL.tuition} ${MONEY.icon}/tiết${credits}`;
-  phaseUI.hint.classList.toggle('break', status.tone === 'break');
-}
-
-function openSchedule() {
-  lessonSelect.value = String(lesson.choice);
-  showMode(lesson.mode);
-  renderSchedule();
-  phaseUI.dialog.showModal();
-}
-
-phaseUI.pill.addEventListener('click', openSchedule);
-phaseUI.pill.addEventListener('pointerup', () => phaseUI.pill.blur());
-phaseUI.cancel.addEventListener('click', () => phaseUI.dialog.close());
-phaseUI.close.addEventListener('click', () => phaseUI.dialog.close());
-phaseUI.dialog.addEventListener('click', (e) => {
-  if (e.target === phaseUI.dialog) phaseUI.dialog.close();
-});
-phaseUI.form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  lesson.setMode(pendingMode, Number(lessonSelect.value));
-  phaseUI.dialog.close();
-});
+const scheduleBoard = createScheduleBoard({ lesson, purse, sky, context: () => context });
 
 let lastPhaseKey = context.phase.key;
 function onPhaseChange(ctx) {
@@ -1271,7 +1046,7 @@ window.addEventListener('resize', fitView);
 fitView();
 
 refreshUI();
-refreshPhase(true);
+scheduleBoard.refresh(true);
 
 const clock = new THREE.Clock();
 let lastFrame = 0;
@@ -1283,56 +1058,7 @@ const SCROLL_PAUSE = 300;
 let lastScroll = -Infinity;
 document.addEventListener('scroll', () => (lastScroll = performance.now()), { capture: true, passive: true });
 
-const pace = { target: FRAME_RATE, frames: 0, since: 0, steady: 0 };
-function adaptResolution(time, target) {
-  if (target !== pace.target || !pace.since) {
-    Object.assign(pace, { target, frames: 0, since: time });
-    return;
-  }
-  pace.frames += 1;
-  const span = time - pace.since;
-  if (span < 3000) return;
-  const fps = (pace.frames * 1000) / span;
-  pace.frames = 0;
-  pace.since = time;
-  let next = pixelRatio;
-  if (fps < target * 0.8) {
-    next = Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25);
-    pace.steady = 0;
-  } else if (fps >= target * 0.95 && ++pace.steady >= 5) {
-    next = Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.25);
-    pace.steady = 0;
-  }
-  if (next === pixelRatio) return;
-  pixelRatio = next;
-  renderer.setPixelRatio(pixelRatio);
-}
-
-let shadowKey = '';
-function refreshShadows(t) {
-  const p = sun.position;
-  const key = `${p.x},${p.y},${p.z},${sun.intensity > 0}`;
-  if (key === shadowKey && t < shadowAt) return;
-  shadowKey = key;
-  shadowAt = t + SHADOW_REFRESH;
-  renderer.shadowMap.needsUpdate = true;
-}
-
-const outlines = [];
-scene.traverse((object) => {
-  if (object.isMesh && object.material === outlineMaterial()) outlines.push(object);
-});
-const outlinePoint = new THREE.Vector3();
-let outlineCheck = 0;
-function updateOutlines(t) {
-  if (t < outlineCheck) return;
-  outlineCheck = t + 0.5;
-  for (const outline of outlines) {
-    outline.getWorldPosition(outlinePoint);
-    outline.visible = outlinePoint.distanceToSquared(camera.position) < OUTLINE_DISTANCE * OUTLINE_DISTANCE;
-  }
-  cullCharacterOutlines(camera, CHARACTER_OUTLINE_DISTANCE);
-}
+tuning.trackOutlines();
 
 const rooms = createRooms();
 town.view = rooms;
@@ -1367,11 +1093,11 @@ function drainEnergy() {
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : 'rest';
   const studying = player.seat?.study || (inClass() && learningNow());
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
-  const offline = asleep ? 'idle' : player.resting ? lying : 'idle';
+  const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
   purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;
   if (!asleep) return;
-  if (lodging && purse.energy >= ENERGY.max - 0.01) {
+  if (lodging && purse.full) {
     wakeUp('Khoẻ re rồi, đi tiếp thôi!');
     return;
   }
@@ -1415,6 +1141,7 @@ await loadingStep(0.97);
 
 let shownNight = -1;
 let framesShown = 0;
+let lastDay = context.day;
 renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const popup = popupOpen();
@@ -1423,8 +1150,8 @@ renderer.setAnimationLoop((time) => {
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
   if (LOW_POWER) {
-    if (popup) pace.since = 0;
-    else adaptResolution(time, frameRate);
+    if (popup) tuning.pauseResolution();
+    else tuning.adaptResolution(time, frameRate);
   }
   const elapsed = clock.getDelta();
   const dt = Math.min(elapsed, MAX_STEP);
@@ -1440,7 +1167,7 @@ renderer.setAnimationLoop((time) => {
     onPhaseChange(context);
   }
   const night = sky.update(context.minutes, camera, mode === 'overview' ? orbit.target : player.position, SHADOW_SPAN);
-  refreshShadows(t);
+  tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
     school.setNight(night);
@@ -1453,12 +1180,12 @@ renderer.setAnimationLoop((time) => {
   notice.refresh(context.day);
   if (context.day !== lastDay) {
     lastDay = context.day;
-    if (ledger.spoilFish(context.day).includes(PLAYER)) sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3);
+    dropSpoiledFish();
   }
   footprints.update(t);
   tuition.update(context, inClass());
   playerStudyIcon.visible = inClass() && learningNow();
-  refreshPhase();
+  scheduleBoard.refresh();
   refreshRest();
   farm.tick();
   cullRooms();
@@ -1506,8 +1233,8 @@ renderer.setAnimationLoop((time) => {
     if (foodUI.isOpen) town.vendor.hold(2);
     else servingVendor = false;
   }
-  updateHover(t);
-  updateOutlines(t);
+  hoverTip.update(t);
+  tuning.updateOutlines(t);
   playerBubble.update(t);
   avatar.face.update(t, player.restAmount > 0.6 ? 'blink' : 'open');
   if (seatedAvatar.group.visible) {

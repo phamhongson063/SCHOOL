@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
 import { FIREFLY } from './config.js';
+import { between } from './random.js';
 
 const GLOW = new THREE.Color(0xd9ff6a);
 const FADE_RATE = 0.6;
@@ -48,7 +49,6 @@ function glowPoints(count, size) {
   return { points, positions, colors, geometry, material };
 }
 
-const between = (a, b) => a + Math.random() * (b - a);
 const blink = (t, fly) => {
   const wave = Math.sin(t * fly.rate + fly.phase);
   return 0.15 + 0.85 * Math.max(0, wave) ** 3;

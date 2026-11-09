@@ -5,6 +5,24 @@
   --bar-height: 57px;
   --panel-bottom: calc(var(--safe-bottom) + var(--pill-gap) + var(--bar-height) + 12px);
   --panel-top: 76px;
+  --gold: #c9962f;
+  --ink: #2b1c12;
+  --lacquer: #8a1d14;
+  --wood: #6b4425;
+  --amber: #f2cf63;
+  --cream: #fff3d6;
+  --tan: #8a6a3a;
+  --bark: #4a2e18;
+  --shadow-strong: rgba(0, 0, 0, 0.45);
+  --shadow-soft: rgba(0, 0, 0, 0.35);
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --z-scene-ui: 2;
+  --z-hud: 3;
+  --z-float: 4;
+  --z-over: 5;
+  --z-panel: 6;
+  --z-veil: 20;
+  --z-loader: 100;
 }
 
 * {
@@ -35,7 +53,7 @@ body {
   height: 100%;
   overflow: hidden;
   background: #a8d8f0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-ui);
 }
 
 #app,
@@ -53,7 +71,7 @@ body {
   position: fixed;
   top: 16px;
   left: 16px;
-  z-index: 3;
+  z-index: var(--z-hud);
 }
 
 .vitals {
@@ -98,7 +116,7 @@ body {
 }
 
 .vitals:focus-visible {
-  outline: 2px solid #f2cf63;
+  outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
 
@@ -111,7 +129,7 @@ body {
   width: max-content;
   max-width: min(300px, calc(100vw - 32px));
   padding: 10px 12px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 6px;
   background: rgba(28, 20, 14, 0.9);
   color: #f4ead2;
@@ -125,7 +143,7 @@ body {
 }
 
 .vitals-info strong {
-  color: #f2cf63;
+  color: var(--amber);
 }
 
 #hud:hover .vitals-info,
@@ -155,7 +173,7 @@ body {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 2;
+  z-index: var(--z-scene-ui);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -178,7 +196,7 @@ body {
 .icon-btn svg {
   width: 28px;
   height: 28px;
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 4px var(--shadow-soft));
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -187,12 +205,12 @@ body {
 }
 
 .icon-btn:hover:not(:disabled) {
-  color: #fff3d6;
+  color: var(--cream);
   transform: scale(1.08);
 }
 
 .icon-btn.active {
-  color: #f2cf63;
+  color: var(--amber);
 }
 
 .icon-btn:disabled {
@@ -201,7 +219,7 @@ body {
 }
 
 .icon-btn:focus-visible {
-  outline: 2px solid #f2cf63;
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
 
@@ -209,7 +227,7 @@ body {
   position: fixed;
   left: 16px;
   top: 84px;
-  z-index: 2;
+  z-index: var(--z-scene-ui);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,13 +238,13 @@ body {
   border: none;
   background: none;
   color: #f4ead2;
-  font: 600 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 600 15px/1 var(--font-ui);
   text-shadow:
-    -1.5px -1.5px 0 #2b1c12,
-    1.5px -1.5px 0 #2b1c12,
-    -1.5px 1.5px 0 #2b1c12,
-    1.5px 1.5px 0 #2b1c12,
-    0 2px 5px rgba(0, 0, 0, 0.45);
+    -1.5px -1.5px 0 var(--ink),
+    1.5px -1.5px 0 var(--ink),
+    -1.5px 1.5px 0 var(--ink),
+    1.5px 1.5px 0 var(--ink),
+    0 2px 5px var(--shadow-strong);
   cursor: pointer;
 }
 
@@ -234,16 +252,16 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 4;
-  color: #fff3d6;
-  font: 800 18px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  z-index: var(--z-float);
+  color: var(--cream);
+  font: 800 18px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   text-shadow:
-    -1.5px -1.5px 0 #2b1c12,
-    1.5px -1.5px 0 #2b1c12,
-    -1.5px 1.5px 0 #2b1c12,
-    1.5px 1.5px 0 #2b1c12,
-    0 2px 5px rgba(0, 0, 0, 0.45);
+    -1.5px -1.5px 0 var(--ink),
+    1.5px -1.5px 0 var(--ink),
+    -1.5px 1.5px 0 var(--ink),
+    1.5px 1.5px 0 var(--ink),
+    0 2px 5px var(--shadow-strong);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -258,10 +276,10 @@ body {
   width: 64px;
   height: 8px;
   padding: 1px;
-  border: 1.5px solid #2b1c12;
+  border: 1.5px solid var(--ink);
   border-radius: 5px;
   background: rgba(43, 28, 18, 0.55);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 5px var(--shadow-soft);
   overflow: hidden;
 }
 
@@ -276,7 +294,7 @@ body {
 .picker {
   --tail: 50%;
   position: fixed;
-  z-index: 4;
+  z-index: var(--z-float);
   max-width: calc(100vw - 24px);
   padding: 6px;
   border: 1.5px solid rgba(214, 168, 72, 0.85);
@@ -322,7 +340,7 @@ body {
   border: 1.5px solid rgba(201, 150, 47, 0.35);
   border-radius: 10px;
   background: radial-gradient(circle at 50% 38%, #5e4129 0%, #3a2516 75%);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 2px 6px var(--shadow-strong);
   color: #f4ead2;
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -330,8 +348,8 @@ body {
 
 .picker-option:hover,
 .picker-option:focus-visible {
-  border-color: #f2cf63;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(242, 207, 99, 0.25), 0 4px 10px rgba(0, 0, 0, 0.35);
+  border-color: var(--amber);
+  box-shadow: inset 0 2px 6px var(--shadow-soft), 0 0 0 2px rgba(242, 207, 99, 0.25), 0 4px 10px var(--shadow-soft);
   transform: translateY(-2px);
   outline: none;
 }
@@ -343,7 +361,7 @@ body {
 .picker-option-icon {
   font-size: 32px;
   line-height: 1;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 2px var(--shadow-soft));
 }
 
 .picker-option-label {
@@ -354,8 +372,8 @@ body {
   padding: 2px 5px;
   border-radius: 999px;
   background: rgba(20, 12, 6, 0.85);
-  color: #f2cf63;
-  font: 800 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--amber);
+  font: 800 11px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -374,29 +392,29 @@ body {
 .bag-veil {
   position: fixed;
   inset: 0;
-  z-index: 4;
+  z-index: var(--z-float);
   background: rgba(10, 6, 3, 0.35);
 }
 
 body.bag-open #toolbar {
-  z-index: 5;
+  z-index: var(--z-over);
 }
 
 .bag-panel {
   position: fixed;
   top: 66px;
   right: 16px;
-  z-index: 6;
+  z-index: var(--z-panel);
   display: flex;
   flex-direction: column;
   width: min(340px, calc(100vw - 32px));
   max-height: calc(100dvh - 82px);
   padding: 12px 14px 14px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 10px;
   background: rgba(28, 20, 14, 0.96);
   color: #f4ead2;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px var(--shadow-soft);
   animation: bag-open 0.18s ease-out;
   transform-origin: top right;
 }
@@ -411,8 +429,8 @@ body.bag-open #toolbar {
 
 .bag-head h2 {
   margin: 0;
-  color: #f2cf63;
-  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--amber);
+  font: 700 16px/1.2 var(--font-ui);
 }
 
 .bag-category {
@@ -428,7 +446,7 @@ body.bag-open #toolbar {
 .bag-credits {
   margin: -4px 0 10px;
   color: #cbe7a8;
-  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 600 13px/1.3 var(--font-ui);
 }
 
 .bag-tabs {
@@ -445,7 +463,7 @@ body.bag-open #toolbar {
   width: 46px;
   height: 40px;
   padding: 0;
-  border: 2px solid #6b4425;
+  border: 2px solid var(--wood);
   border-bottom: 0;
   border-radius: 9px 9px 0 0;
   background: #22180f;
@@ -463,7 +481,7 @@ body.bag-open #toolbar {
   height: 46px;
   margin-top: -4px;
   margin-bottom: -2px;
-  border-color: #c9962f;
+  border-color: var(--gold);
   background: #3a2717;
 }
 
@@ -472,7 +490,7 @@ body.bag-open #toolbar {
 }
 
 .bag-tab:focus-visible {
-  outline: 2px solid #f2cf63;
+  outline: 2px solid var(--amber);
   outline-offset: -4px;
 }
 
@@ -480,7 +498,7 @@ body.bag-open #toolbar {
   display: flex;
   min-height: 0;
   padding: 8px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 0 9px 9px 9px;
   background: #3a2717;
 }
@@ -504,7 +522,7 @@ body.bag-open #toolbar {
   border: 1.5px solid rgba(20, 12, 6, 0.7);
   border-radius: 7px;
   background: rgba(20, 13, 8, 0.55);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 2px 4px var(--shadow-strong);
 }
 
 .bag-slot.filled {
@@ -515,16 +533,16 @@ body.bag-open #toolbar {
 }
 
 .bag-slot.filled:hover {
-  border-color: #c9962f;
+  border-color: var(--gold);
 }
 
 .bag-slot.filled[aria-pressed="true"] {
-  border-color: #f2cf63;
-  box-shadow: 0 0 0 1.5px #f2cf63, inset 0 1px 0 rgba(255, 220, 160, 0.12);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1.5px var(--amber), inset 0 1px 0 rgba(255, 220, 160, 0.12);
 }
 
 .bag-slot.filled:focus-visible {
-  outline: 2px solid #f2cf63;
+  outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
 
@@ -537,8 +555,8 @@ body.bag-open #toolbar {
   position: absolute;
   right: 4px;
   bottom: 2px;
-  color: #fff3d6;
-  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--cream);
+  font: 700 12px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 2px #000, 0 1px 2px #000;
 }
@@ -546,8 +564,8 @@ body.bag-open #toolbar {
 .bag-info {
   min-height: 18px;
   margin: 10px 2px 0;
-  color: #f2cf63;
-  font: 700 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--amber);
+  font: 700 14px/1.3 var(--font-ui);
 }
 
 .bag-info.muted {
@@ -595,16 +613,16 @@ body.bag-open #toolbar {
 dialog.paper {
   width: min(400px, calc(100vw - 32px));
   padding: 0;
-  border: 6px solid #6b4425;
+  border: 6px solid var(--wood);
   border-radius: 14px;
-  outline: 2px solid #c9962f;
+  outline: 2px solid var(--gold);
   outline-offset: -11px;
   background:
     repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.035) 0 2px, transparent 2px 6px),
     radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
-  color: #2b1c12;
+  color: var(--ink);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
-  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 15px/1.4 var(--font-ui);
 }
 
 dialog.paper[open] {
@@ -626,7 +644,7 @@ dialog.paper::backdrop {
   gap: 10px;
   margin: -18px -22px 16px;
   padding: 12px 14px 12px 20px;
-  border-bottom: 2px solid #c9962f;
+  border-bottom: 2px solid var(--gold);
   background:
     repeating-linear-gradient(177deg, rgba(255, 220, 160, 0.08) 0 2px, transparent 2px 7px),
     repeating-linear-gradient(183deg, rgba(30, 14, 4, 0.16) 0 1px, transparent 1px 11px),
@@ -643,7 +661,7 @@ dialog.paper::backdrop {
   margin: 0;
   font-size: 20px;
   color: #fbe7b0;
-  text-shadow: 0 1px 0 #2a160a, 0 0 6px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 0 #2a160a, 0 0 6px var(--shadow-soft);
 }
 
 .sched-badge {
@@ -652,12 +670,13 @@ dialog.paper::backdrop {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #8a1d14;
-  border: 2px solid #c9962f;
-  color: #fff3d6;
+  background: var(--lacquer);
+  border: 2px solid var(--gold);
+  color: var(--cream);
 }
 
-.sched-badge svg {
+.sched-badge svg,
+.paper-btn svg {
   width: 20px;
   height: 20px;
   fill: none;
@@ -675,8 +694,8 @@ dialog.paper::backdrop {
   padding: 0;
   border: 2px solid #e8b84a;
   border-radius: 7px;
-  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, #8a1d14 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 3px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, var(--lacquer) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 3px var(--shadow-strong);
   font-size: 0;
   cursor: pointer;
 }
@@ -729,7 +748,7 @@ dialog.paper::backdrop {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  color: #4a2e18;
+  color: var(--bark);
 }
 
 .stepper {
@@ -744,10 +763,10 @@ dialog.paper::backdrop {
   width: 34px;
   height: 34px;
   padding: 0;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 50%;
-  background: #6b4425;
-  color: #fff3d6;
+  background: var(--wood);
+  color: var(--cream);
   font: 700 20px/1 system-ui, -apple-system, sans-serif;
   cursor: pointer;
   transition: transform 0.08s, background 0.15s;
@@ -765,10 +784,10 @@ dialog.paper::backdrop {
   width: 58px;
   height: 36px;
   padding: 0 6px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 10px;
   background: #fffaf0;
-  color: #2b1c12;
+  color: var(--ink);
   font: 700 18px/1 system-ui, -apple-system, sans-serif;
   text-align: center;
   appearance: textfield;
@@ -776,7 +795,11 @@ dialog.paper::backdrop {
 }
 
 .stepper input::-webkit-outer-spin-button,
-.stepper input::-webkit-inner-spin-button {
+.stepper input::-webkit-inner-spin-button,
+.bank-field input::-webkit-outer-spin-button,
+.bank-field input::-webkit-inner-spin-button,
+.bank-mini::-webkit-outer-spin-button,
+.bank-mini::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
@@ -788,7 +811,7 @@ dialog.paper::backdrop {
 
 .sched-unit {
   width: 34px;
-  color: #8a6a3a;
+  color: var(--tan);
   font-size: 13px;
 }
 
@@ -797,7 +820,7 @@ dialog.paper::backdrop {
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(107, 68, 37, 0.12);
-  color: #6b4425;
+  color: var(--wood);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -810,7 +833,7 @@ dialog.paper::backdrop {
 
 .sched-section {
   margin: 4px 0 8px;
-  color: #8a6a3a;
+  color: var(--tan);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -832,14 +855,14 @@ dialog.paper::backdrop {
   border: 2px solid #d9c49a;
   border-radius: 12px;
   background: rgba(255, 252, 240, 0.8);
-  color: #4a2e18;
-  font: 14px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--bark);
+  font: 14px/1.3 var(--font-ui);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.08s;
 }
 
 .mode-option:hover {
-  border-color: #c9962f;
+  border-color: var(--gold);
 }
 
 .mode-option:active {
@@ -847,7 +870,7 @@ dialog.paper::backdrop {
 }
 
 .mode-option[aria-checked="true"] {
-  border-color: #8a1d14;
+  border-color: var(--lacquer);
   background: #fff3df;
   box-shadow: inset 0 0 0 2px rgba(138, 29, 20, 0.15);
 }
@@ -858,7 +881,7 @@ dialog.paper::backdrop {
 }
 
 .mode-option small {
-  color: #8a6a3a;
+  color: var(--tan);
   font-size: 12px;
   text-align: center;
 }
@@ -883,10 +906,10 @@ dialog.paper::backdrop {
   min-width: 0;
   height: 38px;
   padding: 0 10px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 10px;
   background: #fffaf0;
-  color: #2b1c12;
+  color: var(--ink);
   font: 600 14px/1.2 "BIZ UDPGothic", system-ui, -apple-system, sans-serif;
   cursor: pointer;
 }
@@ -909,7 +932,7 @@ dialog.paper::backdrop {
 .sched-actions button {
   padding: 9px 16px;
   border-radius: 8px;
-  font: 700 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 700 14px/1.2 var(--font-ui);
   cursor: pointer;
   transition: transform 0.08s, background 0.15s;
 }
@@ -919,9 +942,9 @@ dialog.paper::backdrop {
 }
 
 .sched-primary {
-  border: 2px solid #c9962f;
-  background: #8a1d14;
-  color: #fff3d6;
+  border: 2px solid var(--gold);
+  background: var(--lacquer);
+  color: var(--cream);
 }
 
 .sched-primary:hover {
@@ -931,21 +954,11 @@ dialog.paper::backdrop {
 .sched-ghost {
   border: 2px solid #c9a96a;
   background: transparent;
-  color: #6b4425;
+  color: var(--wood);
 }
 
 .sched-ghost:hover {
   background: rgba(107, 68, 37, 0.1);
-}
-
-.sched-skip {
-  border: 2px solid #2e6e46;
-  background: rgba(46, 110, 70, 0.1);
-  color: #2e6e46;
-}
-
-.sched-skip:hover {
-  background: rgba(46, 110, 70, 0.2);
 }
 
 @keyframes pop-in {
@@ -963,7 +976,7 @@ dialog.paper::backdrop {
   position: fixed;
   left: 50%;
   bottom: var(--panel-bottom);
-  z-index: 3;
+  z-index: var(--z-hud);
   display: flex;
   flex-direction: column;
   width: min(746px, calc(100vw - 32px));
@@ -973,16 +986,16 @@ dialog.paper::backdrop {
   max-height: calc(100dvh - var(--panel-bottom) - var(--panel-top));
   overflow-y: auto;
   padding: 18px 22px 16px;
-  border: 6px solid #6b4425;
+  border: 6px solid var(--wood);
   border-radius: 10px;
-  outline: 2px solid #c9962f;
+  outline: 2px solid var(--gold);
   outline-offset: -11px;
   background:
     repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.035) 0 2px, transparent 2px 6px),
     radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
-  color: #2b1c12;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  box-shadow: 0 14px 40px var(--shadow-strong);
+  font: 15px/1.5 var(--font-ui);
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, 20px) scale(0.85);
@@ -1056,7 +1069,7 @@ dialog.paper::backdrop {
   font-size: 0.5em;
   font-weight: 400;
   letter-spacing: 0;
-  color: #8a6a3a;
+  color: var(--tan);
 }
 
 .lesson-head {
@@ -1075,10 +1088,10 @@ dialog.paper::backdrop {
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1.5px solid #c9962f;
+  border: 1.5px solid var(--gold);
   border-radius: 50%;
   background: #fbf5e4;
-  color: #6b4425;
+  color: var(--wood);
   font: 700 12px/1 system-ui, -apple-system, sans-serif;
   cursor: pointer;
 }
@@ -1089,7 +1102,7 @@ dialog.paper::backdrop {
 
 .lesson-furigana[aria-pressed="true"],
 .lesson-translate[aria-pressed="true"] {
-  background: #c9962f;
+  background: var(--gold);
   color: #fffaf0;
 }
 
@@ -1101,8 +1114,8 @@ dialog.paper::backdrop {
 .lesson-vi {
   display: none;
   margin: -0.3em 0 0.3em;
-  color: #6b4425;
-  font: 500 0.66em/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--wood);
+  font: 500 0.66em/1.45 var(--font-ui);
 }
 
 .lesson.show-vi .lesson-vi {
@@ -1122,14 +1135,14 @@ dialog.paper::backdrop {
   position: absolute;
   top: calc(100% + 10px);
   right: -8px;
-  z-index: 5;
+  z-index: var(--z-over);
   width: min(340px, 70vw);
   padding: 10px 12px;
   border-radius: 8px;
   background: #3a2616;
   color: #fbf1d8;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 8px 20px var(--shadow-soft);
+  font: 14px/1.5 var(--font-ui);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-4px);
@@ -1164,7 +1177,7 @@ dialog.paper::backdrop {
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: #6b4425;
+  color: var(--wood);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
@@ -1190,12 +1203,8 @@ dialog.paper::backdrop {
 
 .lesson-romaji {
   margin: -6px 0 8px;
-  color: #8a6a3a;
+  color: var(--tan);
   font-style: italic;
-}
-
-.lesson-line {
-  animation: line-in 0.35s both;
 }
 
 .lesson-line:nth-child(2) {
@@ -1220,12 +1229,13 @@ dialog.paper::backdrop {
 .lesson-situation {
   margin: 0 0 18px;
   font-weight: 700;
-  color: #6b4425;
+  color: var(--wood);
 }
 
 .lesson-line {
   display: flex;
   gap: 10px;
+  animation: line-in 0.35s both;
   margin: 4px 0;
   font-size: clamp(17px, 4.6vw, 21px);
   line-height: 2.05;
@@ -1239,8 +1249,8 @@ dialog.paper::backdrop {
   height: 26px;
   margin-top: 0.62em;
   border-radius: 50%;
-  background: #6b4425;
-  color: #fff3d6;
+  background: var(--wood);
+  color: var(--cream);
   font: 700 13px/1 system-ui, -apple-system, sans-serif;
 }
 
@@ -1248,30 +1258,16 @@ dialog.paper::backdrop {
   background: #3b6fb0;
 }
 
-.lesson mark {
+.lesson mark,
+.study-example-ja mark {
   background: none;
   color: #c2287e;
   font-weight: 700;
 }
 
-.lesson mark rt {
+.lesson mark rt,
+.study-example-ja mark rt {
   color: #c2287e;
-}
-
-#lessonOpen,
-#studyOpen {
-  padding: 7px 14px;
-  border: 2px solid #c9962f;
-  border-radius: 6px;
-  background: #8a1d14;
-  color: #fff3d6;
-  font: 600 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  cursor: pointer;
-}
-
-#lessonOpen:hover,
-#studyOpen:hover {
-  background: #a3271b;
 }
 
 #lessonOpen,
@@ -1279,9 +1275,21 @@ dialog.paper::backdrop {
   position: fixed;
   right: 16px;
   bottom: calc(var(--pill-gap) + var(--safe-bottom));
-  z-index: 3;
+  z-index: var(--z-hud);
   height: var(--pill-height);
   white-space: nowrap;
+  padding: 7px 14px;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  background: var(--lacquer);
+  color: var(--cream);
+  font: 600 14px/1.2 var(--font-ui);
+  cursor: pointer;
+}
+
+#lessonOpen:hover,
+#studyOpen:hover {
+  background: #a3271b;
 }
 
 @media (max-width: 600px) {
@@ -1374,11 +1382,11 @@ dialog.paper::backdrop {
   gap: 6px;
   height: 44px;
   padding: 0 12px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 6px;
   background: rgba(28, 20, 14, 0.75);
-  color: #f2cf63;
-  font: 700 16px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--amber);
+  font: 700 16px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1390,25 +1398,25 @@ dialog.paper::backdrop {
 #phaseClock {
   font-size: 16px;
   font-variant-numeric: tabular-nums;
-  color: #fff3d6;
+  color: var(--cream);
 }
 
 .pay-popup {
   position: fixed;
   left: 50%;
   bottom: calc(var(--pill-gap) + var(--safe-bottom) + var(--bar-height) + 14px);
-  z-index: 4;
+  z-index: var(--z-float);
   width: min(360px, calc(100vw - 32px));
   padding: 14px 16px 18px;
   transform: translateX(-50%);
-  border: 4px solid #6b4425;
+  border: 4px solid var(--wood);
   border-radius: 12px;
-  outline: 2px solid #c9962f;
+  outline: 2px solid var(--gold);
   outline-offset: -8px;
   background: radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
-  color: #2b1c12;
+  color: var(--ink);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-  font: 600 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 600 15px/1.4 var(--font-ui);
   text-align: center;
   animation: pay-in 0.3s cubic-bezier(0.22, 1.4, 0.36, 1) both;
 }
@@ -1429,7 +1437,7 @@ dialog.paper::backdrop {
 }
 
 .pay-popup .pay-note {
-  color: #8a1d14;
+  color: var(--lacquer);
   font-size: 13px;
 }
 
@@ -1439,11 +1447,11 @@ dialog.paper::backdrop {
 
 .pay-row button {
   padding: 8px 22px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 8px;
-  background: #8a1d14;
-  color: #fff3d6;
-  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--lacquer);
+  color: var(--cream);
+  font: 700 15px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
@@ -1470,7 +1478,7 @@ dialog.paper::backdrop {
 .pay-bar {
   display: block;
   height: 100%;
-  background: #c9962f;
+  background: var(--gold);
   transform-origin: left;
 }
 
@@ -1494,7 +1502,7 @@ dialog.paper.wide {
 
 .paper-note {
   margin: 0 0 12px;
-  color: #6b4425;
+  color: var(--wood);
   font-size: 14px;
 }
 
@@ -1514,15 +1522,15 @@ dialog.paper.wide {
   border: 2px solid #d9c49a;
   border-radius: 10px;
   background: rgba(255, 252, 240, 0.8);
-  color: #4a2e18;
-  font: 700 14px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--bark);
+  font: 700 14px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
 .paper-tabs button[aria-selected="true"] {
-  border-color: #8a1d14;
+  border-color: var(--lacquer);
   background: #fff3df;
-  color: #8a1d14;
+  color: var(--lacquer);
 }
 
 .shop-list {
@@ -1561,12 +1569,12 @@ dialog.paper.wide {
 }
 
 .shop-text strong {
-  color: #2b1c12;
+  color: var(--ink);
   font-size: 14px;
 }
 
 .shop-text small {
-  color: #8a6a3a;
+  color: var(--tan);
   font-size: 12px;
 }
 
@@ -1578,11 +1586,11 @@ dialog.paper.wide {
 
 .shop-actions button {
   padding: 7px 10px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 8px;
-  background: #8a1d14;
-  color: #fff3d6;
-  font: 700 13px/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--lacquer);
+  color: var(--cream);
+  font: 700 13px/1.1 var(--font-ui);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1600,7 +1608,7 @@ dialog.paper.wide {
 
 .sched-clock {
   margin: -6px 0 10px;
-  color: #6b4425;
+  color: var(--wood);
   font-size: 14px;
   font-weight: 600;
 }
@@ -1620,7 +1628,7 @@ dialog.paper.wide {
   padding: 6px 12px;
   border-radius: 8px;
   background: rgba(255, 252, 240, 0.7);
-  color: #2b1c12;
+  color: var(--ink);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
@@ -1632,12 +1640,12 @@ dialog.paper.wide {
 .sched-list li.lunch {
   justify-content: center;
   background: transparent;
-  color: #8a6a3a;
+  color: var(--tan);
   font-style: italic;
 }
 
 .sched-list li.now {
-  outline: 2px solid #8a1d14;
+  outline: 2px solid var(--lacquer);
   background: #fff3df;
   font-weight: 700;
 }
@@ -1677,11 +1685,11 @@ dialog.paper.wide {
 .danger-btn {
   width: 100%;
   padding: 10px 14px;
-  border: 2px solid #8a1d14;
+  border: 2px solid var(--lacquer);
   border-radius: 10px;
   background: rgba(138, 29, 20, 0.08);
-  color: #8a1d14;
-  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--lacquer);
+  font: 700 15px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
@@ -1700,26 +1708,16 @@ dialog.paper.wide {
   gap: 8px;
   width: 100%;
   padding: 10px 14px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 10px;
   background: rgba(201, 150, 47, 0.1);
-  color: #4a2e18;
-  font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--bark);
+  font: 700 15px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
 .paper-btn:hover {
   background: rgba(201, 150, 47, 0.2);
-}
-
-.paper-btn svg {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 #fullscreenBtn .fs-exit,
@@ -1733,14 +1731,14 @@ dialog.paper.wide {
 
 .reset-confirm {
   padding: 12px;
-  border: 2px dashed #8a1d14;
+  border: 2px dashed var(--lacquer);
   border-radius: 10px;
   background: rgba(255, 243, 223, 0.9);
 }
 
 .reset-confirm p {
   margin: 0 0 10px;
-  color: #4a2e18;
+  color: var(--bark);
   font-size: 14px;
 }
 
@@ -1763,7 +1761,7 @@ dialog.paper.kanji:focus {
 
 .kanji-word {
   margin: 4px 0 14px;
-  color: #2b1c12;
+  color: var(--ink);
   font: 700 clamp(44px, 12vw, 64px)/1.2 "BIZ UDPGothic", system-ui, sans-serif;
   letter-spacing: 0.08em;
   text-align: center;
@@ -1781,14 +1779,14 @@ dialog.paper.kanji:focus {
   border: 2px solid #d9c49a;
   border-radius: 12px;
   background: rgba(255, 252, 240, 0.9);
-  color: #2b1c12;
+  color: var(--ink);
   font: 600 20px/1.2 "BIZ UDPGothic", system-ui, sans-serif;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.08s;
 }
 
 .kanji-options button:hover:not(:disabled) {
-  border-color: #c9962f;
+  border-color: var(--gold);
 }
 
 .kanji-options button:active:not(:disabled) {
@@ -1806,9 +1804,9 @@ dialog.paper.kanji:focus {
 }
 
 .kanji-options button.wrong {
-  border-color: #8a1d14;
+  border-color: var(--lacquer);
   background: #f8dcd8;
-  color: #8a1d14;
+  color: var(--lacquer);
 }
 
 .kanji-track {
@@ -1820,7 +1818,7 @@ dialog.paper.kanji:focus {
 .kanji-result {
   min-height: 2.8em;
   margin: 0;
-  color: #6b4425;
+  color: var(--wood);
   font-size: 14px;
   text-align: center;
 }
@@ -1831,22 +1829,22 @@ dialog.paper.kanji:focus {
 }
 
 .kanji-result.wrong {
-  color: #8a1d14;
+  color: var(--lacquer);
   font-weight: 700;
 }
 
 .sleep-veil {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: var(--z-veil);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 10px;
   background: #05070d;
-  color: #f2cf63;
-  font: 700 22px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--amber);
+  font: 700 22px/1.4 var(--font-ui);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.6s ease;
@@ -1860,7 +1858,7 @@ dialog.paper.kanji:focus {
 .summon-veil {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: var(--z-veil);
   background: radial-gradient(circle at 50% 50%, #fffdf2, #ffeeb8 60%, #f6d77a);
   opacity: 0;
   pointer-events: none;
@@ -1888,9 +1886,9 @@ dialog.paper.kanji:focus {
   padding: 10px 22px;
   border: 2px solid #e8b84a;
   border-radius: 10px;
-  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, #8a1d14 100%);
+  background: linear-gradient(180deg, #f06a50 0%, #cf3220 48%, #a8190f 52%, var(--lacquer) 100%);
   color: #ffe36a;
-  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 700 16px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
@@ -1898,20 +1896,20 @@ dialog.paper.kanji:focus {
   position: fixed;
   left: 50%;
   bottom: var(--panel-bottom);
-  z-index: 3;
+  z-index: var(--z-hud);
   width: min(460px, calc(100vw - 24px));
   max-height: calc(100dvh - var(--panel-bottom) - var(--panel-top));
   overflow-y: auto;
-  border: 6px solid #6b4425;
+  border: 6px solid var(--wood);
   border-radius: 14px;
-  outline: 2px solid #c9962f;
+  outline: 2px solid var(--gold);
   outline-offset: -11px;
   background:
     repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.035) 0 2px, transparent 2px 6px),
     radial-gradient(circle at 20% 15%, #fbf6e6, #efe3c2 70%);
-  color: #2b1c12;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
-  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  box-shadow: 0 14px 40px var(--shadow-strong);
+  font: 15px/1.4 var(--font-ui);
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, 20px) scale(0.92);
@@ -1955,8 +1953,8 @@ dialog.paper.kanji:focus {
   border: 2px solid #d9c49a;
   border-radius: 12px;
   background: rgba(255, 252, 240, 0.85);
-  color: #4a2e18;
-  font: 700 16px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--bark);
+  font: 700 16px/1.2 var(--font-ui);
   cursor: pointer;
 }
 
@@ -1966,7 +1964,7 @@ dialog.paper.kanji:focus {
 }
 
 .study-pick:hover {
-  border-color: #8a1d14;
+  border-color: var(--lacquer);
   background: #fff3df;
 }
 
@@ -1976,14 +1974,14 @@ dialog.paper.kanji:focus {
 
 .study-reading {
   margin: 0;
-  color: #8a6a3a;
+  color: var(--tan);
   font: 500 18px/1.3 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
   letter-spacing: 0.12em;
 }
 
 .study-word {
   margin: 2px 0 8px;
-  color: #2b1c12;
+  color: var(--ink);
   font: 700 clamp(48px, 14vw, 72px)/1.15 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
 
@@ -1993,8 +1991,8 @@ dialog.paper.kanji:focus {
   padding: 3px 12px;
   border-radius: 999px;
   background: rgba(138, 29, 20, 0.1);
-  color: #8a1d14;
-  font: 700 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--lacquer);
+  font: 700 13px/1.4 var(--font-ui);
   letter-spacing: 0.12em;
 }
 
@@ -2005,7 +2003,7 @@ dialog.paper.kanji:focus {
   border: 1px dashed #c9b07c;
   border-radius: 10px;
   background: rgba(255, 252, 240, 0.8);
-  font: 600 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 600 17px/1.4 var(--font-ui);
 }
 
 .study-progress {
@@ -2019,7 +2017,7 @@ dialog.paper.kanji:focus {
 .study-progress span {
   display: block;
   height: 100%;
-  background: #c9962f;
+  background: var(--gold);
   transform-origin: left;
   transition: transform 0.2s ease;
 }
@@ -2035,10 +2033,10 @@ dialog.paper.kanji:focus {
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 50%;
   background: #fbf5e4;
-  color: #6b4425;
+  color: var(--wood);
   font: 700 26px/1 system-ui, -apple-system, sans-serif;
   cursor: pointer;
 }
@@ -2048,8 +2046,8 @@ dialog.paper.kanji:focus {
 }
 
 .study-step.forgot {
-  border-color: #8a1d14;
-  color: #8a1d14;
+  border-color: var(--lacquer);
+  color: var(--lacquer);
 }
 
 .study-step.forgot:hover {
@@ -2094,7 +2092,7 @@ dialog.paper.kanji:focus {
 
 .study-example-ja {
   margin: 0;
-  color: #2b1c12;
+  color: var(--ink);
   font: 500 17px/2 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
 }
 
@@ -2106,17 +2104,7 @@ dialog.paper.kanji:focus {
   font-size: 0.55em;
   font-weight: 400;
   letter-spacing: 0;
-  color: #8a6a3a;
-}
-
-.study-example-ja mark {
-  background: none;
-  color: #c2287e;
-  font-weight: 700;
-}
-
-.study-example-ja mark rt {
-  color: #c2287e;
+  color: var(--tan);
 }
 
 .study-card.no-furigana .study-example-ja rt {
@@ -2125,17 +2113,17 @@ dialog.paper.kanji:focus {
 
 .study-example-vi {
   margin: 2px 0 0;
-  color: #6b4425;
+  color: var(--wood);
   font-size: 14px;
 }
 
 .study-body.covered .study-meaning {
-  color: #8a6a3a;
+  color: var(--tan);
 }
 
 .study-count {
   min-width: 60px;
-  color: #6b4425;
+  color: var(--wood);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -2145,7 +2133,7 @@ dialog.paper.kanji:focus {
   --p: 0;
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-loader);
   overflow: hidden;
   background: linear-gradient(180deg, #9ccfe9 0%, #c4e2ee 34%, #f3e3cc 62%, #f4d2aa 78%, #e9c39a 100%);
   transition: opacity 1s ease;
@@ -2323,7 +2311,7 @@ dialog.paper.kanji:focus {
 }
 
 .loader-ornament .fill {
-  fill: #c9962f;
+  fill: var(--gold);
 }
 
 .loader-track {
@@ -2343,7 +2331,7 @@ dialog.paper.kanji:focus {
   inset: 0;
   overflow: hidden;
   border-radius: inherit;
-  background: linear-gradient(90deg, #f2cf63 0%, #e0a03c 55%, #c2622a 100%);
+  background: linear-gradient(90deg, var(--amber) 0%, #e0a03c 55%, #c2622a 100%);
   transform: translateX(calc((var(--p) - 1) * 100%));
   transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
@@ -2528,15 +2516,15 @@ dialog.paper.kanji:focus {
   position: fixed;
   left: 50%;
   bottom: calc(var(--pill-gap) + var(--safe-bottom));
-  z-index: 2;
+  z-index: var(--z-scene-ui);
   display: flex;
   gap: 6px;
   padding: 4px;
   transform: translateX(-50%);
-  border: 1.5px solid #c9962f;
+  border: 1.5px solid var(--gold);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(64, 44, 26, 0.88), rgba(28, 20, 14, 0.88));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 228, 170, 0.18);
+  box-shadow: 0 4px 14px var(--shadow-soft), inset 0 1px 0 rgba(255, 228, 170, 0.18);
 }
 
 .slot-btn {
@@ -2567,8 +2555,8 @@ dialog.paper.kanji:focus {
 }
 
 .slot-btn:hover:not(:disabled) {
-  border-color: #f2cf63;
-  color: #fff3d6;
+  border-color: var(--amber);
+  color: var(--cream);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), 0 0 8px rgba(242, 207, 99, 0.35);
 }
 
@@ -2577,10 +2565,10 @@ dialog.paper.kanji:focus {
 }
 
 .slot-btn[aria-pressed="true"] {
-  border-color: #f2cf63;
+  border-color: var(--amber);
   background: radial-gradient(circle at 50% 32%, #a3271b, #5a110b 80%);
-  color: #fff3d6;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 12px rgba(242, 207, 99, 0.55);
+  color: var(--cream);
+  box-shadow: inset 0 2px 6px var(--shadow-strong), 0 0 12px rgba(242, 207, 99, 0.55);
 }
 
 .slot-btn[aria-pressed="true"] .rest-z {
@@ -2593,7 +2581,7 @@ dialog.paper.kanji:focus {
 }
 
 .slot-btn:focus-visible {
-  outline: 2px solid #f2cf63;
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
 
@@ -2640,7 +2628,7 @@ dialog.paper.kanji:focus {
 .regen-pops {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: var(--z-scene-ui);
   overflow: hidden;
   pointer-events: none;
 }
@@ -2648,7 +2636,7 @@ dialog.paper.kanji:focus {
 .regen-pop {
   position: absolute;
   color: #ffe36a;
-  font: 800 30px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 800 30px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   text-shadow:
     -1.5px -1.5px 0 #5a3a08,
@@ -2708,7 +2696,7 @@ dialog.paper.kanji:focus {
   height: 46px;
   font-size: 36px;
   line-height: 1;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 2px 3px var(--shadow-strong));
   transform-origin: 50% 60%;
 }
 
@@ -2802,15 +2790,15 @@ dialog.paper.bank {
   width: 54px;
   height: 54px;
   margin: -8px 0 -6px;
-  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 2px var(--shadow-strong));
 }
 
 .bank .bank-head h2 {
   min-width: 0;
   white-space: nowrap;
   color: #ffe9b8;
-  font: 800 24px/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  text-shadow: 0 2px 0 #3a2212, 0 0 6px rgba(0, 0, 0, 0.35);
+  font: 800 24px/1.1 var(--font-ui);
+  text-shadow: 0 2px 0 #3a2212, 0 0 6px var(--shadow-soft);
 }
 
 .bank-coins {
@@ -2821,8 +2809,8 @@ dialog.paper.bank {
   border: 2px solid #3a2212;
   border-radius: 999px;
   background: linear-gradient(180deg, #4a2a14, #2c180a);
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 220, 160, 0.25);
-  color: #fff3d6;
+  box-shadow: inset 0 2px 3px var(--shadow-strong), 0 1px 0 rgba(255, 220, 160, 0.25);
+  color: var(--cream);
   font: 800 17px/1.2 system-ui, -apple-system, sans-serif;
   font-variant-numeric: tabular-nums;
 }
@@ -2866,13 +2854,13 @@ dialog.paper.bank {
 }
 
 .bank-rate-label {
-  color: #4a2e18;
+  color: var(--bark);
   font-size: 14px;
   font-weight: 600;
 }
 
 .bank-rate-value {
-  color: #4a2e18;
+  color: var(--bark);
   font-size: 14px;
   white-space: nowrap;
 }
@@ -2918,8 +2906,8 @@ dialog.paper.bank {
   border-bottom: none;
   border-radius: 16px 16px 0 0;
   background: linear-gradient(180deg, #fbf3e0, #ecdcb6);
-  color: #4a2e18;
-  font: 800 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--bark);
+  font: 800 17px/1 var(--font-ui);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -2933,7 +2921,7 @@ dialog.paper.bank {
 
 .bank-tabs button[aria-selected="true"] {
   border-color: #f2c14e;
-  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, #8a1d14 100%);
+  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, var(--lacquer) 100%);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 0 10px rgba(242, 193, 78, 0.55);
   color: #fff6e0;
   text-shadow: 0 2px 0 rgba(60, 10, 4, 0.5);
@@ -2966,7 +2954,7 @@ dialog.paper.bank {
 
 .bank-label {
   flex: none;
-  color: #4a2e18;
+  color: var(--bark);
   font-size: 15px;
   font-weight: 700;
 }
@@ -2983,7 +2971,7 @@ dialog.paper.bank {
 }
 
 .bank-field:focus-within {
-  border-color: #c9962f;
+  border-color: var(--gold);
   box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.3);
 }
 
@@ -2998,7 +2986,7 @@ dialog.paper.bank {
   border: none;
   outline: none;
   background: transparent;
-  color: #2b1c12;
+  color: var(--ink);
   font: 700 15px/1 system-ui, -apple-system, sans-serif;
 }
 
@@ -3006,12 +2994,6 @@ dialog.paper.bank {
   flex: 1;
   appearance: textfield;
   -moz-appearance: textfield;
-}
-
-.bank-field input::-webkit-outer-spin-button,
-.bank-field input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 .bank-field input::placeholder {
@@ -3027,6 +3009,7 @@ dialog.paper.bank {
 .bank-term select {
   width: 100%;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .bank-field-art {
@@ -3035,20 +3018,16 @@ dialog.paper.bank {
   height: 24px;
 }
 
-.bank-term select {
-  cursor: pointer;
-}
-
 .bank-go {
   flex: none;
   height: 44px;
   padding: 0 22px;
   border: 2px solid #f2c14e;
   border-radius: 12px;
-  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, #8a1d14 100%);
+  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, var(--lacquer) 100%);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 3px 0 #5a120c;
   color: #fff6e0;
-  font: 800 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 800 17px/1 var(--font-ui);
   text-shadow: 0 1px 0 rgba(60, 10, 4, 0.5);
   cursor: pointer;
 }
@@ -3075,7 +3054,7 @@ dialog.paper.bank {
   padding: 6px 12px;
   border-radius: 10px;
   background: rgba(107, 68, 37, 0.1);
-  color: #4a2e18;
+  color: var(--bark);
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -3094,7 +3073,7 @@ dialog.paper.bank {
 
 .bank-empty {
   margin: 18px 0;
-  color: #8a6a3a;
+  color: var(--tan);
   font-weight: 700;
   text-align: center;
 }
@@ -3106,17 +3085,11 @@ dialog.paper.bank {
   border: 2px solid #e2cfa4;
   border-radius: 10px;
   background: #fffaf0;
-  color: #2b1c12;
+  color: var(--ink);
   font: 700 15px/1 system-ui, -apple-system, sans-serif;
   text-align: right;
   appearance: textfield;
   -moz-appearance: textfield;
-}
-
-.bank-mini::-webkit-outer-spin-button,
-.bank-mini::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 .bank-mini::placeholder {
@@ -3126,7 +3099,7 @@ dialog.paper.bank {
 }
 
 .bank-mini:focus {
-  border-color: #c9962f;
+  border-color: var(--gold);
   outline: none;
   box-shadow: 0 0 0 3px rgba(201, 150, 47, 0.3);
 }
@@ -3137,12 +3110,12 @@ dialog.paper.bank {
   width: fit-content;
   margin: 4px auto 0;
   padding: 6px 26px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 999px;
   background: linear-gradient(180deg, #8a5a30, #5a3519);
   box-shadow: 0 2px 0 #3a2212;
   color: #ffe9b8;
-  font: 800 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 800 15px/1.2 var(--font-ui);
   text-shadow: 0 1px 0 #2a1608;
 }
 
@@ -3226,7 +3199,7 @@ dialog.paper.bank {
 }
 
 .bank-chip-value {
-  color: #2b1c12;
+  color: var(--ink);
   font-size: 17px;
   font-weight: 800;
 }
@@ -3244,7 +3217,7 @@ dialog.paper.bank {
 }
 
 .bank-card-detail {
-  color: #6b4425;
+  color: var(--wood);
   font-size: 12px;
 }
 
@@ -3258,18 +3231,18 @@ dialog.paper.bank {
   min-width: 64px;
   height: 38px;
   padding: 0 14px;
-  border: 2px solid #c9962f;
+  border: 2px solid var(--gold);
   border-radius: 10px;
   background: linear-gradient(180deg, #fff3d0, #f2d58e);
   box-shadow: inset 0 1px 0 #fff, 0 2px 0 #a8742a;
   color: #6b2a14;
-  font: 800 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 800 15px/1 var(--font-ui);
   cursor: pointer;
 }
 
 .bank-btn.primary {
   border-color: #f2c14e;
-  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, #8a1d14 100%);
+  background: linear-gradient(180deg, #e0503a 0%, #b3261a 55%, var(--lacquer) 100%);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 2px 0 #5a120c;
   color: #fff6e0;
   text-shadow: 0 1px 0 rgba(60, 10, 4, 0.5);
@@ -3469,7 +3442,7 @@ dialog.paper.kanji.closing::backdrop {
 .speech-layer {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: var(--z-scene-ui);
   overflow: hidden;
   pointer-events: none;
   -webkit-user-select: none;
@@ -3484,11 +3457,11 @@ dialog.paper.kanji.closing::backdrop {
   width: max-content;
   max-width: min(220px, 62vw);
   padding: 5px 11px;
-  border: 2px solid #2b1c12;
+  border: 2px solid var(--ink);
   border-radius: 14px;
   background: #ffffff;
-  color: #2b1c12;
-  font: 700 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  font: 700 14px/1.35 var(--font-ui);
   text-align: center;
   overflow-wrap: break-word;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
@@ -3502,8 +3475,8 @@ dialog.paper.kanji.closing::backdrop {
   bottom: -7px;
   width: 11px;
   height: 11px;
-  border-right: 2px solid #2b1c12;
-  border-bottom: 2px solid #2b1c12;
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
   background: #ffffff;
   transform: translateX(-50%) rotate(45deg);
 }

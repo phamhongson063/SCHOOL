@@ -1,9 +1,10 @@
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId, gameId } from './inventory.js';
 import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, growDays } from './config.js';
-import { minuteOfDay, clockText } from './clock.js';
-import { amount, coins } from './format.js';
+import { isOpenAt, hoursText } from './clock.js';
+import { amount, coins, notEnough } from './format.js';
 import { iconTag, paintIcon } from './itemArt.js';
+import { closable } from './dialog.js';
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -46,22 +47,18 @@ export function cheapestSeed() {
   return Math.min(...Object.values(CROP_ECONOMY).map((economy) => economy.seed));
 }
 
-export function shopOpen(minutes) {
-  const t = minuteOfDay(minutes);
-  return t >= SHOP.open && t < SHOP.close;
+export const shopOpen = (minutes) => isOpenAt(SHOP, minutes);
+export const shopHours = () => hoursText(SHOP);
+
+export const fishShopOpen = (minutes) => isOpenAt(FISH_SHOP, minutes);
+export const fishShopHours = () => hoursText(FISH_SHOP);
+
+const reserveOf = (villager) => (villager.kind === 'student' ? SCHOOL.tuition * VILLAGER.tuitionReserve : 0);
+
+function wantsBait(villager) {
+  const purse = villager.purse;
+  return purse.count('rod') > 0 && purse.count('bait') < FISHING.villagerBaitBelow && purse.money - reserveOf(villager) >= FISHING.baitPack * FISHING.villagerBaitFunds;
 }
-
-export const shopHours = () => `${clockText(SHOP.open)}–${clockText(SHOP.close)}`;
-
-export function fishShopOpen(minutes) {
-  const t = minuteOfDay(minutes);
-  return t >= FISH_SHOP.open && t < FISH_SHOP.close;
-}
-
-export const fishShopHours = () => `${clockText(FISH_SHOP.open)}–${clockText(FISH_SHOP.close)}`;
-
-const reserveOf = (villager) => (villager.kind === 'student' ? SCHOOL.tuition * 4 : 0);
-
 
 export function createMarket() {
   function sell(purse, item, count) {
@@ -128,18 +125,14 @@ export function createMarket() {
       return lines;
     },
     wantsFish(villager) {
-      const purse = villager.purse;
-      if (purse.total('fish') >= 3) return true;
-      return purse.count('rod') > 0 && purse.count('bait') < 3 && purse.money - reserveOf(villager) >= FISHING.baitPack * 2;
+      return villager.purse.total('fish') >= FISHING.villagerSellAt || wantsBait(villager);
     },
     fishTrade(villager) {
       const purse = villager.purse;
       const lines = [];
       const earned = sellAll(purse, FISH_KINDS);
       if (earned) lines.push(`Bán cá được ${coins(earned)}`);
-      if (purse.count('rod') > 0 && purse.count('bait') < 3 && purse.money - reserveOf(villager) >= FISHING.baitPack * 2) {
-        if (buy(purse, 'bait', 1)) lines.push('Mua 1 gói 🪱');
-      }
+      if (wantsBait(villager) && buy(purse, 'bait', 1)) lines.push('Mua 1 gói 🪱');
       if (!lines.length) lines.push('Chào chú hàng cá!');
       return lines;
     },
@@ -214,7 +207,7 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
     const info = ITEMS[item];
     const purchase = (count) => () => {
       if (market.buy(purse, item, count)) say(`Đã mua ${count} ${unit} ${info.name.toLowerCase()}.`);
-      else say(`Không đủ tiền! Cần ${coins(price * count)}.`);
+      else say(notEnough(price * count));
       render();
     };
     const actions = owned
@@ -246,11 +239,6 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
     refocus(active);
   }
 
-  const outside = (event) => {
-    const box = dialog.getBoundingClientRect();
-    return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
-  };
-
   for (const button of tabs) {
     button.addEventListener('click', () => {
       tab = button.dataset.tab;
@@ -258,10 +246,7 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
       render();
     });
   }
-  dialog.querySelector('.sched-x').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog && outside(event)) dialog.close();
-  });
+  closable(dialog);
   purse.onChange((detail) => {
     if (!dialog.open || 'energy' in detail || 'credits' in detail) return;
     render();
