@@ -1695,14 +1695,14 @@ class Villager {
       s.rightArm.rotation.x = -(0.03 + (Math.sin(t * 6 + this.seatPhase) * 0.5 + 0.5) * 0.06);
       s.rightArm.rotation.y = Math.sin(t * 3 + this.seatPhase) * 0.06;
       s.face.update(t, 'open');
-      s.pose?.();
+      if (this.town.posing) s.pose?.();
       return;
     }
     s.rightArm.rotation.x = 0;
     s.head.rotation.x = -0.05 + Math.sin(t * 2.4 + this.seatPhase) * 0.08;
     s.head.rotation.y = Math.sin(t * 0.5 + this.seatPhase) * (learning ? 0.12 : 0.4);
     s.face.update(t, !learning && Math.sin(t * 9 + this.seatPhase) > 0.1 ? 'talk' : 'open');
-    s.pose?.();
+    if (this.town.posing) s.pose?.();
   }
 
   update(t, dt) {
@@ -1788,7 +1788,7 @@ class Villager {
     }
     if (this.state !== 'seated' && this.state !== 'away') this.animate(t, dt);
     if (this.fx) for (const effect of Object.values(this.fx)) effect.update(dt, this.walker.group.visible);
-    if (this.near && this.state !== 'seated' && this.state !== 'away') this.walker.pose?.();
+    if (this.town.posing && this.near && this.state !== 'seated' && this.state !== 'away') this.walker.pose?.();
   }
 
   animate(t, dt) {
@@ -1933,6 +1933,7 @@ export class Town {
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
     this.restGlow = createRestGlow();
     this.view = null;
+    this.posing = true;
     this.members = villagerProfiles().map((profile) => new Villager(profile, this));
     this.teacher = new Teacher(TEACHER, this);
     this.all = [...this.members, this.teacher];
@@ -2306,7 +2307,8 @@ export class Town {
     }
   }
 
-  update(t, dt, ctx, player, camera) {
+  update(t, dt, ctx, player, camera, posing = true) {
+    this.posing = posing;
     this.budget = PATHS_PER_FRAME;
     this.player = player;
     const previous = this.context?.phase;

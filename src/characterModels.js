@@ -67,6 +67,7 @@ export async function loadCharacterModels() {
 
 const modelOf = (look) => SKINS[look]?.model ?? look;
 
+const CULL_PADDING = 1.5;
 const bodies = [];
 const outlines = [];
 const outlinePoint = new THREE.Vector3();
@@ -112,22 +113,27 @@ function prepare(rig, texture) {
   rig.traverse((node) => {
     if (node.isSkinnedMesh) meshes.push(node);
   });
+  const pairs = [];
   for (const mesh of meshes) {
     const map = texture ?? mesh.material.map;
     if (map) map.anisotropy = 4;
     mesh.material = toonMaterial({ map, gradientMap: softGradient() });
     mesh.castShadow = shadowsOn;
     mesh.receiveShadow = false;
-    mesh.frustumCulled = false;
     bodies.push(mesh);
     const outline = new THREE.SkinnedMesh(mesh.geometry, outlineMaterial());
     outlines.push(outline);
     outline.bind(mesh.skeleton, mesh.bindMatrix);
-    outline.frustumCulled = false;
     outline.raycast = () => {};
     mesh.parent.add(outline);
+    pairs.push([mesh, outline]);
   }
   rig.updateMatrixWorld(true);
+  for (const [mesh, outline] of pairs) {
+    mesh.computeBoundingSphere();
+    mesh.boundingSphere.radius *= CULL_PADDING;
+    outline.boundingSphere = mesh.boundingSphere;
+  }
   meshes[0].computeBoundingBox();
   return meshes[0].boundingBox.clone();
 }
@@ -182,15 +188,19 @@ export function createModel(look, { seated = false } = {}) {
     rig.position.y += SEAT_HIP - hips.y;
   }
 
+  for (const control of controls) {
+    control.chain = [];
+    for (let node = control.bone.parent; node && node !== rig; node = node.parent) control.chain.unshift(node);
+  }
   const delta = new THREE.Quaternion();
   const parentQ = new THREE.Quaternion();
   function pose() {
     for (const control of controls) {
       delta.copy(control.base);
       if (control.part) delta.premultiply(control.part.quaternion);
-      relativeQuaternion(rig, control.bone.parent, parentQ).invert();
-      control.bone.quaternion.copy(parentQ).multiply(delta).multiply(control.rest);
-      control.bone.updateMatrixWorld(true);
+      parentQ.identity();
+      for (const node of control.chain) parentQ.multiply(node.quaternion);
+      control.bone.quaternion.copy(parentQ.invert()).multiply(delta).multiply(control.rest);
     }
   }
   pose();

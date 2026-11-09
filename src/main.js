@@ -750,17 +750,27 @@ const hoverTip = document.getElementById('hoverTip');
 let hovering = false;
 renderer.domElement.addEventListener('pointermove', (event) => {
   hovering = event.pointerType === 'mouse';
+  hoverDirty = true;
   hoverPointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
 });
 
 const tipAnchor = new THREE.Vector3();
+const hoverCamera = new THREE.Matrix4();
+let hoverDirty = true;
+let hoverPick = { region: null, target: null };
+let tipSize = null;
+window.addEventListener('resize', () => (tipSize = null));
 function showHoverTip(text, anchor) {
   let visible = !!text && !!anchor;
   if (visible) visible = tipAnchor.copy(anchor).project(camera).z < 1;
   hoverTip.hidden = !visible;
   if (!visible) return;
-  if (hoverTip.textContent !== text) hoverTip.textContent = text;
-  const { width, height } = hoverTip.getBoundingClientRect();
+  if (hoverTip.textContent !== text) {
+    hoverTip.textContent = text;
+    tipSize = null;
+  }
+  tipSize ??= hoverTip.getBoundingClientRect();
+  const { width, height } = tipSize;
   const x = ((tipAnchor.x + 1) / 2) * window.innerWidth - width / 2;
   const y = ((1 - tipAnchor.y) / 2) * window.innerHeight - height;
   hoverTip.style.transform = `translate(${x}px, ${y}px)`;
@@ -787,12 +797,17 @@ function updateHover(t) {
   let region = null;
   let target = null;
   if (hovering && mode === 'play') {
-    raycaster.setFromCamera(hoverPointer, camera);
-    const hit = raycaster.intersectObjects(regions.clickables, true)[0];
-    if (hit) {
-      region = regions.regionOf(hit.object);
-      if (region?.target) target = region.target(hit, player.position);
-    }
+    if (hoverDirty || !hoverCamera.equals(camera.matrixWorld)) {
+      hoverDirty = false;
+      hoverCamera.copy(camera.matrixWorld);
+      raycaster.setFromCamera(hoverPointer, camera);
+      const hit = raycaster.intersectObjects(regions.clickables, true)[0];
+      if (hit) {
+        region = regions.regionOf(hit.object);
+        if (region?.target) target = region.target(hit, player.position);
+      }
+      hoverPick = { region, target };
+    } else ({ region, target } = hoverPick);
   }
   if (hoverRegion && hoverRegion !== region) hoverRegion.highlight?.(null);
   if (!target && !hoverRegion) {
@@ -1299,7 +1314,7 @@ renderer.setAnimationLoop((time) => {
   cullRooms();
   const simSpan = Math.min(elapsed, SIM_SPAN);
   const simSteps = Math.max(1, Math.ceil(simSpan / MAX_STEP));
-  for (let i = 0; i < simSteps; i++) town.update(t, simSpan / simSteps, context, player, camera);
+  for (let i = 0; i < simSteps; i++) town.update(t, simSpan / simSteps, context, player, camera, i === simSteps - 1);
   if (shopUI.isOpen && !context.shopOpen) {
     shopUI.close();
     sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
@@ -1339,7 +1354,7 @@ renderer.setAnimationLoop((time) => {
     seatedAvatar.head.rotation.y = Math.sin(t * 0.4) * 0.2;
     seatedAvatar.pose?.();
   }
-  avatar.pose?.();
+  if (avatar.group.visible) avatar.pose?.();
   if (mode === 'overview') {
     orbit.update();
     clampMapView();

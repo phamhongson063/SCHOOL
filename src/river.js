@@ -640,6 +640,7 @@ export function createRiver() {
     update(dt, minutes) {
       clock += dt;
       refill(minutes);
+      if (!group.parent) return;
       animateJumps(dt);
       lanternGlow.update(clock, night);
       flow.offset.x -= dt * FLOW_SPEED;

@@ -166,6 +166,7 @@ export function createRegen({ scene, camera, purse }) {
   let shownOn = false;
   let mark = null;
   let flash = 0;
+  let motesAlive = false;
 
   function spawnMote(mote) {
     const a = Math.random() * Math.PI * 2;
@@ -241,8 +242,8 @@ export function createRegen({ scene, camera, purse }) {
       flash = Math.max(0, flash - dt / FLASH_FADE);
       showHud(resting);
 
-      const alive = updateMotes(dt, t, resting ? amount : 0);
-      root.visible = amount > 0.01 || alive;
+      if (resting || motesAlive || spawnDebt >= 1) motesAlive = updateMotes(dt, t, resting ? amount : 0);
+      root.visible = amount > 0.01 || motesAlive;
       if (!root.visible) return;
       root.position.copy(center);
       const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
