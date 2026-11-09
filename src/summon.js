@@ -3,6 +3,10 @@ import { keepCanvas } from './canvasRestore.js';
 import { makeRandom } from './random.js';
 
 const DAY_KEY = 'truong-lang-xua.summonDay';
+const MIN_LEFT = 40;
+const SUMMON_TEXT = 'Bạn bị triệu hồi vào lớp học!';
+const LATE_TEXT = 'Rất tiếc, tiết học sắp hết rồi, không kịp vào lớp! Thầy sẽ gọi lại vào tiết sau.';
+const timeLeft = (ctx) => ctx?.phase.kind === 'period' && ctx.phase.remaining >= MIN_LEFT;
 const SPARKS = 90;
 const DURATION = { vanish: 1.3, appear: 1.2 };
 const VEIL_MS = 450;
@@ -185,8 +189,11 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
   const dialog = document.getElementById('summonDialog');
   const ok = document.getElementById('summonOk');
   const veil = document.getElementById('summonVeil');
+  const text = document.getElementById('summonText');
   let firedDay = loadDay();
   let active = false;
+  let late = false;
+  let context = null;
 
   const fade = (on) =>
     new Promise((done) => {
@@ -211,11 +218,24 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
     await fade(false);
     await fx.play('appear', arrival.spot, list, bases);
     settle(arrival);
+    markFired(context.day);
     active = false;
   }
 
   dialog.addEventListener('cancel', (event) => event.preventDefault());
   ok.addEventListener('click', () => {
+    if (late) {
+      late = false;
+      dialog.close();
+      active = false;
+      return;
+    }
+    if (!timeLeft(context)) {
+      late = true;
+      text.textContent = LATE_TEXT;
+      ok.focus({ preventScroll: true });
+      return;
+    }
     dialog.close();
     run();
   });
@@ -225,6 +245,7 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
       return active;
     },
     update(dt, ctx) {
+      context = ctx;
       fx.update(dt);
       if (active || String(ctx.day) === firedDay) return;
       const phase = ctx.phase;
@@ -236,9 +257,9 @@ export function createSummon({ scene, models, ready, inClass, prepare, teleport,
         markFired(ctx.day);
         return;
       }
-      if (!ready()) return;
-      markFired(ctx.day);
+      if (!timeLeft(ctx) || !ready()) return;
       active = true;
+      text.textContent = SUMMON_TEXT;
       dialog.showModal();
       ok.focus({ preventScroll: true });
     },
