@@ -3,7 +3,8 @@ import { paintIcon } from './itemArt.js';
 import { recall } from './recall.js';
 
 const RECENT = 40;
-const AUTO_CLOSE_MS = 5000;
+const AUTO_CLOSE_MS = 3000;
+const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
 
 let bank = null;
@@ -85,7 +86,8 @@ export function createKanjiQuiz() {
     recall.record(current.entry.word, correct);
     closeBtn.hidden = false;
     closeBtn.focus({ preventScroll: true });
-    if (correct) current.closeAt = setTimeout(finish, AUTO_CLOSE_MS);
+    const delay = current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null;
+    if (delay !== null) current.closeAt = setTimeout(finish, delay);
   }
 
   function finish() {
@@ -117,13 +119,13 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ fish = null, icon = null } = {}) {
+    async ask({ fish = null, icon = null, quick = false } = {}) {
       const entries = await loadBank();
       endClosing();
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       return new Promise((resolve) => {
-        pending = { entry, resolve, answered: false, correct: false, tick: null, closeAt: null };
+        pending = { entry, resolve, quick: quick || !!fish, answered: false, correct: false, tick: null, closeAt: null };
         closeBtn.hidden = true;
         paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         fishIcon.className = 'kanji-fish hooked';

@@ -12,6 +12,7 @@ import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { keepCanvas } from './canvasRestore.js';
+import { GOLD_IMAGE, GOLD_MARK } from './goldArt.js';
 
 export const VILLAGE_BOUNDS = { x0: 47, z0: 18, x1: 100, z1: 52 };
 
@@ -82,6 +83,33 @@ function placeBuilding(built, spec) {
   return f;
 }
 
+function richText(ctx, text, x, y, maxWidth, size) {
+  if (!text.includes(GOLD_MARK) || !GOLD_IMAGE?.complete) {
+    ctx.fillText(text.replaceAll(GOLD_MARK, ''), x, y, maxWidth);
+    return;
+  }
+  const iconW = size * 1.3;
+  const iconH = size * 0.82;
+  const parts = text.split(GOLD_MARK);
+  const widths = parts.map((part) => ctx.measureText(part).width);
+  const full = widths.reduce((sum, w) => sum + w, 0) + iconW * (parts.length - 1);
+  const scale = Math.min(1, maxWidth / full);
+  ctx.save();
+  ctx.translate(x - (full * scale) / 2, y);
+  ctx.scale(scale, scale);
+  ctx.textAlign = 'left';
+  let left = 0;
+  parts.forEach((part, i) => {
+    if (i) {
+      ctx.drawImage(GOLD_IMAGE, left, -iconH / 2, iconW, iconH);
+      left += iconW;
+    }
+    ctx.fillText(part, left, 0);
+    left += widths[i];
+  });
+  ctx.restore();
+}
+
 export function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8a1d14 } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -106,16 +134,17 @@ export function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8
     ctx.textBaseline = 'middle';
     if (rows.length === 1) {
       ctx.font = '700 64px "BIZ UDPGothic", system-ui, sans-serif';
-      ctx.fillText(rows[0], canvas.width / 2, canvas.height / 2 + 4, canvas.width - 50);
+      richText(ctx, rows[0], canvas.width / 2, canvas.height / 2 + 4, canvas.width - 50, 64);
     } else {
       ctx.font = '700 50px "BIZ UDPGothic", system-ui, sans-serif';
-      ctx.fillText(rows[0], canvas.width / 2, 50, canvas.width - 50);
+      richText(ctx, rows[0], canvas.width / 2, 50, canvas.width - 50, 50);
       ctx.font = '600 36px "BIZ UDPGothic", system-ui, sans-serif';
-      ctx.fillText(rows[1], canvas.width / 2, 104, canvas.width - 50);
+      richText(ctx, rows[1], canvas.width / 2, 104, canvas.width - 50, 36);
     }
     texture.needsUpdate = true;
   };
   paint(lines);
+  if (GOLD_IMAGE && !GOLD_IMAGE.complete) GOLD_IMAGE.addEventListener('load', () => paint(shown), { once: true });
   return { mesh, paint };
 }
 

@@ -4,6 +4,7 @@ import { japanese } from './ruby.js';
 import { STUDY } from './config.js';
 import { coins } from './format.js';
 import { economy } from './economy.js';
+import { setRich } from './goldArt.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
 const TRANSLATE_KEY = 'truong-lang-xua.studyTranslate';
@@ -43,7 +44,7 @@ function packButton(offer) {
   size.textContent = offer.words;
   const price = document.createElement('span');
   price.className = 'study-pack-price';
-  price.textContent = coins(offer.price);
+  setRich(price, coins(offer.price));
   button.append(size, 'từ mới', price);
   return button;
 }

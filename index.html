@@ -147,7 +147,7 @@
   <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
   <div id="toolbar">
     <div id="wallet" class="wallet" role="status" aria-live="polite" title="Tiền">
-      <span aria-hidden="true">🪙</span>
+      <span id="walletGold" class="wallet-gold" aria-hidden="true"></span>
       <span id="walletAmount">0</span>
     </div>
     <button id="bagBtn" class="icon-btn" type="button" title="Túi đồ" aria-label="Túi đồ" aria-expanded="false" aria-controls="bagPanel">
@@ -272,6 +272,7 @@
   <button id="phasePill" type="button" title="Thời khoá biểu">
     <span id="phaseClock"></span>
   </button>
+  <div id="coords" class="coords" aria-hidden="true"><b>X</b><span id="coordsX"></span><b>Y</b><span id="coordsY"></span></div>
   <div id="actionBar" role="toolbar" aria-label="Hành động">
     <button id="restBtn" class="slot-btn" type="button" title="Nằm nghỉ" aria-label="Nằm nghỉ" aria-pressed="false">
       <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -326,63 +327,71 @@
       </div>
     </form>
   </dialog>
-  <dialog id="shopDialog" class="paper wide" aria-labelledby="shopTitle">
+  <dialog id="shopDialog" class="paper wide bank stall" aria-labelledby="shopTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🏮</span>
         <h2 id="shopTitle">Tiệm buôn</h2>
-        <span id="shopMoney" class="paper-money"></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="shopMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <div class="paper-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="sell" aria-selected="true">Bán nông sản</button>
-        <button type="button" role="tab" data-tab="buy" aria-selected="false">Mua hạt giống &amp; phân</button>
+      <div class="bank-tabs stall-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="sell" aria-selected="true"><span class="bank-tab-art" data-art="coins"></span>Bán nông sản</button>
+        <button type="button" role="tab" data-tab="buy" aria-selected="false"><span class="bank-tab-art" data-art="bag"></span>Mua hạt giống</button>
       </div>
-      <div id="shopList" class="shop-list"></div>
-      <p id="shopNote" class="paper-note"></p>
+      <div class="bank-panel">
+        <div id="shopList" class="bank-list stall-list"></div>
+        <p id="shopNote" class="paper-note stall-note"></p>
+      </div>
     </div>
   </dialog>
-  <dialog id="martDialog" class="paper wide" aria-labelledby="martTitle">
+  <dialog id="martDialog" class="paper wide bank stall" aria-labelledby="martTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🏪</span>
         <h2 id="martTitle">Siêu thị</h2>
-        <span id="martMoney" class="paper-money"></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="martMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <div class="paper-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="buy" aria-selected="true">Mua đồ ăn</button>
+      <div class="bank-tabs stall-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="buy" aria-selected="true"><span class="bank-tab-art" data-art="bag"></span>Mua đồ ăn</button>
       </div>
-      <div id="martList" class="shop-list"></div>
-      <p id="martNote" class="paper-note"></p>
+      <div class="bank-panel">
+        <div id="martList" class="bank-list stall-list"></div>
+        <p id="martNote" class="paper-note stall-note"></p>
+      </div>
     </div>
   </dialog>
-  <dialog id="fishShopDialog" class="paper wide" aria-labelledby="fishShopTitle">
+  <dialog id="fishShopDialog" class="paper wide bank stall" aria-labelledby="fishShopTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🐟</span>
         <h2 id="fishShopTitle">Hàng cá</h2>
-        <span id="fishShopMoney" class="paper-money"></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="fishShopMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <div class="paper-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="sell" aria-selected="true">Bán thủy sản</button>
-        <button type="button" role="tab" data-tab="buy" aria-selected="false">Mua đồ câu</button>
+      <div class="bank-tabs stall-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="sell" aria-selected="true"><span class="bank-tab-art" data-art="coins"></span>Bán thủy sản</button>
+        <button type="button" role="tab" data-tab="buy" aria-selected="false"><span class="bank-tab-art" data-art="bag"></span>Mua đồ câu</button>
       </div>
-      <div id="fishShopList" class="shop-list"></div>
-      <p id="fishShopNote" class="paper-note"></p>
+      <div class="bank-panel">
+        <div id="fishShopList" class="bank-list stall-list"></div>
+        <p id="fishShopNote" class="paper-note stall-note"></p>
+      </div>
     </div>
   </dialog>
-  <dialog id="chiefDialog" class="paper wide" aria-labelledby="chiefTitle">
+  <dialog id="chiefDialog" class="paper wide bank stall" aria-labelledby="chiefTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🏯</span>
         <h2 id="chiefTitle">Nhà trưởng làng</h2>
-        <span id="chiefMoney" class="paper-money"></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="chiefMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <p id="chiefNote" class="paper-note"></p>
-      <div id="chiefList" class="shop-list"></div>
+      <div class="bank-panel">
+        <div id="chiefList" class="bank-list stall-list"></div>
+        <p id="chiefNote" class="paper-note stall-note"></p>
+      </div>
     </div>
   </dialog>
   <dialog id="teacherDialog" class="paper" aria-labelledby="teacherTitle">
@@ -424,18 +433,17 @@
     </div>
   </dialog>
   <div id="summonVeil" class="summon-veil" aria-hidden="true"></div>
-  <dialog id="lodgeDialog" class="paper" aria-labelledby="lodgeTitle">
+  <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🛏️</span>
         <h2 id="lodgeTitle"></h2>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="lodgeMoney"></span></span>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <p id="lodgeText" class="paper-note"></p>
-      <p id="lodgeNote" class="paper-note" hidden></p>
-      <div class="sched-actions">
-        <span class="spacer"></span>
-        <button id="lodgeCancel" class="sched-ghost" type="button">Huỷ</button>
-        <button id="lodgeOk" class="sched-primary" type="button">Thuê phòng</button>
+      <div class="bank-panel">
+        <div id="lodgeList" class="bank-list stall-list"></div>
+        <p id="lodgeNote" class="paper-note stall-note"></p>
       </div>
     </div>
   </dialog>
@@ -471,16 +479,19 @@
       </div>
     </div>
   </dialog>
-  <dialog id="foodDialog" class="paper wide" aria-labelledby="foodTitle">
+  <dialog id="foodDialog" class="paper wide bank stall" aria-labelledby="foodTitle">
     <div class="paper-body">
-      <header class="sched-head">
+      <header class="sched-head bank-head">
         <span class="sched-badge emoji" aria-hidden="true">🍜</span>
         <h2 id="foodTitle">Quán ăn</h2>
-        <span id="foodMoney" class="paper-money"></span>
+        <span class="bank-coins stall-energy"><span aria-hidden="true">⚡</span><span id="foodEnergy"></span></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="foodMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <p id="foodNote" class="paper-note"></p>
-      <div id="foodList" class="shop-list"></div>
+      <div class="bank-panel">
+        <div id="foodList" class="bank-list stall-list"></div>
+        <p id="foodNote" class="paper-note stall-note"></p>
+      </div>
     </div>
   </dialog>
   <dialog id="bankDialog" class="paper wide bank" aria-labelledby="bankTitle">

@@ -1,9 +1,10 @@
-import { HOUSE_PRICES, MONEY, CHIEF, ECONOMY } from './config.js';
+import { HOUSE_PRICES, CHIEF, ECONOMY } from './config.js';
 import { PLAYER } from './inventory.js';
-import { amount, coins } from './format.js';
+import { amount } from './format.js';
 import { isOpenAt, hoursText } from './clock.js';
 import { closable } from './dialog.js';
 import { economy } from './economy.js';
+import { stallCard, paintStallArt } from './stallCard.js';
 
 const KEY = 'truong-lang-xua.estate';
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
@@ -86,52 +87,44 @@ export function createChiefUI({ estate, purse, nameOf }) {
   const list = document.getElementById('chiefList');
   const money = document.getElementById('chiefMoney');
   const note = document.getElementById('chiefNote');
+  paintStallArt(dialog);
 
   function render() {
-    money.textContent = `${MONEY.icon} ${amount(purse.money)}`;
+    money.textContent = amount(purse.money);
     const mine = estate.houseOf(PLAYER);
     list.replaceChildren(
       ...estate.houses.map((house) => {
-        const node = document.createElement('div');
-        node.className = house.owner ? 'shop-row owned' : 'shop-row';
-        const badge = document.createElement('span');
-        badge.className = 'shop-icon';
-        badge.setAttribute('aria-hidden', 'true');
-        badge.textContent = house.owner === PLAYER ? '🏡' : '🏠';
-        const text = document.createElement('div');
-        text.className = 'shop-text';
-        const title = document.createElement('strong');
-        title.textContent = `Nhà số ${house.id} · ${estate.sizeName(house)}`;
-        const info = document.createElement('small');
-        info.textContent = house.owner ? `Chủ nhà: ${house.owner === PLAYER ? 'Bạn' : nameOf(house.owner)}` : `Đang bán · ${coins(house.price)}`;
-        text.append(title, info);
-        const actions = document.createElement('div');
-        actions.className = 'shop-actions';
+        const actions = [];
         if (!house.owner) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.textContent = 'Mua';
-          button.disabled = !!mine || purse.money < house.price;
-          button.addEventListener('click', () => {
-            const bought = estate.buy(house.id, PLAYER, purse);
-            note.textContent = bought ? `🎉 Chúc mừng! Nhà số ${house.id} giờ là của bạn.` : 'Chưa đủ tiền mua căn này.';
-            render();
+          actions.push({
+            label: 'Mua',
+            disabled: !!mine || purse.money < house.price,
+            run: () => {
+              const bought = estate.buy(house.id, PLAYER, purse);
+              note.textContent = bought ? `🎉 Chúc mừng! Nhà số ${house.id} giờ là của bạn.` : 'Chưa đủ tiền mua căn này.';
+              render();
+            },
           });
-          actions.append(button);
         }
         if (house.owner === PLAYER) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.textContent = `Bán lại ${coins(estate.buybackOf(house))}`;
-          button.addEventListener('click', () => {
-            const sold = estate.sellBack(PLAYER, purse);
-            note.textContent = sold ? `Ông Lý trưởng: "Làng đã mua lại nhà số ${sold.id}."` : 'Ông Lý trưởng: "Quỹ làng chưa đủ tiền mua lại, con chờ ít bữa nhé."';
-            render();
+          actions.push({
+            label: `Bán lại ${amount(estate.buybackOf(house))}`,
+            run: () => {
+              const sold = estate.sellBack(PLAYER, purse);
+              note.textContent = sold ? `Ông Lý trưởng: "Làng đã mua lại nhà số ${sold.id}."` : 'Ông Lý trưởng: "Quỹ làng chưa đủ tiền mua lại, con chờ ít bữa nhé."';
+              render();
+            },
           });
-          actions.append(button);
         }
-        node.append(badge, text, actions);
-        return node;
+        return stallCard({
+          icon: house.owner === PLAYER ? '🏡' : '🏠',
+          title: `Nhà số ${house.id} · ${estate.sizeName(house)}`,
+          price: house.price,
+          tag: house.owner ? null : 'đang bán',
+          detail: house.owner ? `Chủ nhà: ${house.owner === PLAYER ? 'Bạn' : nameOf(house.owner)}` : null,
+          actions,
+          muted: !!house.owner && house.owner !== PLAYER,
+        });
       }),
     );
   }

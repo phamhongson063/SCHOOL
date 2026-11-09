@@ -4,6 +4,7 @@ import { clockText } from './clock.js';
 import { sessionLabel } from './timetable.js';
 import { coins } from './format.js';
 import { closable } from './dialog.js';
+import { setRich } from './goldArt.js';
 
 const MOONS = [
   [0.03, '🌑 Trăng non'],
@@ -110,7 +111,7 @@ export function createScheduleBoard({ lesson, purse, sky, context }) {
     ui.list.replaceChildren(...items);
     const status = phaseStatus(ctx);
     const credits = purse.credits ? ` · đã đóng trước ${purse.credits} tiết` : '';
-    ui.hint.textContent = `${status.icon} ${status.text} · học phí ${coins(SCHOOL.tuition)}/tiết${credits}`;
+    setRich(ui.hint, `${status.icon} ${status.text} · học phí ${coins(SCHOOL.tuition)}/tiết${credits}`);
     ui.hint.classList.toggle('break', status.tone === 'break');
   }
 

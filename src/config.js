@@ -77,6 +77,7 @@ export const FISHING = {
   zones: 5,
   zoneFish: [4, 8],
   zoneRespawn: [180, 360],
+  zoneLife: [240, 480],
   biteSeconds: 3,
   villagerAnswer: [2, 6],
   quizSeconds: 20,
@@ -231,6 +232,8 @@ export const ECONOMY = {
   thrift: 0.6,
   catchUpDays: 7,
 };
+
+export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
 
 export const RANKING = {
   every: 200,

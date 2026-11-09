@@ -3,6 +3,7 @@ import { clockText } from './clock.js';
 import { coins } from './format.js';
 import { PLAYER } from './inventory.js';
 import { closable } from './dialog.js';
+import { setRich } from './goldArt.js';
 
 const KEY = 'truong-lang-xua.ranking';
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -23,6 +24,12 @@ function el(tag, className, text) {
   return node;
 }
 
+function richSpan(className, text) {
+  const node = el('span', className);
+  setRich(node, text);
+  return node;
+}
+
 export function createRanking({ ledger, bank, estate, people, now }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
@@ -30,7 +37,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
   const names = new Map(people.map(({ id, name }) => [id, name]));
   let board = load();
 
-  const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) - bank.debt(id) + (estate.houseOf(id)?.price ?? 0);
+  const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) + (estate.houseOf(id)?.price ?? 0);
 
   function snapshot(slot) {
     const before = new Map((board?.rows ?? []).map((row) => [row.id, row.rank]));
@@ -51,7 +58,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
     item.append(
       el('span', 'rank-place', MEDALS[rank - 1] ?? String(rank)),
       el('span', 'rank-name', names.get(id) ?? 'người khác'),
-      el('span', worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
+      richSpan(worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
       el('span', move > 0 ? 'rank-trend up' : move < 0 ? 'rank-trend down' : 'rank-trend', move > 0 ? `▲${move}` : move < 0 ? `▼${-move}` : ''),
     );
     return item;

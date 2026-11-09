@@ -5,6 +5,7 @@ import { PLAYER } from './inventory.js';
 import { BANK_ART } from './bankArt.js';
 import { closable } from './dialog.js';
 import { createStore } from './persist.js';
+import { setRich } from './goldArt.js';
 
 const KEY = 'truong-lang-xua.bank';
 
@@ -94,6 +95,15 @@ export function createBank({ ledger, estate, now }) {
     if (t <= loan.at) return;
     loan.interest += accrued(loan, t);
     loan.at = t;
+  }
+
+  function deposited(owner) {
+    const account = state.accounts[owner];
+    if (!account) return 0;
+    const t = now();
+    const since = account.savingsAt === null ? 0 : Math.max(0, t - account.savingsAt);
+    const savings = account.savings * (1 + (state.deposit * since) / DAY_MINUTES);
+    return Math.floor(savings + sum(account.terms, (term) => termValue(term, t)));
   }
 
   function overdue(owner) {
@@ -361,6 +371,7 @@ export function createBank({ ledger, estate, now }) {
   return {
     tick,
     debt,
+    deposited,
     overdue,
     rates,
     summary,
@@ -405,7 +416,7 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
   const typed = () => Math.floor(Number(amountInput.value) || 0);
 
   function report(result) {
-    note.textContent = result.text;
+    setRich(note, result.text);
     if (result.ok) amountInput.value = '';
     render();
   }
@@ -462,7 +473,11 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     const chip = el('span', 'bank-chip');
     chip.append(art('bank-coin', 'silver'), el('strong', 'bank-chip-value', amount(value)), el('span', 'bank-chip-bar'), el('span', 'bank-chip-rate', `${percent(rate)}/ngày`));
     text.append(el('strong', 'bank-card-title', title), chip);
-    if (detail) text.append(el('small', 'bank-card-detail', detail));
+    if (detail) {
+      const small = el('small', 'bank-card-detail');
+      setRich(small, detail);
+      text.append(small);
+    }
     const box = el('div', 'bank-card-actions');
     box.append(...actions);
     node.append(badge, text, box);
@@ -565,7 +580,7 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     }
     const info = bank.summary(owner);
     roomBox.hidden = tab !== 'loan';
-    if (tab === 'loan') roomBox.textContent = `Hạn mức ${coins(info.limit)} · còn vay được ${coins(info.room)}`;
+    if (tab === 'loan') setRich(roomBox, `Hạn mức ${coins(info.limit)} · còn vay được ${coins(info.room)}`);
     holdings.hidden = !book;
     const typing = new Map([...list.querySelectorAll('.bank-mini')].map((input) => [input.dataset.key, input.value]));
     const focused = list.contains(document.activeElement) ? document.activeElement.dataset.key : null;

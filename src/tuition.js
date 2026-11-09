@@ -2,6 +2,7 @@ import { SCHOOL } from './config.js';
 import { coins, notEnough } from './format.js';
 import { closable } from './dialog.js';
 import { economy } from './economy.js';
+import { setRich } from './goldArt.js';
 
 export function createTuition({ purse, onStudy, onCredit }) {
   const popup = document.getElementById('payPopup');
@@ -28,7 +29,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
   function pay() {
     if (resolved) return;
     if (!purse.spend(SCHOOL.tuition)) {
-      popupNote.textContent = notEnough(SCHOOL.tuition);
+      setRich(popupNote, notEnough(SCHOOL.tuition));
       return;
     }
     economy.income('teacher', SCHOOL.tuition);
@@ -45,7 +46,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
   function renderDialog() {
     const count = clampCount(countInput.value);
     countInput.value = count;
-    total.textContent = coins(count * SCHOOL.tuition);
+    setRich(total, coins(count * SCHOOL.tuition));
     current.textContent = purse.credits ? `Đã đóng trước: còn ${purse.credits} tiết` : 'Chưa đóng trước tiết nào';
   }
 
@@ -56,13 +57,13 @@ export function createTuition({ purse, onStudy, onCredit }) {
     });
   }
   countInput.addEventListener('input', () => {
-    total.textContent = coins(clampCount(countInput.value) * SCHOOL.tuition);
+    setRich(total, coins(clampCount(countInput.value) * SCHOOL.tuition));
   });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const count = clampCount(countInput.value);
     if (!purse.spend(count * SCHOOL.tuition)) {
-      note.textContent = `Không đủ tiền! Cần ${coins(count * SCHOOL.tuition)}, con đang có ${coins(purse.money)}.`;
+      setRich(note, `Không đủ tiền! Cần ${coins(count * SCHOOL.tuition)}, con đang có ${coins(purse.money)}.`);
       return;
     }
     economy.income('teacher', count * SCHOOL.tuition);
@@ -79,7 +80,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
     },
     openTeacher() {
       countInput.value = 5;
-      note.textContent = `Thầy đồ: "Mỗi tiết ${coins(SCHOOL.tuition)}. Đóng trước bao nhiêu tiết thì đóng."`;
+      setRich(note, `Thầy đồ: "Mỗi tiết ${coins(SCHOOL.tuition)}. Đóng trước bao nhiêu tiết thì đóng."`);
       renderDialog();
       dialog.showModal();
     },
@@ -113,7 +114,10 @@ export function createTuition({ purse, onStudy, onCredit }) {
       }
       const short = purse.money < SCHOOL.tuition;
       const text = `📖 Tiết ${period} đang học — đóng ${coins(SCHOOL.tuition)} để vào học?`;
-      if (popupText.textContent !== text) popupText.textContent = text;
+      if (popupText.dataset.text !== text) {
+        popupText.dataset.text = text;
+        setRich(popupText, text);
+      }
       if (popup.hidden || popupBtn.disabled !== short) {
         popupNote.textContent = short ? 'Bạn chưa đủ tiền. Ra ruộng thu hoạch rồi bán ở tiệm nhé!' : '';
         popupBtn.disabled = short;

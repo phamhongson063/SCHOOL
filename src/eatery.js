@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { Batch, shapes, shade, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
-import { ENERGY, FOODS, MONEY, EATERY } from './config.js';
+import { ENERGY, FOODS, EATERY } from './config.js';
 import { isOpenAt, hoursText } from './clock.js';
-import { amount, coins, notEnough } from './format.js';
+import { amount, notEnough } from './format.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { closable } from './dialog.js';
+import { stallCard, paintStallArt } from './stallCard.js';
 import { economy } from './economy.js';
+import { setRich } from './goldArt.js';
 
 const W = 6.6;
 const D = 5.8;
@@ -134,6 +136,8 @@ export function createFoodUI({ purse }) {
   const dialog = document.getElementById('foodDialog');
   const list = document.getElementById('foodList');
   const header = document.getElementById('foodMoney');
+  const energy = document.getElementById('foodEnergy');
+  paintStallArt(dialog);
   const note = document.getElementById('foodNote');
   const title = document.getElementById('foodTitle');
   const badge = dialog.querySelector('.sched-badge');
@@ -148,43 +152,34 @@ export function createFoodUI({ purse }) {
   let menu = EATERY_MENU;
 
   function render() {
-    header.textContent = `⚡ ${Math.floor(purse.energy)}/${ENERGY.max} · ${MONEY.icon} ${amount(purse.money)}`;
+    header.textContent = amount(purse.money);
+    energy.textContent = `${Math.floor(purse.energy)}/${ENERGY.max}`;
     const full = purse.full;
     list.replaceChildren(
-      ...Object.entries(menu.foods).map(([, food]) => {
-        const node = document.createElement('div');
-        node.className = 'shop-row';
-        const icon = document.createElement('span');
-        icon.className = 'shop-icon';
-        icon.setAttribute('aria-hidden', 'true');
-        icon.textContent = food.icon;
-        const text = document.createElement('div');
-        text.className = 'shop-text';
-        const name = document.createElement('strong');
-        name.textContent = food.name;
-        const info = document.createElement('small');
-        info.textContent = `+${food.energy} năng lượng · ${coins(food.price)}`;
-        text.append(name, info);
-        const actions = document.createElement('div');
-        actions.className = 'shop-actions';
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = 'Ăn';
-        button.disabled = full || purse.money < food.price;
-        button.addEventListener('click', () => {
-          if (!purse.spend(food.price)) {
-            note.textContent = notEnough(food.price);
-            return;
-          }
-          economy.income(menu.seller, food.price);
-          purse.addEnergy(food.energy);
-          note.textContent = `Ngon quá! ${food.name} +${food.energy} năng lượng.`;
-          render();
-        });
-        actions.append(button);
-        node.append(icon, text, actions);
-        return node;
-      }),
+      ...Object.values(menu.foods).map((food) =>
+        stallCard({
+          icon: food.icon,
+          title: food.name,
+          price: food.price,
+          tag: `+${food.energy} năng lượng`,
+          actions: [
+            {
+              label: 'Ăn',
+              disabled: full || purse.money < food.price,
+              run: () => {
+                if (!purse.spend(food.price)) {
+                  setRich(note, notEnough(food.price));
+                  return;
+                }
+                economy.income(menu.seller, food.price);
+                purse.addEnergy(food.energy);
+                note.textContent = `Ngon quá! ${food.name} +${food.energy} năng lượng.`;
+                render();
+              },
+            },
+          ],
+        }),
+      ),
     );
   }
 

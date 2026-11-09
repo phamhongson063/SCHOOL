@@ -1,4 +1,5 @@
 export const QUEUE_STEP = 1.3;
+export const QUEUE_GAP = 0.6;
 export const JOIN_RADIUS = 2.5;
 
 export class ServiceQueue {
@@ -53,7 +54,7 @@ export class ServiceQueue {
   }
 
   along(index) {
-    let left = Math.max(0, index) * this.step;
+    let left = QUEUE_GAP + Math.max(0, index) * this.step;
     const line = this.line;
     for (let i = 0; i < line.length - 1; i++) {
       const a = line[i];

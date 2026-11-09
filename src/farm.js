@@ -46,6 +46,21 @@ const SIDES = [
 const columns = ({ first, dir }) => Array.from({ length: BEDS_PER_SIDE }, (_, k) => first + dir * k * BED.pitch);
 const BED_XS = [...SIDES.flatMap((side) => columns(side).slice(0, FIRST_BEDS)), ...SIDES.flatMap((side) => columns(side).slice(FIRST_BEDS))];
 const BEDS = BED_XS.map((x, i) => ({ x, shape: bedShape(700 + i * 13, { height: BED.height }) }));
+const BANCO = { x: 163, front: 39.4, count: 9, beds: 5 };
+const BANCO_BEDS = Array.from({ length: BANCO.beds }, (_, k) => ({
+  x: BANCO.x + (k - (BANCO.beds - 1) / 2) * BED.pitch,
+  shape: bedShape(1700 + k * 13, { height: BED.height }),
+}));
+const BANCO_BACK = BANCO.front + BANCO.count * SPACING;
+const BANCO_STREET = 37.1;
+const BANCO_BOUNDS = { x0: BANCO.x - 7, z0: BANCO.front - 2.5, x1: BANCO.x + 7, z1: BANCO_BACK + 2 };
+const FIELDS = {
+  farm: { beds: BEDS, front: FRONT, back: BACK, count: PER_BED },
+  banco: { beds: BANCO_BEDS, front: BANCO.front, back: BANCO_BACK, count: BANCO.count },
+};
+const ALL_BEDS = Object.entries(FIELDS).flatMap(([field, info]) => info.beds.map((bed) => ({ ...bed, field, front: info.front, count: info.count })));
+const SPOT_BED = ALL_BEDS.flatMap((bed, index) => Array(bed.count).fill(index));
+const fieldOf = (index) => ALL_BEDS[SPOT_BED[index]].field;
 const CLODS = [0x6b4428, 0x7d5532, 0x8a5c38, 0x5c3920];
 const WEEDS = [0x6fae3f, 0x5a9a36, 0x86c75a];
 const BOUNDS = { x0: -32 + FARM_X, z0: 38.5, x1: 33 + FARM_X, z1: 64 };
@@ -61,17 +76,19 @@ const JAR_CENTER = 0.5 + FARM_X;
 const JAR_OUTER = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - JAR_CENTER)), 0) + 1.6;
 const JARS = [JAR_CENTER - JAR_OUTER, JAR_CENTER + JAR_OUTER].map((x) => ({ x, z: FRONT - 0.9 }));
 
+const bedBox = (x, z0, z1) => ({ minX: x - BED.width / 2, minZ: z0, maxX: x + BED.width / 2, maxZ: z1, minY: 0, maxY: 1.6 });
+
 function fieldObstacles() {
   const boxes = [];
   const block = (x0, z0, x1, z1) => boxes.push({ minX: x0, minZ: z0, maxX: x1, maxZ: z1, minY: 0, maxY: 1.6 });
-  for (const { x } of BEDS) block(x - BED.width / 2, FRONT, x + BED.width / 2, BACK);
+  for (const { x } of BEDS) boxes.push(bedBox(x, FRONT, BACK));
   for (const { x, z } of JARS) block(x - 0.45, z - 0.45, x + 0.45, z + 0.45);
   for (const [x, z] of FIELD_TREES) block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);
   return boxes;
 }
 
 const ROAD_EDGE = 36.6;
-const bedOf = (index) => Math.floor(index / PER_BED);
+const bedOf = (index) => SPOT_BED[index];
 const LEASE_CHOICE = 'lease:';
 const leaseOptions = (renew = false) =>
   FARMING.leases.map((offer, i) => ({
@@ -211,7 +228,7 @@ class FarmState {
     this.ledger = ledger;
     this.nameOf = nameOf;
     this.spots = Array.from({ length: count }, fresh);
-    this.leases = new Leases(BEDS.length);
+    this.leases = new Leases(ALL_BEDS.length);
     this.load();
   }
 
@@ -306,9 +323,8 @@ class FarmState {
         if (this.leases.holder(bed, now)) return { id: 'look', hint: null };
         return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
       }
-      const left = this.leases.holder(bed, now).until - now;
-      const options = [...seedOptions(purse), ...leaseOptions(true)];
-      return { id: 'plant', hint: 'seed', choices: { title: `Luống còn ${durationText(left)}`, options } };
+      const options = seedOptions(purse);
+      return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
     }
     if (spot.stage === RIPE) {
       const pick = { kind: 'harvest', applyAt: 'start', count: yieldOf(spot), item: spot.crop };
@@ -329,6 +345,18 @@ class FarmState {
     if (lease === null) return `Luống của ${this.nameOf(this.leases.holder(bed, now).owner)} rồi!`;
     if (lease === false) return notEnough(offer.price);
     return `📜 ${renew ? 'Gia hạn' : 'Thuê luống'} xong, còn ${durationText(lease.until - now)}`;
+  }
+
+  leaseAction(bed, actor = PLAYER) {
+    const lease = this.leases.holder(bed, gameNow());
+    if (lease?.owner !== actor) return { id: 'look', hint: null };
+    return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(true) } };
+  }
+
+  stakeLabel(bed, now) {
+    const lease = this.leases.holder(bed, now);
+    if (!lease) return null;
+    return lease.owner === PLAYER ? `Còn ${durationText(lease.until - now)}` : `Luống của ${this.nameOf(lease.owner)}`;
   }
 
   label(index, now) {
@@ -357,9 +385,9 @@ class FarmState {
 function layoutSpots() {
   const rand = makeRandom(31);
   const spots = [];
-  for (const { x, shape } of BEDS) {
-    for (let k = 0; k < PER_BED; k++) {
-      const z = FRONT + SPACING * (k + 0.5);
+  for (const { x, shape, front, count } of ALL_BEDS) {
+    for (let k = 0; k < count; k++) {
+      const z = front + SPACING * (k + 0.5);
       spots.push({ x: x + shape.offset(z), y: shape.height(z) * 1.03, z, yaw: rand() * Math.PI * 2, scale: 0.9 + rand() * 0.2 });
     }
   }
@@ -427,9 +455,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const euler = new THREE.Euler();
 
 class FarmView {
-  constructor(spots, state) {
+  constructor(spots, state, field) {
     this.spots = spots;
     this.state = state;
+    this.field = field;
     this.group = new THREE.Group();
     this.clickables = [];
     this.slots = [];
@@ -476,19 +505,22 @@ class FarmView {
     const marker = (build) => {
       const b = new Batch();
       build(b);
-      const mesh = new THREE.InstancedMesh(b.geometry(), vertexMaterial(), BEDS.length);
+      const mesh = new THREE.InstancedMesh(b.geometry(), vertexMaterial(), ALL_BEDS.length);
       mesh.count = 0;
       mesh.castShadow = true;
       mesh.frustumCulled = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       this.group.add(mesh);
+      this.clickables.push(mesh);
       return mesh;
     };
     this.stakes = marker((b) => {
-      b.add(shapes.box(0.08, 0.75, 0.08), 0x8a5a2b, { p: [0, 0.375, 0] });
-      b.add(shapes.box(0.12, 0.05, 0.12), 0x6a4422, { p: [0, 0.77, 0] });
+      b.add(shapes.box(0.1, 0.85, 0.1), 0x8a5a2b, { p: [0, 0.425, 0] });
+      b.add(shapes.box(0.42, 0.28, 0.05), 0xc9a26a, { p: [0, 0.78, 0] });
     });
-    this.flags = marker((b) => b.add(shapes.box(0.3, 0.2, 0.025), C.mine, { p: [0.19, 0.62, 0] }));
+    this.flags = marker((b) => b.add(shapes.box(0.34, 0.22, 0.03), C.mine, { p: [0, 0.78, -0.03] }));
+    this.stakeBeds = [];
+    this.flagBeds = [];
     this.stakeKey = null;
     this.stakeAt = 0;
   }
@@ -496,27 +528,35 @@ class FarmView {
   refreshStakes() {
     const now = gameNow();
     const leases = this.state.leases;
-    const key = BEDS.map((_, bed) => {
-      const lease = leases.holder(bed, now);
+    const key = ALL_BEDS.map(({ field }, bed) => {
+      const lease = field === this.field ? leases.holder(bed, now) : null;
       return lease ? (lease.owner === PLAYER ? 'p' : 'o') : '-';
     }).join('');
     if (key === this.stakeKey) return;
     this.stakeKey = key;
-    let stakes = 0;
-    let flags = 0;
-    BEDS.forEach(({ x, shape }, bed) => {
+    this.stakeBeds = [];
+    this.flagBeds = [];
+    ALL_BEDS.forEach(({ x, shape, front }, bed) => {
       if (key[bed] === '-') return;
-      matrix.makeTranslation(x + shape.offset(FRONT), 0, FRONT - 0.35);
-      this.stakes.setMatrixAt(stakes++, matrix);
-      if (key[bed] === 'p') this.flags.setMatrixAt(flags++, matrix);
+      matrix.makeTranslation(x + shape.offset(front), 0, front - 0.35);
+      this.stakes.setMatrixAt(this.stakeBeds.length, matrix);
+      this.stakeBeds.push(bed);
+      if (key[bed] !== 'p') return;
+      this.flags.setMatrixAt(this.flagBeds.length, matrix);
+      this.flagBeds.push(bed);
     });
-    this.stakes.count = stakes;
-    this.flags.count = flags;
-    this.stakes.instanceMatrix.needsUpdate = true;
-    this.flags.instanceMatrix.needsUpdate = true;
+    for (const [mesh, beds] of [[this.stakes, this.stakeBeds], [this.flags, this.flagBeds]]) {
+      mesh.count = beds.length;
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.boundingSphere = null;
+    }
   }
 
   buildField() {
+    if (this.field === 'banco') {
+      this.buildPlot();
+      return;
+    }
     const b = new Batch();
     const rand = makeRandom(909);
     const soil = soilMaterial();
@@ -529,32 +569,7 @@ class FarmView {
       this.clickables.push(ground);
     });
 
-    const beds = new THREE.Mesh(bedsGeometry(BEDS, FRONT, BACK), vertexMaterial());
-    beds.castShadow = true;
-    beds.receiveShadow = true;
-    this.group.add(beds);
-    this.clickables.push(beds);
-    for (const { x, shape } of BEDS) {
-      for (let i = 0; i < 26; i++) {
-        const z = FRONT - 0.3 + rand() * (BACK - FRONT + 0.6);
-        const side = rand() < 0.5 ? -1 : 1;
-        const cx = x + shape.offset(z) + side * (0.38 + rand() * 0.28);
-        const r = 0.03 + rand() * 0.035;
-        b.add(shapes.ico(r, 0), CLODS[i % CLODS.length], { p: [cx, r * 0.4, z], s: [1.3, 0.7, 1.1], r: [0, rand() * 3, 0], flat: true });
-      }
-      for (let i = 0; i < 3; i++) {
-        const z = FRONT + rand() * (BACK - FRONT);
-        const cx = x + (rand() < 0.5 ? -1 : 1) * (0.75 + rand() * 0.6);
-        for (let k = 0; k < 4; k++) {
-          const a = rand() * Math.PI * 2;
-          b.add(shapes.cone(0.018, 0.1 + rand() * 0.08, 4), WEEDS[k % WEEDS.length], {
-            p: [cx + Math.cos(a) * 0.04, 0.05, z + Math.sin(a) * 0.04],
-            r: [Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4],
-            flat: true,
-          });
-        }
-      }
-    }
+    this.addBeds(b, rand, BEDS, FRONT, BACK);
     for (const { x, z } of JARS) this.jar(b, x, z);
     for (const [x, z] of FIELD_TREES) roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
 
@@ -566,6 +581,53 @@ class FarmView {
     const path = groundDecal(roundedRectGeometry(PATH.x0, ROAD_EDGE, PATH.x1, BACK + 0.8, 0.6), earth, GROUND_LAYER.earth);
     this.group.add(path);
     this.clickables.push(path);
+  }
+
+  buildPlot() {
+    const b = new Batch();
+    const rand = makeRandom(919);
+    const xs = BANCO_BEDS.map((bed) => bed.x);
+    const x0 = Math.min(...xs) - BED.pitch / 2 - 0.2;
+    const x1 = Math.max(...xs) + BED.pitch / 2 + 0.2;
+    const ground = groundDecal(raggedPatch(x0, BANCO.front - 0.6, x1, BANCO_BACK + 0.6, 97), soilMaterial(), GROUND_LAYER.field);
+    this.group.add(ground);
+    this.clickables.push(ground);
+    const path = groundDecal(roundedRectGeometry(BANCO.x - 1.4, BANCO_STREET, BANCO.x + 1.4, BANCO.front - 0.2, 0.5), earthMaterial(), GROUND_LAYER.earth);
+    this.group.add(path);
+    this.clickables.push(path);
+    this.addBeds(b, rand, BANCO_BEDS, BANCO.front, BANCO_BACK);
+    const mesh = b.mesh();
+    this.group.add(mesh);
+    this.clickables.push(mesh);
+  }
+
+  addBeds(b, rand, list, front, back) {
+    const beds = new THREE.Mesh(bedsGeometry(list, front, back), vertexMaterial());
+    beds.castShadow = true;
+    beds.receiveShadow = true;
+    this.group.add(beds);
+    this.clickables.push(beds);
+    for (const { x, shape } of list) {
+      for (let i = 0; i < 26; i++) {
+        const z = front - 0.3 + rand() * (back - front + 0.6);
+        const side = rand() < 0.5 ? -1 : 1;
+        const cx = x + shape.offset(z) + side * (0.38 + rand() * 0.28);
+        const r = 0.03 + rand() * 0.035;
+        b.add(shapes.ico(r, 0), CLODS[i % CLODS.length], { p: [cx, r * 0.4, z], s: [1.3, 0.7, 1.1], r: [0, rand() * 3, 0], flat: true });
+      }
+      for (let i = 0; i < 3; i++) {
+        const z = front + rand() * (back - front);
+        const cx = x + (rand() < 0.5 ? -1 : 1) * (0.75 + rand() * 0.6);
+        for (let k = 0; k < 4; k++) {
+          const a = rand() * Math.PI * 2;
+          b.add(shapes.cone(0.018, 0.1 + rand() * 0.08, 4), WEEDS[k % WEEDS.length], {
+            p: [cx + Math.cos(a) * 0.04, 0.05, z + Math.sin(a) * 0.04],
+            r: [Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4],
+            flat: true,
+          });
+        }
+      }
+    }
   }
 
   jar(b, x, z) {
@@ -614,6 +676,7 @@ class FarmView {
     const mine = [];
     const thirsty = [];
     this.state.spots.forEach((spot, i) => {
+      if (fieldOf(i) !== this.field) return;
       const key = modelKey(spot.stage, spot.crop, spot.variety);
       if (!lists.has(key)) lists.set(key, []);
       lists.get(key).push(i);
@@ -681,6 +744,13 @@ class FarmView {
     if (this.ring.visible) this.ring.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
   }
 
+  bedOf(mesh, instanceId) {
+    if (instanceId == null) return null;
+    if (mesh === this.stakes) return this.stakeBeds[instanceId] ?? null;
+    if (mesh === this.flags) return this.flagBeds[instanceId] ?? null;
+    return null;
+  }
+
   spotOf(mesh, instanceId) {
     if (instanceId == null) return null;
     return this.planted.get(mesh)?.[instanceId] ?? null;
@@ -701,9 +771,14 @@ export function createFarm({ ledger, nameOf, nav }) {
   const spots = layoutSpots();
   const state = new FarmState(spots.length, { ledger, nameOf });
   const claims = new Map();
-  let built = null;
-  let view = null;
+  const built = {};
+  const views = {};
   let lastTick = 0;
+
+  const refreshAll = () => {
+    for (const view of Object.values(views)) view?.refresh();
+  };
+  const viewOf = (index) => views[fieldOf(index)];
 
   const placed = (index, action) => {
     if (!action.effect) return action;
@@ -717,18 +792,19 @@ export function createFarm({ ledger, nameOf, nav }) {
 
   const tick = () => {
     const changed = state.tick(gameNow());
-    if (changed) view?.refresh();
+    if (changed) refreshAll();
     return changed;
   };
 
-  function bedsFor(actor, purse) {
+  function bedsFor(actor, purse, from) {
     const now = gameNow();
     const held = state.leases.heldBy(actor, now);
     if (held.length) return held;
-    const free = state.leases.free(now);
     const offer = FARMING.leases[0];
-    if (!free.length || purse.money < offer.price) return [];
-    const bed = free[Math.floor(Math.random() * free.length)];
+    if (purse.money < offer.price) return [];
+    const gap = (bed) => Math.hypot(ALL_BEDS[bed].x - from.x, ALL_BEDS[bed].front + (ALL_BEDS[bed].count * SPACING) / 2 - from.z);
+    const bed = state.leases.free(now).sort((a, b) => gap(a) - gap(b))[0];
+    if (bed === undefined) return [];
     return state.leases.rent(bed, actor, offer, purse, now) ? [bed] : [];
   }
 
@@ -749,10 +825,10 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     act(action, index, choice, actor) {
       const reply = state.act(action, index, gameNow(), choice, actor);
-      view?.refresh();
+      refreshAll();
       return reply;
     },
-    animate: (index, kind, duration) => view?.animate(index, kind, duration),
+    animate: (index, kind, duration) => viewOf(index)?.animate(index, kind, duration),
     randomPlot(actor) {
       const mine = [];
       state.spots.forEach((plant, index) => {
@@ -796,7 +872,7 @@ export function createFarm({ ledger, nameOf, nav }) {
         else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
       if (owned < FARMING.villagerPlots && seedChoice) {
-        const beds = bedsFor(worker.id, purse);
+        const beds = bedsFor(worker.id, purse, worker.position);
         state.spots.forEach((plant, index) => {
           if (plant.stage === 0 && beds.includes(bedOf(index))) consider(index, 'plant', 4, seedChoice);
         });
@@ -805,69 +881,94 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
   };
 
-  return {
+  function fieldRegion(field, region) {
+    return {
+      ...region,
+      staticNav: true,
+      farmland: true,
+      target(hit, from) {
+        const bed = views[field]?.bedOf(hit.object, hit.instanceId) ?? null;
+        if (bed !== null) {
+          const index = SPOT_BED.indexOf(bed);
+          const head = ALL_BEDS[bed];
+          return { index, stake: bed, x: head.x + head.shape.offset(head.front), z: head.front - 0.35, stand: standFor(spots[index], from) };
+        }
+        const index = views[field]?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
+        if (index == null || index < 0 || fieldOf(index) !== field) return null;
+        const spot = spots[index];
+        return { index, x: spot.x, z: spot.z, stand: standFor(spot, from) };
+      },
+      actionFor(target) {
+        if (target.stake !== undefined) return state.leaseAction(target.stake);
+        return placed(target.index, state.actionFor(target.index));
+      },
+      timeLeft(target) {
+        return target.stake !== undefined ? null : state.timeLeft(target.index, gameNow());
+      },
+      labelOf(target) {
+        if (target.stake !== undefined) return state.stakeLabel(target.stake, gameNow());
+        return state.label(target.index, gameNow());
+      },
+      growth(target) {
+        return target.stake !== undefined ? null : state.growth(target.index, gameNow());
+      },
+      topOf(target) {
+        if (target.stake !== undefined) return new THREE.Vector3(target.x, 1.15, target.z);
+        const spot = spots[target.index];
+        return new THREE.Vector3(spot.x, spot.y + plantTop(state.spots[target.index]) * spot.scale + 0.18, spot.z);
+      },
+      act(action, target, choice) {
+        const reply = state.act(action, target.index, gameNow(), choice);
+        refreshAll();
+        return reply;
+      },
+      didChange() {
+        return !!state.changed;
+      },
+      highlight(target) {
+        views[field]?.highlight(target && target.stake === undefined ? spots[target.index] : null);
+      },
+      animate(target, kind, duration) {
+        viewOf(target.index)?.animate(target.index, kind, duration);
+      },
+      load() {
+        tick();
+        if (built[field]) built[field].refresh();
+        else built[field] = new FarmView(spots, state, field);
+        const view = built[field];
+        views[field] = view;
+        return {
+          group: view.group,
+          clickables: view.clickables,
+          update: (t) => view.update(t),
+          dispose: () => {
+            view.hide();
+            views[field] = null;
+          },
+        };
+      },
+    };
+  }
+
+  const banco = fieldRegion('banco', {
+    id: 'bancoFarm',
+    name: 'Ruộng Bàn Cờ',
+    bounds: BANCO_BOUNDS,
+    obstacles: BANCO_BEDS.map(({ x }) => bedBox(x, BANCO.front, BANCO_BACK)),
+  });
+
+  return fieldRegion('farm', {
     id: 'farm',
     name: 'Ruộng rau màu',
     bounds: BOUNDS,
-    staticNav: true,
     obstacles: fieldObstacles(),
     crew,
+    extraRegions: [banco],
     tick() {
       const now = performance.now();
       if (now - lastTick < 500) return;
       lastTick = now;
       tick();
     },
-    target(hit, from) {
-      const index = view?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
-      if (index == null || index < 0) return null;
-      const spot = spots[index];
-      return { index, x: spot.x, z: spot.z, stand: standFor(spot, from) };
-    },
-    actionFor(target) {
-      return placed(target.index, state.actionFor(target.index));
-    },
-    timeLeft(target) {
-      return state.timeLeft(target.index, gameNow());
-    },
-    labelOf(target) {
-      return state.label(target.index, gameNow());
-    },
-    growth(target) {
-      return state.growth(target.index, gameNow());
-    },
-    topOf(target) {
-      const spot = spots[target.index];
-      return new THREE.Vector3(spot.x, spot.y + plantTop(state.spots[target.index]) * spot.scale + 0.18, spot.z);
-    },
-    act(action, target, choice) {
-      const reply = state.act(action, target.index, gameNow(), choice);
-      view?.refresh();
-      return reply;
-    },
-    didChange() {
-      return !!state.changed;
-    },
-    highlight(target) {
-      view?.highlight(target ? spots[target.index] : null);
-    },
-    animate(target, kind, duration) {
-      view?.animate(target.index, kind, duration);
-    },
-    load() {
-      tick();
-      if (built) built.refresh();
-      else built = new FarmView(spots, state);
-      view = built;
-      return {
-        group: view.group,
-        clickables: view.clickables,
-        update: (t) => view.update(t),
-        dispose: () => {
-          view.hide();
-          view = null;
-        },
-      };
-    },
-  };
+  });
 }

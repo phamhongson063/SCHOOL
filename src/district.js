@@ -24,6 +24,7 @@ const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
 const ROW = { x0: 102, x1: 179 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
+const FIELD_PICK = 'south:4';
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
@@ -68,6 +69,7 @@ function layout() {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
       const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
+      if (`${row.side}:${index}` === FIELD_PICK) return;
       const lodge = LODGE_PICKS[`${row.side}:${index}`];
       if (lodge) {
         house.lodge = lodge;

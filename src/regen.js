@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
+import { BANK_ART } from './bankArt.js';
 
 const GOLD = new THREE.Color(0xffd36b);
 const MOTE = new THREE.Color(0xfff2b0);
@@ -213,11 +214,15 @@ export function createRegen({ scene, camera, purse }) {
   function pop(gained, center) {
     flash = 1;
     spawnDebt += MOTES / 2;
+    floatUp([`+${gained.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}⚡`], center);
+  }
+
+  function floatUp(parts, center) {
     screen.set(center.x, center.y + POP_LIFT, center.z).project(camera);
     if (screen.z > 1) return;
     const el = document.createElement('span');
     el.className = 'regen-pop';
-    el.textContent = `+${gained.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}⚡`;
+    el.append(...parts);
     el.style.left = `${((screen.x + 1) / 2) * window.innerWidth + (Math.random() - 0.5) * 36}px`;
     el.style.top = `${((1 - screen.y) / 2) * window.innerHeight}px`;
     el.addEventListener('animationend', () => el.remove());
@@ -231,6 +236,13 @@ export function createRegen({ scene, camera, purse }) {
   }
 
   return {
+    coin(gained, center) {
+      spawnDebt += MOTES / 2;
+      const icon = document.createElement('span');
+      icon.className = 'regen-coin';
+      icon.innerHTML = BANK_ART.silver;
+      floatUp([`+${gained}`, icon], center);
+    },
     update(dt, t, center, amount, resting, minutes) {
       if (!resting || amount < 1) mark = null;
       else if (!mark) mark = { minutes, energy: purse.energy };

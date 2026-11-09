@@ -1,7 +1,8 @@
-const PLAY_SECONDS = 5 * 60;
+import { QUIZ } from './config.js';
 
-export function createQuiz({ quiz } = {}) {
-  let left = PLAY_SECONDS;
+export function createQuiz({ quiz, onPass = null, onVillagers = null } = {}) {
+  let left = QUIZ.seconds;
+  let villagersLeft = QUIZ.seconds;
   let asking = false;
 
   async function ask() {
@@ -10,8 +11,9 @@ export function createQuiz({ quiz } = {}) {
     while (!passed) {
       ({ correct: passed } = await quiz.ask({ icon: '📖' }));
     }
+    onPass?.();
     asking = false;
-    left = PLAY_SECONDS;
+    left = QUIZ.seconds;
   }
 
   return {
@@ -19,6 +21,11 @@ export function createQuiz({ quiz } = {}) {
       return asking;
     },
     update(dt, counting) {
+      villagersLeft -= dt;
+      if (villagersLeft <= 0) {
+        villagersLeft = QUIZ.seconds;
+        onVillagers?.();
+      }
       if (asking || quiz.open || !counting) return;
       left -= dt;
       if (left <= 0) ask();

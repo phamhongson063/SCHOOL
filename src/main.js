@@ -29,7 +29,7 @@ import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay } from './clock.js';
 import { phaseAt } from './timetable.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ } from './config.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -226,6 +226,7 @@ regions.add(
 );
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
+for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
     estate,
     nameOf,
@@ -293,6 +294,18 @@ const playerBubble = createBubble();
 playerBubble.sprite.position.set(0, modelReady ? 2.12 : 1.95, 0);
 avatar.group.add(playerBubble.sprite);
 const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
+const coordsX = document.getElementById('coordsX');
+const coordsY = document.getElementById('coordsY');
+let coordsKey = '';
+function showCoords() {
+  const x = Math.round(player.position.x);
+  const y = Math.round(player.position.z);
+  const key = `${x},${y}`;
+  if (key === coordsKey) return;
+  coordsKey = key;
+  coordsX.textContent = x;
+  coordsY.textContent = y;
+}
 const VIEW_STEP = 0.4;
 
 function segmentHitsBox(from, to, box) {
@@ -393,7 +406,7 @@ player.onArrive = () => {
   fieldTask = null;
   if (!task || Math.hypot(task.target.stand.x - player.position.x, task.target.stand.z - player.position.z) > 0.8) return;
   player.faceToward(task.target.x, task.target.z);
-  const cost = task.region.id === 'farm' ? ENERGY.costs[task.action.id] ?? 0 : 0;
+  const cost = task.region.farmland ? ENERGY.costs[task.action.id] ?? 0 : 0;
   if (cost && purse.energy < cost) {
     sayPlayer('Đói quá, hết sức làm rồi! Ra quán ăn nạp năng lượng nhé.', 2.6);
     return;
@@ -554,7 +567,19 @@ context = contextAt(gameNow());
 
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz();
-const quiz = createQuiz({ quiz: kanjiQuiz });
+const quiz = createQuiz({
+  quiz: kanjiQuiz,
+  onPass: () => {
+    purse.earn(QUIZ.reward);
+    regen.coin(QUIZ.reward, player.position);
+  },
+  onVillagers: () => {
+    for (const member of town?.all ?? []) {
+      const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
+      if (Math.random() < pass) member.purse.earn(QUIZ.reward);
+    }
+  },
+});
 const fishing = createPlayerFishing({
   river,
   purse,
@@ -1254,6 +1279,7 @@ renderer.setAnimationLoop((time) => {
   hoverTip.update(t);
   tuning.updateOutlines(t);
   playerBubble.update(t);
+  showCoords();
   playerBubble.setMood(moodOf(purse.energy));
   avatar.face.update(t, player.restAmount > 0.6 ? 'blink' : 'open');
   if (seatedAvatar.group.visible) {

@@ -51,7 +51,7 @@ export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }
     wildlife.freeze(animal);
     player.faceToward(animal.x, animal.z);
     const name = animal.spec.name;
-    quiz.ask({ icon: animal.spec.icon }).then(({ correct }) => {
+    quiz.ask({ icon: animal.spec.icon, quick: true }).then(({ correct }) => {
       busy = false;
       if (correct && animal.state === 'frozen') {
         purse.add(wildlife.capture(animal), 1);

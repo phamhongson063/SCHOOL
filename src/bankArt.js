@@ -1,3 +1,5 @@
+import { GOLD_HTML } from './goldArt.js';
+
 const OUT = '#3a2016';
 const GOLD = '#f2c14e';
 const GOLD_DARK = '#d18f22';
@@ -106,14 +108,7 @@ export const BANK_ART = {
     ${coinLayer(52, 51.5, 8, 3)}
     ${coinLayer(54, 47, 7, 2.6)}
   `),
-  silver: svg(`
-    <circle cx="32" cy="32" r="27" fill="#b9bec5"/>
-    <circle cx="32" cy="32" r="21" fill="#dfe2e6" stroke="#8a9098" stroke-width="1.6"/>
-    <ellipse cx="32" cy="32" rx="21" ry="8" fill="none" stroke="#8a9098" stroke-width="1.4"/>
-    <ellipse cx="32" cy="32" rx="8" ry="21" fill="none" stroke="#8a9098" stroke-width="1.4"/>
-    <path d="M23 21 C26 25 30 24 33 27 C36 30 33 34 37 36 M40 22 C38 26 42 28 44 30" fill="none" stroke="#8a9098" stroke-width="1.6"/>
-    <path d="M12 26 A21 21 0 0 1 26 11" fill="none" stroke="#fff" stroke-width="2.4" opacity="0.85"/>
-  `),
+  silver: GOLD_HTML,
   ledger: svg(`
     <path d="M9 12 C17 9 26 10 32 14 C38 10 47 9 55 12 V55 C47 52 38 53 32 57 C26 53 17 52 9 55 Z" fill="#c93a24"/>
     <path d="M13 14 C20 12 27 13 32 17 V53 C27 50 20 49 13 51 Z" fill="#fffaf0"/>

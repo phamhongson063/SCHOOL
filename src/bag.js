@@ -2,6 +2,7 @@ import { paintIcon } from './itemArt.js';
 import { ITEMS } from './inventory.js';
 import { MONEY, SNACKS } from './config.js';
 import { amount } from './format.js';
+import { GOLD_HTML } from './goldArt.js';
 
 const TAB_KEY = 'truong-lang-xua.bagTab';
 const COLUMNS = 5;
@@ -62,6 +63,7 @@ export function createBag(purse) {
   const credits = document.getElementById('bagCredits');
   const wallet = document.getElementById('walletAmount');
   const walletPill = document.getElementById('wallet');
+  document.getElementById('walletGold').innerHTML = GOLD_HTML;
   let current = loadTab();
   let selected = null;
   let hovered = null;

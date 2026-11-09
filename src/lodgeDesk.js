@@ -1,15 +1,19 @@
 import { LODGE_ROOMS, ECONOMY } from './config.js';
 import { PLAYER } from './inventory.js';
 import { book, isFree, roomTier } from './lodging.js';
-import { coins, notEnough } from './format.js';
+import { amount, notEnough } from './format.js';
 import { closable } from './dialog.js';
 import { economy } from './economy.js';
+import { stallCard, paintStallArt } from './stallCard.js';
+import { setRich } from './goldArt.js';
 
 export function createLodgeDesk({ purse, onRent }) {
   const dialog = document.getElementById('lodgeDialog');
   const title = document.getElementById('lodgeTitle');
-  const text = document.getElementById('lodgeText');
+  const money = document.getElementById('lodgeMoney');
+  const list = document.getElementById('lodgeList');
   const note = document.getElementById('lodgeNote');
+  paintStallArt(dialog);
   let offer = null;
 
   function problemWith(id) {
@@ -26,9 +30,21 @@ export function createLodgeDesk({ purse, onRent }) {
     const tier = roomTier(id);
     offer = id;
     title.textContent = LODGE_ROOMS[id].name;
-    text.textContent = `${coins(tier.price)} · +${tier.perHour}⚡/giờ`;
+    money.textContent = amount(purse.money);
     note.textContent = '';
-    note.hidden = true;
+    list.replaceChildren(
+      stallCard({
+        icon: '🛏️',
+        title: LODGE_ROOMS[id].name,
+        price: tier.price,
+        unit: 'đêm',
+        tag: `+${tier.perHour}⚡/giờ`,
+        actions: [
+          { label: 'Huỷ', run: () => dialog.close() },
+          { label: 'Thuê phòng', run: confirm },
+        ],
+      }),
+    );
     dialog.showModal();
     return null;
   }
@@ -38,8 +54,7 @@ export function createLodgeDesk({ purse, onRent }) {
     if (!id) return;
     const problem = problemWith(id);
     if (problem) {
-      note.textContent = problem;
-      note.hidden = false;
+      setRich(note, problem);
       return;
     }
     purse.spend(roomTier(id).price);
@@ -50,8 +65,6 @@ export function createLodgeDesk({ purse, onRent }) {
     onRent(id);
   }
 
-  document.getElementById('lodgeOk').addEventListener('click', confirm);
-  document.getElementById('lodgeCancel').addEventListener('click', () => dialog.close());
   closable(dialog);
   dialog.addEventListener('close', () => {
     offer = null;

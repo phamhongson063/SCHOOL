@@ -1,11 +1,13 @@
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId, gameId, snackId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
+import { CROP_ECONOMY, SHOP, SCHOOL, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
 import { isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
-import { iconTag, paintIcon } from './itemArt.js';
+import { iconTag } from './itemArt.js';
 import { closable } from './dialog.js';
+import { stallCard, paintStallArt } from './stallCard.js';
 import { economy } from './economy.js';
+import { setRich } from './goldArt.js';
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -151,34 +153,6 @@ export function createMarket() {
   };
 }
 
-function row({ key, icon, art, title, detail, actions }) {
-  const node = document.createElement('div');
-  node.className = 'shop-row';
-  const badge = document.createElement('span');
-  badge.className = 'shop-icon';
-  badge.setAttribute('aria-hidden', 'true');
-  paintIcon(badge, { icon, art });
-  const text = document.createElement('div');
-  text.className = 'shop-text';
-  const name = document.createElement('strong');
-  name.textContent = title;
-  const info = document.createElement('small');
-  info.textContent = detail;
-  text.append(name, info);
-  const buttons = document.createElement('div');
-  buttons.className = 'shop-actions';
-  for (const [index, action] of actions.entries()) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.key = `${key}#${index}`;
-    button.textContent = action.label;
-    button.disabled = !!action.disabled;
-    button.addEventListener('click', action.run);
-    buttons.append(button);
-  }
-  node.append(badge, text, buttons);
-  return node;
-}
 
 function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
   const dialog = document.getElementById(ids.dialog);
@@ -186,10 +160,11 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
   const money = document.getElementById(ids.money);
   const note = document.getElementById(ids.note);
   const tabs = [...dialog.querySelectorAll('[data-tab]')];
+  paintStallArt(dialog);
   let tab = 'sell';
 
   const say = (text) => {
-    note.textContent = text;
+    setRich(note, text);
   };
 
   function sellRow(item) {
@@ -201,12 +176,14 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
       if (earned) say(`Bán ${Math.min(count, have)} ${info.unit} ${info.name.toLowerCase()} được ${coins(earned)}.`);
       render();
     };
-    return row({
+    return stallCard({
       key: `sell:${item}`,
       icon: info.icon,
       art: info.art,
       title: info.name,
-      detail: `${coins(price)}/${info.unit} · đang có ${have}`,
+      price,
+      unit: info.unit,
+      tag: `có ${have}`,
       actions: [
         { label: 'Bán 1', disabled: have < 1, run: sellSome(1) },
         { label: 'Bán hết', disabled: have < 1, run: sellSome(have) },
@@ -226,12 +203,15 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
       ? [{ label: 'Đã có', disabled: true, run: () => {} }]
       : [{ label: 'Mua 1', disabled: purse.money < price, run: purchase(1) }];
     if (many > 1 && !owned) actions.push({ label: `Mua ${many}`, disabled: purse.money < price * many, run: purchase(many) });
-    return row({
+    return stallCard({
       key: `buy:${item}`,
       icon: info.icon,
       art: info.art,
       title: info.name,
-      detail: `${coins(price)}/${unit} · ${detail} · đang có ${purse.count(item)}`,
+      price,
+      unit,
+      tag: `có ${purse.count(item)}`,
+      detail,
       actions,
     });
   }
@@ -245,7 +225,7 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
 
   function render() {
     const active = list.contains(document.activeElement) ? document.activeElement.dataset.key : null;
-    money.textContent = `${MONEY.icon} ${amount(purse.money)}`;
+    money.textContent = amount(purse.money);
     for (const button of tabs) button.setAttribute('aria-selected', String(button.dataset.tab === tab));
     list.replaceChildren(...(tab === 'sell' ? sellItems().map(sellRow) : buyItems().map(buyRow)));
     refocus(active);

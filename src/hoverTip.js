@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CURSORS } from './cursors.js';
 import { countdownText } from './clock.js';
+import { setRich } from './goldArt.js';
 
 const HOVER_INTERVAL = 0.1;
 
@@ -38,8 +39,9 @@ export function createHoverTip({ renderer, camera, regions, player, playing, wor
     if (visible) visible = tipAnchor.copy(at).project(camera).z < 1;
     tip.hidden = !visible;
     if (!visible) return;
-    if (tipText.textContent !== label) {
-      tipText.textContent = label;
+    if (tipText.dataset.label !== label) {
+      tipText.dataset.label = label;
+      setRich(tipText, label);
       tipSize = null;
     }
     const timed = fill != null;

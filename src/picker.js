@@ -1,4 +1,5 @@
 import { paintIcon } from './itemArt.js';
+import { setRich } from './goldArt.js';
 
 const MARGIN = 12;
 
@@ -23,7 +24,7 @@ export function createPicker() {
     paintIcon(icon, item);
     const name = document.createElement('span');
     name.className = 'picker-option-label';
-    name.textContent = item.name;
+    setRich(name, item.name);
     button.append(icon, name);
     button.addEventListener('click', () => {
       const pick = onPick;

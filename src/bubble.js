@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { itemImage } from './itemArt.js';
+import { goldNodes } from './goldArt.js';
 
 const FAR = 40;
 const OCCLUSION_EVERY = 0.25;
@@ -38,7 +39,7 @@ function speechLayer() {
 
 function content(text) {
   return text.split(/\[\[(\w+)\]\]/).flatMap((part, i) => {
-    if (i % 2 === 0) return part ? [document.createTextNode(part)] : [];
+    if (i % 2 === 0) return part ? goldNodes(part) : [];
     const image = itemImage(part);
     if (!image) return [];
     const icon = document.createElement('img');

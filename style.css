@@ -248,6 +248,38 @@ body {
   cursor: pointer;
 }
 
+.coords {
+  position: fixed;
+  left: 48px;
+  top: 114px;
+  z-index: var(--z-scene-ui);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  color: #efe4c8;
+  font: 700 12px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-shadow:
+    -1px -1px 0 var(--ink),
+    1px -1px 0 var(--ink),
+    -1px 1px 0 var(--ink),
+    1px 1px 0 var(--ink),
+    0 1px 4px var(--shadow-strong);
+}
+
+.coords b {
+  color: #ffd86b;
+  font-weight: 800;
+}
+
+.coords b + span {
+  min-width: 2.2em;
+}
+
 .hover-tip {
   position: fixed;
   top: 0;
@@ -1405,6 +1437,29 @@ dialog.paper::backdrop {
   font: 700 16px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.wallet-gold {
+  display: block;
+  width: 30px;
+  height: 22px;
+}
+
+.gold-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(80, 50, 0, 0.45));
+}
+
+.gold-icon {
+  display: inline-block;
+  height: 1.05em;
+  width: auto;
+  margin: 0 0.12em;
+  vertical-align: -0.18em;
+  filter: drop-shadow(0 1px 0.5px rgba(80, 50, 0, 0.45));
 }
 
 .wallet.bump {
@@ -2687,6 +2742,15 @@ dialog.paper.kanji:focus {
   white-space: nowrap;
 }
 
+.regen-coin {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-left: 3px;
+  vertical-align: -0.12em;
+  filter: drop-shadow(0 0 2px #5a3a08);
+}
+
 @keyframes regen-pop {
   0% {
     opacity: 0;
@@ -3651,4 +3715,122 @@ dialog.paper.kanji.closing::backdrop {
     padding: 6px 8px;
     font-size: 14px;
   }
+}
+
+.stall-tabs {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.stall-list {
+  gap: 8px;
+}
+
+.stall-card-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #f1e3c2;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.stall-card-icon .item-art {
+  width: 38px;
+  height: 38px;
+}
+
+.stall-chip-unit {
+  margin-left: -6px;
+  color: var(--wood);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stall-note:empty {
+  display: none;
+}
+
+.stall-note {
+  margin: 8px 2px 0;
+}
+
+@media (max-width: 600px) {
+  .stall-card {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .stall-card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+
+  .stall-card-icon .item-art {
+    width: 30px;
+    height: 30px;
+  }
+
+  .stall-card .bank-card-title {
+    font-size: 15px;
+  }
+
+  .stall-card .bank-chip {
+    gap: 6px;
+    padding: 2px 8px 2px 4px;
+  }
+
+  .stall-card .bank-chip-value {
+    font-size: 15px;
+  }
+
+  .stall-card .bank-chip-rate {
+    font-size: 12px;
+  }
+
+  .stall-card .bank-card-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .stall-card .bank-btn {
+    min-width: 76px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+}
+
+.stall-card.muted {
+  opacity: 0.7;
+}
+
+.stall-energy {
+  padding-left: 10px;
+  color: #ffd86b;
+}
+
+@media (max-width: 600px) {
+  .stall-energy {
+    padding-left: 8px;
+  }
+}
+
+.stall .bank-head h2 {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bank-coin {
+  width: 1.85em;
+}
+
+.regen-coin {
+  width: 1.45em;
 }

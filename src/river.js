@@ -3,7 +3,7 @@ import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial, vertexMateri
 import { between, makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
 import { FISH, FISHING, WORLD } from './config.js';
-import { minuteOfDay } from './clock.js';
+import { gameNow, minuteOfDay } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
 
 const KEY = 'truong-lang-xua.river';
@@ -66,7 +66,7 @@ function makeSpots() {
   const spots = [];
   const berth = (stand, float) => ({ stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), who: null, spot: null });
   const add = (stand, float, berths) => {
-    const spot = { id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), berths, fish: 0, jumpAt: 0, rippleAt: 0 };
+    const spot = { id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), berths, fish: 0, until: 0, jumpAt: 0, rippleAt: 0 };
     for (const item of berths) item.spot = spot;
     spots.push(spot);
   };
@@ -380,7 +380,7 @@ export function createRiver() {
 
   const save = () => {
     const zones = {};
-    for (const spot of spots) if (spot.fish > 0) zones[spot.id] = spot.fish;
+    for (const spot of spots) if (spot.fish > 0) zones[spot.id] = [spot.fish, spot.until];
     try {
       localStorage.setItem(KEY, JSON.stringify({ zones, pending }));
     } catch {}
@@ -388,31 +388,44 @@ export function createRiver() {
 
   const zoneCount = () => spots.reduce((count, spot) => count + (spot.fish > 0 ? 1 : 0), 0);
 
-  function openZone() {
+  function openZone(minutes, skip = null) {
     if (zoneCount() >= FISHING.zones) return;
-    const empty = spots.filter((spot) => spot.fish <= 0);
+    const empty = spots.filter((spot) => spot.fish <= 0 && spot !== skip);
     if (!empty.length) return;
     const spot = empty[Math.floor(Math.random() * empty.length)];
     spot.fish = randomInt(FISHING.zoneFish);
+    spot.until = minutes + randomInt(FISHING.zoneLife);
     spot.jumpAt = clock + between(0.5, 2);
   }
 
+  const busy = (spot) => spot.berths.some((berth) => berth.who);
+
+  const startedAt = gameNow();
   if (saved) {
-    for (const [id, count] of Object.entries(saved.zones)) {
+    for (const [id, value] of Object.entries(saved.zones)) {
       const spot = spots[Number(id)];
-      if (spot && Number.isFinite(count) && count > 0 && zoneCount() < FISHING.zones) spot.fish = Math.floor(count);
+      const [count, until] = Array.isArray(value) ? value : [value, startedAt + randomInt(FISHING.zoneLife)];
+      if (!spot || !Number.isFinite(count) || count <= 0 || zoneCount() >= FISHING.zones) continue;
+      spot.fish = Math.floor(count);
+      spot.until = Number.isFinite(until) ? until : startedAt + randomInt(FISHING.zoneLife);
     }
     pending.push(...saved.pending.filter(Number.isFinite).sort((a, b) => a - b).slice(0, Math.max(0, FISHING.zones - zoneCount())));
   } else {
-    for (let i = 0; i < FISHING.zones; i++) openZone();
+    for (let i = 0; i < FISHING.zones; i++) openZone(startedAt);
     save();
   }
 
   function refill(minutes) {
     let changed = false;
+    for (const spot of spots) {
+      if (spot.fish <= 0 || spot.until > minutes || busy(spot)) continue;
+      spot.fish = 0;
+      openZone(minutes, spot);
+      changed = true;
+    }
     while (pending.length && pending[0] <= minutes) {
       pending.shift();
-      openZone();
+      openZone(minutes);
       changed = true;
     }
     while (zoneCount() + pending.length < FISHING.zones) {
