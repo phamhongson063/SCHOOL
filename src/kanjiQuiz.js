@@ -151,7 +151,7 @@ export function createKanjiQuiz() {
           if (left <= 0) settle(false, null);
         }, 100);
         if (!dialog.open) dialog.showModal();
-        options.firstElementChild?.focus({ preventScroll: true });
+        dialog.focus({ preventScroll: true });
       });
     },
     cancel() {

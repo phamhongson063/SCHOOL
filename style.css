@@ -1753,6 +1753,10 @@ dialog.paper.kanji {
   width: min(420px, calc(100vw - 24px));
 }
 
+dialog.paper.kanji:focus {
+  outline: none;
+}
+
 .kanji .paper-body {
   position: relative;
 }
