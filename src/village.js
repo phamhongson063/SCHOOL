@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import { Batch, canvasTexture, freeze, labelBox, shade, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
-import { createShophouse, createMarket, createChiefHouse, setNightGlow } from './architecture.js';
+import { createShophouse, createMarket, createChiefHouse, createFishShop, setNightGlow } from './architecture.js';
 import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
-import { SHOP, CHIEF, EATERY, LODGE_ROOMS, FLUORESCENT } from './config.js';
+import { SHOP, CHIEF, EATERY, FISH_SHOP, LODGE_ROOMS, FLUORESCENT } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
 import { createLanternGlow } from './lanternGlow.js';
@@ -42,9 +42,12 @@ const LODGE_SPOTS = [
 const MARKET = { side: 'north', x: 55, seed: 7 };
 const CHIEF_HOUSE = { side: 'south', x: 55.5, seed: 5 };
 const EATERY_SPOT = { side: 'north', x: 41, seed: 9 };
+const FISH_SHOP_SPOT = { x: 51, z: 61.5, seed: 21 };
+const FISH_ZONE_Z1 = 66;
 
 const KEEPER_LOOK = { shirt: 0x9a3a4a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x5a3220, apron: 0x6a4a8a };
 const COOK_LOOK = { shirt: 0x5a7a4a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'curly', hairColor: 0x3a2418, iris: 0x4a2a18, apron: 0xf4efe2 };
+const FISHMONGER_LOOK = { shirt: 0x3a6a8a, pants: 0x2f2a26, skin: 0xd9a479, style: 'khan', khan: 0x2f5a7a, iris: 0x4a2a18, apron: 0xd8d0b8 };
 const CHIEF_LOOK = { shirt: 0x2e2a4a, pants: 0xf1ebdc, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x9a958e, old: true, beardColor: 0xdedad2, iris: 0x3a2214 };
 
 const LANTERN_COLORS = [0xd8321e, 0xf2b630, 0xe0622a, 0x2f7ab8, 0xc0281a, 0x3a9a5a];
@@ -60,6 +63,15 @@ function frame(side, x) {
       : { minX: x - b.maxX, maxX: x - b.minX, minZ: front - b.maxZ, maxZ: front - b.minZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 };
   const facing = (f) => (north ? f : f + Math.PI);
   return { front, turn, toWorld, box, facing };
+}
+
+function westFrame(x, z) {
+  return {
+    turn: -Math.PI / 2,
+    toWorld: (p) => ({ x: x - p.z, z: z + p.x }),
+    box: (b) => ({ minX: x - b.maxZ, maxX: x - b.minZ, minZ: z + b.minX, maxZ: z + b.maxX, minY: b.minY ?? 0, maxY: b.maxY ?? 3 }),
+    facing: (f) => f - Math.PI / 2,
+  };
 }
 
 function placeBuilding(built, spec) {
@@ -306,11 +318,27 @@ export function createVillage() {
   eaterySign.mesh.position.set(eatery.plaque.x, eatery.plaque.y, eatery.plaque.z);
   addBuilding({ kind: 'eatery', group: eatery.group, stand: eateryCounter, look: cookAt, npc: cook }, EATERY_SPOT.x, eaterySign);
 
+  const fishShop = createFishShop({ seed: FISH_SHOP_SPOT.seed });
+  const fishFrame = westFrame(FISH_SHOP_SPOT.x, FISH_SHOP_SPOT.z);
+  fishShop.group.position.set(FISH_SHOP_SPOT.x, 0, FISH_SHOP_SPOT.z);
+  fishShop.group.rotation.y = fishFrame.turn;
+  fishShop.group.updateMatrixWorld(true);
+  obstacles.push(...fishShop.obstacles.map(fishFrame.box));
+  const fishCounter = fishFrame.toWorld(fishShop.counter);
+  const fishmongerAt = fishFrame.toWorld(fishShop.keeper);
+  const fishmonger = keeperNPC(FISHMONGER_LOOK, null);
+  fishmonger.walker.group.position.set(fishmongerAt.x, 0, fishmongerAt.z);
+  fishmonger.walker.group.rotation.y = fishFrame.facing(fishShop.keeper.facing);
+  const fishSign = plaqueBoard(['HÀNG CÁ'], { bg: 0x1f4a6a, fg: '#f4efe2', border: 0xf2c14e });
+  fishSign.mesh.position.set(fishShop.plaque.x, fishShop.plaque.y, fishShop.plaque.z);
+  addBuilding({ kind: 'fish', group: fishShop.group, stand: fishCounter, look: fishmongerAt, npc: fishmonger }, FISH_SHOP_SPOT.x, fishSign);
+
   const lightGroup = new THREE.Group();
   const keeperLights = [
     [keeperAt, counter],
     [chiefAt, desk],
     [cookAt, eateryCounter],
+    [fishmongerAt, fishCounter],
   ].map(([from, to]) => {
     const light = new THREE.PointLight(FLUORESCENT, 0, KEEPER_LIGHT.distance, 2);
     light.position.set(from.x + (to.x - from.x) * KEEPER_LIGHT.toward, KEEPER_LIGHT.height, from.z + (to.z - from.z) * KEEPER_LIGHT.toward);
@@ -373,9 +401,11 @@ export function createVillage() {
 
   const marketLine = [market.counter, { x: market.counter.x, z: 1.5 }, { x: market.counter.x - 12, z: 1.5 }].map(marketFrame.toWorld);
   const chiefLine = [chief.desk, { x: chief.desk.x, z: 1.5 }, { x: chief.desk.x + 12, z: 1.5 }].map(chiefFrame.toWorld);
+  const fishLine = [fishShop.counter, { x: fishShop.counter.x, z: 1.5 }, { x: fishShop.counter.x - 6.5, z: 1.5 }].map(fishFrame.toWorld);
   const eateryLine = [eatery.counter, { x: eatery.counter.x, z: 1.6 }, { x: eatery.counter.x - 10, z: 1.6 }].map(eateryFrame.toWorld);
   const places = {
     eatery: { x: eateryCounter.x, z: eateryCounter.z, look: cookAt, line: eateryLine },
+    fish: { x: fishCounter.x, z: fishCounter.z, look: fishmongerAt, line: fishLine },
     shop: { x: counter.x, z: counter.z, look: keeperAt, line: marketLine },
     chief: { x: desk.x, z: desk.z, look: chiefAt, line: chiefLine },
     lodges,
@@ -403,6 +433,7 @@ export function createVillage() {
     if (!bound) return null;
     if (target.kind === 'shop') return bound.isShopOpen() ? 'Tiệm buôn · bán nông sản, mua hạt giống' : `Tiệm buôn · đóng cửa (mở ${bound.shopHours()})`;
     if (target.kind === 'chief') return bound.isChiefOpen() ? 'Nhà Lý trưởng · mua bán nhà' : `Nhà Lý trưởng · nghỉ (làm việc ${bound.chiefHours()})`;
+    if (target.kind === 'fish') return bound.isFishShopOpen() ? 'Hàng cá · bán thủy sản, mua đồ câu' : `Hàng cá · đóng cửa (mở ${bound.fishShopHours()})`;
     if (target.kind === 'eatery') return bound.isEateryOpen() ? 'Quán ăn · ăn uống nạp năng lượng' : `Quán ăn · đóng cửa (mở ${bound.eateryHours()})`;
     if (target.kind === 'lodge') return lodgeLabel(target.id);
     const house = bound.estate.houses.find((item) => item.id === target.id);
@@ -432,6 +463,12 @@ export function createVillage() {
         if (!bound.isShopOpen()) return `Tiệm đóng cửa rồi, mở ${bound.shopHours()} nhé!`;
         keeper.bubble.show('Mời vô, mời vô!', 1.8, now);
         bound.openShop();
+        return null;
+      }
+      if (target.kind === 'fish') {
+        if (!bound.isFishShopOpen()) return `Hàng cá đóng cửa rồi, mở ${bound.fishShopHours()} nhé!`;
+        fishmonger.bubble.show('Cá tươi rói đây!', 1.8, now);
+        bound.openFishShop();
         return null;
       }
       if (target.kind === 'chief') {
@@ -475,10 +512,12 @@ export function createVillage() {
       const shopOn = minute >= SHOP.open && minute < SHOP.close;
       const chiefOn = minute >= CHIEF.open && minute < CHIEF.close;
       const eateryOn = minute >= EATERY.open && minute < EATERY.close;
+      const fishOn = minute >= FISH_SHOP.open && minute < FISH_SHOP.close;
       for (const [npc, on] of [
         [keeper, shopOn],
         [chiefNPC, chiefOn],
         [cook, eateryOn],
+        [fishmonger, fishOn],
       ]) {
         const near = on && camera.position.distanceTo(npc.walker.group.position) < KEEPER_DISTANCE;
         npc.walker.group.visible = near;
@@ -504,7 +543,7 @@ export function createVillage() {
       options.estate.onChange(refreshPlaques);
       return ZONES.map((zone, i) => ({
         ...shared,
-        bounds: { x0: zone.x0, z0: VILLAGE_BOUNDS.z0, x1: zone.x1, z1: VILLAGE_BOUNDS.z1 },
+        bounds: { x0: zone.x0, z0: VILLAGE_BOUNDS.z0, x1: zone.x1, z1: i === zoneIndex(FISH_SHOP_SPOT.x) ? FISH_ZONE_Z1 : VILLAGE_BOUNDS.z1 },
         load() {
           return { group: zones[i].group, clickables: zones[i].clickables, obstacles: [] };
         },

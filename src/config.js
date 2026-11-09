@@ -30,6 +30,7 @@ export const SCHOOL = {
 export const MONEY = { icon: '🪙', name: 'đồng' };
 
 export const SHOP = { open: 5 * 60 + 30, close: 21 * 60, fertilizer: 2 };
+export const FISH_SHOP = { open: 5 * 60, close: 19 * 60 };
 
 export const CHIEF = { open: 6 * 60, close: 20 * 60 };
 

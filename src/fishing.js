@@ -22,7 +22,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
   function cast() {
     if (purse.count('bait') < 1) {
       stop();
-      say('Hết mồi rồi! Ra tiệm buôn mua mồi giun nhé.');
+      say('Hết mồi rồi! Ra hàng cá mua mồi giun nhé.');
       return;
     }
     if (!purse.spendEnergy(ENERGY.costs.fish)) {
@@ -43,7 +43,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     current.phase = 'quiz';
     angler.bite();
     const fish = river.rollFish(minutes());
-    const { correct, entry } = await quiz.ask({ fish });
+    const { correct } = await quiz.ask({ fish });
     if (session !== current) return;
     angler.reel();
     const float = current.berth.float;
@@ -54,8 +54,6 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
       say(`🎣 ${FISH[fish].name}! +1`, 2);
     } else if (correct) {
       say('Cá vừa cắn đã bơi mất...', 2);
-    } else {
-      say(entry ? `Cá sổng mất! 「${entry.word}」 đọc là ${entry.reading}` : 'Cá sổng mất rồi!', 2.6);
     }
     current.phase = 'pause';
     current.at = now() + PAUSE;
@@ -67,8 +65,8 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     },
     start(spot, berth) {
       stop();
-      if (purse.count('rod') < 1) return 'Chưa có cần câu! Ra tiệm buôn mua nhé.';
-      if (purse.count('bait') < 1) return 'Hết mồi rồi! Ra tiệm buôn mua mồi giun nhé.';
+      if (purse.count('rod') < 1) return 'Chưa có cần câu! Ra hàng cá mua nhé.';
+      if (purse.count('bait') < 1) return 'Hết mồi rồi! Ra hàng cá mua mồi giun nhé.';
       if (purse.energy < ENERGY.costs.fish) return 'Đói quá, hết sức câu rồi! Ra quán ăn nạp năng lượng nhé.';
       if (!river.hasFish(spot)) return 'Chỗ này hết cá rồi!';
       const free = berth && !berth.who ? berth : river.berthFor(player, spot, player.position);

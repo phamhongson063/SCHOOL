@@ -429,6 +429,7 @@ class Villager {
     if (ctx.bankOpen && this.wantsBank(ctx)) return this.goBank();
     if (this.wantsSelfStudy(ctx)) return this.goSelfStudy();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
+    if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
     if (this.purse.energy < ENERGY.costs.clear) return this.wait(between(2, 4), () => this.goFarm(() => this.goRest()));
     return this.goFarm();
@@ -1513,6 +1514,23 @@ class Villager {
     this.wait(between(1.5, 3), () => this.finishService());
   }
 
+  goFishShop() {
+    this.cancel();
+    this.task = 'fishshop';
+    this.lineUp(this.town.queues.fish, () => this.fishTrade());
+  }
+
+  fishTrade() {
+    if (!this.town.context.fishOpen) {
+      this.say('Hàng cá đóng cửa mất rồi!');
+      this.wait(1.5, () => this.finishService());
+      return;
+    }
+    const lines = this.town.market.fishTrade(this);
+    if (lines.length) this.say(lines.join(' · '), 2.6);
+    this.wait(between(1.5, 3), () => this.finishService());
+  }
+
   bankClient() {
     return { id: this.id, purse: this.purse, thrift: this.thrift, roll: this.bankRoll };
   }
@@ -2157,6 +2175,7 @@ export class Town {
       shop: new ServiceQueue(places.shop.line, places.shop.look),
       chief: new ServiceQueue(places.chief.line, places.chief.look),
       eatery: new ServiceQueue(places.eatery.line, places.eatery.look),
+      fish: new ServiceQueue(places.fish.line, places.fish.look),
     };
     this.bank = bank;
     if (bank && bankDesk) this.queues.bank = new ServiceQueue(bankDesk.line, bankDesk.look);
@@ -2542,7 +2561,7 @@ export class Town {
         continue;
       }
       if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank') continue;
+      if (member.task === 'shop' || member.task === 'fishshop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank') continue;
       if (member.shouldAttend(ctx)) member.goToClass();
     }
     const teacher = this.teacher;

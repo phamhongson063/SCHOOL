@@ -32,7 +32,7 @@ import { outlineMaterial, freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, clockText, countdownText } from './clock.js';
 import { phaseAt, sessionLabel } from './timetable.js';
 import { ROUTINE, SCHOOL, MONEY, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY } from './config.js';
-import { createMarket, createShopUI, shopOpen, shopHours } from './market.js';
+import { createMarket, createShopUI, createFishShopUI, shopOpen, shopHours, fishShopOpen, fishShopHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
 import { Town, createStudyIcon, villagerProfiles } from './villagers.js';
@@ -168,6 +168,7 @@ createBag(purse);
 createVitals(purse);
 const market = createMarket();
 const shopUI = createShopUI({ market, purse });
+const fishShopUI = createFishShopUI({ market, purse });
 const estate = createEstate({ houses: village.houses });
 let town = null;
 const NAMES = new Map(villagerProfiles().map((profile) => [profile.id, profile.name]));
@@ -216,6 +217,9 @@ for (const region of village.regions({
     estate,
     nameOf,
     openShop: () => shopUI.open(),
+    openFishShop: () => fishShopUI.open(),
+    isFishShopOpen: () => fishShopOpen(gameNow()),
+    fishShopHours,
     openChief: () => chiefUI.open(),
     openEatery: () => foodUI.open(),
     isEateryOpen: () => eateryOpen(gameNow()),
@@ -512,6 +516,7 @@ function contextAt(minutes) {
     phase: phaseAt(minutes),
     night: minute >= ROUTINE.home || minute < ROUTINE.wake,
     shopOpen: shopOpen(minutes),
+    fishOpen: fishShopOpen(minutes),
     chiefOpen: chiefOpen(minutes),
     bankOpen: bankOpen(minutes),
   };
@@ -839,7 +844,7 @@ player.onClick = (clientX, clientY, run) => {
   const kind = target?.kind;
   if (target && town.queues[kind]) {
     const now = gameNow();
-    const open = kind === 'shop' ? shopOpen(now) : kind === 'chief' ? chiefOpen(now) : kind === 'bank' ? bankOpen(now) : eateryOpen(now);
+    const open = kind === 'shop' ? shopOpen(now) : kind === 'fish' ? fishShopOpen(now) : kind === 'chief' ? chiefOpen(now) : kind === 'bank' ? bankOpen(now) : eateryOpen(now);
     if (!open) {
       leaveLine();
       sayPlayer(region.act('visit', target), 2.4);
@@ -851,7 +856,7 @@ player.onClick = (clientX, clientY, run) => {
         const reply = region.act('visit', target);
         if (reply) sayPlayer(reply, 2.4);
       },
-      kind === 'shop' ? shopUI : kind === 'chief' ? chiefUI : kind === 'bank' ? bankUI : foodUI,
+      kind === 'shop' ? shopUI : kind === 'fish' ? fishShopUI : kind === 'chief' ? chiefUI : kind === 'bank' ? bankUI : foodUI,
     );
     return;
   }
@@ -1463,6 +1468,10 @@ renderer.setAnimationLoop((time) => {
   if (shopUI.isOpen && !context.shopOpen) {
     shopUI.close();
     sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
+  }
+  if (fishShopUI.isOpen && !context.fishOpen) {
+    fishShopUI.close();
+    sayPlayer(`Hàng cá đóng cửa rồi, mở ${fishShopHours()} nhé!`, 2.4);
   }
   bank.tick(context.minutes);
   if (bankUI.isOpen && !context.bankOpen) {

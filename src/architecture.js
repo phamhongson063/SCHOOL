@@ -1461,3 +1461,135 @@ export function createBank({ seed = 1, width = 8.4, depth = 8 } = {}) {
     teller: { x: 0, y: plinth, z: counterZ - 0.65, facing: 0 },
   };
 }
+
+const FISH_TONES = [0xa8b0a0, 0x7a8a3a, 0x8a96a0, 0x6a7078, 0xc0a070];
+
+function fishShape(kit, x, y, z, len, color, rotation = [0, 0, 0]) {
+  const b = kit.body;
+  b.group([x, y, z], rotation, () => {
+    b.add(shapes.sphere(len * 0.5, 8, 6), color, { s: [0.32, 0.42, 1], flat: true });
+    b.add(shapes.cone(len * 0.2, len * 0.28, 4), shade(color, 0.78), { p: [0, 0, -len * 0.6], r: [Math.PI / 2, 0, 0], s: [0.22, 1, 1], flat: true });
+    b.add(shapes.cone(len * 0.08, len * 0.18, 4), shade(color, 0.85), { p: [0, len * 0.2, -len * 0.05], s: [0.2, 1, 1.6], flat: true });
+    for (const side of [-1, 1]) b.add(shapes.sphere(len * 0.045, 5, 4), PAL.ink, { p: [side * len * 0.15, len * 0.05, len * 0.34] });
+  });
+}
+
+function thatchSlope(kit, width, ridgeZ, ridgeY, run, rise, facing) {
+  const b = kit.body;
+  const len = Math.hypot(run, rise);
+  const angle = Math.atan2(rise, run);
+  b.group([0, ridgeY - rise / 2, ridgeZ + (facing * run) / 2], [facing * angle, 0, 0], () => {
+    b.add(shapes.box(width, 0.2, len), PAL.straw);
+    for (let k = -len / 2 + 0.3; k < len / 2; k += 0.45) b.add(shapes.box(width + 0.04, 0.07, 0.14), shade(PAL.straw, 0.82), { p: [0, 0.12, k * facing] });
+    b.add(shapes.box(width + 0.06, 0.1, 0.16), shade(PAL.straw, 0.7), { p: [0, 0, (facing * len) / 2] });
+  });
+}
+
+function fishNet(kit, x, z0, z1, y0, y1) {
+  const b = kit.body;
+  const color = 0x8a7a5a;
+  for (const z of [z0, z1]) b.limb([x, 0, z], [x, y1 + 0.1, z], 0.035, PAL.woodLight, { capsule: false, seg: 5 });
+  b.limb([x, y1, z0], [x, y1, z1], 0.03, PAL.woodLight, { capsule: false, seg: 5 });
+  const cols = 7;
+  const rows = 6;
+  for (let i = 0; i <= cols; i++) {
+    const z = z0 + ((z1 - z0) * i) / cols;
+    b.limb([x, y1, z], [x, y0 + Math.sin((i / cols) * Math.PI) * -0.15, z + 0.05], 0.008, color, { capsule: false, seg: 3 });
+  }
+  for (let j = 1; j <= rows; j++) {
+    const y = y1 - ((y1 - y0) * j) / rows;
+    b.limb([x, y, z0], [x, y - 0.06, z1], 0.008, color, { capsule: false, seg: 3 });
+  }
+  for (let i = 1; i < 5; i++) b.add(shapes.sphere(0.05, 6, 4), 0xd9d2c0, { p: [x, y0 + 0.02, z0 + ((z1 - z0) * i) / 5] });
+}
+
+function fishTub(kit, x, z) {
+  const b = kit.body;
+  const rand = kit.rand;
+  b.add(shapes.cylinder(0.46, 0.38, 0.42, 12), PAL.woodMid, { p: [x, 0.21, z] });
+  for (const y of [0.08, 0.34]) b.add(shapes.torus(0.43, 0.025, 12), PAL.woodDark, { p: [x, y, z], r: [Math.PI / 2, 0, 0] });
+  b.add(shapes.cylinder(0.42, 0.42, 0.02, 12), 0x4f8fb9, { p: [x, 0.39, z] });
+  for (let i = 0; i < 3; i++) {
+    const a = rand() * Math.PI * 2;
+    fishShape(kit, x + Math.cos(a) * 0.18, 0.41, z + Math.sin(a) * 0.18, 0.32, pick(rand, FISH_TONES), [0.15, a, 0]);
+  }
+  block(kit, x - 0.48, z - 0.48, x + 0.48, z + 0.48, 0.5);
+}
+
+export function createFishShop({ seed = 1 } = {}) {
+  const kit = createKit(seed);
+  const { rand, body: b } = kit;
+  const W = 7;
+  const D = 5.5;
+  const eave = 2.5;
+  const ridge = 3.65;
+  const overhang = 0.75;
+  const half = W / 2;
+
+  b.add(shapes.box(W, 0.12, D), PAL.stone, { p: [0, 0.06, -D / 2] });
+  for (let x = -half + 0.5; x < half; x += 1) b.add(shapes.box(0.04, 0.005, D - 0.1), PAL.stoneDark, { p: [x, 0.123, -D / 2] });
+
+  for (const x of [-half + 0.15, half - 0.15]) {
+    for (const z of [-0.15, -D + 0.15]) b.limb([x, 0.12, z], [x, eave, z], 0.09, PAL.woodMid, { capsule: false, seg: 6 });
+    b.limb([x, 0.12, -D / 2], [x, ridge, -D / 2], 0.08, PAL.woodMid, { capsule: false, seg: 6 });
+  }
+  for (const z of [-0.15, -D + 0.15]) b.add(shapes.box(W, 0.14, 0.14), PAL.wood, { p: [0, eave - 0.05, z] });
+  b.add(shapes.box(W + 0.2, 0.14, 0.16), PAL.woodDark, { p: [0, ridge, -D / 2] });
+
+  plankPanel(kit, -half + 0.1, half - 0.1, 0.12, eave - 0.12, -D + 0.1, PAL.woodMid);
+  for (const side of [-1, 1]) {
+    const x = side * (half - 0.08);
+    b.add(shapes.box(0.12, 1.1, D - 0.3), PAL.woodMid, { p: [x, 0.67, -D / 2] });
+    b.add(shapes.box(0.16, 0.08, D - 0.2), PAL.woodDark, { p: [x, 1.24, -D / 2] });
+  }
+
+  const run = D / 2 + overhang;
+  thatchSlope(kit, W + 0.9, -D / 2, ridge + 0.12, run, ridge - eave + 0.35, 1);
+  thatchSlope(kit, W + 0.9, -D / 2, ridge + 0.12, run, ridge - eave + 0.35, -1);
+  b.add(shapes.cylinder(0.14, 0.14, W + 0.95, 8), shade(PAL.straw, 0.75), { p: [0, ridge + 0.22, -D / 2], r: [0, 0, Math.PI / 2] });
+  fishShape(kit, 0, ridge + 0.75, -D / 2, 1.5, 0xd8481e, [0, Math.PI / 2, 0.12]);
+  for (const side of [-1, 1]) fishShape(kit, side * (half + 0.3), ridge + 0.4, -D / 2, 0.6, PAL.gold, [-0.5, side * Math.PI / 2, 0]);
+
+  b.add(shapes.box(4.4, 0.8, 0.7), PAL.wood, { p: [0, 0.52, -0.6] });
+  b.add(shapes.box(4.6, 0.07, 0.82), PAL.woodLight, { p: [0, 0.95, -0.6] });
+  for (let i = 0; i < 4; i++) {
+    const x = -1.65 + i * 1.1;
+    b.add(shapes.box(0.95, 0.015, 0.6), i % 2 ? PAL.leaf : PAL.leafDark, { p: [x, 0.995, -0.6], r: [0, (rand() - 0.5) * 0.3, 0] });
+    for (let k = 0; k < 2; k++) fishShape(kit, x + (k - 0.5) * 0.35, 1.04, -0.6 + (rand() - 0.5) * 0.12, 0.42 + rand() * 0.15, pick(rand, FISH_TONES), [0, Math.PI / 2 + (rand() - 0.5) * 0.4, Math.PI / 2]);
+  }
+  block(kit, -2.3, -0.95, 2.3, -0.25, 1.1);
+
+  for (const side of [-1, 1]) {
+    const x0 = side * 1.05;
+    const x1 = side * (half - 0.2);
+    b.limb([x0, eave - 0.2, 0.25], [x1, eave - 0.2, 0.25], 0.025, PAL.woodLight, { capsule: false, seg: 5 });
+    for (let x = Math.min(x0, x1) + 0.25; x < Math.max(x0, x1) - 0.1; x += 0.42) {
+      b.limb([x, eave - 0.2, 0.25], [x, eave - 0.42, 0.25], 0.006, PAL.ink, { capsule: false, seg: 3 });
+      fishShape(kit, x, eave - 0.66, 0.25, 0.42, shade(0xb08a5a, 0.85 + rand() * 0.25), [Math.PI / 2, rand() * 0.6, 0]);
+    }
+  }
+
+  fishTub(kit, -half + 0.35, 0.75);
+  fishTub(kit, half - 0.35, 0.75);
+  produceBasket(kit, -2.6, 0.12, -2.2, 0.36, FISH_TONES);
+  produceBasket(kit, -2.0, 0.12, -2.9, 0.3, FISH_TONES);
+  clayJar(kit, 2.5, 0.12, -2.4, 0.9, 0x5a4a3a);
+  clayJar(kit, 2.9, 0.12, -3.3, 0.75, 0x6a5040);
+  block(kit, -3.0, -3.25, -1.65, -1.8, 1);
+  block(kit, 2.1, -3.7, 3.25, -2.0, 1);
+  fishNet(kit, half + 0.2, -D + 0.6, -1.2, 0.5, 2.2);
+
+  lanternRow(kit, [-2.6, 2.6], () => eave - 0.08, 0.4, [0xd8321e, 0xf2b630]);
+
+  block(kit, -half, -D, half, -D + 0.25);
+  block(kit, -half, -D, -half + 0.25, -0.05, 1.3);
+  block(kit, half - 0.25, -D, half, -0.05, 1.3);
+  block(kit, half, -D + 0.5, half + 0.35, -1.1, 2.3);
+  return {
+    group: assemble(kit),
+    obstacles: kit.obstacles,
+    counter: { x: 0, z: 0.35 },
+    keeper: { x: 0, z: -1.5, facing: 0 },
+    plaque: { x: 0, y: 2.0, z: 0.32 },
+  };
+}

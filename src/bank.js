@@ -1,7 +1,8 @@
-import { BANK, MONEY, VILLAGER } from './config.js';
+import { BANK, VILLAGER } from './config.js';
 import { DAY_MINUTES, dayOf, minuteOfDay, clockText, durationText } from './clock.js';
 import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
+import { BANK_ART } from './bankArt.js';
 
 const KEY = 'truong-lang-xua.bank';
 
@@ -393,9 +394,16 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
   const termSelect = document.getElementById('bankTerm');
   const submit = document.getElementById('bankSubmit');
   const note = document.getElementById('bankNote');
+  const roomBox = document.getElementById('bankRoom');
+  const holdings = document.getElementById('bankHoldings');
+  const listTitle = document.getElementById('bankListTitle');
   const list = document.getElementById('bankList');
   let tab = 'save';
   const choice = { save: 0, loan: 1 };
+  for (const node of dialog.querySelectorAll('[data-art]')) {
+    node.innerHTML = BANK_ART[node.dataset.art];
+    node.setAttribute('aria-hidden', 'true');
+  }
 
   const typed = () => Math.floor(Number(amountInput.value) || 0);
   const withTyped = (act) => () => {
@@ -409,40 +417,51 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     render();
   }
 
-  function button(label, onClick, disabled = false) {
-    const node = document.createElement('button');
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function art(className, name) {
+    const node = el('span', className);
+    node.innerHTML = BANK_ART[name];
+    node.setAttribute('aria-hidden', 'true');
+    return node;
+  }
+
+  function button(label, onClick, { disabled = false, primary = false } = {}) {
+    const node = el('button', primary ? 'bank-btn primary' : 'bank-btn', label);
     node.type = 'button';
-    node.textContent = label;
     node.disabled = disabled;
     node.addEventListener('click', onClick);
     return node;
   }
 
-  function row(icon, title, info, actions, late = false) {
-    const node = document.createElement('div');
-    node.className = late ? 'shop-row late' : 'shop-row';
-    const badge = document.createElement('span');
-    badge.className = 'shop-icon';
-    badge.setAttribute('aria-hidden', 'true');
-    badge.textContent = icon;
-    const text = document.createElement('div');
-    text.className = 'shop-text';
-    const name = document.createElement('strong');
-    name.textContent = title;
-    const small = document.createElement('small');
-    small.textContent = info;
-    text.append(name, small);
-    const box = document.createElement('div');
-    box.className = 'shop-actions';
+  function card({ icon, title, value, rate, detail, actions, late = false }) {
+    const node = el('div', late ? 'bank-card late' : 'bank-card');
+    const badge = art('bank-card-icon', icon);
+    const text = el('div', 'bank-card-text');
+    const chip = el('span', 'bank-chip');
+    chip.append(art('bank-coin', 'silver'), el('strong', 'bank-chip-value', amount(value)), el('span', 'bank-chip-bar'), el('span', 'bank-chip-rate', `${percent(rate)}/ngày`));
+    text.append(el('strong', 'bank-card-title', title), chip);
+    if (detail) text.append(el('small', 'bank-card-detail', detail));
+    const box = el('div', 'bank-card-actions');
     box.append(...actions);
     node.append(badge, text, box);
     return node;
   }
 
-  function rateChip(label, rate, trend) {
-    const node = document.createElement('span');
-    node.className = `bank-rate${trend > 0 ? ' up' : trend < 0 ? ' down' : ''}`;
-    node.textContent = `${label} ${percent(rate)}${TREND[trend] ? ` ${TREND[trend]}` : ''}`;
+  function rateCard(icon, label, rate, trend) {
+    const node = el('div', 'bank-rate');
+    const badge = art('bank-rate-icon', icon);
+    const text = el('div', 'bank-rate-text');
+    const value = el('div', 'bank-rate-value');
+    value.append(el('strong', '', percent(rate)), el('span', '', ' / ngày'));
+    if (TREND[trend]) value.append(el('span', trend > 0 ? 'bank-trend up' : 'bank-trend down', ` ${TREND[trend]}`));
+    text.append(el('span', 'bank-rate-label', label), value);
+    node.append(badge, text);
     return node;
   }
 
@@ -452,7 +471,7 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
       ...options.map((option, index) => {
         const node = document.createElement('option');
         node.value = String(index);
-        node.textContent = `${option.days ? `${option.days} ngày` : 'Không kỳ hạn'} · ${percent(option.rate)}/ngày`;
+        node.textContent = option.days ? `${option.days} ngày · ${percent(option.rate)}` : `Không kỳ hạn · ${percent(option.rate)}`;
         return node;
       }),
     );
@@ -460,51 +479,64 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
   }
 
   function renderSave(info, rates) {
-    const rows = [];
+    const cards = [];
     if (info.savings >= 1) {
-      rows.push(
-        row('💰', 'Không kỳ hạn', `${coins(info.savings)} · ${percent(rates.deposit)}/ngày`, [
-          button('Rút', withTyped((value) => bank.withdraw(owner, purse, value))),
-          button('Rút hết', () => report(bank.withdraw(owner, purse, info.savings))),
-        ]),
+      cards.push(
+        card({
+          icon: 'bag',
+          title: 'Không kỳ hạn',
+          value: info.savings,
+          rate: rates.deposit,
+          actions: [button('Rút', withTyped((value) => bank.withdraw(owner, purse, value))), button('Rút hết', () => report(bank.withdraw(owner, purse, info.savings)), { primary: true })],
+        }),
       );
     }
     for (const term of info.terms) {
-      rows.push(
-        row('📜', `${term.days} ngày · gốc ${coins(term.principal)}`, `${percent(term.rate)}/ngày · hiện có ${coins(term.value)} · đáo hạn sau ${durationText(term.left)}`, [
-          button('Tất toán', () => report(bank.closeTerm(owner, purse, term.id))),
-        ]),
+      cards.push(
+        card({
+          icon: 'scroll',
+          title: `Kỳ hạn ${term.days} ngày`,
+          value: term.value,
+          rate: term.rate,
+          detail: `Gốc ${coins(term.principal)} · đáo hạn sau ${durationText(term.left)}`,
+          actions: [button('Tất toán', () => report(bank.closeTerm(owner, purse, term.id)), { primary: true })],
+        }),
       );
     }
-    return rows;
+    return cards;
   }
 
   function renderLoan(info) {
-    const room = document.createElement('div');
-    room.className = 'bank-room';
-    room.textContent = `Hạn mức ${coins(info.limit)} · còn vay được ${coins(info.room)}`;
-    const rows = [room];
-    for (const loan of info.loans) {
-      const when = loan.overdue ? `quá hạn ${durationText(-loan.left)}` : `hạn trả sau ${durationText(loan.left)}`;
-      rows.push(
-        row('🧾', `Nợ ${coins(loan.debt)}`, `${percent(loan.rate)}/ngày · ${when}`, [
-          button('Trả', withTyped((value) => bank.repay(owner, purse, loan.id, value)), purse.money < 1),
-          button('Trả hết', () => report(bank.repay(owner, purse, loan.id, loan.debt)), purse.money < 1),
-        ], loan.overdue),
-      );
-    }
-    return rows;
+    return info.loans.map((loan) =>
+      card({
+        icon: 'receipt',
+        title: 'Khoản vay',
+        value: loan.debt,
+        rate: loan.rate,
+        detail: loan.overdue ? `Quá hạn ${durationText(-loan.left)}` : `Hạn trả sau ${durationText(loan.left)}`,
+        late: loan.overdue,
+        actions: [
+          button('Trả', withTyped((value) => bank.repay(owner, purse, loan.id, value)), { disabled: purse.money < 1 }),
+          button('Trả hết', () => report(bank.repay(owner, purse, loan.id, loan.debt)), { disabled: purse.money < 1, primary: true }),
+        ],
+      }),
+    );
   }
 
   function render() {
-    header.textContent = `${MONEY.icon} ${amount(purse.money)}`;
+    header.textContent = amount(purse.money);
     const rates = bank.rates();
-    ratesBox.replaceChildren(rateChip('Lãi gửi', rates.deposit, rates.depositTrend), rateChip('Lãi vay', rates.loan, rates.loanTrend));
+    ratesBox.replaceChildren(rateCard('coins', 'Lãi gửi', rates.deposit, rates.depositTrend), rateCard('chart', 'Lãi vay', rates.loan, rates.loanTrend));
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
     renderTerms(rates);
     submit.textContent = tab === 'save' ? 'Gửi' : 'Vay';
     const info = bank.summary(owner);
-    list.replaceChildren(...(tab === 'save' ? renderSave(info, rates) : renderLoan(info)));
+    roomBox.hidden = tab !== 'loan';
+    if (tab === 'loan') roomBox.textContent = `Hạn mức ${coins(info.limit)} · còn vay được ${coins(info.room)}`;
+    const cards = tab === 'save' ? renderSave(info, rates) : renderLoan(info);
+    listTitle.textContent = tab === 'save' ? 'Tiền đang gửi' : 'Khoản đang vay';
+    holdings.hidden = !cards.length;
+    list.replaceChildren(...cards);
   }
 
   for (const node of tabs) {
@@ -527,7 +559,7 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     if (event.target === dialog) dialog.close();
   });
   purse.onChange(() => {
-    if (dialog.open) header.textContent = `${MONEY.icon} ${amount(purse.money)}`;
+    if (dialog.open) header.textContent = amount(purse.money);
   });
   bank.onChange(() => {
     if (dialog.open) render();

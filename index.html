@@ -328,6 +328,22 @@
       <p id="shopNote" class="paper-note"></p>
     </div>
   </dialog>
+  <dialog id="fishShopDialog" class="paper wide" aria-labelledby="fishShopTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">🐟</span>
+        <h2 id="fishShopTitle">Hàng cá</h2>
+        <span id="fishShopMoney" class="paper-money"></span>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="paper-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="sell" aria-selected="true">Bán thủy sản</button>
+        <button type="button" role="tab" data-tab="buy" aria-selected="false">Mua đồ câu</button>
+      </div>
+      <div id="fishShopList" class="shop-list"></div>
+      <p id="fishShopNote" class="paper-note"></p>
+    </div>
+  </dialog>
   <dialog id="chiefDialog" class="paper wide" aria-labelledby="chiefTitle">
     <div class="paper-body">
       <header class="sched-head">
@@ -423,26 +439,39 @@
       <div id="foodList" class="shop-list"></div>
     </div>
   </dialog>
-  <dialog id="bankDialog" class="paper wide" aria-labelledby="bankTitle">
+  <dialog id="bankDialog" class="paper wide bank" aria-labelledby="bankTitle">
     <div class="paper-body">
-      <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">🏦</span>
+      <header class="sched-head bank-head">
+        <span class="bank-emblem" data-art="bank"></span>
         <h2 id="bankTitle">Ngân hàng</h2>
-        <span id="bankMoney" class="paper-money"></span>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="bankMoney"></span></span>
         <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
       <div id="bankRates" class="bank-rates"></div>
-      <div class="paper-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="save" aria-selected="true">Gửi tiền</button>
-        <button type="button" role="tab" data-tab="loan" aria-selected="false">Vay tiền</button>
+      <div class="bank-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="save" aria-selected="true"><span class="bank-tab-art" data-art="piggy"></span>Gửi tiền</button>
+        <button type="button" role="tab" data-tab="loan" aria-selected="false"><span class="bank-tab-art" data-art="hand"></span>Vay tiền</button>
       </div>
-      <form id="bankForm" class="bank-form">
-        <input id="bankAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="Số tiền" aria-label="Số tiền" />
-        <select id="bankTerm" class="lesson-select" aria-label="Kỳ hạn"></select>
-        <button id="bankSubmit" class="bank-go" type="submit">Gửi</button>
-      </form>
-      <p id="bankNote" class="paper-note"></p>
-      <div id="bankList" class="shop-list"></div>
+      <div class="bank-panel">
+        <form id="bankForm" class="bank-form">
+          <label class="bank-label" for="bankAmount">Số tiền</label>
+          <span class="bank-field bank-amount">
+            <span class="bank-coin" data-art="silver"></span>
+            <input id="bankAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="Nhập số tiền..." />
+          </span>
+          <span class="bank-field bank-term">
+            <span class="bank-field-art" data-art="calendar"></span>
+            <select id="bankTerm" aria-label="Kỳ hạn"></select>
+          </span>
+          <button id="bankSubmit" class="bank-go" type="submit">Gửi</button>
+        </form>
+        <p id="bankNote" class="paper-note bank-note"></p>
+        <div id="bankRoom" class="bank-room" hidden></div>
+        <section id="bankHoldings" class="bank-holdings" hidden>
+          <h3 id="bankListTitle" class="bank-ribbon">Tiền đang gửi</h3>
+          <div id="bankList" class="bank-list"></div>
+        </section>
+      </div>
     </div>
   </dialog>
   <dialog id="kanjiDialog" class="paper kanji" aria-label="Cá cắn câu" tabindex="-1">

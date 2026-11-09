@@ -1,6 +1,6 @@
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId, gameId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, WILDLIFE, growDays } from './config.js';
+import { CROP_ECONOMY, SHOP, SCHOOL, MONEY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, growDays } from './config.js';
 import { minuteOfDay, clockText } from './clock.js';
 import { amount, coins } from './format.js';
 import { iconTag, paintIcon } from './itemArt.js';
@@ -19,6 +19,8 @@ export function priceOf(item) {
 }
 
 const SELLABLE = new Set(['produce', 'fish', 'game']);
+const SHOP_KINDS = ['produce', 'game'];
+const FISH_KINDS = ['fish'];
 
 function packSize(item) {
   return item === 'bait' ? FISHING.baitPerPack : 1;
@@ -26,7 +28,7 @@ function packSize(item) {
 
 function stockValue(purse) {
   let value = 0;
-  for (const kind of SELLABLE) for (const [item, count] of purse.entries(kind)) value += priceOf(item) * count;
+  for (const kind of SHOP_KINDS) for (const [item, count] of purse.entries(kind)) value += priceOf(item) * count;
   return value;
 }
 
@@ -51,6 +53,15 @@ export function shopOpen(minutes) {
 
 export const shopHours = () => `${clockText(SHOP.open)}–${clockText(SHOP.close)}`;
 
+export function fishShopOpen(minutes) {
+  const t = minuteOfDay(minutes);
+  return t >= FISH_SHOP.open && t < FISH_SHOP.close;
+}
+
+export const fishShopHours = () => `${clockText(FISH_SHOP.open)}–${clockText(FISH_SHOP.close)}`;
+
+const reserveOf = (villager) => (villager.kind === 'student' ? SCHOOL.tuition * 4 : 0);
+
 
 export function createMarket() {
   function sell(purse, item, count) {
@@ -63,9 +74,9 @@ export function createMarket() {
     return earned;
   }
 
-  function sellAll(purse) {
+  function sellAll(purse, kinds) {
     let earned = 0;
-    for (const kind of SELLABLE) {
+    for (const kind of kinds) {
       for (const [item, amount] of purse.entries(kind)) earned += sell(purse, item, amount);
     }
     return earned;
@@ -96,28 +107,40 @@ export function createMarket() {
     buy,
     wantsTrade(villager) {
       const purse = villager.purse;
-      if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('fish') >= 3 || purse.total('game') >= 1) return true;
+      if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('game') >= 1) return true;
       if (purse.total('seed') > 0) return false;
       const plots = villager.town.farm.plots(villager.id);
       if (plots.owned >= FARMING.villagerPlots) return false;
-      const reserve = villager.kind === 'student' ? SCHOOL.tuition * 4 : 0;
-      return purse.money + stockValue(purse) - reserve >= cheapestSeed();
+      return purse.money + stockValue(purse) - reserveOf(villager) >= cheapestSeed();
     },
     trade(villager) {
       const purse = villager.purse;
       const lines = [];
-      const earned = sellAll(purse);
+      const earned = sellAll(purse, SHOP_KINDS);
       if (earned) lines.push(`Bán được ${coins(earned)}`);
-      const reserve = villager.kind === 'student' ? SCHOOL.tuition * 4 : 0;
+      const reserve = reserveOf(villager);
       const plan = seedPlan(purse, purse.money - reserve);
       if (plan && buy(purse, plan.item, plan.count)) lines.push(`Mua ${plan.count} gói ${iconTag(ITEMS[plan.item])}`);
       if (purse.count('fertilizer') === 0 && purse.money - reserve >= SHOP.fertilizer * 8 && Math.random() < 0.4) {
         if (buy(purse, 'fertilizer', 2)) lines.push('Mua 2 bao 🧪');
       }
-      if (purse.count('rod') > 0 && purse.count('bait') < 3 && purse.money - reserve >= FISHING.baitPack * 2 && Math.random() < 0.5) {
+      if (!lines.length) lines.push('Chào bà chủ!');
+      return lines;
+    },
+    wantsFish(villager) {
+      const purse = villager.purse;
+      if (purse.total('fish') >= 3) return true;
+      return purse.count('rod') > 0 && purse.count('bait') < 3 && purse.money - reserveOf(villager) >= FISHING.baitPack * 2;
+    },
+    fishTrade(villager) {
+      const purse = villager.purse;
+      const lines = [];
+      const earned = sellAll(purse, FISH_KINDS);
+      if (earned) lines.push(`Bán cá được ${coins(earned)}`);
+      if (purse.count('rod') > 0 && purse.count('bait') < 3 && purse.money - reserveOf(villager) >= FISHING.baitPack * 2) {
         if (buy(purse, 'bait', 1)) lines.push('Mua 1 gói 🪱');
       }
-      if (!lines.length) lines.push('Chào bà chủ!');
+      if (!lines.length) lines.push('Chào chú hàng cá!');
       return lines;
     },
   };
@@ -152,11 +175,11 @@ function row({ key, icon, art, title, detail, actions }) {
   return node;
 }
 
-export function createShopUI({ market, purse }) {
-  const dialog = document.getElementById('shopDialog');
-  const list = document.getElementById('shopList');
-  const money = document.getElementById('shopMoney');
-  const note = document.getElementById('shopNote');
+function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
+  const dialog = document.getElementById(ids.dialog);
+  const list = document.getElementById(ids.list);
+  const money = document.getElementById(ids.money);
+  const note = document.getElementById(ids.note);
   const tabs = [...dialog.querySelectorAll('[data-tab]')];
   let tab = 'sell';
 
@@ -186,14 +209,7 @@ export function createShopUI({ market, purse }) {
     });
   }
 
-  function sellRows() {
-    const fish = Object.keys(FISH).map(fishId);
-    const owned = fish.filter((item) => purse.count(item) > 0);
-    const game = Object.keys(WILDLIFE).map(gameId).filter((item) => ITEMS[item] && purse.count(item) > 0);
-    return [...Object.keys(CROPS), ...(owned.length ? fish : []), ...game].map(sellRow);
-  }
-
-  function buyRow(item, detail, { unit = ITEMS[item].unit, many = 5, owned = false } = {}) {
+  function buyRow([item, detail, { unit = ITEMS[item].unit, many = 5, owned = false } = {}]) {
     const price = priceOf(item);
     const info = ITEMS[item];
     const purchase = (count) => () => {
@@ -215,16 +231,6 @@ export function createShopUI({ market, purse }) {
     });
   }
 
-  function buyRows() {
-    const rows = Object.keys(CROPS)
-      .sort((a, b) => growDays(a) - growDays(b))
-      .map((crop) => buyRow(seedId(crop), `thu sau ${growDays(crop)} ngày`));
-    rows.push(buyRow('fertilizer', 'bù lại 1 lần lỡ tưới'));
-    rows.push(buyRow('bait', `mỗi gói ${FISHING.baitPerPack} lần câu`, { unit: 'gói' }));
-    rows.push(buyRow('rod', 'ra bến sông Hoài câu cá', { many: 1, owned: purse.count('rod') > 0 }));
-    return rows;
-  }
-
   function refocus(key) {
     if (!key) return;
     const same = [...list.querySelectorAll('button')].find((button) => button.dataset.key === key);
@@ -236,7 +242,7 @@ export function createShopUI({ market, purse }) {
     const active = list.contains(document.activeElement) ? document.activeElement.dataset.key : null;
     money.textContent = `${MONEY.icon} ${amount(purse.money)}`;
     for (const button of tabs) button.setAttribute('aria-selected', String(button.dataset.tab === tab));
-    list.replaceChildren(...(tab === 'sell' ? sellRows() : buyRows()));
+    list.replaceChildren(...(tab === 'sell' ? sellItems().map(sellRow) : buyItems().map(buyRow)));
     refocus(active);
   }
 
@@ -263,8 +269,8 @@ export function createShopUI({ market, purse }) {
 
   return {
     open() {
-      tab = [...SELLABLE].some((kind) => purse.total(kind) > 0) ? 'sell' : 'buy';
-      say('Bà chủ: "Mua gì bán gì cứ tự nhiên nghen!"');
+      tab = sellItems().some((item) => purse.count(item) > 0) ? 'sell' : 'buy';
+      say(greeting);
       render();
       dialog.showModal();
     },
@@ -275,4 +281,34 @@ export function createShopUI({ market, purse }) {
       return dialog.open;
     },
   };
+}
+
+export function createShopUI({ market, purse }) {
+  return createStallUI({
+    market,
+    purse,
+    ids: { dialog: 'shopDialog', list: 'shopList', money: 'shopMoney', note: 'shopNote' },
+    greeting: 'Bà chủ: "Mua gì bán gì cứ tự nhiên nghen!"',
+    sellItems: () => [...Object.keys(CROPS), ...Object.keys(WILDLIFE).map(gameId).filter((item) => ITEMS[item] && purse.count(item) > 0)],
+    buyItems: () => [
+      ...Object.keys(CROPS)
+        .sort((a, b) => growDays(a) - growDays(b))
+        .map((crop) => [seedId(crop), `thu sau ${growDays(crop)} ngày`]),
+      ['fertilizer', 'bù lại 1 lần lỡ tưới'],
+    ],
+  });
+}
+
+export function createFishShopUI({ market, purse }) {
+  return createStallUI({
+    market,
+    purse,
+    ids: { dialog: 'fishShopDialog', list: 'fishShopList', money: 'fishShopMoney', note: 'fishShopNote' },
+    greeting: 'Chú hàng cá: "Cá tươi rói đây, bán mua gì cứ nói!"',
+    sellItems: () => Object.keys(FISH).map(fishId),
+    buyItems: () => [
+      ['bait', `mỗi gói ${FISHING.baitPerPack} lần câu`, { unit: 'gói' }],
+      ['rod', 'ra bến sông Hoài câu cá', { many: 1, owned: purse.count('rod') > 0 }],
+    ],
+  });
 }
