@@ -2769,6 +2769,9 @@ dialog.paper.kanji:focus {
 
 dialog.paper.bank {
   width: min(580px, calc(100vw - 24px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .bank .bank-head {
@@ -2792,6 +2795,8 @@ dialog.paper.bank {
 }
 
 .bank .bank-head h2 {
+  min-width: 0;
+  white-space: nowrap;
   color: #ffe9b8;
   font: 800 24px/1.1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   text-shadow: 0 2px 0 #3a2212, 0 0 6px rgba(0, 0, 0, 0.35);
@@ -2820,7 +2825,7 @@ dialog.paper.bank {
 
 .bank-rates {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -2829,6 +2834,7 @@ dialog.paper.bank {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   padding: 10px 14px;
   border: 2px solid #e2cfa4;
   border-radius: 14px;
@@ -2995,6 +3001,12 @@ dialog.paper.bank {
 
 .bank-term {
   flex: none;
+  min-width: 0;
+}
+
+.bank-term select {
+  width: 100%;
+  text-overflow: ellipsis;
 }
 
 .bank-field-art {
@@ -3203,49 +3215,86 @@ dialog.paper.bank {
 }
 
 @media (max-width: 600px) {
+  .bank .paper-body {
+    padding: 12px 10px 12px;
+  }
+
+  .bank .bank-head {
+    gap: 8px;
+    margin: -12px -10px 12px;
+    padding: 8px 8px 8px 10px;
+  }
+
   .bank .bank-head h2 {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .bank-emblem {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
+    margin: -4px 0;
+  }
+
+  .bank-coins {
+    gap: 4px;
+    padding: 2px 10px 2px 4px;
+    font-size: 15px;
   }
 
   .bank-rates {
     gap: 8px;
+    margin-bottom: 12px;
   }
 
   .bank-rate {
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 8px;
   }
 
   .bank-rate-icon {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 
-  .bank-tab-art {
-    width: 32px;
-    height: 32px;
+  .bank-rate-label {
+    font-size: 12px;
   }
 
-  .bank-card-icon {
-    width: 46px;
-    height: 46px;
+  .bank-rate-value {
+    font-size: 12px;
+    white-space: normal;
   }
 
   .bank-rate-value strong {
-    font-size: 19px;
+    display: block;
+    font-size: 18px;
+    line-height: 1.1;
+  }
+
+  .bank-tabs {
+    gap: 8px;
+    padding: 0 4px;
   }
 
   .bank-tabs button {
-    height: 46px;
-    font-size: 16px;
+    gap: 6px;
+    height: 44px;
+    font-size: 15px;
+  }
+
+  .bank-tab-art {
+    width: 28px;
+    height: 28px;
+  }
+
+  .bank-panel {
+    padding: 8px;
   }
 
   .bank-form {
     flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
   }
 
   .bank-label {
@@ -3257,11 +3306,51 @@ dialog.paper.bank {
   }
 
   .bank-term {
-    flex: 1;
+    flex: 1 1 0;
+  }
+
+  .bank-go {
+    height: 42px;
+    padding: 0 18px;
+  }
+
+  .bank-holdings {
+    margin-top: 14px;
+  }
+
+  .bank-list {
+    max-height: none;
+    overflow: visible;
+    padding: 22px 8px 8px;
   }
 
   .bank-card {
     flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 8px;
+  }
+
+  .bank-card-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .bank-card-title {
+    font-size: 15px;
+  }
+
+  .bank-chip {
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    white-space: normal;
+  }
+
+  .bank-chip-value {
+    font-size: 15px;
+  }
+
+  .bank-chip-rate {
+    font-size: 13px;
   }
 
   .bank-card-actions {
