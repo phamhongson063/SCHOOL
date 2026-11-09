@@ -1263,8 +1263,7 @@ class Villager {
     const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
     if (Math.random() < skill && this.town.river.take(session.spot)) {
       const fish = this.town.river.rollFish(ctx.minutes);
-      this.purse.add(fishId(fish), 1);
-      this.purse.markFish(ctx.day);
+      this.purse.catchFish(fishId(fish), ctx.day);
       const float = session.berth.float;
       this.effects.harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });
       if (Math.random() < 0.6) this.say(`${pick(CAUGHT)} ${iconTag(ITEMS[fishId(fish)])}`, 1.8);

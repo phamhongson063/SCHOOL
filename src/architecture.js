@@ -862,7 +862,7 @@ export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}
   }
 
   b.add(shapes.box(W, 0.08, 0.34), PAL.stoneDark, { p: [0, 0.04, 0.17] });
-  b.add(shapes.box(db + 0.5, 0.16, 0.5), PAL.stone, { p: [0, 0.08, 0.27] });
+  b.add(shapes.box(db + 0.5, 0.14, 0.5), PAL.stone, { p: [0, 0.07, 0.27] });
 
   const colors = lanternColors(rand);
   const lanternSet = lanternXs(W / 2 - 0.5, W >= 6.5 && rand() < 0.5 ? 2 : 1, 1.3);
@@ -1131,7 +1131,7 @@ export function createChiefHouse({ seed = 1 } = {}) {
   b.add(shapes.box(W, 0.07, 0.35), PAL.stoneDark, { p: [0, 0.035, 0.12] });
   b.add(shapes.box(2.4, 0.06, 0.36), PAL.stone, { p: [0, 0.03, 0.47] });
   b.add(shapes.box(W - 2 * T, 0.03, 2.75), 0xc9c0ac, { p: [0, 0.015, -1.325] });
-  b.add(shapes.box(W - 2 * T, 0.03, 5.05), 0xb0583a, { p: [0, 0.015, -5.175] });
+  b.add(shapes.box(W - 2 * T, 0.03, 5), 0xb0583a, { p: [0, 0.015, -5.2] });
 
   for (const x of columnXs) {
     lacquerColumn(kit, x, frontZ, wallTop);
@@ -1375,7 +1375,7 @@ export function createBank({ seed = 1, width = 8.4, depth = 8 } = {}) {
   b.add(shapes.box(W, plinth, 0.25), PAL.stoneDark, { p: [0, plinth / 2, porchFront + 0.125] });
   b.add(shapes.box(W - 2 * T, plinth, porchFront - facade), PAL.stone, { p: [0, plinth / 2, (porchFront + facade) / 2] });
   b.add(shapes.box(W - 2 * T, plinth, facade - hallBack), 0xb0583a, { p: [0, plinth / 2, (facade + hallBack) / 2] });
-  b.add(shapes.box(W - 2 * T, 0.14, hallBack - front), wood, { p: [0, g - 0.07, (front + hallBack) / 2] });
+  b.add(shapes.box(W - 2 * T, 0.14, front - hallBack), wood, { p: [0, g - 0.07, (front + hallBack) / 2] });
   plaster(kit, wall, W - 2 * T, g, T, 0, g / 2, hallBack - T / 2);
 
   for (const x of posts) lacquerColumn(kit, x, front, g, plinth);

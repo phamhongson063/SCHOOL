@@ -30,7 +30,7 @@ ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
 
 const GIFTS = ['fishing'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishDay: null, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
+const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
 
 function starter() {
   const account = blank();
@@ -46,12 +46,30 @@ function giftFishing(account) {
   account.items.bait = (account.items.bait ?? 0) + FISHING.baitPerPack;
 }
 
+function cleanLots(raw, items) {
+  const left = {};
+  for (const [id, count] of Object.entries(items)) if (ITEMS[id].kind === 'fish') left[id] = count;
+  const source = Array.isArray(raw.fishLots)
+    ? raw.fishLots
+    : Number.isFinite(raw.fishDay)
+      ? Object.entries(left).map(([item, count]) => ({ day: raw.fishDay, item, count }))
+      : [];
+  const lots = [];
+  for (const lot of source) {
+    if (!lot || !Number.isFinite(lot.day) || !Number.isFinite(lot.count) || !(left[lot.item] > 0)) continue;
+    const count = Math.min(Math.floor(lot.count), left[lot.item]);
+    if (count <= 0) continue;
+    left[lot.item] -= count;
+    lots.push({ day: lot.day, item: lot.item, count });
+  }
+  return lots.sort((a, b) => a.day - b.day);
+}
+
 function clean(raw) {
   const account = blank();
   if (!raw || typeof raw !== 'object') return account;
   account.money = Math.max(0, Math.floor(Number(raw.money) || 0));
   account.credits = Math.max(0, Math.floor(Number(raw.credits) || 0));
-  account.fishDay = Number.isFinite(raw.fishDay) ? raw.fishDay : null;
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
   account.sleeping = raw.sleeping === true;
@@ -60,6 +78,7 @@ function clean(raw) {
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
   }
+  account.fishLots = cleanLots(raw, account.items);
   return account;
 }
 
@@ -137,6 +156,7 @@ export class Purse {
     const left = this.count(item) - amount;
     if (left > 0) this.data.items[item] = left;
     else delete this.data.items[item];
+    if (ITEMS[item]?.kind === 'fish') this.dropLots(item, amount);
     this.changed({ item, amount: -amount });
     return true;
   }
@@ -228,9 +248,22 @@ export class Purse {
     if (Math.floor(this.data.energy) !== before) this.changed({ energy: 0 });
   }
 
-  markFish(day) {
-    this.data.fishDay = day;
-    this.ledger.save();
+  catchFish(item, day) {
+    const lot = this.data.fishLots.find((entry) => entry.item === item && entry.day === day);
+    if (lot) lot.count += 1;
+    else this.data.fishLots.push({ day, item, count: 1 });
+    this.add(item, 1);
+  }
+
+  dropLots(item, amount) {
+    let rest = amount;
+    for (const lot of this.data.fishLots) {
+      if (lot.item !== item || rest <= 0) continue;
+      const used = Math.min(lot.count, rest);
+      lot.count -= used;
+      rest -= used;
+    }
+    this.data.fishLots = this.data.fishLots.filter((lot) => lot.count > 0);
   }
 
   useCredit() {
@@ -278,14 +311,16 @@ export class Ledger {
   spoilFish(day) {
     const spoiled = [];
     for (const [id, account] of Object.entries(this.accounts)) {
-      if (account.fishDay === null || day - account.fishDay < FISHING.spoilDays) continue;
       let lost = 0;
-      for (const item of Object.keys(account.items)) {
-        if (ITEMS[item]?.kind !== 'fish') continue;
-        lost += account.items[item];
-        delete account.items[item];
-      }
-      account.fishDay = null;
+      account.fishLots = account.fishLots.filter((lot) => {
+        if (day - lot.day < FISHING.spoilDays) return true;
+        const have = account.items[lot.item] ?? 0;
+        const count = Math.min(lot.count, have);
+        if (have > count) account.items[lot.item] = have - count;
+        else delete account.items[lot.item];
+        lost += count;
+        return false;
+      });
       if (!lost) continue;
       spoiled.push(id);
       const purse = this.purses.get(id);

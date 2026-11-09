@@ -466,6 +466,7 @@ function foundation(scene, b, clickables) {
 }
 
 const TIE_Y = 6.6;
+const PAD_GAP = 0.008;
 
 function house(b, walls) {
   const { back, front, midColumn, windows } = HOUSE;
@@ -803,12 +804,17 @@ function hoVanLake(b, rand) {
   const upper = tiledRoof({ cx: island.x, cz: island.z, hx: 1.2, hz: 1.2, ridge: 0.2, eaveY: 2.9, height: 0.8, lift: 0.3, falloff: 0.8 });
   hipRidges(b, lower, 0.05);
   hipRidges(b, upper, 0.05);
+  const pads = [];
   for (let i = 0; i < 140; i++) {
     const x = x0 + 0.8 + rand() * (x1 - x0 - 1.6);
     const z = z0 + 0.8 + rand() * (z1 - z0 - 1.6);
     if (Math.hypot(x - island.x, z - island.z) < island.r + 0.6) continue;
     const r = 0.3 + rand() * 0.3;
-    b.add(shapes.cylinder(r, r, 0.02, 10), rand() < 0.5 ? C.leafDark : C.leaf, { p: [x, 0.1 + rand() * 0.01, z] });
+    const color = rand() < 0.5 ? C.leafDark : C.leaf;
+    let y = 0.1 + rand() * 0.01;
+    for (const pad of pads) if (Math.hypot(x - pad.x, z - pad.z) < r + pad.r) y = Math.max(y, pad.y + PAD_GAP);
+    pads.push({ x, z, r, y });
+    b.add(shapes.cylinder(r, r, 0.02, 10), color, { p: [x, y, z] });
     if (rand() < 0.22) {
       b.add(shapes.cone(0.12, 0.22, 6), 0xe58aa6, { p: [x + 0.1, 0.22, z], r: [Math.PI, 0, 0] });
       b.add(shapes.sphere(0.06, 6, 4), 0xf5d36a, { p: [x + 0.1, 0.24, z] });

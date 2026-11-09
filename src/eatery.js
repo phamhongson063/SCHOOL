@@ -48,7 +48,7 @@ export function createEatery({ seed = 9 } = {}) {
   const obstacles = [];
   const block = (minX, minZ, maxX, maxZ, maxY = 3) => obstacles.push({ minX, minZ, maxX, maxZ, minY: 0, maxY });
 
-  b.add(shapes.box(W, 0.06, D + 0.3), STONE, { p: [0, 0.03, -D / 2 + 0.15] });
+  b.add(shapes.box(W, 0.06, D + 0.2), STONE, { p: [0, 0.03, -D / 2 + 0.2] });
   walls.add(texturedBox(W, H, 0.2), WALL, { p: [0, H / 2, -D + 0.1] });
   block(-W / 2, -D, W / 2, -D + 0.3);
   for (const side of [-1, 1]) {

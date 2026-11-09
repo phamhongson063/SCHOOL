@@ -74,7 +74,7 @@ export const FISHING = {
   zoneRespawn: [60, 180],
   biteSeconds: [10, 40],
   quizSeconds: 20,
-  spoilDays: 2,
+  spoilDays: 3,
   villagerSkill: { student: 0.6, farmer: 0.45 },
   villagerAnglers: 3,
   villagerCasts: [3, 7],

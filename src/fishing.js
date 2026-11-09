@@ -48,8 +48,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     angler.reel();
     const float = current.berth.float;
     if (correct && river.take(current.spot)) {
-      purse.add(fishId(fish), 1);
-      purse.markFish(day());
+      purse.catchFish(fishId(fish), day());
       harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });
       say(`🎣 ${FISH[fish].name}! +1`, 2);
     } else if (correct) {

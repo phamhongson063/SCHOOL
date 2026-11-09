@@ -557,7 +557,7 @@ const mountain = createMountain({
 regions.add(mountain.region());
 town.wildlife = mountain.wildlife;
 let lastDay = context.day;
-if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3), 1500);
+if (ledger.spoilFish(context.day).includes(PLAYER)) setTimeout(() => sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3), 1500);
 
 const lesson = createLesson();
 const STUDY_REWARD_KEY = 'truong-lang-xua.studyRewardDay';
@@ -1453,7 +1453,7 @@ renderer.setAnimationLoop((time) => {
   notice.refresh(context.day);
   if (context.day !== lastDay) {
     lastDay = context.day;
-    if (ledger.spoilFish(context.day).includes(PLAYER)) sayPlayer('Cá để lâu ươn hết rồi, đành bỏ đi...', 3);
+    if (ledger.spoilFish(context.day).includes(PLAYER)) sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3);
   }
   footprints.update(t);
   tuition.update(context, inClass());
