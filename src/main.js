@@ -1478,6 +1478,7 @@ renderer.setAnimationLoop((time) => {
   streetLamps.update(t);
   river.update(dt, context.minutes);
   clouds.update(dt, night);
+  player.held = kanjiQuiz.open;
   player.update(dt);
   placeBubble();
   updateBubbles(camera, t);

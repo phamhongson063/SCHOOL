@@ -118,6 +118,7 @@ const ACTIONS = {
     const count = yieldOf(spot);
     farm.ledger.purse(actor).add(spot.crop, count);
     spot.stage = SPENT;
+    spot.stageStart = now;
     spot.watered = false;
     return `${iconTag({ icon: cropOf(spot).icon, art: spot.crop })} +${count}`;
   },
@@ -185,6 +186,11 @@ class FarmState {
   tick(now) {
     let changed = false;
     for (const spot of this.spots) {
+      if (spot.stage === SPENT && now - spot.stageStart >= FARMING.spentMinutes) {
+        Object.assign(spot, fresh());
+        changed = true;
+        continue;
+      }
       if (!growing(spot)) continue;
       const span = stageMinutes(spot);
       while (growing(spot) && now - spot.stageStart >= span) {
@@ -219,7 +225,7 @@ class FarmState {
 
   actionFor(index, actor = PLAYER) {
     const spot = this.spots[index];
-    if (spot.stage > 0 && spot.owner !== actor) return { id: 'look', hint: null };
+    if (spot.stage > 0 && spot.stage !== SPENT && spot.owner !== actor) return { id: 'look', hint: null };
     const purse = this.ledger.purse(actor);
     if (spot.stage === 0) {
       const options = seedOptions(purse);
@@ -237,7 +243,8 @@ class FarmState {
 
   act(name, index, now, choice, actor = PLAYER) {
     const spot = this.spots[index];
-    const action = spot && spot.stage > 0 && spot.owner !== actor ? ACTIONS.look : ACTIONS[name];
+    const shared = name === 'clear' && spot?.stage === SPENT;
+    const action = spot && spot.stage > 0 && spot.owner !== actor && !shared ? ACTIONS.look : ACTIONS[name];
     if (!action || !spot) return null;
     const before = JSON.stringify(spot);
     const reply = action(spot, now, this, choice, actor);
@@ -636,6 +643,10 @@ export function createFarm({ ledger, nameOf, nav }) {
         if (!best || score < best.score) best = { index, action, choice, score };
       };
       state.spots.forEach((plant, index) => {
+        if (plant.stage === SPENT && plant.owner !== worker.id) {
+          consider(index, 'clear', 3.5);
+          return;
+        }
         if (plant.stage === 0 || plant.owner !== worker.id) return;
         owned += 1;
         if (plant.stage === RIPE) consider(index, 'harvest', 0);

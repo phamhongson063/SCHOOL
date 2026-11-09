@@ -11,7 +11,7 @@ import { createAngler } from './angler.js';
 import { makeRandom } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING, BANK, VENDOR } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, FISH, FISHING, ENERGY, EATERY, FOODS, HUNTING, BANK, VENDOR, GUARD } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { INN_STAND } from './inn.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
@@ -134,6 +134,16 @@ const PEDDLER = {
 const BLOCKED = { radius: 0.8, nagEvery: 8 };
 const NAGS = ['Mua xong rồi thì nhường chỗ với!', 'Xong rồi thì tránh ra cho người ta mua với!', 'Đứng mãi thế, người ta chờ nãy giờ!'];
 
+const GUARD_LOOK = { pants: 0x2a2622, style: 'khan', khan: 0x8a2a1a, sash: 0x9a2a1a, iris: 0x4a2a18 };
+const GUARDS = [
+  { id: 'guard-hung', name: 'Dân binh Hùng', shift: 'day', follower: false, exit: 0, look: { ...GUARD_LOOK, shirt: 0x5a3a24, skin: 0xe0ad84 } },
+  { id: 'guard-dung', name: 'Dân binh Dũng', shift: 'day', follower: true, exit: 0, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
+  { id: 'guard-luc', name: 'Dân binh Lực', shift: 'night', follower: false, exit: 1, look: { ...GUARD_LOOK, shirt: 0x3a3a3a, skin: 0xe6b08a } },
+  { id: 'guard-manh', name: 'Dân binh Mạnh', shift: 'night', follower: true, exit: 1, look: { ...GUARD_LOOK, shirt: 0x34302c, skin: 0xd9a479 } },
+].map((guard) => ({ ...guard, kind: 'guard' }));
+const GUARD_DAY_CALLS = ['Dân binh đi tuần đây!', 'Bà con yên tâm làm ăn nhé!', 'Trật tự, trật tự nào!'];
+const GUARD_NIGHT_CALLS = ['Cốc! Cốc! Bình an vô sự!', 'Khuya rồi, đóng cửa cẩn thận nhé!', 'Canh khuya, giữ lửa cẩn thận!'];
+
 const PEDDLER_CALLS = ['Ai chè đậu đen, bánh giò đâyyy!', 'Phở nóng đâyyy!', 'Xôi xéo nóng hổi đâyyy!', 'Ai ăn gì không nàooo!'];
 
 const SHIRTS = [0x8a5a34, 0x6e4a30, 0xa0703f, 0x4a6a9a, 0x5a7a4a, 0xb0804a];
@@ -248,7 +258,7 @@ class Villager {
     town.root.add(this.glow);
     this.seated = null;
     this.studyIcon = null;
-    if (this.kind !== 'teacher' && this.kind !== 'vendor') {
+    if (this.kind === 'student' || this.kind === 'farmer') {
       this.seated = model ? createModel(model, { seated: true }) : createStudent(profile.look);
       this.seated.group.visible = false;
       town.root.add(this.seated.group);
@@ -1985,17 +1995,12 @@ function carryingPole() {
   return group;
 }
 
-class Peddler extends Villager {
+class ShiftWorker extends Villager {
   constructor(profile, town) {
     super(profile, town);
-    this.walker.group.add(carryingPole());
-    this.walkSpeed *= VENDOR.pace;
+    this.keepsNight = true;
     this.stop = 0;
     this.step = 1;
-  }
-
-  onDuty(ctx) {
-    return ctx.minute >= VENDOR.open || ctx.minute < VENDOR.close;
   }
 
   tickEnergy() {
@@ -2003,10 +2008,36 @@ class Peddler extends Villager {
   }
 
   nextStop() {
-    const stops = this.town.vendorStops;
+    const stops = this.town.streetStops;
     if (this.stop + this.step < 0 || this.stop + this.step >= stops.length) this.step = -this.step;
     this.stop += this.step;
     return stops[this.stop];
+  }
+
+  goHome() {
+    this.cancel();
+    this.task = 'home';
+    this.lookAt = null;
+    const home = this.homePoint();
+    this.travel(home, { then: () => this.vanish(), fail: () => this.vanish() });
+  }
+
+  appear() {
+    super.appear();
+    this.stop = this.homePoint().x < 0 ? -1 : this.town.streetStops.length;
+    this.step = this.stop < 0 ? 1 : -1;
+  }
+}
+
+class Peddler extends ShiftWorker {
+  constructor(profile, town) {
+    super(profile, town);
+    this.walker.group.add(carryingPole());
+    this.walkSpeed *= VENDOR.pace;
+  }
+
+  onDuty(ctx) {
+    return ctx.minute >= VENDOR.open || ctx.minute < VENDOR.close;
   }
 
   think() {
@@ -2040,19 +2071,71 @@ class Peddler extends Villager {
     this.hold();
     this.say('Ăn gì con ơi?', 2);
   }
+}
 
-  goHome() {
-    this.cancel();
-    this.task = 'home';
-    this.lookAt = null;
-    const home = this.homePoint();
-    this.travel(home, { then: () => this.vanish(), fail: () => this.vanish() });
+function patrolStaff(lantern) {
+  const b = new Batch();
+  b.add(shapes.cylinder(0.022, 0.026, 1.7, 6), 0xc8a85a);
+  for (const y of [-0.55, 0, 0.55]) b.add(shapes.torus(0.026, 0.007, 6), 0x9a7a3a, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
+  if (lantern) b.limb([0, 0.82, 0], [0, 0.82, 0.3], 0.01, 0x5a3a20, { capsule: false, seg: 4 });
+  const group = new THREE.Group();
+  group.add(b.mesh());
+  if (lantern) {
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.17, 10), new THREE.MeshBasicMaterial({ color: 0xff7a3a }));
+    glow.position.set(0, 0.62, 0.3);
+    group.add(glow);
+  }
+  group.position.set(-0.27, 0.78, 0.06);
+  return group;
+}
+
+class Guard extends ShiftWorker {
+  constructor(profile, town) {
+    super(profile, town);
+    this.walker.group.add(patrolStaff(profile.shift === 'night'));
+    this.walkSpeed = GUARD.speed;
+    this.lag = profile.follower ? GUARD.lag : 0;
+  }
+
+  onDuty(ctx) {
+    const day = ctx.minute >= GUARD.day[0] && ctx.minute < GUARD.day[1];
+    return this.profile.shift === 'day' ? day : !day;
   }
 
   appear() {
     super.appear();
-    this.stop = this.homePoint().x < 0 ? -1 : this.town.vendorStops.length;
-    this.step = this.stop < 0 ? 1 : -1;
+    this.wait(0.5);
+  }
+
+  think() {
+    const ctx = this.town.context;
+    this.lookAt = null;
+    if (!this.onDuty(ctx)) return this.goHome();
+    this.task = 'patrol';
+    const from = this.town.streetStops[this.stop] ?? this.position;
+    const stop = this.nextStop();
+    const target = this.profile.follower ? this.behind(from, stop) : stop;
+    const rest = () => this.wait(GUARD.pause, () => this.think());
+    this.travel(new THREE.Vector3(target.x, 0, target.z), {
+      then: () => {
+        if (!this.profile.follower && Math.random() < GUARD.callChance) this.say(pick(ctx.night ? GUARD_NIGHT_CALLS : GUARD_DAY_CALLS), 2.4);
+        rest();
+      },
+      fail: rest,
+    });
+  }
+
+  behind(from, stop) {
+    const dx = stop.x - from.x;
+    const dz = stop.z - from.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 0.01) return stop;
+    return this.town.walkable({ x: stop.x - (dx / length) * GUARD.gap, z: stop.z - (dz / length) * GUARD.gap });
+  }
+
+  greet(from) {
+    if (this.state === 'idle') this.facing = Math.atan2(from.x - this.position.x, from.z - this.position.z);
+    this.say(`${this.name}: Đang đi tuần, có gì cứ báo nhé!`, 2.6);
   }
 }
 
@@ -2092,14 +2175,16 @@ export class Town {
     this.posing = true;
     this.members = villagerProfiles().map((profile) => new Villager(profile, this));
     this.teacher = new Teacher(TEACHER, this);
-    this.vendorStops = [
+    this.streetStops = [
       ...places.doors.values(),
       ...[places.shop, places.chief, places.eatery].map((place) => place.line[place.line.length - 1]),
     ]
       .map((point) => this.walkable({ x: point.x, z: point.z }))
       .sort((a, b) => a.x - b.x);
     this.vendor = new Peddler(PEDDLER, this);
-    this.all = [...this.members, this.teacher, this.vendor];
+    this.guards = GUARDS.map((profile) => new Guard(profile, this));
+    this.shiftWorkers = [this.vendor, ...this.guards];
+    this.all = [...this.members, this.teacher, ...this.shiftWorkers];
     this.budget = PATHS_PER_FRAME;
     this.frustum = new THREE.Frustum();
     this.viewProjection = new THREE.Matrix4();
@@ -2374,7 +2459,7 @@ export class Town {
     if (this.teacher.onDuty(ctx)) this.teacher.beginTeaching();
     else if (ctx.night) this.teacher.settleNight();
     else this.teacher.vanish();
-    this.vendor.vanish();
+    for (const worker of this.shiftWorkers) worker.vanish();
     for (const member of this.members) {
       if (ctx.night) {
         member.settleNight();
@@ -2463,8 +2548,9 @@ export class Town {
     const teacher = this.teacher;
     if (teacher.state === 'teaching' && !teacher.onDuty(ctx)) teacher.stopTeaching();
     else if (teacher.state === 'away' && teacher.onDuty(ctx) && teacher.wakeAt === null) teacher.wakeAt = teacher.now + between(0.5, 3);
-    const vendor = this.vendor;
-    if (vendor.state === 'away' && vendor.onDuty(ctx) && vendor.wakeAt === null) vendor.wakeAt = vendor.now + between(0.5, 3);
+    for (const worker of this.shiftWorkers) {
+      if (worker.state === 'away' && worker.onDuty(ctx) && worker.wakeAt === null) worker.wakeAt = worker.now + 0.5 + (worker.lag ?? between(0, 2.5));
+    }
   }
 
   updateLod(camera) {
@@ -2491,7 +2577,7 @@ export class Town {
       if (ctx.night) {
         for (const member of this.all) {
           if (member.state === 'inn') member.lodgeNight = true;
-          if (member.state === 'away' || member.state === 'inn') continue;
+          if (member.state === 'away' || member.state === 'inn' || member.keepsNight) continue;
           if (member === this.teacher && member.state === 'teaching') {
             member.stopTeaching();
             continue;

@@ -70,6 +70,7 @@ export class PlayerController {
     this.surfaceAt = null;
     this.terrainAt = null;
     this.posture = 'free';
+    this.held = false;
     this.seat = null;
     this.seating = null;
     this.pendingSeat = null;
@@ -511,12 +512,13 @@ export class PlayerController {
       this.updateRest(dt);
       return;
     }
-    const wish = (this.enabled && this.followPath(dt)) || new THREE.Vector3();
+    const moving = this.enabled && !this.held;
+    const wish = (moving && this.followPath(dt)) || new THREE.Vector3();
 
     const response = 1 - Math.exp(-(this.onGround ? 14 : 4) * dt);
     this.velocity.x += (wish.x - this.velocity.x) * response;
     this.velocity.z += (wish.z - this.velocity.z) * response;
-    if (this.enabled && this.onGround && this.keys.has('Space')) this.velocity.y = JUMP_SPEED;
+    if (moving && this.onGround && this.keys.has('Space')) this.velocity.y = JUMP_SPEED;
     this.velocity.y = Math.max(this.velocity.y - GRAVITY * dt, -40);
 
     const travel = Math.max(Math.abs(this.velocity.x), Math.abs(this.velocity.y), Math.abs(this.velocity.z)) * dt;

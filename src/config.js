@@ -51,6 +51,7 @@ export const FARMING = {
   missPenalty: 0.18,
   minVigor: 0.25,
   villagerPlots: 10,
+  spentMinutes: 6 * 60,
 };
 
 export const STARTER = { 'seed:waterSpinach': 6, rod: 1, bait: 10 };
@@ -165,6 +166,15 @@ export const VENDOR = {
     xoixeo: { icon: '🍙', name: 'Xôi xéo', price: 18, energy: 25 },
     phoganh: { icon: '🍜', name: 'Phở gánh', price: 30, energy: 45 },
   },
+};
+
+export const GUARD = {
+  day: [6 * 60, 18 * 60],
+  speed: 1.2,
+  pause: 4,
+  lag: 1.4,
+  gap: 1.3,
+  callChance: 0.5,
 };
 
 export const FIREFLY = {
