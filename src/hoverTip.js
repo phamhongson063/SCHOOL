@@ -57,6 +57,14 @@ export function createHoverTip({ renderer, camera, regions, player, playing, wor
     tip.style.transform = `translate(${x}px, ${y}px)`;
   }
 
+  function nearbyTimer() {
+    const region = regions.active;
+    const target = region?.nearbyTarget?.(player.position);
+    const left = target ? region.timeLeft?.(target) : null;
+    if (left == null) return null;
+    return { text: countdownText(left), progress: region.growth?.(target) ?? null, anchor: region.topOf(target) };
+  }
+
   function update(t) {
     if (player.drag) {
       tip.hidden = true;
@@ -83,10 +91,15 @@ export function createHoverTip({ renderer, camera, regions, player, playing, wor
       } else ({ region, target } = picked);
     }
     if (shownRegion && shownRegion !== region) shownRegion.highlight?.(null);
-    if (!target && !shownRegion) {
-      text = null;
-      anchor = null;
+    if (!target) {
+      shownRegion?.highlight?.(null);
+      shownRegion = null;
       renderer.domElement.style.cursor = '';
+      const near = playing() ? nearbyTimer() : null;
+      text = near?.text ?? null;
+      progress = near?.progress ?? null;
+      anchor = near?.anchor ?? null;
+      show(text, anchor, progress);
       return;
     }
     region?.highlight?.(target);

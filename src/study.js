@@ -5,6 +5,7 @@ import { STUDY } from './config.js';
 import { coins } from './format.js';
 import { economy } from './economy.js';
 import { setRich } from './goldArt.js';
+import { gameNow } from './clock.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
 const TRANSLATE_KEY = 'truong-lang-xua.studyTranslate';
@@ -99,6 +100,13 @@ export function createStudy({ purse }) {
     modeChip.hidden = false;
   }
 
+  function showPackLeft() {
+    const left = document.createElement('span');
+    left.className = 'study-chip-left';
+    left.textContent = pack.left;
+    modeChip.replaceChildren(MODES.smart.icon, left);
+  }
+
   function showStart() {
     endPack();
     start.hidden = false;
@@ -154,14 +162,14 @@ export function createStudy({ purse }) {
     remembered.hidden = covered;
   }
 
-  function nextDue() {
-    let upcoming = -1;
+  function mostOverdue(now) {
+    let overdue = -1;
     for (let i = 0; i < total; i++) {
       if (i === current) continue;
       const due = recall.due(WORDS[i]);
-      if (due !== null && (upcoming < 0 || due < recall.due(WORDS[upcoming]))) upcoming = i;
+      if (due !== null && due <= now && (overdue < 0 || due < recall.due(WORDS[overdue]))) overdue = i;
     }
-    return upcoming;
+    return overdue;
   }
 
   function weakest() {
@@ -185,10 +193,10 @@ export function createStudy({ purse }) {
   }
 
   function pickSmart() {
-    const upcoming = nextDue();
-    if (upcoming >= 0 && recall.due(WORDS[upcoming]) <= recall.step) {
+    const review = mostOverdue(gameNow());
+    if (review >= 0) {
       packCard = false;
-      return upcoming;
+      return review;
     }
     if (pack.left <= 0) return -1;
     packCard = true;
@@ -208,6 +216,7 @@ export function createStudy({ purse }) {
       return;
     }
     fill(index);
+    showPackLeft();
     setCovered(true);
     showProgress(WORDS.filter((w) => recall.box(w) >= MASTERED_BOX).length);
   }

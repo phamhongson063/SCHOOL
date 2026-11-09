@@ -8,8 +8,8 @@ import { keeperNPC } from './village.js';
 
 const PRAYER_KEY = 'truong-lang-xua.prayedDay';
 const MONKS = [
-  { name: 'Sư cụ', model: 'monk', dx: -2.3, dz: 3.4, turn: 0.35 },
-  { name: 'Sư ông', model: 'monk-brown', dx: 2.3, dz: 3.4, turn: -0.35 },
+  { name: 'Sư cụ', model: 'monk', dx: -1.6, dz: 2.7, turn: 0.15 },
+  { name: 'Sư ông', model: 'monk-brown', dx: 1.6, dz: 2.7, turn: -0.15 },
 ];
 const MONK_GREETINGS = ['A Di Đà Phật!', 'Mô Phật, thí chủ lên chùa lễ Phật à?', 'Nam mô A Di Đà Phật.'];
 const MONK_DISTANCE = 60;
@@ -25,7 +25,7 @@ export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }
     const npc = keeperNPC({}, spec.model);
     const x = PAGODA.x + spec.dx;
     const z = PAGODA.z + spec.dz;
-    npc.walker.group.position.set(x, terrainHeight(x, z), z);
+    npc.walker.group.position.set(x, terrainHeight(PAGODA.x, PAGODA.z) + PAGODA.porch, z);
     npc.walker.group.rotation.y = spec.turn;
     group.add(npc.walker.group);
     return { ...npc, name: spec.name, phase: i * 2.1 };

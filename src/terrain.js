@@ -23,12 +23,20 @@ const SPINE = [
 ];
 
 export const SUMMIT = { x: -55, z: -85 };
-export const PAGODA = { x: SUMMIT.x, z: SUMMIT.z, half: 2.4, stand: { x: SUMMIT.x, z: SUMMIT.z + 5.2 } };
+export const PAGODA = { x: SUMMIT.x, z: SUMMIT.z, half: 2.4, porch: 0.55, stand: { x: SUMMIT.x, z: SUMMIT.z + 5.2 } };
+const SUMMIT_TOP = 40;
+const SUMMIT_FLAT = 9.5;
+const SUMMIT_SLOPE = 0.5;
+const SUMMIT_CAP_SLOPE = 0.1;
+const COURTYARD = { half: 3.6, z0: 3.2, z1: 8.6, top: 0.03 };
+const STAIRS = { half: 1.3, from: SUMMIT_FLAT, steps: 16, run: 0.7, rise: 0.35 };
+const STAIRS_LENGTH = STAIRS.steps * STAIRS.run;
 export const SHELTERS = [
   { x: -57.9, z: -39.8, turn: 0.6 },
   { x: 24.8, z: -52.6, turn: -0.5 },
 ];
 export const SHELTER_RADIUS = 3.2;
+const SHELTER_FLOOR = { halfX: 1.6, halfZ: 1.4, thick: 0.2, top: 0.15 };
 
 const TRAILS = [
   [
@@ -39,8 +47,7 @@ const TRAILS = [
     [-55, -30],
     [-66, -46],
     [-56, -62],
-    [-63, -74],
-    [-56, -79],
+    [-55, -63.8],
   ],
   [
     [36.5, 32.6],
@@ -105,6 +112,26 @@ function mask(x, z) {
   return m;
 }
 
+function shapeSummit(x, z, natural) {
+  const beyond = Math.hypot(x - SUMMIT.x, z - SUMMIT.z) - SUMMIT_FLAT;
+  if (beyond <= 0) return SUMMIT_TOP;
+  const ramp = SUMMIT_TOP - beyond * SUMMIT_SLOPE;
+  const cap = SUMMIT_TOP - beyond * SUMMIT_CAP_SLOPE;
+  return Math.min(Math.max(natural, ramp), cap);
+}
+
+function carveStairs(x, z, h) {
+  const along = z - SUMMIT.z - STAIRS.from;
+  if (Math.abs(x - SUMMIT.x) > STAIRS.half + 1.2 || along < 0 || along > STAIRS_LENGTH + 0.5) return h;
+  return Math.min(h, SUMMIT_TOP - along * SUMMIT_SLOPE - STAIRS.rise);
+}
+
+function stairTop(x, z) {
+  const along = z - SUMMIT.z - STAIRS.from;
+  if (Math.abs(x - SUMMIT.x) > STAIRS.half || along < 0 || along >= STAIRS_LENGTH) return null;
+  return SUMMIT_TOP - (Math.floor(along / STAIRS.run) + 1) * STAIRS.rise;
+}
+
 function buildHeights() {
   const broad = patchField(71, 24);
   const fine = patchField(83, 9);
@@ -115,7 +142,7 @@ function buildHeights() {
       const x = MOUNTAIN.x0 + c * STEP;
       const base = spineHeight(x, z);
       const relief = ((broad(x, z) - 0.5) * 9 + (fine(x, z) - 0.5) * 2.5) * smoothstep(0, 8, base);
-      grid[r * COLS + c] = Math.max(0, (base + relief) * mask(x, z));
+      grid[r * COLS + c] = carveStairs(x, z, shapeSummit(x, z, Math.max(0, (base + relief) * mask(x, z))));
     }
   }
   const diag = MAX_SLOPE * STEP * Math.SQRT2;
@@ -155,9 +182,24 @@ export function terrainHeight(x, z) {
   return (a + (b - a) * tx) * (1 - tz) + (d + (e - d) * tx) * tz;
 }
 
+function shelterFloor(x, z) {
+  for (const hut of SHELTERS) {
+    const ox = x - hut.x;
+    const oz = z - hut.z;
+    const c = Math.cos(hut.turn);
+    const s = Math.sin(hut.turn);
+    if (Math.abs(ox * c - oz * s) <= SHELTER_FLOOR.halfX && Math.abs(ox * s + oz * c) <= SHELTER_FLOOR.halfZ) {
+      return terrainHeight(hut.x, hut.z) + SHELTER_FLOOR.top;
+    }
+  }
+  return null;
+}
+
 export function terrainFloor(x, z) {
   if (onBridge(x, z)) return BRIDGE.deck;
   const h = terrainHeight(x, z);
+  const floor = shelterFloor(x, z) ?? stairTop(x, z);
+  if (floor !== null) return Math.max(h, floor);
   return h > FLAT ? h : null;
 }
 
@@ -266,7 +308,8 @@ function buildLayout() {
   };
   const clearOf = (x, z) =>
     !nearTrail(trails, x, z, TRAIL_CLEAR) &&
-    Math.hypot(x - SUMMIT.x, z - SUMMIT.z) > 8 &&
+    Math.hypot(x - SUMMIT.x, z - SUMMIT.z) > SUMMIT_FLAT + 3 &&
+    !(Math.abs(x - SUMMIT.x) < STAIRS.half + 2.5 && z > SUMMIT.z && z < SUMMIT.z + STAIRS.from + STAIRS_LENGTH + 3) &&
     streamDistance(x, z) > BANK_HALF + 1.2 &&
     SHELTERS.every((hut) => Math.hypot(x - hut.x, z - hut.z) > 4.5);
   const { half } = PAGODA;
@@ -330,8 +373,9 @@ export function navSurface(x, z) {
   if (onBridge(x, z)) return BRIDGE.deck;
   if (inStream(x, z)) return NaN;
   const h = terrainHeight(x, z);
-  if (h <= FLAT) return null;
-  return terrainBlocked(x, z) ? NaN : h;
+  const floor = shelterFloor(x, z) ?? stairTop(x, z);
+  if (floor === null && h <= FLAT) return null;
+  return terrainBlocked(x, z) ? NaN : Math.max(h, floor ?? h);
 }
 
 function terrainMesh() {
@@ -489,7 +533,7 @@ function shelterMesh() {
   for (const hut of SHELTERS) {
     const y = terrainHeight(hut.x, hut.z);
     b.group([hut.x, y, hut.z], [0, hut.turn, 0], () => {
-      b.add(shapes.box(3.2, 0.2, 2.8), 0x8a6a48, { p: [0, 0.05, 0] });
+      b.add(shapes.box(SHELTER_FLOOR.halfX * 2, SHELTER_FLOOR.thick, SHELTER_FLOOR.halfZ * 2), 0x8a6a48, { p: [0, SHELTER_FLOOR.top - SHELTER_FLOOR.thick / 2, 0] });
       for (const [dx, dz] of [[-1.3, -1.1], [1.3, -1.1], [-1.3, 1.1], [1.3, 1.1]]) b.add(shapes.cylinder(0.09, 0.11, 2.5, 7), 0x6a4428, { p: [dx, 1.25, dz] });
       b.add(shapes.box(2.9, 0.14, 0.14), 0x5a3a22, { p: [0, 2.45, -1.1] });
       b.add(shapes.box(2.9, 0.14, 0.14), 0x5a3a22, { p: [0, 2.45, 1.1] });
@@ -518,10 +562,19 @@ function pagodaMeshes() {
   }
   b.add(shapes.box(half * 2 + 0.4, 0.3, 0.3), 0x4a2c1e, { p: [x, y + 3.35, z + half - 0.05] });
   b.add(shapes.box(half * 2 - 0.6, 1.1, half * 2 - 0.6), 0xd9b46a, { p: [x, y + 4.4, z] });
+  const paved = y + COURTYARD.top;
+  b.add(shapes.box(COURTYARD.half * 2, 0.12, COURTYARD.z1 - COURTYARD.z0), 0xb3ab99, { p: [x, paved - 0.06, z + (COURTYARD.z0 + COURTYARD.z1) / 2] });
+  b.add(shapes.box(STAIRS.half * 2, 0.12, STAIRS.from - COURTYARD.z1), 0xa49d8e, { p: [x, paved - 0.06, z + (COURTYARD.z1 + STAIRS.from) / 2] });
+  for (let i = 0; i < STAIRS.steps; i++) {
+    const top = y - (i + 1) * STAIRS.rise;
+    const height = STAIRS.rise + 1.2;
+    b.add(shapes.box(STAIRS.half * 2, height, STAIRS.run), i % 2 ? 0x9a9383 : 0xa49d8e, { p: [x, top - height / 2, z + STAIRS.from + (i + 0.5) * STAIRS.run] });
+  }
   const urn = { x, z: PAGODA.stand.z - 1.4 };
-  b.add(shapes.cylinder(0.32, 0.24, 0.5, 12), 0x8a6a3a, { p: [urn.x, y + 0.85, urn.z] });
-  b.add(shapes.torus(0.32, 0.04, 14), 0x6a4e2a, { p: [urn.x, y + 1.1, urn.z], r: [Math.PI / 2, 0, 0] });
-  for (const dx of [-0.06, 0, 0.06]) b.add(shapes.cylinder(0.008, 0.008, 0.4, 4), 0xc0281a, { p: [urn.x + dx, y + 1.3, urn.z] });
+  b.add(shapes.box(0.7, 0.3, 0.7), 0x8a8273, { p: [urn.x, paved + 0.15, urn.z] });
+  b.add(shapes.cylinder(0.32, 0.24, 0.5, 12), 0x8a6a3a, { p: [urn.x, paved + 0.55, urn.z] });
+  b.add(shapes.torus(0.32, 0.04, 14), 0x6a4e2a, { p: [urn.x, paved + 0.8, urn.z], r: [Math.PI / 2, 0, 0] });
+  for (const dx of [-0.06, 0, 0.06]) b.add(shapes.cylinder(0.008, 0.008, 0.4, 4), 0xc0281a, { p: [urn.x + dx, paved + 1.0, urn.z] });
   const body = b.mesh();
   const lower = tileRoofMeshes({ cx: x, cz: z, hx: half + 1.0, hz: half + 1.0, ridge: 0.6, eaveY: y + 3.45, height: 1.1, lift: 0.5, falloff: 1.4 });
   const upper = tileRoofMeshes({ cx: x, cz: z, hx: half - 0.1, hz: half - 0.1, ridge: 0.3, eaveY: y + 4.9, height: 1.3, lift: 0.45, falloff: 1.1 });

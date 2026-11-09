@@ -1429,20 +1429,22 @@ dialog.paper::backdrop {
   align-items: center;
   gap: 6px;
   height: 44px;
-  padding: 0 12px;
-  border: 2px solid var(--gold);
-  border-radius: 6px;
-  background: rgba(28, 20, 14, 0.75);
   color: var(--amber);
   font: 700 16px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-shadow:
+    -1px -1px 0 var(--ink),
+    1px -1px 0 var(--ink),
+    -1px 1px 0 var(--ink),
+    1px 1px 0 var(--ink),
+    0 1px 4px var(--shadow-strong);
 }
 
 .wallet-gold {
   display: block;
-  width: 30px;
-  height: 22px;
+  width: 24px;
+  height: 18px;
 }
 
 .gold-img {
@@ -1728,7 +1730,6 @@ dialog.paper.wide {
 @media (max-width: 600px) {
   .wallet {
     height: 40px;
-    padding: 0 10px;
     font-size: 15px;
   }
 
@@ -2002,6 +2003,13 @@ dialog.paper.kanji:focus {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
+}
+
+.study-chip-left {
+  margin-left: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .study-title {

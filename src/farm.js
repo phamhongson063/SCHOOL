@@ -3,7 +3,7 @@ import { Batch, shapes, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
-import { CROPS, RIPE, SPENT, mound, stageName } from './crops.js';
+import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, growDays } from './config.js';
@@ -145,10 +145,6 @@ class Leases {
   }
 }
 
-function nextStageIn(spot, now) {
-  return `${stageName(spot.crop, spot.stage + 1)} sau ${durationText(stageMinutes(spot) - (now - spot.stageStart))}`;
-}
-
 function seedOptions(purse) {
   return Object.keys(CROPS)
     .filter((id) => purse.count(seedId(id)) > 0)
@@ -217,7 +213,7 @@ const ACTIONS = {
   },
   look(spot, now, farm, choice, actor) {
     if (spot.stage > 0 && spot.owner !== actor) return `Cây của ${farm.nameOf(spot.owner)} đó!`;
-    if (growing(spot)) return nextStageIn(spot, now) + (spot.missed ? ' · cây yếu, bón phân sẽ khoẻ lại' : '');
+    if (growing(spot)) return null;
     if (spot.stage === SPENT) return 'Cây đã thu, cần dọn!';
     return 'Đất trống.';
   },
@@ -395,6 +391,7 @@ function layoutSpots() {
 }
 
 const REACH = { across: 0.45, along: 1.3 };
+const TIMER_REACH = 2.6;
 
 function spotAt(spots, point) {
   let best = -1;
@@ -911,6 +908,20 @@ export function createFarm({ ledger, nameOf, nav }) {
       },
       growth(target) {
         return target.stake !== undefined ? null : state.growth(target.index, gameNow());
+      },
+      nearbyTarget(position) {
+        const now = gameNow();
+        let best = -1;
+        let bestDistance = TIMER_REACH;
+        state.spots.forEach((plant, index) => {
+          if (plant.owner !== PLAYER || fieldOf(index) !== field || state.timeLeft(index, now) == null) return;
+          const distance = Math.hypot(spots[index].x - position.x, spots[index].z - position.z);
+          if (distance < bestDistance) {
+            best = index;
+            bestDistance = distance;
+          }
+        });
+        return best < 0 ? null : { index: best, x: spots[best].x, z: spots[best].z };
       },
       topOf(target) {
         if (target.stake !== undefined) return new THREE.Vector3(target.x, 1.15, target.z);

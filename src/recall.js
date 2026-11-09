@@ -1,6 +1,8 @@
+import { gameNow, DAY_MINUTES } from './clock.js';
+
 const KEY = 'truong-lang-xua.n2Recall';
 const LEGACY_INDEX_KEY = 'truong-lang-xua.n2Index';
-const GAPS = [3, 10, 30, 80, 200];
+const GAPS = [20, DAY_MINUTES, 3 * DAY_MINUTES, 10 * DAY_MINUTES, 30 * DAY_MINUTES];
 export const MASTERED_BOX = 3;
 const MASTERY_STEP = 3;
 
@@ -14,13 +16,28 @@ function read(key) {
   }
 }
 
+function fromAnswerCount(saved) {
+  const now = gameNow();
+  const cards = {};
+  for (const [word, card] of Object.entries(saved.cards)) {
+    const box = Math.min(Math.max(0, card.box ?? 0), GAPS.length - 1);
+    cards[word] = { box, due: now + GAPS[box] };
+  }
+  return { cards };
+}
+
 function load() {
   if (data) return data;
   try {
     const saved = JSON.parse(read(KEY));
-    if (Number.isFinite(saved?.step) && saved.cards && typeof saved.cards === 'object') data = saved;
+    if (saved?.cards && typeof saved.cards === 'object') {
+      if (Number.isFinite(saved.step)) {
+        data = fromAnswerCount(saved);
+        save();
+      } else data = saved;
+    }
   } catch {}
-  data ??= { step: 0, cards: {} };
+  data ??= { cards: {} };
   return data;
 }
 
@@ -31,9 +48,6 @@ function save() {
 }
 
 export const recall = {
-  get step() {
-    return load().step;
-  },
   get mastery() {
     return Object.values(load().cards).reduce((sum, card) => sum + Math.floor(Math.max(0, card.box) / MASTERY_STEP), 0);
   },
@@ -46,8 +60,7 @@ export const recall = {
   record(word, remembered) {
     const state = load();
     const box = remembered ? Math.min((state.cards[word]?.box ?? 0) + 1, GAPS.length - 1) : 0;
-    state.step += 1;
-    state.cards[word] = { box, due: state.step + GAPS[box] };
+    state.cards[word] = { box, due: gameNow() + GAPS[box] };
     save();
   },
   seed(words) {
@@ -55,8 +68,9 @@ export const recall = {
     const learned = Number(read(LEGACY_INDEX_KEY));
     if (!Number.isInteger(learned) || learned <= 0) return;
     const state = load();
-    words.slice(0, learned).forEach((word, i) => {
-      state.cards[word] = { box: 1, due: i };
+    const now = gameNow();
+    words.slice(0, learned).forEach((word) => {
+      state.cards[word] = { box: 1, due: now + GAPS[1] };
     });
     save();
   },
