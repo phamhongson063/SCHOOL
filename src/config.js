@@ -52,6 +52,11 @@ export const FARMING = {
   missPenalty: 0.18,
   minVigor: 0.25,
   villagerPlots: 10,
+  leases: [
+    { days: 3, price: 9 },
+    { days: 7, price: 18 },
+    { days: 15, price: 33 },
+  ],
   spentMinutes: 6 * 60,
 };
 
@@ -158,12 +163,23 @@ export const FOODS = {
   comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55 },
 };
 
+export const STUDY = {
+  packs: [
+    { words: 3, price: 6 },
+    { words: 5, price: 9 },
+    { words: 8, price: 12 },
+  ],
+  refund: 0.5,
+};
+
 export const VENDOR = {
   open: 21 * 60,
   close: 60,
   pause: [5, 9],
   hold: 8,
   reach: 2.4,
+  chat: 1.3,
+  lure: 18,
   pace: 0.7,
   roamPause: [8, 18],
   foods: {
@@ -193,6 +209,23 @@ export const FIREFLY = {
   respawn: [25, 60],
   lampMin: 3,
   lampMinutesPerFly: 60,
+};
+
+export const ECONOMY = {
+  vat: 0.1,
+  keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3 },
+  wages: { guard: 35, teacher: 30, chief: 40 },
+  fundSeed: 20000,
+  living: 12,
+  pollTax: 2,
+  houseTax: 0.0001,
+  buyback: 0.8,
+  thrift: 0.6,
+  catchUpDays: 7,
+};
+
+export const RANKING = {
+  every: 200,
 };
 
 export const BANK = {

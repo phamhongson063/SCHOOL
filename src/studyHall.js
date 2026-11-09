@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes } from './toon.js';
-import { studentFurniture, lantern } from './props.js';
-import { tileRoofMeshes } from './scenery.js';
+import { studentFurniture, lantern, textBoard } from './props.js';
+import { tileRoofMeshes, groundDecal, roundedRectGeometry, GROUND_LAYER } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { paving } from './village.js';
 
 export const STUDY_HALL = { x: 42, front: 40.6, width: 10, depth: 12, door: 2.4, height: 3.2 };
 
@@ -16,6 +17,75 @@ const FLOOR_TILE = 0x9c624a;
 const DESK_ROWS = [43.2, 45.4, 47.6, 49.8];
 const ROOF = { overhang: 0.9, ridge: 3.6, lift: 0.1, rise: 2.3 };
 const ROOF_GAP = 0.08;
+const LACQUER = 0x8a1d14;
+const ROOF_TILE = 0x7a3a26;
+const LAMP_PAPER = 0xe8dcc0;
+const STONE_DARK = 0x8a8273;
+const PLINTH = 0.42;
+const GATE = { z: 38.3, span: 2.6, height: 3.3 };
+const STONE_LANTERNS = [
+  [38.9, 39.6],
+  [45.1, 39.6],
+];
+const COURT = { x0: 38.3, z0: 37.3, x1: 45.7, z1: 40.8 };
+const COUPLETS = [
+  [['Học', 'Nhi', 'Thời', 'Tập'], -2.35],
+  [['Ôn', 'Cố', 'Tri', 'Tân'], 2.35],
+];
+
+function facade(b) {
+  const { x, front, width, depth, door, height } = STUDY_HALL;
+  const back = front + depth;
+  const left = x - width / 2;
+  const right = x + width / 2;
+  const T = 0.25;
+  const side = (width - door) / 2;
+  b.add(shapes.box(width + 0.12, PLINTH, T + 0.12), STONE, { p: [x, PLINTH / 2, back - T / 2] });
+  for (const wx of [left + T / 2, right - T / 2]) b.add(shapes.box(T + 0.12, PLINTH, depth + 0.12), STONE, { p: [wx, PLINTH / 2, front + depth / 2] });
+  for (const s of [-1, 1]) b.add(shapes.box(side, PLINTH, T + 0.12), STONE, { p: [x + s * (door / 2 + side / 2), PLINTH / 2, front + T / 2] });
+  for (const cx of [left + 0.12, right - 0.12]) {
+    for (const cz of [front + 0.12, back - 0.12]) b.add(shapes.box(0.34, height, 0.34), WOOD_DARK, { p: [cx, height / 2, cz] });
+  }
+}
+
+function gate(b, obstacles) {
+  const { x } = STUDY_HALL;
+  const { z, span, height } = GATE;
+  for (const s of [-1, 1]) {
+    const px = x + s * span;
+    b.add(shapes.box(0.6, 0.3, 0.6), STONE_DARK, { p: [px, 0.15, z] });
+    b.add(shapes.cylinder(0.17, 0.19, height - 0.3, 12), LACQUER, { p: [px, 0.3 + (height - 0.3) / 2, z] });
+    obstacles.push({ minX: px - 0.3, maxX: px + 0.3, minZ: z - 0.3, maxZ: z + 0.3, minY: 0, maxY: height });
+  }
+  b.add(shapes.box(span * 2 + 0.4, 0.16, 0.18), WOOD_DARK, { p: [x, 2.55, z] });
+  b.add(shapes.box(span * 2 + 1, 0.2, 0.26), WOOD, { p: [x, height + 0.1, z] });
+  for (const s of [-1, 1]) b.add(shapes.box(span * 2 + 1.6, 0.08, 0.86), ROOF_TILE, { p: [x, height + 0.38, z + s * 0.3], r: [s * 0.5, 0, 0] });
+  b.add(shapes.box(span * 2 + 1.7, 0.12, 0.16), WOOD_DARK, { p: [x, height + 0.58, z] });
+  for (const s of [-1, 1]) b.add(shapes.cone(0.1, 0.36, 6), ROOF_TILE, { p: [x + s * (span + 0.9), height + 0.66, z], r: [0, 0, -s * 0.5] });
+}
+
+function stoneLantern(b, x, z) {
+  b.add(shapes.box(0.55, 0.18, 0.55), STONE_DARK, { p: [x, 0.09, z] });
+  b.add(shapes.box(0.22, 0.85, 0.22), STONE, { p: [x, 0.6, z] });
+  b.add(shapes.box(0.5, 0.08, 0.5), STONE, { p: [x, 1.06, z] });
+  b.add(shapes.box(0.4, 0.34, 0.4), LAMP_PAPER, { p: [x, 1.27, z] });
+  b.add(shapes.cone(0.46, 0.34, 4), STONE, { p: [x, 1.61, z], r: [0, Math.PI / 4, 0] });
+  b.add(shapes.sphere(0.07, 8, 6), STONE, { p: [x, 1.82, z] });
+}
+
+function boards(group) {
+  const { x, front } = STUDY_HALL;
+  const sign = textBoard({ lines: ['Từ Vựng N2'], width: 2.8, height: 0.62, depth: 0.08, bg: 0x1c1310, fg: '#f2c14e', border: 0xa12a1c, seal: true });
+  sign.position.set(x, 2.98, GATE.z);
+  sign.rotation.y = Math.PI;
+  group.add(sign);
+  for (const [lines, dx] of COUPLETS) {
+    const board = textBoard({ lines, width: 0.5, height: 1.9, depth: 0.06, bg: 0xb02e1f, fg: '#ffe08a', border: 0xf2c14e });
+    board.position.set(x + dx, 1.45, front - 0.035);
+    board.rotation.y = Math.PI;
+    group.add(board);
+  }
+}
 
 function roofUnderside(dx, dz) {
   const { width, depth, height } = STUDY_HALL;
@@ -102,12 +172,21 @@ export function createStudyHall(scene) {
   }
   b.add(shapes.box(width + 0.1, 0.22, T + 0.12), WOOD, { p: [x, height + 0.05, front + T / 2] });
 
+  const obstacles = [];
+  facade(b);
+  gate(b, obstacles);
+  for (const [lx, lz] of STONE_LANTERNS) {
+    stoneLantern(b, lx, lz);
+    obstacles.push({ minX: lx - 0.28, maxX: lx + 0.28, minZ: lz - 0.28, maxZ: lz + 0.28, minY: 0, maxY: 1.9 });
+  }
+
   const group = new THREE.Group();
+  group.add(groundDecal(roundedRectGeometry(COURT.x0, COURT.z0, COURT.x1, COURT.z1, 0.5), paving(), GROUND_LAYER.mark + 1, 0.014));
   group.add(b.mesh(), walls.mesh(plasterMaterial()));
+  boards(group);
   group.add(...tileRoofMeshes({ cx: x, cz: front + depth / 2, hx: width / 2 + ROOF.overhang, hz: depth / 2 + ROOF.overhang, ridge: ROOF.ridge, eaveY: height + ROOF.lift, height: ROOF.rise, lift: 0.3, falloff: 1.5 }));
 
   const seats = [];
-  const obstacles = [];
   for (const s of [-1, 1]) {
     const facing = s < 0 ? -Math.PI / 2 : Math.PI / 2;
     const dir = { x: Math.sin(facing), z: Math.cos(facing) };
@@ -146,7 +225,10 @@ export function createStudyHall(scene) {
     group.add(lamp);
     return lamp.material;
   });
-  const lanternGlow = createLanternGlow(lampSpots.map((spot) => ({ position: new THREE.Vector3(spot.x, spot.y - 0.41, spot.z), tint: 0xd8321e })));
+  const lanternGlow = createLanternGlow([
+    ...lampSpots.map((spot) => ({ position: new THREE.Vector3(spot.x, spot.y - 0.41, spot.z), tint: 0xd8321e })),
+    ...STONE_LANTERNS.map(([lx, lz]) => ({ position: new THREE.Vector3(lx, 1.27, lz), tint: 0xffc070 })),
+  ]);
   group.add(lanternGlow.object);
   const roomLight = new THREE.PointLight(FLUORESCENT, 0, 13, 2);
   roomLight.position.set(x, height - 0.8, front + depth / 2);

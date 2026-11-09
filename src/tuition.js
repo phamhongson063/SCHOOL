@@ -1,6 +1,7 @@
 import { SCHOOL } from './config.js';
 import { coins, notEnough } from './format.js';
 import { closable } from './dialog.js';
+import { economy } from './economy.js';
 
 export function createTuition({ purse, onStudy, onCredit }) {
   const popup = document.getElementById('payPopup');
@@ -30,6 +31,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
       popupNote.textContent = notEnough(SCHOOL.tuition);
       return;
     }
+    economy.income('teacher', SCHOOL.tuition);
     studying = true;
     resolved = true;
     hidePopup();
@@ -63,6 +65,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
       note.textContent = `Không đủ tiền! Cần ${coins(count * SCHOOL.tuition)}, con đang có ${coins(purse.money)}.`;
       return;
     }
+    economy.income('teacher', count * SCHOOL.tuition);
     purse.addCredits(count);
     note.textContent = `Thầy đã ghi sổ ${count} tiết. Ngồi vào lớp là tự trừ, khỏi đóng từng tiết.`;
     renderDialog();

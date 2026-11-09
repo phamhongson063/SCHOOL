@@ -175,6 +175,13 @@
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
       </svg>
     </button>
+    <button id="rankBtn" class="icon-btn" type="button" title="Bảng phong thần" aria-label="Bảng phong thần" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4h8v5a4 4 0 0 1-8 0V4z" />
+        <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4" />
+        <path d="M12 13v4M8 21h8M10 17h4l.5 4h-5z" />
+      </svg>
+    </button>
   </div>
   <div id="bagVeil" class="bag-veil" hidden></div>
   <section id="bagPanel" class="bag-panel" role="dialog" aria-modal="true" aria-labelledby="bagTitle" hidden>
@@ -221,13 +228,20 @@
         <button class="study-pick" type="button" data-mode="random"><span aria-hidden="true">🔀</span>Ngẫu nhiên</button>
         <button class="study-pick" type="button" data-mode="smart"><span aria-hidden="true">🧠</span>Thông minh</button>
       </div>
+      <div id="studyPacks" class="study-packs" hidden>
+        <div id="studyPackList" class="study-pack-list"></div>
+        <p id="studyPackNote" class="study-pack-note" hidden></p>
+      </div>
       <div id="studyBody" class="study-body" hidden>
+        <div class="study-tools">
+          <button id="studyFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
+          <button id="studyTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
+        </div>
         <p id="studyReading" class="study-reading" lang="ja"></p>
         <p id="studyWord" class="study-word" lang="ja"></p>
         <p id="studyHanViet" class="study-hanviet"></p>
         <p id="studyMeaning" class="study-meaning"></p>
         <div class="study-example">
-          <button id="studyFurigana" class="lesson-hint lesson-furigana study-furigana" type="button" aria-pressed="true">F</button>
           <p id="studyExample" class="study-example-ja" lang="ja"></p>
           <p id="studyExampleVi" class="study-example-vi"></p>
         </div>
@@ -486,6 +500,22 @@
         <section id="bankHoldings" class="bank-holdings" hidden>
           <div id="bankList" class="bank-list"></div>
         </section>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="rankDialog" class="paper wide bank rank" aria-labelledby="rankTitle">
+    <div class="paper-body">
+      <header class="sched-head bank-head">
+        <span class="rank-emblem" aria-hidden="true">🏆</span>
+        <h2 id="rankTitle">Bảng phong thần</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="bank-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="true"><span class="rank-tab-art" aria-hidden="true">💰</span>Tài sản</button>
+      </div>
+      <div class="bank-panel">
+        <ol id="rankList" class="rank-list"></ol>
+        <p id="rankStamp" class="paper-note rank-stamp"></p>
       </div>
     </div>
   </dialog>

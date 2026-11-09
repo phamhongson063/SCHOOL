@@ -1,8 +1,11 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR } from './config.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
-import { activityOf } from './stamina.js';
+import { activityOf, moodOf } from './stamina.js';
 import { REST_TIME } from './walk.js';
+import { economy } from './economy.js';
+
+const VENDOR_TRIES = 2;
 
 export class RestBehavior {
   goRest(tries = 0) {
@@ -60,6 +63,9 @@ export class RestBehavior {
     const stay = this.state === 'inn' ? activity : null;
     this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle');
     this.tired = this.purse.energy <= 0;
+    const mood = moodOf(this.purse.energy);
+    this.bubble.setMood(mood);
+    this.seatBubble?.setMood(mood);
   }
 
   wantsFood(ctx) {
@@ -120,13 +126,15 @@ export class RestBehavior {
       else this.wait(between(1.5, 3));
       return;
     }
-    if (!this.purse.spend(roomTier(spot.id).price)) {
+    const rent = roomTier(spot.id).price;
+    if (!this.purse.spend(rent)) {
       leaveRoom(this);
       this.say('Hết tiền thuê phòng rồi...', 2);
       if (this.town.context.night) this.sleepOut();
       else this.wait(between(1.5, 3));
       return;
     }
+    economy.collect(rent * ECONOMY.vat);
     this.cancel();
     book(spot.id, this);
     this.task = 'inn';
@@ -196,15 +204,74 @@ export class RestBehavior {
       this.wait(1.5, () => this.finishService());
       return;
     }
-    const menu = Object.values(FOODS).sort((a, b) => b.energy - a.energy);
+    const eaten = this.feast(FOODS, 'cook');
+    this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : 'Hết tiền ăn rồi...', 2.2);
+    this.wait(between(2, 4), () => this.finishService());
+  }
+
+  feast(foods, seller) {
+    const purse = this.purse;
     const eaten = [];
-    for (const food of menu) {
+    for (const food of Object.values(foods).sort((a, b) => b.energy - a.energy)) {
       while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
+        economy.income(seller, food.price);
         purse.addEnergy(food.energy);
         eaten.push(food.icon);
       }
     }
-    this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : 'Hết tiền ăn rồi...', 2.2);
-    this.wait(between(2, 4), () => this.finishService());
+    return eaten;
+  }
+
+  vendorGap() {
+    const vendor = this.town.vendor;
+    return Math.hypot(vendor.position.x - this.position.x, vendor.position.z - this.position.z);
+  }
+
+  vendorOut() {
+    const vendor = this.town.vendor;
+    return !vendor || vendor.state === 'away' || vendor.task === 'home';
+  }
+
+  canEat(ctx) {
+    return this.wantsVendor() || this.wantsFood(ctx);
+  }
+
+  goMeal(ctx) {
+    if (this.wantsVendor()) this.goVendor();
+    else if (this.wantsFood(ctx)) this.goEat();
+    else return false;
+    return true;
+  }
+
+  wantsVendor() {
+    if (this === this.town.vendor || this.purse.energy >= ENERGY.low || this.vendorOut() || this.vendorGap() > VENDOR.lure) return false;
+    return Object.values(VENDOR.foods).some((food) => food.price <= this.purse.money);
+  }
+
+  goVendor(tries = 0) {
+    this.cancel();
+    this.task = 'eat';
+    const vendor = this.town.vendor;
+    vendor.hold(VENDOR.hold, this.position);
+    const dx = this.position.x - vendor.position.x;
+    const dz = this.position.z - vendor.position.z;
+    const keep = VENDOR.chat / Math.max(this.vendorGap(), 0.01);
+    const stand = this.town.walkable({ x: vendor.position.x + dx * keep, z: vendor.position.z + dz * keep });
+    const buy = () => this.buyFromVendor(tries);
+    this.travel(stand, { then: buy, fail: buy });
+  }
+
+  buyFromVendor(tries) {
+    if (this.vendorOut() || this.vendorGap() > VENDOR.reach) {
+      if (tries < VENDOR_TRIES && this.wantsVendor()) this.goVendor(tries + 1);
+      else this.think();
+      return;
+    }
+    const vendor = this.town.vendor;
+    vendor.hold(VENDOR.hold, this.position);
+    this.lookAt = vendor.position;
+    const eaten = this.feast(VENDOR.foods, 'vendor');
+    this.say(eaten.length ? `Ăn ${eaten.join('')} ngon quá!` : 'Hết tiền ăn rồi...', 2.2);
+    this.wait(between(2, 4), () => this.think());
   }
 }

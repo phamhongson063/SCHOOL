@@ -55,9 +55,11 @@ import { buildStudyHall, createStudyHall } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createSummon } from './summon.js';
-import { activityOf } from './stamina.js';
+import { activityOf, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
+import { createRanking } from './ranking.js';
+import { economy, SHOPKEEPERS } from './economy.js';
 import { loadingStep, loadingDone } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
@@ -68,7 +70,6 @@ import { createScheduleBoard } from './scheduleBoard.js';
 import { createHoverTip } from './hoverTip.js';
 import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
 import { coins } from './format.js';
-import { dailyMark } from './daily.js';
 import { haltStores } from './persist.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
@@ -266,11 +267,9 @@ player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
 });
 regions.onLoad = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
-  tuning.invalidateShadows();
 };
 regions.onUnload = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
-  tuning.invalidateShadows();
 };
 
 const villagerRoot = new THREE.Group();
@@ -353,6 +352,7 @@ const VENDOR_MENU = {
   title: 'Gánh hàng rong',
   icon: '🏮',
   foods: VENDOR.foods,
+  seller: 'vendor',
   hungry: 'Cô hàng: "Ăn gì không em? Nóng hổi đây!"',
   full: 'Cô hàng: "Em còn no mà, lát đói gọi cô nghen!"',
 };
@@ -362,7 +362,10 @@ let servingVendor = false;
 function visitVendor() {
   const vendor = town.vendor;
   vendor.hold();
-  if (Math.hypot(vendor.position.x - player.position.x, vendor.position.z - player.position.z) <= VENDOR.reach) {
+  const dx = player.position.x - vendor.position.x;
+  const dz = player.position.z - vendor.position.z;
+  const gap = Math.hypot(dx, dz);
+  if (gap <= VENDOR.reach) {
     vendorVisit = false;
     servingVendor = true;
     player.faceToward(vendor.position.x, vendor.position.z);
@@ -371,7 +374,8 @@ function visitVendor() {
     return;
   }
   vendorVisit = true;
-  player.requestMove(new THREE.Vector3(vendor.position.x, 0, vendor.position.z), false);
+  const keep = VENDOR.chat / gap;
+  player.requestMove(new THREE.Vector3(vendor.position.x + dx * keep, 0, vendor.position.z + dz * keep), false);
 }
 
 player.onArrive = () => {
@@ -508,6 +512,20 @@ town = new Town({
 });
 
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
+const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
+economy.start({
+  ledger,
+  bank,
+  estate,
+  staff: () => [
+    { id: town.teacher.id, role: 'teacher' },
+    { id: town.vendor.id },
+    ...town.guards.map((guard) => ({ id: guard.id, role: 'guard' })),
+  ],
+  people: () => everyone.map((person) => person.id),
+  now: gameNow,
+});
+createRanking({ ledger, bank, estate, people: everyone, now: gameNow });
 
 let context = null;
 
@@ -567,14 +585,7 @@ function dropSpoiledFish(delay = 0) {
 dropSpoiledFish(1500);
 
 const lesson = createLesson();
-const studyReward = dailyMark('truong-lang-xua.studyRewardDay');
-const study = createStudy({ onComplete: rewardStudy });
-function rewardStudy() {
-  if (studyReward.done(context.day)) return;
-  studyReward.mark(context.day);
-  purse.addCredits(1);
-  sayPlayer('🎓 +1 tiết học', 2.4);
-}
+const study = createStudy({ purse });
 const inClass = () => player.posture === 'seated' && !player.seat?.study;
 const learningNow = () => context.phase.kind === 'period' && tuition.studying;
 const tuition = createTuition({
@@ -1136,7 +1147,7 @@ if (purse.sleeping) showSleep(true);
 
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
-await renderer.compileAsync(scene, camera).catch(() => {});
+await regions.warmUp(() => renderer.compileAsync(scene, camera)).catch(() => {});
 await loadingStep(0.97);
 
 let shownNight = -1;
@@ -1236,6 +1247,7 @@ renderer.setAnimationLoop((time) => {
   hoverTip.update(t);
   tuning.updateOutlines(t);
   playerBubble.update(t);
+  playerBubble.setMood(moodOf(purse.energy));
   avatar.face.update(t, player.restAmount > 0.6 ? 'blink' : 'open');
   if (seatedAvatar.group.visible) {
     seatedAvatar.face.update(t);

@@ -9,8 +9,11 @@ import { gameNow, durationText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, growDays } from './config.js';
 import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
+import { coins, notEnough } from './format.js';
+import { economy } from './economy.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
+const LEASE_KEY = 'truong-lang-xua.farmLeases';
 const LEGACY_KEY = 'truong-lang-xua.farm';
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
@@ -54,8 +57,70 @@ export const FIELD_TREES = [
   [24, 63.5],
   [33, 57],
 ].map(([x, z]) => [x + FARM_X, z]);
+const JAR_CENTER = 0.5 + FARM_X;
+const JAR_OUTER = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - JAR_CENTER)), 0) + 1.6;
+const JARS = [JAR_CENTER - JAR_OUTER, JAR_CENTER + JAR_OUTER].map((x) => ({ x, z: FRONT - 0.9 }));
+
+function fieldObstacles() {
+  const boxes = [];
+  const block = (x0, z0, x1, z1) => boxes.push({ minX: x0, minZ: z0, maxX: x1, maxZ: z1, minY: 0, maxY: 1.6 });
+  for (const { x } of BEDS) block(x - BED.width / 2, FRONT, x + BED.width / 2, BACK);
+  for (const { x, z } of JARS) block(x - 0.45, z - 0.45, x + 0.45, z + 0.45);
+  for (const [x, z] of FIELD_TREES) block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);
+  return boxes;
+}
 
 const ROAD_EDGE = 36.6;
+const bedOf = (index) => Math.floor(index / PER_BED);
+const leaseOptions = () =>
+  FARMING.leases.map((offer, i) => ({ id: String(i), icon: '📜', name: `${offer.days} ngày · ${coins(offer.price)}`, label: `Thuê ${offer.days} ngày, ${coins(offer.price)}` }));
+
+class Leases {
+  constructor(count) {
+    this.beds = Array.from({ length: count }, () => null);
+    try {
+      const saved = JSON.parse(localStorage.getItem(LEASE_KEY) ?? 'null');
+      if (Array.isArray(saved)) {
+        saved.forEach((lease, bed) => {
+          if (bed < count && typeof lease?.owner === 'string' && Number.isFinite(lease.until)) this.beds[bed] = { owner: lease.owner, until: lease.until };
+        });
+      }
+    } catch {}
+  }
+
+  save() {
+    try {
+      localStorage.setItem(LEASE_KEY, JSON.stringify(this.beds));
+    } catch {}
+  }
+
+  holder(bed, now) {
+    const lease = this.beds[bed];
+    return lease && lease.until > now ? lease : null;
+  }
+
+  holds(bed, actor, now) {
+    return this.holder(bed, now)?.owner === actor;
+  }
+
+  heldBy(actor, now) {
+    return this.beds.flatMap((_, bed) => (this.holds(bed, actor, now) ? [bed] : []));
+  }
+
+  free(now) {
+    return this.beds.flatMap((_, bed) => (this.holder(bed, now) ? [] : [bed]));
+  }
+
+  rent(bed, actor, offer, purse, now) {
+    const lease = this.holder(bed, now);
+    if (lease && lease.owner !== actor) return null;
+    if (!purse.spend(offer.price)) return false;
+    economy.collect(offer.price);
+    this.beds[bed] = { owner: actor, until: (lease?.until ?? now) + offer.days * DAY_MINUTES };
+    this.save();
+    return this.beds[bed];
+  }
+}
 
 function nextStageIn(spot, now) {
   return `${stageName(spot.crop, spot.stage + 1)} sau ${durationText(stageMinutes(spot) - (now - spot.stageStart))}`;
@@ -140,6 +205,7 @@ class FarmState {
     this.ledger = ledger;
     this.nameOf = nameOf;
     this.spots = Array.from({ length: count }, fresh);
+    this.leases = new Leases(BEDS.length);
     this.load();
   }
 
@@ -228,6 +294,12 @@ class FarmState {
     if (spot.stage > 0 && spot.stage !== SPENT && spot.owner !== actor) return { id: 'look', hint: null };
     const purse = this.ledger.purse(actor);
     if (spot.stage === 0) {
+      const now = gameNow();
+      const bed = bedOf(index);
+      if (!this.leases.holds(bed, actor, now)) {
+        if (this.leases.holder(bed, now)) return { id: 'look', hint: null };
+        return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
+      }
       const options = seedOptions(purse);
       return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
     }
@@ -241,7 +313,27 @@ class FarmState {
     return { id: 'look', hint: null };
   }
 
+  rent(index, now, choice, actor) {
+    const offer = FARMING.leases[Number(choice)];
+    if (!offer) return null;
+    const bed = bedOf(index);
+    const lease = this.leases.rent(bed, actor, offer, this.ledger.purse(actor), now);
+    if (lease === null) return `Luống của ${this.nameOf(this.leases.holder(bed, now).owner)} rồi!`;
+    if (lease === false) return notEnough(offer.price);
+    return `📜 Thuê luống xong, còn ${durationText(lease.until - now)}`;
+  }
+
+  label(index, now) {
+    if (this.spots[index].stage !== 0) return null;
+    const lease = this.leases.holder(bedOf(index), now);
+    if (!lease) return 'Luống trống';
+    return lease.owner === PLAYER ? `Luống của bạn · còn ${durationText(lease.until - now)}` : `Luống của ${this.nameOf(lease.owner)}`;
+  }
+
   act(name, index, now, choice, actor = PLAYER) {
+    this.changed = false;
+    if (name === 'rent') return this.rent(index, now, choice, actor);
+    if (name === 'plant' && !this.leases.holds(bedOf(index), actor, now)) return 'Phải thuê luống này trước!';
     const spot = this.spots[index];
     const shared = name === 'clear' && spot?.stage === SPENT;
     const action = spot && spot.stage > 0 && spot.owner !== actor && !shared ? ACTIONS.look : ACTIONS[name];
@@ -332,8 +424,6 @@ class FarmView {
     this.state = state;
     this.group = new THREE.Group();
     this.clickables = [];
-    this.obstacles = [];
-    this.disposables = [];
     this.slots = [];
     this.planted = new Map();
     this.anims = new Map();
@@ -350,7 +440,6 @@ class FarmView {
     this.wet = this.instanced((b) => b.add(shapes.cylinder(0.22, 0.22, 0.012, 16), C.wet, { p: [0, 0.006, 0] }), { shadow: false, click: false });
     this.marks = this.instanced((b) => b.add(shapes.torus(0.27, 0.022, 36), C.mine, { p: [0, 0.018, 0], r: [Math.PI / 2, 0, 0] }), { shadow: false, click: false });
     this.marks.material = new THREE.MeshBasicMaterial({ color: C.mine });
-    this.disposables.push(this.marks.material);
     this.drops = this.instanced(
       (b) => {
         b.add(shapes.sphere(0.065, 10, 8), C.drop, { p: [0, 0, 0] });
@@ -366,7 +455,6 @@ class FarmView {
     this.ring.renderOrder = 3;
     this.ring.visible = false;
     this.group.add(this.ring);
-    this.disposables.push(this.ring.geometry, this.ring.material);
     for (const child of this.group.children) {
       if (child === this.drops || child === this.ring) continue;
       child.updateMatrix();
@@ -375,15 +463,10 @@ class FarmView {
     this.refresh();
   }
 
-  block(x0, z0, x1, z1) {
-    this.obstacles.push({ minX: x0, minZ: z0, maxX: x1, maxZ: z1, minY: 0, maxY: 1.6 });
-  }
-
   buildField() {
     const b = new Batch();
     const rand = makeRandom(909);
     const soil = soilMaterial();
-    this.disposables.push(soil, soil.map);
     SIDES.forEach(({ first, dir }, i) => {
       const last = first + dir * (BEDS_PER_SIDE - 1) * BED.pitch;
       const x0 = Math.min(first, last) - BED.pitch / 2 - 0.2;
@@ -391,7 +474,6 @@ class FarmView {
       const ground = groundDecal(raggedPatch(x0, FRONT - 0.6, x1, BACK + 0.6, 61 + i), soil, GROUND_LAYER.field);
       this.group.add(ground);
       this.clickables.push(ground);
-      this.disposables.push(ground.geometry);
     });
 
     const beds = new THREE.Mesh(bedsGeometry(BEDS, FRONT, BACK), vertexMaterial());
@@ -399,9 +481,7 @@ class FarmView {
     beds.receiveShadow = true;
     this.group.add(beds);
     this.clickables.push(beds);
-    this.disposables.push(beds.geometry);
     for (const { x, shape } of BEDS) {
-      this.block(x - BED.width / 2, FRONT, x + BED.width / 2, BACK);
       for (let i = 0; i < 26; i++) {
         const z = FRONT - 0.3 + rand() * (BACK - FRONT + 0.6);
         const side = rand() < 0.5 ? -1 : 1;
@@ -422,17 +502,10 @@ class FarmView {
         }
       }
     }
-    const center = 0.5 + FARM_X;
-    const outer = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - center)), 0) + 1.6;
-    this.jar(b, center - outer, FRONT - 0.9);
-    this.jar(b, center + outer, FRONT - 0.9);
-    for (const [x, z] of FIELD_TREES) {
-      roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
-      this.block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);
-    }
+    for (const { x, z } of JARS) this.jar(b, x, z);
+    for (const [x, z] of FIELD_TREES) roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
 
     const mesh = b.mesh();
-    this.disposables.push(mesh.geometry);
     this.group.add(mesh);
     this.clickables.push(mesh);
 
@@ -440,14 +513,12 @@ class FarmView {
     const path = groundDecal(roundedRectGeometry(PATH.x0, ROAD_EDGE, PATH.x1, BACK + 0.8, 0.6), earth, GROUND_LAYER.earth);
     this.group.add(path);
     this.clickables.push(path);
-    this.disposables.push(path.geometry, earth, earth.map);
   }
 
   jar(b, x, z) {
     const profile = [[0, 0], [0.28, 0], [0.4, 0.15], [0.45, 0.38], [0.38, 0.62], [0.29, 0.72], [0.32, 0.78]];
     b.add(shapes.lathe(profile, 14), C.jar, { p: [x, 0, z] });
     b.add(shapes.cylinder(0.29, 0.29, 0.02, 14), C.water, { p: [x, 0.7, z] });
-    this.block(x - 0.45, z - 0.45, x + 0.45, z + 0.45);
   }
 
   instanced(build, { shadow = true, click = true, tinted = false } = {}) {
@@ -460,7 +531,6 @@ class FarmView {
     mesh.receiveShadow = true;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.group.add(mesh);
-    this.disposables.push(mesh.geometry, mesh);
     if (click) this.clickables.push(mesh);
     return mesh;
   }
@@ -558,13 +628,14 @@ class FarmView {
     return this.planted.get(mesh)?.[instanceId] ?? null;
   }
 
+  hide() {
+    this.anims.clear();
+    this.highlight(null);
+  }
+
   highlight(spot) {
     this.ring.visible = !!spot;
     if (spot) this.ring.position.set(spot.x, spot.y + 0.02, spot.z);
-  }
-
-  dispose() {
-    for (const item of this.disposables) item.dispose();
   }
 }
 
@@ -572,6 +643,7 @@ export function createFarm({ ledger, nameOf, nav }) {
   const spots = layoutSpots();
   const state = new FarmState(spots.length, { ledger, nameOf });
   const claims = new Map();
+  let built = null;
   let view = null;
   let lastTick = 0;
 
@@ -590,6 +662,17 @@ export function createFarm({ ledger, nameOf, nav }) {
     if (changed) view?.refresh();
     return changed;
   };
+
+  function bedsFor(actor, purse) {
+    const now = gameNow();
+    const held = state.leases.heldBy(actor, now);
+    if (held.length) return held;
+    const free = state.leases.free(now);
+    const offer = FARMING.leases[0];
+    if (!free.length || purse.money < offer.price) return [];
+    const bed = free[Math.floor(Math.random() * free.length)];
+    return state.leases.rent(bed, actor, offer, purse, now) ? [bed] : [];
+  }
 
   const crew = {
     nav,
@@ -655,8 +738,9 @@ export function createFarm({ ledger, nameOf, nav }) {
         else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
       if (owned < FARMING.villagerPlots && seedChoice) {
+        const beds = bedsFor(worker.id, purse);
         state.spots.forEach((plant, index) => {
-          if (plant.stage === 0) consider(index, 'plant', 4, seedChoice);
+          if (plant.stage === 0 && beds.includes(bedOf(index))) consider(index, 'plant', 4, seedChoice);
         });
       }
       return best;
@@ -667,6 +751,8 @@ export function createFarm({ ledger, nameOf, nav }) {
     id: 'farm',
     name: 'Ruộng rau màu',
     bounds: BOUNDS,
+    staticNav: true,
+    obstacles: fieldObstacles(),
     crew,
     tick() {
       const now = performance.now();
@@ -685,6 +771,9 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     timeLeft(target) {
       return state.timeLeft(target.index, gameNow());
+    },
+    labelOf(target) {
+      return state.label(target.index, gameNow());
     },
     growth(target) {
       return state.growth(target.index, gameNow());
@@ -709,14 +798,15 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     load() {
       tick();
-      view = new FarmView(spots, state);
+      if (built) built.refresh();
+      else built = new FarmView(spots, state);
+      view = built;
       return {
         group: view.group,
         clickables: view.clickables,
-        obstacles: view.obstacles,
         update: (t) => view.update(t),
         dispose: () => {
-          view.dispose();
+          view.hide();
           view = null;
         },
       };

@@ -663,7 +663,7 @@ export function createRiver() {
           const spot = nearestFish(hit.point, FISH_PICK_RADIUS);
           const berth = spot && freeBerth(spot, options.player, hit.point);
           if (!berth) return null;
-          return { kind: 'fish', spot, berth, index: `fish:${spot.id}`, x: berth.float.x, z: berth.float.z, stand: berth.stand };
+          return { kind: 'angle', spot, berth, index: `fish:${spot.id}`, x: berth.float.x, z: berth.float.z, stand: berth.stand };
         },
         blankTap(hit) {
           if (hit.object !== water) return null;

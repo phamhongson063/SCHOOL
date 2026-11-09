@@ -1,8 +1,9 @@
-import { HOUSE_PRICES, MONEY, CHIEF } from './config.js';
+import { HOUSE_PRICES, MONEY, CHIEF, ECONOMY } from './config.js';
 import { PLAYER } from './inventory.js';
 import { amount, coins } from './format.js';
 import { isOpenAt, hoursText } from './clock.js';
 import { closable } from './dialog.js';
+import { economy } from './economy.js';
 
 const KEY = 'truong-lang-xua.estate';
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
@@ -39,7 +40,18 @@ export function createEstate({ houses }) {
     const house = list.find((item) => item.id === houseId);
     if (!house || house.owner || houseOf(owner)) return null;
     if (!purse.spend(house.price)) return null;
+    economy.collect(house.price);
     house.owner = owner;
+    save();
+    return house;
+  }
+
+  const buybackOf = (house) => Math.floor(house.price * ECONOMY.buyback);
+
+  function sellBack(owner, purse) {
+    const house = houseOf(owner);
+    if (!house || !economy.payOut(buybackOf(house), purse)) return null;
+    house.owner = null;
     save();
     return house;
   }
@@ -61,6 +73,8 @@ export function createEstate({ houses }) {
       return buy(house.id, owner, purse);
     },
     buy,
+    buybackOf,
+    sellBack,
     onChange(listener) {
       listeners.push(listener);
     },
@@ -101,6 +115,17 @@ export function createChiefUI({ estate, purse, nameOf }) {
           button.addEventListener('click', () => {
             const bought = estate.buy(house.id, PLAYER, purse);
             note.textContent = bought ? `🎉 Chúc mừng! Nhà số ${house.id} giờ là của bạn.` : 'Chưa đủ tiền mua căn này.';
+            render();
+          });
+          actions.append(button);
+        }
+        if (house.owner === PLAYER) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = `Bán lại ${coins(estate.buybackOf(house))}`;
+          button.addEventListener('click', () => {
+            const sold = estate.sellBack(PLAYER, purse);
+            note.textContent = sold ? `Ông Lý trưởng: "Làng đã mua lại nhà số ${sold.id}."` : 'Ông Lý trưởng: "Quỹ làng chưa đủ tiền mua lại, con chờ ít bữa nhé."';
             render();
           });
           actions.append(button);

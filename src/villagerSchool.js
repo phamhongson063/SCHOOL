@@ -1,6 +1,7 @@
 import { between } from './random.js';
 import { ROUTINE, SCHOOL } from './config.js';
 import { BACK, BROKE, LATE, PAID, PLAY, SELF_STUDY, TAKEN, pick } from './villagerData.js';
+import { economy } from './economy.js';
 
 export class SchoolBehavior {
   goToClass() {
@@ -175,7 +176,9 @@ export class SchoolBehavior {
   pay() {
     this.payAt = null;
     const purse = this.purse;
-    if (purse.useCredit() || purse.spend(SCHOOL.tuition)) {
+    const credit = purse.useCredit();
+    if (credit || purse.spend(SCHOOL.tuition)) {
+      if (!credit) economy.income('teacher', SCHOOL.tuition);
       this.studying = true;
       if (Math.random() < 0.35) this.say(pick(PAID), 1.6);
       return;

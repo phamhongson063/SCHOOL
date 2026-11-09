@@ -37,6 +37,7 @@ export class RegionManager {
   add(region) {
     region.handle = null;
     this.regions.push(region);
+    if (region.obstacles?.length) this.addObstacles(region.obstacles);
     for (const key of chunksCovering(region.bounds)) {
       const list = this.chunks.get(key);
       if (list) list.push(region);
@@ -50,8 +51,7 @@ export class RegionManager {
     if (region.handle) return;
     region.handle = { ...EMPTY_HANDLE, ...(region.load?.() ?? {}) };
     if (region.handle.group) this.scene.add(region.handle.group);
-    this.obstacles.push(...region.handle.obstacles);
-    this.obstacles.version = (this.obstacles.version ?? 0) + 1;
+    if (region.handle.obstacles.length) this.addObstacles(region.handle.obstacles);
     this.onLoad?.(region);
   }
 
@@ -59,14 +59,33 @@ export class RegionManager {
     const handle = region.handle;
     if (!handle || region.pinned) return;
     if (handle.group) this.scene.remove(handle.group);
-    for (const box of handle.obstacles) {
+    if (handle.obstacles.length) this.removeObstacles(handle.obstacles);
+    handle.dispose?.();
+    region.handle = null;
+    this.onUnload?.(region);
+  }
+
+  addObstacles(boxes) {
+    this.obstacles.push(...boxes);
+    this.obstacles.version = (this.obstacles.version ?? 0) + 1;
+  }
+
+  removeObstacles(boxes) {
+    for (const box of boxes) {
       const i = this.obstacles.indexOf(box);
       if (i >= 0) this.obstacles.splice(i, 1);
     }
     this.obstacles.version = (this.obstacles.version ?? 0) + 1;
-    handle.dispose?.();
-    region.handle = null;
-    this.onUnload?.(region);
+  }
+
+  async warmUp(compile) {
+    const cold = this.regions.filter((region) => !region.handle);
+    for (const region of cold) this.load(region);
+    try {
+      await compile();
+    } finally {
+      for (const region of cold) this.unload(region);
+    }
   }
 
   regionsAround(cx, cz, radius) {

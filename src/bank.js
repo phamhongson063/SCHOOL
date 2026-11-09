@@ -82,13 +82,29 @@ export function createBank({ ledger, estate, now }) {
     return term.principal * (1 + (term.rate * elapsed) / DAY_MINUTES);
   }
 
-  function settleLoan(loan, t) {
-    if (t <= loan.at) return;
+  function accrued(loan, t) {
+    if (t <= loan.at) return 0;
     const due = dueOf(loan);
     const normal = Math.max(0, Math.min(t, due) - loan.at);
     const late = Math.max(0, t - Math.max(loan.at, due));
-    loan.interest += (loan.owed * loan.rate * (normal + late * BANK.overdue)) / DAY_MINUTES;
+    return (loan.owed * loan.rate * (normal + late * BANK.overdue)) / DAY_MINUTES;
+  }
+
+  function settleLoan(loan, t) {
+    if (t <= loan.at) return;
+    loan.interest += accrued(loan, t);
     loan.at = t;
+  }
+
+  function overdue(owner) {
+    const t = now();
+    return (state.accounts[owner]?.loans ?? []).some((loan) => dueOf(loan) <= t);
+  }
+
+  function debt(owner) {
+    const loans = state.accounts[owner]?.loans ?? [];
+    const t = now();
+    return sum(loans, (loan) => Math.ceil(debtOf(loan) + accrued(loan, t)));
   }
 
   function settle(account, t) {
@@ -344,6 +360,8 @@ export function createBank({ ledger, estate, now }) {
 
   return {
     tick,
+    debt,
+    overdue,
     rates,
     summary,
     deposit,

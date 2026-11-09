@@ -5,6 +5,7 @@ import { isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { iconTag, paintIcon } from './itemArt.js';
 import { closable } from './dialog.js';
+import { economy } from './economy.js';
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -65,8 +66,8 @@ export function createMarket() {
     const have = purse.count(item);
     const amount = Math.min(have, count);
     if (amount <= 0 || !SELLABLE.has(ITEMS[item]?.kind)) return 0;
-    const earned = amount * priceOf(item);
     if (!purse.take(item, amount)) return 0;
+    const earned = Math.floor(economy.withhold(amount * priceOf(item)));
     purse.earn(earned);
     return earned;
   }
@@ -82,6 +83,7 @@ export function createMarket() {
   function buy(purse, item, count) {
     const price = priceOf(item);
     if (!(count > 0) || !price || !purse.spend(price * count)) return false;
+    economy.income(item === 'rod' || item === 'bait' ? 'fishmonger' : 'keeper', price * count);
     purse.add(item, count * packSize(item));
     return true;
   }

@@ -1,10 +1,14 @@
 import { N2_VOCAB } from './vocabN2.js';
 import { recall, MASTERED_BOX } from './recall.js';
 import { japanese } from './ruby.js';
+import { STUDY } from './config.js';
+import { coins } from './format.js';
+import { economy } from './economy.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
+const TRANSLATE_KEY = 'truong-lang-xua.studyTranslate';
 const MODES = { random: { icon: '🔀', name: 'Ngẫu nhiên' }, smart: { icon: '🧠', name: 'Thông minh' } };
-const NEW_PER_SESSION = 10;
+const NO_MONEY = 'Xin lỗi, bạn không đủ tiền mua gói này.';
 const WORDS = N2_VOCAB.map((entry) => entry.word);
 
 function shuffle(list) {
@@ -23,10 +27,34 @@ function loadFurigana() {
   }
 }
 
-export function createStudy({ onComplete } = {}) {
+function loadTranslate() {
+  try {
+    return localStorage.getItem(TRANSLATE_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+function packButton(offer) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'study-pick';
+  const size = document.createElement('span');
+  size.textContent = offer.words;
+  const price = document.createElement('span');
+  price.className = 'study-pack-price';
+  price.textContent = coins(offer.price);
+  button.append(size, 'từ mới', price);
+  return button;
+}
+
+export function createStudy({ purse }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
+  const packs = document.getElementById('studyPacks');
+  const packList = document.getElementById('studyPackList');
+  const packNote = document.getElementById('studyPackNote');
   const body = document.getElementById('studyBody');
   const modeChip = document.getElementById('studyMode');
   const word = document.getElementById('studyWord');
@@ -42,24 +70,48 @@ export function createStudy({ onComplete } = {}) {
   const example = document.getElementById('studyExample');
   const exampleVi = document.getElementById('studyExampleVi');
   const furiganaBtn = document.getElementById('studyFurigana');
+  const translateBtn = document.getElementById('studyTranslate');
   const total = N2_VOCAB.length;
-  let mode = null;
   let order = [];
   let pos = 0;
   let current = -1;
-  let fresh = 0;
-  let answered = 0;
-  let caughtUp = false;
+  let pack = null;
+  let packCard = false;
   let seated = false;
 
   recall.seed(WORDS);
   showFurigana(loadFurigana());
+  showTranslation(loadTranslate());
+
+  function endPack() {
+    if (!pack) return;
+    const refund = Math.floor(((pack.left * pack.price) / pack.words) * STUDY.refund);
+    pack = null;
+    if (refund <= 0) return;
+    economy.refund('teacher', refund);
+    purse.earn(refund);
+  }
+
+  function showChip(mode) {
+    modeChip.textContent = MODES[mode].icon;
+    modeChip.setAttribute('aria-label', MODES[mode].name);
+    modeChip.hidden = false;
+  }
 
   function showStart() {
-    mode = null;
+    endPack();
     start.hidden = false;
+    packs.hidden = true;
     body.hidden = true;
     modeChip.hidden = true;
+  }
+
+  function showPacks() {
+    showChip('smart');
+    start.hidden = true;
+    packs.hidden = false;
+    packNote.hidden = true;
+    body.hidden = true;
   }
 
   function fill(index) {
@@ -81,6 +133,14 @@ export function createStudy({ onComplete } = {}) {
     furiganaBtn.setAttribute('aria-label', label);
   }
 
+  function showTranslation(on) {
+    panel.classList.toggle('show-vi', on);
+    translateBtn.setAttribute('aria-pressed', String(on));
+    const label = on ? 'Ẩn bản dịch tiếng Việt' : 'Hiện bản dịch tiếng Việt';
+    translateBtn.title = label;
+    translateBtn.setAttribute('aria-label', label);
+  }
+
   function showProgress(done) {
     count.textContent = `${done}/${total}`;
     bar.style.transform = `scaleX(${done / total})`;
@@ -93,27 +153,45 @@ export function createStudy({ onComplete } = {}) {
     remembered.hidden = covered;
   }
 
-  function pickSmart() {
+  function nextDue() {
     let upcoming = -1;
     for (let i = 0; i < total; i++) {
       if (i === current) continue;
       const due = recall.due(WORDS[i]);
       if (due !== null && (upcoming < 0 || due < recall.due(WORDS[upcoming]))) upcoming = i;
     }
-    if (upcoming >= 0 && recall.due(WORDS[upcoming]) <= recall.step) return upcoming;
-    if (fresh < NEW_PER_SESSION) {
-      const unseen = WORDS.findIndex((w, i) => i !== current && recall.due(w) === null);
-      if (unseen >= 0) {
-        fresh += 1;
-        return unseen;
+    return upcoming;
+  }
+
+  function weakest() {
+    let best = -1;
+    for (let i = 0; i < total; i++) {
+      if (i === current && total > 1) continue;
+      if (best < 0) {
+        best = i;
+        continue;
       }
+      const box = recall.box(WORDS[i]);
+      const bestBox = recall.box(WORDS[best]);
+      if (box < bestBox || (box === bestBox && recall.due(WORDS[i]) < recall.due(WORDS[best]))) best = i;
     }
-    if (answered > 0 && !caughtUp) {
-      caughtUp = true;
-      body.classList.add('done');
-      onComplete?.();
+    return best;
+  }
+
+  function newWord() {
+    const unseen = WORDS.findIndex((w, i) => i !== current && recall.due(w) === null);
+    return unseen >= 0 ? unseen : weakest();
+  }
+
+  function pickSmart() {
+    const upcoming = nextDue();
+    if (upcoming >= 0 && recall.due(WORDS[upcoming]) <= recall.step) {
+      packCard = false;
+      return upcoming;
     }
-    return upcoming >= 0 ? upcoming : Math.max(current, 0);
+    if (pack.left <= 0) return -1;
+    packCard = true;
+    return newWord();
   }
 
   function renderRandom() {
@@ -122,30 +200,40 @@ export function createStudy({ onComplete } = {}) {
   }
 
   function renderSmart() {
-    fill(pickSmart());
+    const index = pickSmart();
+    if (index < 0) {
+      pack = null;
+      showPacks();
+      return;
+    }
+    fill(index);
     setCovered(true);
     showProgress(WORDS.filter((w) => recall.box(w) >= MASTERED_BOX).length);
   }
 
-  function begin(nextMode) {
-    mode = nextMode;
-    const smart = mode === 'smart';
-    current = -1;
-    prev.hidden = smart;
-    next.hidden = smart;
-    modeChip.textContent = MODES[mode].icon;
-    modeChip.setAttribute('aria-label', MODES[mode].name);
-    modeChip.hidden = false;
-    start.hidden = true;
-    body.hidden = false;
-    body.classList.remove('done');
-    if (smart) {
-      fresh = 0;
-      answered = 0;
-      caughtUp = false;
-      renderSmart();
+  function buy(offer) {
+    if (!purse.spend(offer.price)) {
+      packNote.textContent = NO_MONEY;
+      packNote.hidden = false;
       return;
     }
+    economy.income('teacher', offer.price);
+    pack = { ...offer, left: offer.words };
+    current = -1;
+    prev.hidden = true;
+    next.hidden = true;
+    packs.hidden = true;
+    body.hidden = false;
+    renderSmart();
+  }
+
+  function beginRandom() {
+    showChip('random');
+    current = -1;
+    prev.hidden = false;
+    next.hidden = false;
+    start.hidden = true;
+    body.hidden = false;
     body.classList.remove('covered');
     forgot.hidden = true;
     remembered.hidden = true;
@@ -161,7 +249,7 @@ export function createStudy({ onComplete } = {}) {
 
   function answer(knew) {
     recall.record(WORDS[current], knew);
-    answered += 1;
+    if (packCard) pack.left -= 1;
     renderSmart();
   }
 
@@ -171,7 +259,13 @@ export function createStudy({ onComplete } = {}) {
     reopen.hidden = visible || !seated;
   }
 
-  for (const button of start.querySelectorAll('[data-mode]')) button.addEventListener('click', () => begin(button.dataset.mode));
+  for (const offer of STUDY.packs) {
+    const button = packButton(offer);
+    button.addEventListener('click', () => buy(offer));
+    packList.append(button);
+  }
+  start.querySelector('[data-mode="random"]').addEventListener('click', beginRandom);
+  start.querySelector('[data-mode="smart"]').addEventListener('click', showPacks);
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {
     if (body.classList.contains('covered') && !event.target.closest('button')) setCovered(false);
@@ -181,6 +275,13 @@ export function createStudy({ onComplete } = {}) {
     showFurigana(on);
     try {
       localStorage.setItem(FURIGANA_KEY, on ? 'on' : 'off');
+    } catch {}
+  });
+  translateBtn.addEventListener('click', () => {
+    const on = !panel.classList.contains('show-vi');
+    showTranslation(on);
+    try {
+      localStorage.setItem(TRANSLATE_KEY, on ? 'on' : 'off');
     } catch {}
   });
   prev.addEventListener('click', () => go(-1));
@@ -201,6 +302,7 @@ export function createStudy({ onComplete } = {}) {
     },
     close() {
       seated = false;
+      endPack();
       setVisible(false);
     },
   };

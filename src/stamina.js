@@ -18,6 +18,12 @@ export function energyRate(activity, night) {
   return night ? base * ENERGY.nightFactor : base;
 }
 
+export function moodOf(energy) {
+  if (energy <= 0) return 'exhausted';
+  if (energy < ENERGY.low) return 'hungry';
+  return null;
+}
+
 export function nextShift(minutes) {
   const m = minuteOfDay(minutes);
   const base = minutes - m;

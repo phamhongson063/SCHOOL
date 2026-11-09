@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { ROUTINE, VENDOR, GUARD } from './config.js';
+import { ROUTINE, VENDOR, GUARD, ENERGY, ECONOMY } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { isOpenAt } from './clock.js';
 import { TEACHER_STAND, FLOOR, PACE_SPOTS } from './school.js';
@@ -19,6 +19,7 @@ export class Teacher extends Villager {
     this.task = null;
     this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
+    if (this.goMeal(ctx)) return;
     this.task = 'teach';
     const speed = pacing ? this.walkSpeed * PACE.speed : this.walkSpeed;
     this.travel(TEACHER_STAND, { speed, then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
@@ -50,6 +51,12 @@ export class Teacher extends Villager {
   }
 
   teachingUpdate(t) {
+    const ctx = this.town.context;
+    if (ctx.phase.kind !== 'period' && this.canEat(ctx)) {
+      this.leaveDesk();
+      this.think();
+      return;
+    }
     if (t < this.paceAt) return;
     this.paceAt = t + between(...PACE.every);
     if (this.town.context.phase.kind !== 'period' || Math.random() >= PACE.chance) return;
@@ -88,13 +95,17 @@ export class Teacher extends Villager {
     super.goHome();
   }
 
-  stopTeaching() {
+  leaveDesk() {
     this.town.school.setTeacherPresent(false);
     this.position.set(TEACHER_STAND.x, FLOOR, TEACHER_STAND.z);
     this.facing = 0;
     this.setVisible(true);
     this.pop = 0.25;
     this.state = 'idle';
+  }
+
+  stopTeaching() {
+    this.leaveDesk();
     this.goHome();
   }
 
@@ -132,10 +143,6 @@ class ShiftWorker extends Villager {
     this.keepsNight = true;
     this.stop = 0;
     this.step = 1;
-  }
-
-  tickEnergy() {
-    this.tired = false;
   }
 
   nextStop() {
@@ -204,6 +211,7 @@ export class Peddler extends ShiftWorker {
     const ctx = this.town.context;
     this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
+    if (this.goMeal(ctx) || this.eatOwn()) return;
     if (this.roamsAt(ctx)) return this.roam();
     this.task = 'peddle';
     const stop = this.nextStop();
@@ -217,14 +225,32 @@ export class Peddler extends ShiftWorker {
     });
   }
 
-  hold(seconds = VENDOR.hold) {
+  eatOwn() {
+    const purse = this.purse;
+    if (purse.energy >= ENERGY.low) return false;
+    const eaten = [];
+    for (const food of Object.values(VENDOR.foods).sort((a, b) => b.energy - a.energy)) {
+      const cost = Math.ceil(food.price * (1 - ECONOMY.keep.vendor));
+      while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(cost)) {
+        purse.addEnergy(food.energy);
+        eaten.push(food.icon);
+      }
+    }
+    if (!eaten.length) return false;
+    this.task = 'eat';
+    this.say(`Ăn tạm ${eaten.join('')} cho đỡ đói`, 2.2);
+    this.wait(between(2, 4), () => this.think());
+    return true;
+  }
+
+  hold(seconds = VENDOR.hold, toward = this.town.player?.position ?? null) {
     if (this.state === 'away' || this.task === 'home') return;
     if (this.task === 'serve' && this.state === 'idle') {
       this.timer = Math.max(this.timer, seconds);
       return;
     }
     this.task = 'serve';
-    this.lookAt = this.town.player?.position ?? null;
+    this.lookAt = toward;
     this.wait(seconds, () => this.think());
   }
 
@@ -234,26 +260,9 @@ export class Peddler extends ShiftWorker {
   }
 }
 
-function patrolStaff(lantern) {
-  const b = new Batch();
-  b.add(shapes.cylinder(0.022, 0.026, 1.7, 6), 0xc8a85a);
-  for (const y of [-0.55, 0, 0.55]) b.add(shapes.torus(0.026, 0.007, 6), 0x9a7a3a, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
-  if (lantern) b.limb([0, 0.82, 0], [0, 0.82, 0.3], 0.01, 0x5a3a20, { capsule: false, seg: 4 });
-  const group = new THREE.Group();
-  group.add(b.mesh());
-  if (lantern) {
-    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.17, 10), new THREE.MeshBasicMaterial({ color: 0xff7a3a }));
-    glow.position.set(0, 0.62, 0.3);
-    group.add(glow);
-  }
-  group.position.set(-0.27, 0.78, 0.06);
-  return group;
-}
-
 export class Guard extends ShiftWorker {
   constructor(profile, town) {
     super(profile, town);
-    this.walker.group.add(patrolStaff(profile.shift === 'night'));
     this.walkSpeed = GUARD.speed;
     this.lag = profile.follower ? GUARD.lag : 0;
   }
@@ -272,6 +281,7 @@ export class Guard extends ShiftWorker {
     const ctx = this.town.context;
     this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
+    if (this.goMeal(ctx)) return;
     this.task = 'patrol';
     const from = this.town.streetStops[this.stop] ?? this.position;
     const stop = this.nextStop();

@@ -1,8 +1,9 @@
-import { LODGE_ROOMS } from './config.js';
+import { LODGE_ROOMS, ECONOMY } from './config.js';
 import { PLAYER } from './inventory.js';
 import { book, isFree, roomTier } from './lodging.js';
 import { coins, notEnough } from './format.js';
 import { closable } from './dialog.js';
+import { economy } from './economy.js';
 
 export function createLodgeDesk({ purse, onRent }) {
   const dialog = document.getElementById('lodgeDialog');
@@ -42,6 +43,7 @@ export function createLodgeDesk({ purse, onRent }) {
       return;
     }
     purse.spend(roomTier(id).price);
+    economy.collect(roomTier(id).price * ECONOMY.vat);
     offer = null;
     dialog.close();
     book(id, PLAYER);

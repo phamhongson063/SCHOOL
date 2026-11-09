@@ -5,6 +5,18 @@ const FAR = 40;
 const OCCLUSION_EVERY = 0.25;
 const TAIL = 9;
 
+const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
+const MOODS = {
+  hungry:
+    '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fffaf0" stroke="#e0a21e" stroke-width="2.2"/><path d="M9.5 6.5 19 14.8M12.5 5.5 20.5 14" stroke="#8a5a2b" stroke-width="1.6" stroke-linecap="round"/><path d="M8.5 16Q10 11 16 11Q22 11 23.5 16Z" fill="#ffffff" stroke="#2b1c12" stroke-width="1.1"/>' +
+    BOWL +
+    '</svg>',
+  exhausted:
+    '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff1ee" stroke="#b3261a" stroke-width="2.2"/><path d="M16 10.5a2.2 2.2 0 1 1 2.2-2.2 3.6 3.6 0 1 1-3.6-3.6" fill="none" stroke="#b3261a" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="16" cy="16.2" rx="8.4" ry="1.6" fill="#4a1a10"/>' +
+    BOWL +
+    '</svg>',
+};
+
 const active = new Set();
 const head = new THREE.Vector3();
 const screen = new THREE.Vector3();
@@ -54,6 +66,9 @@ export function createBubble() {
   const anchor = new THREE.Object3D();
   const element = document.createElement('div');
   element.className = 'speech';
+  const badge = document.createElement('div');
+  badge.className = 'mood';
+  let mood = null;
   let until = 0;
   let shown = false;
   let checkAt = 0;
@@ -74,19 +89,39 @@ export function createBubble() {
         hiddenBehind = blocked(camera.position, head);
       }
       visible &&= !hiddenBehind;
-      element.hidden = !visible;
+      element.hidden = !visible || !shown;
+      badge.hidden = !visible || !mood || shown;
       if (!visible) return;
       const x = ((screen.x + 1) / 2) * window.innerWidth;
       const y = ((1 - screen.y) / 2) * window.innerHeight - TAIL;
-      element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
-      element.style.zIndex = String(1000 - Math.round(distance * 10));
+      const transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
+      const depth = String(1000 - Math.round(distance * 10));
+      for (const node of [element, badge]) {
+        node.style.transform = transform;
+        node.style.zIndex = depth;
+      }
     },
   };
 
   function hide() {
     shown = false;
-    active.delete(record);
     element.remove();
+    if (!mood) active.delete(record);
+  }
+
+  function setMood(next) {
+    if (next === mood) return;
+    mood = next;
+    if (!mood) {
+      badge.remove();
+      if (!shown) active.delete(record);
+      return;
+    }
+    badge.innerHTML = MOODS[mood];
+    badge.hidden = true;
+    if (!badge.isConnected) speechLayer().append(badge);
+    checkAt = 0;
+    active.add(record);
   }
 
   return {
@@ -105,6 +140,7 @@ export function createBubble() {
       active.add(record);
     },
     hide,
+    setMood,
     update(now) {
       if (shown && now > until) hide();
     },

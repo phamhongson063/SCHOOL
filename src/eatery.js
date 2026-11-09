@@ -6,6 +6,7 @@ import { isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { closable } from './dialog.js';
+import { economy } from './economy.js';
 
 const W = 6.6;
 const D = 5.8;
@@ -140,6 +141,7 @@ export function createFoodUI({ purse }) {
     title: title.textContent,
     icon: badge.textContent,
     foods: FOODS,
+    seller: 'cook',
     hungry: 'Bà chủ quán: "Ăn gì con? Đồ ăn nóng hổi đây!"',
     full: 'Bà chủ quán: "Con còn no mà, lát đói ghé lại nghen!"',
   };
@@ -174,6 +176,7 @@ export function createFoodUI({ purse }) {
             note.textContent = notEnough(food.price);
             return;
           }
+          economy.income(menu.seller, food.price);
           purse.addEnergy(food.energy);
           note.textContent = `Ngon quá! ${food.name} +${food.energy} năng lượng.`;
           render();

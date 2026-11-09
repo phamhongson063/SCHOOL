@@ -2,6 +2,7 @@ const KEY = 'truong-lang-xua.n2Recall';
 const LEGACY_INDEX_KEY = 'truong-lang-xua.n2Index';
 const GAPS = [3, 10, 30, 80, 200];
 export const MASTERED_BOX = 3;
+const MASTERY_STEP = 3;
 
 let data = null;
 
@@ -32,6 +33,9 @@ function save() {
 export const recall = {
   get step() {
     return load().step;
+  },
+  get mastery() {
+    return Object.values(load().cards).reduce((sum, card) => sum + Math.floor(Math.max(0, card.box) / MASTERY_STEP), 0);
   },
   box(word) {
     return load().cards[word]?.box ?? -1;

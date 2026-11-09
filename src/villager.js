@@ -224,8 +224,9 @@ export class Villager {
     const ctx = this.town.context;
     this.lookAt = null;
     this.task = null;
-    if (ctx.night) return this.goHome();
+    if (ctx.night) return this.wantsVendor() ? this.goVendor() : this.goHome();
     if (this.wantsInn()) return this.goInn();
+    if (this.wantsVendor()) return this.goVendor();
     if (this.wantsFood(ctx)) return this.goEat();
     if (this.shouldAttend(ctx)) return this.goToClass();
     if (ctx.bankOpen && this.wantsBank(ctx)) return this.goBank();
