@@ -24,6 +24,7 @@ import { iconTag } from './itemArt.js';
 import { DISTRICT_STREETS } from './district.js';
 import { layDown, restEase, REST_TIME } from './walk.js';
 import { createRestGlow } from './regen.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const SPACING = 0.62;
 const LOOKAHEAD = 0.85;
@@ -39,7 +40,8 @@ const CLASSROOM = { x: 0.5, z: HOUSE.back + 9 };
 const PATHS_PER_FRAME = 2;
 const STUCK_TIME = 1.2;
 const VISIBLE_DISTANCE = 40;
-const SKIP_FRAMES = 2;
+const FAR_STEP = 0.15;
+const FAR_MAX_DT = 0.2;
 const FEELERS = [0, 0.45, 0.9, 1.35];
 
 const HANGOUTS = [
@@ -159,7 +161,13 @@ function studyTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d');
+  paintStudy(canvas.getContext('2d'), size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return keepCanvas(texture, (ctx) => paintStudy(ctx, size));
+}
+
+function paintStudy(ctx, size) {
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
   ctx.fillStyle = '#fff6d8';
@@ -171,9 +179,6 @@ function studyTexture() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('📖', size / 2, size / 2 + size * 0.03);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
 }
 
 let studyMaterial = null;
@@ -220,7 +225,6 @@ class Villager {
     this.seatedShown = false;
     this.near = true;
     this.skipDt = 0;
-    this.skipCount = 0;
     this.bubble = createBubble();
     this.bubble.sprite.position.set(0, 2.05, 0);
     this.walker.group.add(this.bubble.sprite);
@@ -1928,6 +1932,7 @@ export class Town {
     this.context = null;
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
     this.restGlow = createRestGlow();
+    this.view = null;
     this.members = villagerProfiles().map((profile) => new Villager(profile, this));
     this.teacher = new Teacher(TEACHER, this);
     this.all = [...this.members, this.teacher];
@@ -2294,7 +2299,7 @@ export class Town {
     for (const member of this.all) {
       const d = camera.position.distanceTo(member.position);
       this.probe.center.set(member.position.x, member.position.y + 0.9, member.position.z);
-      const near = d < VISIBLE_DISTANCE && (d <= 10 || this.frustum.intersectsSphere(this.probe));
+      const near = d < VISIBLE_DISTANCE && (d <= 10 || this.frustum.intersectsSphere(this.probe)) && (!this.view || this.view.sees(member.position, this.probe));
       if (near === member.near) continue;
       member.near = near;
       member.applyLod();
@@ -2341,14 +2346,12 @@ export class Town {
       if (breakLeft !== Infinity && member.dueBack(breakLeft)) member.endRecess();
       if (!member.near) {
         member.skipDt += dt;
-        if (++member.skipCount < SKIP_FRAMES) continue;
-        member.update(t, Math.min(member.skipDt, 0.15));
+        if (member.skipDt < FAR_STEP) continue;
+        member.update(t, Math.min(member.skipDt, FAR_MAX_DT));
         member.skipDt = 0;
-        member.skipCount = 0;
         continue;
       }
       member.skipDt = 0;
-      member.skipCount = 0;
       member.update(t, dt);
     }
     this.separate(player);

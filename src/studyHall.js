@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes } from './toon.js';
 import { studentFurniture, lantern } from './props.js';
 import { tileRoofMeshes } from './scenery.js';
@@ -147,7 +148,7 @@ export function createStudyHall(scene) {
   });
   const lanternGlow = createLanternGlow(lampSpots.map((spot) => ({ position: new THREE.Vector3(spot.x, spot.y - 0.41, spot.z), tint: 0xd8321e })));
   group.add(lanternGlow.object);
-  const roomLight = new THREE.PointLight(0xffb36a, 0, 13, 2);
+  const roomLight = new THREE.PointLight(FLUORESCENT, 0, 13, 2);
   roomLight.position.set(x, height - 0.8, front + depth / 2);
   group.add(roomLight);
   let night = 0;
@@ -160,7 +161,7 @@ export function createStudyHall(scene) {
     obstacles,
     setNight(k) {
       for (const material of glows) material.emissiveIntensity = 1 + k * 5;
-      roomLight.intensity = k * 18;
+      roomLight.intensity = k * 25;
       night = k;
     },
     update(t) {

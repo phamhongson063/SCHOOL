@@ -1,7 +1,7 @@
 import { N2_VOCAB } from './vocabN2.js';
 
 const INDEX_KEY = 'truong-lang-xua.n2Index';
-const MODES = { random: '🔀 Ngẫu nhiên', order: '🔢 Theo thứ tự' };
+const MODES = { random: { icon: '🔀', name: 'Ngẫu nhiên' }, order: { icon: '🔢', name: 'Theo thứ tự' } };
 
 function loadIndex() {
   try {
@@ -66,7 +66,8 @@ export function createStudy() {
     const all = N2_VOCAB.map((_, i) => i);
     order = mode === 'random' ? shuffle(all) : all;
     pos = mode === 'random' ? 0 : loadIndex();
-    modeChip.textContent = MODES[mode];
+    modeChip.textContent = MODES[mode].icon;
+    modeChip.setAttribute('aria-label', MODES[mode].name);
     modeChip.hidden = false;
     start.hidden = true;
     body.hidden = false;

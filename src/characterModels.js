@@ -67,6 +67,25 @@ export async function loadCharacterModels() {
 
 const modelOf = (look) => SKINS[look]?.model ?? look;
 
+const bodies = [];
+const outlines = [];
+const outlinePoint = new THREE.Vector3();
+let shadowsOn = true;
+
+export function setCharacterShadows(on) {
+  if (on === shadowsOn) return;
+  shadowsOn = on;
+  for (const mesh of bodies) mesh.castShadow = on;
+}
+
+export function cullCharacterOutlines(camera, distance) {
+  const limit = distance * distance;
+  for (const outline of outlines) {
+    outline.getWorldPosition(outlinePoint);
+    outline.visible = outlinePoint.distanceToSquared(camera.position) < limit;
+  }
+}
+
 export const hasModel = (look) => templates.has(modelOf(look));
 
 function outlineMaterial() {
@@ -97,10 +116,12 @@ function prepare(rig, texture) {
     const map = texture ?? mesh.material.map;
     if (map) map.anisotropy = 4;
     mesh.material = toonMaterial({ map, gradientMap: softGradient() });
-    mesh.castShadow = true;
+    mesh.castShadow = shadowsOn;
     mesh.receiveShadow = false;
     mesh.frustumCulled = false;
+    bodies.push(mesh);
     const outline = new THREE.SkinnedMesh(mesh.geometry, outlineMaterial());
+    outlines.push(outline);
     outline.bind(mesh.skeleton, mesh.bindMatrix);
     outline.frustumCulled = false;
     outline.raycast = () => {};

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { keepCanvas } from './canvasRestore.js';
 
 function canvasTexture(width, height, paint) {
   const canvas = document.createElement('canvas');
@@ -7,7 +8,7 @@ function canvasTexture(width, height, paint) {
   paint(canvas.getContext('2d'), width, height);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return keepCanvas(texture, (ctx) => paint(ctx, width, height));
 }
 
 function footTexture() {

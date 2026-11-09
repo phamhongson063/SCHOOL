@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { shade } from './toon.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const SIZE = 256;
 const LINE = '#3a2016';
@@ -203,6 +204,7 @@ export function faceTexture(options) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
+  keepCanvas(texture, (ctx) => draw(ctx, options));
   cache.set(key, texture);
   return texture;
 }

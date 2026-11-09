@@ -3,6 +3,7 @@ import { Batch, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { DAYLIGHT } from './config.js';
 import { minuteOfDay, dayOf, DAY_MINUTES } from './clock.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const SYNODIC = 29.53;
 const MOON_OFFSET = 10;
@@ -110,7 +111,12 @@ function discTexture(paint, size = 128) {
   canvas.height = size;
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  let last = null;
+  keepCanvas(texture, (ctx) => {
+    if (last) paint(ctx, size, ...last);
+  });
   const redraw = (...args) => {
+    last = args;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, size, size);
     paint(ctx, size, ...args);

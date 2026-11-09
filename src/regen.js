@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { keepCanvas } from './canvasRestore.js';
 
 const GOLD = new THREE.Color(0xffd36b);
 const MOTE = new THREE.Color(0xfff2b0);
@@ -17,7 +18,7 @@ function glowTexture(paint) {
   paint(canvas.getContext('2d'), 256);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return keepCanvas(texture, (ctx) => paint(ctx, 256));
 }
 
 function auraTexture() {

@@ -4,22 +4,24 @@ import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { GROUND_LAYER } from './scenery.js';
 import { ROAD, TREES } from './road.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { FLUORESCENT } from './config.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const SPACING = 14;
 const END_MARGIN = 6;
 const INSET = 0.45;
 const HEIGHT = 3.2;
 const ARM = 0.7;
-const POOL_RADIUS = 4.5;
-const POOL_STRENGTH = 0.55;
-const LAMP_GLOW = 1.8;
-const POOL_COLOR = 0xffc27a;
+const POOL_RADIUS = 6;
+const POOL_STRENGTH = 1;
+const LAMP_GLOW = 3;
+const POOL_COLOR = FLUORESCENT;
 const POOL_LAYER = GROUND_LAYER.mark + 3;
 const TREE_CLEARANCE = 2.5;
 const STONE = 0x8a8273;
 const WOOD = 0x3a2414;
 const BRASS = 0xb8862e;
-const PAPER = 0xf6e2b0;
+const PAPER = 0xf4f8ff;
 
 const BLOCKED = [
   { x0: 43.5, x1: 50.5, sides: ['south'] },
@@ -43,12 +45,7 @@ function lampSpots() {
   return spots;
 }
 
-function poolTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
+function paintPool(ctx, size) {
   const c = size / 2;
   const gradient = ctx.createRadialGradient(c, c, 0, c, c, c);
   gradient.addColorStop(0, 'rgba(255,255,255,1)');
@@ -56,9 +53,17 @@ function poolTexture() {
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
+}
+
+function poolTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  paintPool(canvas.getContext('2d'), size);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return keepCanvas(texture, (ctx) => paintPool(ctx, size));
 }
 
 export function createStreetLamps() {
@@ -77,7 +82,7 @@ export function createStreetLamps() {
     posts.add(shapes.cone(0.24, 0.18, 4), WOOD, { p: [x, HEIGHT - 0.32, headZ], r: [0, Math.PI / 4, 0] });
     posts.add(shapes.box(0.3, 0.04, 0.3), BRASS, { p: [x, HEIGHT - 0.74, headZ] });
     lamps.add(shapes.box(0.24, 0.32, 0.24), PAPER, { p: [x, HEIGHT - 0.56, headZ] });
-    halos.push({ position: new THREE.Vector3(x, HEIGHT - 0.56, headZ), tint: 0xf2b630 });
+    halos.push({ position: new THREE.Vector3(x, HEIGHT - 0.56, headZ), tint: FLUORESCENT });
     const pool = new THREE.CircleGeometry(POOL_RADIUS, 32);
     pool.rotateX(-Math.PI / 2);
     pool.translate(x, 0, headZ + toward * 0.6);
@@ -85,7 +90,7 @@ export function createStreetLamps() {
   }
 
   const postMesh = posts.mesh();
-  const lampMaterial = toonMaterial({ vertexColors: true, emissive: 0xffb050, emissiveIntensity: 0 });
+  const lampMaterial = toonMaterial({ vertexColors: true, emissive: FLUORESCENT, emissiveIntensity: 0 });
   const lampMesh = lamps.mesh(lampMaterial, { shadow: false });
 
   const poolMaterial = new THREE.MeshBasicMaterial({
@@ -105,7 +110,7 @@ export function createStreetLamps() {
   poolMesh.renderOrder = POOL_LAYER;
   poolMesh.visible = false;
 
-  const glow = createLanternGlow(halos);
+  const glow = createLanternGlow(halos, { warmth: 0, steady: true });
   group.add(postMesh, lampMesh, poolMesh, glow.object);
   freeze(group);
 

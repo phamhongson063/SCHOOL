@@ -98,7 +98,7 @@ export function createWildlife({ nav, onBoarHit }) {
     const geometry = SHAPES[kind]();
     for (let i = 0; i < spec.count; i++) {
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
+      mesh.castShadow = false;
       mesh.visible = false;
       group.add(mesh);
       animals.push({ kind, spec, mesh, x: 0, y: 0, z: 0, facing: 0, speed: 0, state: 'gone', respawnAt: 0, timer: 0, target: null, home: null, phase: Math.random() * 10, hunter: null, cooldown: 0 });

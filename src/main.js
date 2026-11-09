@@ -4,7 +4,8 @@ import { VoxelWorld } from './world.js';
 import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer } from './characters.js';
-import { loadCharacterModels, hasModel, createModel } from './characterModels.js';
+import { loadCharacterModels, hasModel, createModel, setCharacterShadows, cullCharacterOutlines } from './characterModels.js';
+import { createRooms } from './rooms.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
 import { LESSONS } from './lessons.js';
@@ -22,7 +23,7 @@ import { createQuiz } from './quiz.js';
 import { createFarm } from './farm.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
-import { createBubble } from './bubble.js';
+import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
 import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { LOW_POWER } from './quality.js';
@@ -59,16 +60,23 @@ import { loadingStep, loadingDone } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
 import { JOIN_RADIUS } from './queue.js';
+import { redrawCanvases } from './canvasRestore.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
-const IDLE_FRAME_RATE = LOW_POWER ? 20 : 30;
-const READING_FRAME_RATE = 20;
-const POPUP_FRAME_RATE = 15;
+const IDLE_FRAME_RATE = 10;
+const READING_FRAME_RATE = 10;
+const POPUP_FRAME_RATE = 10;
+const SLEEP_FRAME_RATE = 2;
+const MAX_STEP = 0.12;
+const SIM_SPAN = 0.6;
+const SHADOW_REFRESH = 2;
+let shadowAt = 0;
 const IDLE_AFTER = 20000;
 const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
 const MIN_PIXEL_RATIO = 0.75;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const OUTLINE_DISTANCE = 26;
+const CHARACTER_OUTLINE_DISTANCE = OUTLINE_DISTANCE;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: MOUNTAIN.z0, z1: 84 };
 
 let pixelRatio = MAX_PIXEL_RATIO;
@@ -77,7 +85,12 @@ renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = LOW_POWER ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
 document.getElementById('app').appendChild(renderer.domElement);
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  redrawCanvases();
+  shadowAt = 0;
+});
 
 const scene = new THREE.Scene();
 const sky = createSky(scene, { renderer });
@@ -240,9 +253,11 @@ player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
 });
 regions.onLoad = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
+  shadowAt = 0;
 };
 regions.onUnload = (region) => {
   if (!region.staticNav) player.nav.bake(region.bounds);
+  shadowAt = 0;
 };
 
 const villagerRoot = new THREE.Group();
@@ -263,6 +278,47 @@ const playerBubble = createBubble();
 playerBubble.sprite.position.set(0, modelReady ? 2.12 : 1.95, 0);
 avatar.group.add(playerBubble.sprite);
 const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
+const VIEW_STEP = 0.4;
+
+function segmentHitsBox(from, to, box) {
+  let enter = 0;
+  let exit = 1;
+  for (const [a, b, min, max] of [
+    [from.x, to.x, box.minX, box.maxX],
+    [from.y, to.y, box.minY ?? 0, box.maxY ?? 3],
+    [from.z, to.z, box.minZ, box.maxZ],
+  ]) {
+    const d = b - a;
+    if (Math.abs(d) < 1e-9) {
+      if (a < min || a > max) return false;
+      continue;
+    }
+    let t0 = (min - a) / d;
+    let t1 = (max - a) / d;
+    if (t0 > t1) [t0, t1] = [t1, t0];
+    enter = Math.max(enter, t0);
+    exit = Math.min(exit, t1);
+    if (enter > exit) return false;
+  }
+  return true;
+}
+
+setBubbleOcclusion((from, to) => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dz = to.z - from.z;
+  const steps = Math.ceil(Math.hypot(dx, dy, dz) / VIEW_STEP);
+  for (let i = 1; i < steps; i++) {
+    const k = i / steps;
+    if (world.blocksView(Math.floor(from.x + dx * k), Math.floor(from.y + dy * k), Math.floor(from.z + dz * k), player.hiddenLayers)) return true;
+  }
+  for (const box of school.obstacles) {
+    if (to.x >= box.minX && to.x <= box.maxX && to.z >= box.minZ && to.z <= box.maxZ) continue;
+    if (from.x >= box.minX && from.x <= box.maxX && from.z >= box.minZ && from.z <= box.maxZ) continue;
+    if (segmentHitsBox(from, to, box)) return true;
+  }
+  return false;
+});
 const BUBBLE_STAND = new THREE.Vector3(0, modelReady ? 2.12 : 1.95, 0);
 const BUBBLE_LYING = new THREE.Vector3(0, 1.15, -1.1);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
@@ -1087,6 +1143,16 @@ function adaptResolution(time, target) {
   renderer.setPixelRatio(pixelRatio);
 }
 
+let shadowKey = '';
+function refreshShadows(t) {
+  const p = sun.position;
+  const key = `${p.x},${p.y},${p.z},${sun.intensity > 0}`;
+  if (key === shadowKey && t < shadowAt) return;
+  shadowKey = key;
+  shadowAt = t + SHADOW_REFRESH;
+  renderer.shadowMap.needsUpdate = true;
+}
+
 const outlines = [];
 scene.traverse((object) => {
   if (object.isMesh && object.material === outlineMaterial()) outlines.push(object);
@@ -1099,6 +1165,20 @@ function updateOutlines(t) {
   for (const outline of outlines) {
     outline.getWorldPosition(outlinePoint);
     outline.visible = outlinePoint.distanceToSquared(camera.position) < OUTLINE_DISTANCE * OUTLINE_DISTANCE;
+  }
+  cullCharacterOutlines(camera, CHARACTER_OUTLINE_DISTANCE);
+}
+
+const rooms = createRooms();
+town.view = rooms;
+const regionBox = (region) =>
+  (region.cullBox ??= new THREE.Box3(new THREE.Vector3(region.bounds.x0, -2, region.bounds.z0), new THREE.Vector3(region.bounds.x1, 30, region.bounds.z1)));
+function cullRooms() {
+  rooms.update(camera);
+  setCharacterShadows(false);
+  for (const region of regions.regions) {
+    const group = region.handle?.group;
+    if (group) group.visible = rooms.seesBox(regionBox(region));
   }
 }
 
@@ -1174,14 +1254,15 @@ renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const popup = popupOpen();
   if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
-  const frameRate = popup ? POPUP_FRAME_RATE : lesson.visible || study.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
+  const frameRate = purse.sleeping ? SLEEP_FRAME_RATE : popup ? POPUP_FRAME_RATE : lesson.visible || study.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
   if (LOW_POWER) {
     if (popup) pace.since = 0;
     else adaptResolution(time, frameRate);
   }
-  const dt = Math.min(clock.getDelta(), 0.07);
+  const elapsed = clock.getDelta();
+  const dt = Math.min(elapsed, MAX_STEP);
   const t = clock.elapsedTime;
   context = contextAt(gameNow());
   drainEnergy();
@@ -1194,6 +1275,7 @@ renderer.setAnimationLoop((time) => {
     onPhaseChange(context);
   }
   const night = sky.update(context.minutes, camera, mode === 'overview' ? orbit.target : player.position, SHADOW_SPAN);
+  refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
     school.setNight(night);
@@ -1214,7 +1296,10 @@ renderer.setAnimationLoop((time) => {
   refreshPhase();
   refreshRest();
   farm.tick();
-  town.update(t, dt, context, player, camera);
+  cullRooms();
+  const simSpan = Math.min(elapsed, SIM_SPAN);
+  const simSteps = Math.max(1, Math.ceil(simSpan / MAX_STEP));
+  for (let i = 0; i < simSteps; i++) town.update(t, simSpan / simSteps, context, player, camera);
   if (shopUI.isOpen && !context.shopOpen) {
     shopUI.close();
     sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
@@ -1235,6 +1320,7 @@ renderer.setAnimationLoop((time) => {
   clouds.update(dt, night);
   player.update(dt);
   placeBubble();
+  updateBubbles(camera, t);
   regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);
   for (const effect of Object.values(effects)) effect.update(dt);
   fishing.update();

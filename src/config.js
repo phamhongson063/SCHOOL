@@ -182,3 +182,5 @@ export const BANK = {
   catchUpDays: 60,
   npc: { keepBase: 40, keepSpread: 60, broke: 15, borrowBase: 60, dueSoon: 1, maxLine: 3 },
 };
+
+export const FLUORESCENT = 0xeef4ff;

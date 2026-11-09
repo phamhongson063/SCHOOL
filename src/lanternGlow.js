@@ -1,14 +1,10 @@
 import * as THREE from 'three';
+import { keepCanvas } from './canvasRestore.js';
 
-const HALO_SIZE = 2.2;
+const HALO_SIZE = 2.8;
 const WARM = new THREE.Color(0xffc070);
 
-function haloTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
+function paintHalo(ctx, size) {
   const c = size / 2;
   ctx.globalCompositeOperation = 'lighter';
   const rays = 10;
@@ -33,9 +29,17 @@ function haloTexture() {
   core.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = core;
   ctx.fillRect(0, 0, size, size);
+}
+
+function haloTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  paintHalo(canvas.getContext('2d'), size);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  return keepCanvas(texture, (ctx) => paintHalo(ctx, size));
 }
 
 const vertexShader = /* glsl */ `
@@ -44,11 +48,12 @@ const vertexShader = /* glsl */ `
   uniform float time;
   uniform float night;
   uniform float scale;
+  uniform float steady;
   varying vec3 vTint;
   varying float vGlow;
   varying float vSpin;
   void main() {
-    float flicker = 0.62 + 0.2 * sin(time * 2.1 + phase) + 0.12 * sin(time * 5.3 + phase * 2.7) + 0.06 * sin(time * 11.0 + phase * 4.1);
+    float flicker = mix(0.62 + 0.2 * sin(time * 2.1 + phase) + 0.12 * sin(time * 5.3 + phase * 2.7) + 0.06 * sin(time * 11.0 + phase * 4.1), 0.9, steady);
     vGlow = night * flicker;
     vTint = tint;
     vSpin = time * 0.3 + phase;
@@ -73,14 +78,14 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-export function createLanternGlow(lights) {
+export function createLanternGlow(lights, { warmth = 0.55, steady = false } = {}) {
   const positions = new Float32Array(lights.length * 3);
   const tints = new Float32Array(lights.length * 3);
   const phases = new Float32Array(lights.length);
   const color = new THREE.Color();
   lights.forEach(({ position, tint }, i) => {
     position.toArray(positions, i * 3);
-    color.setHex(tint).lerp(WARM, 0.55).toArray(tints, i * 3);
+    color.setHex(tint).lerp(WARM, warmth).toArray(tints, i * 3);
     phases[i] = Math.random() * Math.PI * 2;
   });
   const geometry = new THREE.BufferGeometry();
@@ -94,6 +99,7 @@ export function createLanternGlow(lights) {
     time: { value: 0 },
     night: { value: 0 },
     scale: { value: 1 },
+    steady: { value: steady ? 1 : 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,

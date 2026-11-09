@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Batch, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundColorAt, groundMaterial, groundTone, patchField, smoothstep, tileRoofMeshes, GROUND_LAYER } from './scenery.js';
+import { keepCanvas } from './canvasRestore.js';
 
 export const MOUNTAIN = { x0: -152, z0: -146, x1: 84, z1: 22 };
 const STEP = 1;
@@ -421,11 +422,7 @@ function trailMesh(trail) {
   return mesh;
 }
 
-function flowTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
+function paintFlow(ctx) {
   ctx.fillStyle = '#4f9fc9';
   ctx.fillRect(0, 0, 64, 128);
   const rand = makeRandom(5151);
@@ -433,7 +430,14 @@ function flowTexture() {
     ctx.fillStyle = `rgba(230, 246, 255, ${0.18 + rand() * 0.25})`;
     ctx.fillRect(4 + rand() * 52, rand() * 128, 2 + rand() * 6, 6 + rand() * 16);
   }
-  const texture = new THREE.CanvasTexture(canvas);
+}
+
+function flowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  paintFlow(canvas.getContext('2d'));
+  const texture = keepCanvas(new THREE.CanvasTexture(canvas), paintFlow);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;

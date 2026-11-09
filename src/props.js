@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, labelBox, shapes, shade, toonMaterial, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const OUTLINE = 0.01;
 const WOOD = 0xa8693a;
@@ -255,6 +256,7 @@ export function textBoard({ lines, width, height, depth, bg, fg, border, seal = 
     drawBoard(canvas.getContext('2d'), canvas.width, canvas.height, { lines, bg, fg, border, seal });
     texture.needsUpdate = true;
   };
+  keepCanvas(texture, (ctx) => drawBoard(ctx, canvas.width, canvas.height, { lines, bg, fg, border, seal }));
   paint();
   document.fonts?.load(`64px "Water Brush"`, lines.join(' ')).then(paint, () => {});
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { keepCanvas } from './canvasRestore.js';
 
 let gradient = null;
 let celGradient = null;
@@ -203,7 +204,7 @@ export function canvasTexture(size, paint, repeat = [1, 1]) {
   texture.repeat.set(repeat[0], repeat[1]);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
-  return texture;
+  return keepCanvas(texture, (ctx) => paint(ctx, size));
 }
 
 export function labelBox(w, h, d, edge = [0.01, 0.01]) {

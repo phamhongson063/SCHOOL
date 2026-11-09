@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, shapes, shade, toonMaterial, vertexMaterial, canvasTexture } from './toon.js';
 import { makeRandom } from './random.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const PAL = {
   wood: 0x6a3f24,
@@ -719,6 +720,7 @@ function textSign(kit, x, y, z, w, h, { text, across = false, vertical = false, 
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   const options = { lines: Array.isArray(text) ? text : [text], vertical, bg, fg, font: brush ? BRUSH_FONT : LATIN_FONT };
+  keepCanvas(texture, (ctx) => paintSign(ctx, canvas.width, canvas.height, options));
   const paint = () => {
     paintSign(canvas.getContext('2d'), canvas.width, canvas.height, options);
     texture.needsUpdate = true;

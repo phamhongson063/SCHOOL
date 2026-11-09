@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Batch, freeze, labelBox, shapes, toonMaterial } from './toon.js';
 import { scheduleFor, sessionLabel } from './timetable.js';
 import { clockText } from './clock.js';
+import { keepCanvas } from './canvasRestore.js';
 
 export const NOTICE = { x: -5.6, z: 31.4 };
 export const NOTICE_STAND = { x: -5.6, z: 32.9 };
@@ -62,6 +63,9 @@ export function createNoticeBoard(scene) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   let shownDay = null;
+  keepCanvas(texture, (ctx) => {
+    if (shownDay !== null) paint(ctx, canvas.width, canvas.height, shownDay);
+  });
 
   const group = new THREE.Group();
   group.position.set(NOTICE.x, 0, NOTICE.z);

@@ -7,10 +7,11 @@ import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
-import { SHOP, CHIEF, EATERY, LODGE_ROOMS } from './config.js';
+import { SHOP, CHIEF, EATERY, LODGE_ROOMS, FLUORESCENT } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { keepCanvas } from './canvasRestore.js';
 
 export const VILLAGE_BOUNDS = { x0: 47, z0: 18, x1: 100, z1: 52 };
 
@@ -78,7 +79,10 @@ export function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8
   texture.anisotropy = 4;
   const mesh = new THREE.Mesh(labelBox(1.6, 0.45, 0.06), toonMaterial({ map: texture }));
   mesh.castShadow = false;
+  let shown = lines;
+  keepCanvas(texture, () => paint(shown));
   const paint = (rows) => {
+    shown = rows;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = `#${bg.toString(16).padStart(6, '0')}`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -217,7 +221,7 @@ const ZONES = [
 const DETAIL_DISTANCE = 70;
 const SIGN_DISTANCE = 45;
 const KEEPER_DISTANCE = 60;
-const KEEPER_LIGHT = { intensity: 10, distance: 8, height: 2.8, toward: 0.6 };
+const KEEPER_LIGHT = { intensity: 18, distance: 10, height: 2.8, toward: 0.6 };
 const FLOOR_HEIGHT = 0.3;
 
 let hitMaterial = null;
@@ -308,7 +312,7 @@ export function createVillage() {
     [chiefAt, desk],
     [cookAt, eateryCounter],
   ].map(([from, to]) => {
-    const light = new THREE.PointLight(0xffc27a, 0, KEEPER_LIGHT.distance, 2);
+    const light = new THREE.PointLight(FLUORESCENT, 0, KEEPER_LIGHT.distance, 2);
     light.position.set(from.x + (to.x - from.x) * KEEPER_LIGHT.toward, KEEPER_LIGHT.height, from.z + (to.z - from.z) * KEEPER_LIGHT.toward);
     lightGroup.add(light);
     return light;

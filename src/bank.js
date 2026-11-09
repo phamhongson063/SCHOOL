@@ -460,12 +460,15 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
   }
 
   function renderSave(info, rates) {
-    const rows = [
-      row('💰', 'Không kỳ hạn', `${coins(info.savings)} · ${percent(rates.deposit)}/ngày`, [
-        button('Rút', withTyped((value) => bank.withdraw(owner, purse, value)), info.savings < 1),
-        button('Rút hết', () => report(bank.withdraw(owner, purse, info.savings)), info.savings < 1),
-      ]),
-    ];
+    const rows = [];
+    if (info.savings >= 1) {
+      rows.push(
+        row('💰', 'Không kỳ hạn', `${coins(info.savings)} · ${percent(rates.deposit)}/ngày`, [
+          button('Rút', withTyped((value) => bank.withdraw(owner, purse, value))),
+          button('Rút hết', () => report(bank.withdraw(owner, purse, info.savings))),
+        ]),
+      );
+    }
     for (const term of info.terms) {
       rows.push(
         row('📜', `${term.days} ngày · gốc ${coins(term.principal)}`, `${percent(term.rate)}/ngày · hiện có ${coins(term.value)} · đáo hạn sau ${durationText(term.left)}`, [

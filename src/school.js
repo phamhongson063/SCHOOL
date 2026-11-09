@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLUORESCENT } from './config.js';
 import { makeRandom } from './random.js';
 import { freeze } from './toon.js';
 import { createTeacher } from './characters.js';
@@ -308,7 +309,7 @@ export function populate(scene) {
   root.add(lanternGlow.object);
   let night = 0;
   const classLights = [[CX, TEACHER_Z + 2], [CX - 5.2, HOUSE.back + 9.2], [CX + 5.2, HOUSE.back + 9.2]].map(([x, z]) => {
-    const light = new THREE.PointLight(0xffb36a, 0, 15, 2);
+    const light = new THREE.PointLight(FLUORESCENT, 0, 15, 2);
     light.position.set(x, 4.8, z);
     root.add(light);
     return light;
@@ -371,7 +372,7 @@ export function populate(scene) {
     },
     setNight(k) {
       for (const material of glows) material.emissiveIntensity = 1 + k * 5;
-      for (const light of classLights) light.intensity = k * 22;
+      for (const light of classLights) light.intensity = k * 30;
       night = k;
     },
     update(t, teaching = true) {

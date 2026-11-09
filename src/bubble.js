@@ -1,99 +1,112 @@
 import * as THREE from 'three';
 import { itemImage } from './itemArt.js';
 
-const WIDTH = 512;
-const HEIGHT = 200;
-const INK = '#2b1c12';
+const FAR = 40;
+const OCCLUSION_EVERY = 0.25;
+const TAIL = 9;
 
-function roundedRect(ctx, x, y, w, h, r) {
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+const active = new Set();
+const head = new THREE.Vector3();
+const screen = new THREE.Vector3();
+let layer = null;
+let blocked = () => false;
+
+function speechLayer() {
+  if (layer) return layer;
+  layer = document.createElement('div');
+  layer.className = 'speech-layer notranslate';
+  layer.setAttribute('translate', 'no');
+  layer.setAttribute('aria-hidden', 'true');
+  document.body.append(layer);
+  return layer;
 }
 
-const ICON = 64;
-const ICON_GAP = 6;
-
-function pieces(ctx, text) {
+function content(text) {
   return text.split(/\[\[(\w+)\]\]/).flatMap((part, i) => {
-    if (i % 2 === 0) return part ? [{ text: part, width: ctx.measureText(part).width }] : [];
+    if (i % 2 === 0) return part ? [document.createTextNode(part)] : [];
     const image = itemImage(part);
-    return image ? [{ image, width: ICON + ICON_GAP }] : [];
+    if (!image) return [];
+    const icon = document.createElement('img');
+    icon.src = image.src;
+    icon.alt = '';
+    icon.draggable = false;
+    return [icon];
   });
 }
 
-function draw(ctx, text) {
-  ctx.clearRect(0, 0, WIDTH, HEIGHT);
-  ctx.font = 'bold 46px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-  const parts = pieces(ctx, text);
-  const natural = parts.reduce((sum, part) => sum + part.width, 0);
-  const fit = Math.min(1, (WIDTH - 90) / Math.max(1, natural));
-  const w = natural * fit + 60;
-  const h = 96;
-  const x = (WIDTH - w) / 2;
-  const y = 16;
-
-  ctx.beginPath();
-  roundedRect(ctx, x, y, w, h, 44);
-  ctx.moveTo(WIDTH / 2 - 18, y + h - 1);
-  ctx.lineTo(WIDTH / 2, y + h + 38);
-  ctx.lineTo(WIDTH / 2 + 18, y + h - 1);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = INK;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(WIDTH / 2 - 15, y + h - 6, 30, 8);
-
-  ctx.save();
-  ctx.translate((WIDTH - natural * fit) / 2, y + h / 2 + 2);
-  ctx.scale(fit, fit);
-  ctx.fillStyle = INK;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  let cursor = 0;
-  for (const part of parts) {
-    if (part.image) ctx.drawImage(part.image, cursor + ICON_GAP / 2, -ICON / 2 - 2, ICON, ICON);
-    else ctx.fillText(part.text, cursor, 0);
-    cursor += part.width;
+function inScene(object) {
+  for (let node = object; node; node = node.parent) {
+    if (!node.visible) return false;
+    if (node.isScene) return true;
   }
-  ctx.restore();
+  return false;
+}
+
+export function setBubbleOcclusion(test) {
+  blocked = test;
+}
+
+export function updateBubbles(camera, now) {
+  for (const bubble of active) bubble.place(camera, now);
 }
 
 export function createBubble() {
-  const canvas = document.createElement('canvas');
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
-  sprite.center.set(0.5, 0);
-  sprite.scale.set(1.4, (1.4 * HEIGHT) / WIDTH, 1);
-  sprite.renderOrder = 5;
-  sprite.visible = false;
+  const anchor = new THREE.Object3D();
+  const element = document.createElement('div');
+  element.className = 'speech';
   let until = 0;
+  let shown = false;
+  let checkAt = 0;
+  let hiddenBehind = false;
+
+  const record = {
+    place(camera, now) {
+      anchor.updateWorldMatrix(true, false);
+      anchor.getWorldPosition(head);
+      const distance = head.distanceTo(camera.position);
+      let visible = inScene(anchor) && distance < FAR;
+      if (visible) {
+        screen.copy(head).project(camera);
+        visible = screen.z > -1 && screen.z < 1 && Math.abs(screen.x) < 1.2 && Math.abs(screen.y) < 1.2;
+      }
+      if (visible && now >= checkAt) {
+        checkAt = now + OCCLUSION_EVERY;
+        hiddenBehind = blocked(camera.position, head);
+      }
+      visible &&= !hiddenBehind;
+      element.hidden = !visible;
+      if (!visible) return;
+      const x = ((screen.x + 1) / 2) * window.innerWidth;
+      const y = ((1 - screen.y) / 2) * window.innerHeight - TAIL;
+      element.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
+      element.style.zIndex = String(1000 - Math.round(distance * 10));
+    },
+  };
+
+  function hide() {
+    shown = false;
+    active.delete(record);
+    element.remove();
+  }
 
   return {
-    sprite,
+    sprite: anchor,
     get visible() {
-      return sprite.visible;
+      return shown;
     },
     show(text, duration, now) {
-      draw(canvas.getContext('2d'), text);
-      texture.needsUpdate = true;
-      sprite.visible = true;
+      element.replaceChildren(...content(text));
+      element.hidden = true;
+      if (!element.isConnected) speechLayer().append(element);
+      shown = true;
       until = now + duration;
+      checkAt = 0;
+      hiddenBehind = false;
+      active.add(record);
     },
-    hide() {
-      sprite.visible = false;
-    },
+    hide,
     update(now) {
-      if (sprite.visible && now > until) sprite.visible = false;
+      if (shown && now > until) hide();
     },
   };
 }
