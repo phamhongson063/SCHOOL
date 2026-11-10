@@ -278,6 +278,7 @@ export function createDistrict() {
     obstacles,
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
+    bankDoor: bank ? bank.stand : null,
     update(t, ctx, camera) {
       now = t;
       if (!bank) return;

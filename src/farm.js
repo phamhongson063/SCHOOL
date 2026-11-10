@@ -11,6 +11,7 @@ import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
+import { badgeMaterial } from './studyIcon.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const LEASE_KEY = 'truong-lang-xua.farmLeases';
@@ -61,6 +62,18 @@ const FIELDS = {
 const ALL_BEDS = Object.entries(FIELDS).flatMap(([field, info]) => info.beds.map((bed) => ({ ...bed, field, front: info.front, count: info.count })));
 const SPOT_BED = ALL_BEDS.flatMap((bed, index) => Array(bed.count).fill(index));
 const fieldOf = (index) => ALL_BEDS[SPOT_BED[index]].field;
+const FIELD_NAMES = { farm: 'Ruộng rau màu', banco: 'Ruộng Bàn Cờ' };
+const BED_NUMBERS = ALL_BEDS.map((bed) => ALL_BEDS.filter((other) => other.field === bed.field && other.x < bed.x).length + 1);
+const bedHead = (bed) => {
+  const head = ALL_BEDS[bed];
+  return { x: head.x + head.shape.offset(head.front), z: head.front - 1 };
+};
+const standsAt = (bed, at) => {
+  if (!at) return false;
+  const { x, shape, front, count } = ALL_BEDS[bed];
+  const z = Math.min(Math.max(at.z, front), front + count * SPACING);
+  return Math.abs(at.x - x - shape.offset(z)) <= BED.pitch && at.z >= front - 1.5 && at.z <= front + count * SPACING + 1.5;
+};
 const CLODS = [0x6b4428, 0x7d5532, 0x8a5c38, 0x5c3920];
 const WEEDS = [0x6fae3f, 0x5a9a36, 0x86c75a];
 const BOUNDS = { x0: -32 + FARM_X, z0: 38.5, x1: 33 + FARM_X, z1: 64 };
@@ -450,6 +463,8 @@ const scale = new THREE.Vector3();
 const matrix = new THREE.Matrix4();
 const UP = new THREE.Vector3(0, 1, 0);
 const euler = new THREE.Euler();
+const RIPE_ICON = { scale: 0.42, lift: 0.4 };
+let ripeMaterial = null;
 
 class FarmView {
   constructor(spots, state, field) {
@@ -494,8 +509,28 @@ class FarmView {
       child.updateMatrix();
       child.matrixAutoUpdate = false;
     }
+    this.ripeIcons = new THREE.Group();
+    this.group.add(this.ripeIcons);
     this.buildStakes();
     this.refresh();
+  }
+
+  placeRipeIcons(indices) {
+    ripeMaterial ??= badgeMaterial('🧺');
+    const icons = this.ripeIcons.children;
+    while (icons.length < indices.length) {
+      const sprite = new THREE.Sprite(ripeMaterial);
+      sprite.scale.setScalar(RIPE_ICON.scale);
+      sprite.renderOrder = 6;
+      this.ripeIcons.add(sprite);
+    }
+    icons.forEach((sprite, k) => {
+      const index = indices[k];
+      sprite.visible = index !== undefined;
+      if (!sprite.visible) return;
+      const spot = this.spots[index];
+      sprite.position.set(spot.x, spot.y + plantTop(this.state.spots[index]) * spot.scale + RIPE_ICON.lift, spot.z);
+    });
   }
 
   buildStakes() {
@@ -672,6 +707,7 @@ class FarmView {
     const wet = [];
     const mine = [];
     const thirsty = [];
+    const ripe = [];
     this.state.spots.forEach((spot, i) => {
       if (fieldOf(i) !== this.field) return;
       const key = modelKey(spot.stage, spot.crop, spot.variety);
@@ -680,7 +716,9 @@ class FarmView {
       if (spot.watered) wet.push(i);
       if (spot.stage > 0 && spot.owner === PLAYER) mine.push(i);
       if (this.state.thirsty(spot)) thirsty.push(i);
+      if (spot.stage === RIPE && spot.owner === PLAYER) ripe.push(i);
     });
+    this.placeRipeIcons(ripe);
     for (const [key, mesh] of this.models) this.place(mesh, lists.get(key) ?? [], this.plantTransform);
     this.place(this.wet, wet, (spot) => {
       position.set(spot.x, spot.y, spot.z);
@@ -738,6 +776,7 @@ class FarmView {
     }
     for (const [index, anim] of this.anims) this.wither(index, anim);
     this.drops.position.y = Math.sin(t * 3) * 0.05;
+    if (ripeMaterial) ripeMaterial.opacity = 0.35 + 0.65 * Math.abs(Math.sin(t * 3.2));
     if (this.ring.visible) this.ring.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
   }
 
@@ -963,23 +1002,41 @@ export function createFarm({ ledger, nameOf, nav }) {
 
   const banco = fieldRegion('banco', {
     id: 'bancoFarm',
-    name: 'Ruộng Bàn Cờ',
+    name: FIELD_NAMES.banco,
     bounds: BANCO_BOUNDS,
     obstacles: BANCO_BEDS.map(({ x }) => bedBox(x, BANCO.front, BANCO_BACK)),
   });
 
   return fieldRegion('farm', {
     id: 'farm',
-    name: 'Ruộng rau màu',
+    name: FIELD_NAMES.farm,
     bounds: BOUNDS,
     obstacles: fieldObstacles(),
     crew,
     extraRegions: [banco],
     tick() {
       const now = performance.now();
-      if (now - lastTick < 500) return;
+      if (now - lastTick < 500) return false;
       lastTick = now;
       tick();
+      return true;
+    },
+    chores(actor = PLAYER, at = null) {
+      const now = gameNow();
+      const found = new Map();
+      state.spots.forEach((plant, index) => {
+        if (plant.owner !== actor) return;
+        const bed = bedOf(index);
+        if (!state.leases.holds(bed, actor, now)) return;
+        const kind = plant.stage === RIPE ? 'ripe' : state.thirsty(plant) ? 'water' : null;
+        if (!kind) return;
+        const key = `${kind}:${bed}`;
+        if (!found.has(key)) found.set(key, { key, kind, bed, crops: [], here: standsAt(bed, at), place: `${FIELD_NAMES[ALL_BEDS[bed].field]} · luống ${BED_NUMBERS[bed]}`, point: bedHead(bed) });
+        const crops = found.get(key).crops;
+        const name = cropOf(plant).name;
+        if (!crops.includes(name)) crops.push(name);
+      });
+      return [...found.values()];
     },
   });
 }

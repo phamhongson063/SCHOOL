@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, BANK } from './config.js';
+import { VILLAGER, BANK, ATM } from './config.js';
 import { BLOCKED, NAGS, pick } from './villagerData.js';
 
 export class ErrandBehavior {
@@ -157,26 +157,58 @@ export class ErrandBehavior {
     return { id: this.id, purse: this.purse, thrift: this.thrift, roll: this.bankRoll };
   }
 
-  wantsBank(ctx) {
-    if (!this.town.bank || !this.town.queues.bank || this.bankDay === ctx.day) return false;
-    if (this.bankRollDay !== ctx.day) {
-      this.bankRollDay = ctx.day;
-      this.bankRoll = Math.random();
+  nearestAtm() {
+    let best = null;
+    let bestDistance = Infinity;
+    for (const atm of this.town.atms) {
+      const queue = this.town.queues[`atm:${atm.id}`];
+      const distance = this.distanceTo(queue.line[0]);
+      if (distance < bestDistance) {
+        best = queue;
+        bestDistance = distance;
+      }
     }
-    const plan = this.town.bank.npcPlan(this.bankClient());
-    if (!plan) return false;
-    return plan.urgent || this.town.queues.bank.members.length < BANK.npc.maxLine;
+    return best;
   }
 
-  goBank() {
+  distanceTo(point) {
+    return Math.hypot(point.x - this.position.x, point.z - this.position.z);
+  }
+
+  moneyErrand(ctx) {
+    const bank = this.town.bank;
+    if (!bank) return null;
+    const since = this.bankAt === null ? Infinity : ctx.minutes - this.bankAt;
+    if (since < BANK.npc.urgentGap) return null;
+    const client = this.bankClient();
+    const desk = ctx.bankOpen ? this.town.queues.bank : null;
+    const atm = this.nearestAtm();
+    const deskPlan = desk ? bank.npcPlan(client) : null;
+    const atmPlan = atm ? bank.npcAtmPlan(client) : null;
+    const plan = deskPlan ?? atmPlan;
+    if (!plan || (!plan.urgent && since < BANK.npc.restGap)) return null;
+    const useAtm = !!atmPlan && (!deskPlan || this.distanceTo(desk.line[0]) > this.distanceTo(atm.line[0]) + ATM.detour);
+    const queue = useAtm ? atm : desk;
+    if (!plan.urgent && queue.members.length >= BANK.npc.maxLine) return null;
+    return { queue, atm: useAtm };
+  }
+
+  goMoney({ queue, atm }) {
     this.cancel();
-    this.task = 'bank';
-    this.bankDay = this.town.context.day;
-    this.lineUp(this.town.queues.bank, () => this.visitBank());
+    this.task = atm ? 'atm' : 'bank';
+    this.bankAt = this.town.context.minutes;
+    this.lineUp(queue, () => (atm ? this.visitAtm() : this.visitBank()));
+  }
+
+  visitAtm() {
+    this.say(this.town.bank.npcAtmServe(this.bankClient()), 2.6);
+    this.bankRoll = Math.random();
+    this.wait(between(1.5, 3), () => this.finishService());
   }
 
   visitBank() {
     this.say(this.town.context.bankOpen ? this.town.bank.npcServe(this.bankClient()) : 'Ngân hàng đóng cửa mất rồi!', 2.6);
+    this.bankRoll = Math.random();
     this.wait(between(1.5, 3), () => this.finishService());
   }
 

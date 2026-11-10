@@ -39,9 +39,8 @@ export class Villager {
     this.lodgeNight = false;
     this.sleepingOut = false;
     this.bed = null;
-    this.bankDay = null;
-    this.bankRollDay = null;
-    this.bankRoll = 0;
+    this.bankAt = null;
+    this.bankRoll = Math.random();
     const model = profile.model && hasModel(profile.model) ? profile.model : null;
     this.walker = model ? createModel(model) : createWalker(profile.look);
     this.walker.group.rotation.order = 'YXZ';
@@ -230,7 +229,8 @@ export class Villager {
     if (this.wantsFood(ctx)) return this.goEat();
     if (ctx.martOpen && this.wantsMart()) return this.goMart();
     if (this.shouldAttend(ctx)) return this.goToClass();
-    if (ctx.bankOpen && this.wantsBank(ctx)) return this.goBank();
+    const money = this.moneyErrand(ctx);
+    if (money) return this.goMoney(money);
     if (this.wantsSelfStudy(ctx)) return this.goSelfStudy();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();

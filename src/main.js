@@ -25,6 +25,8 @@ import { createStreetLamps } from './streetLamps.js';
 import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
 import { Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
+import { createMailbox } from './mailbox.js';
+import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay } from './clock.js';
@@ -126,6 +128,7 @@ await loadCharacterModels();
 const school = populate(scene);
 const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
+const atms = createAtms(scene, terrainFloor);
 const village = createVillage();
 scene.add(village.lights);
 const streetLamps = createStreetLamps();
@@ -138,6 +141,7 @@ const countryside = createCountryside();
 const district = createDistrict();
 school.obstacles.push(
   ...notice.obstacles,
+  ...atms.obstacles,
   ...village.obstacles,
   ...river.obstacles,
   ...studyHall.obstacles,
@@ -168,6 +172,7 @@ const ledger = new Ledger();
 const purse = ledger.purse(PLAYER);
 if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
 createBag(purse);
+const mailbox = createMailbox({ onTravel: travelTo });
 createVitals(purse);
 const market = createMarket();
 const shopUI = createShopUI({ market, purse });
@@ -181,6 +186,7 @@ const chiefUI = createChiefUI({ estate, purse, nameOf });
 const foodUI = createFoodUI({ purse });
 const bank = createBank({ ledger, estate, now: gameNow });
 const bankUI = createBankUI({ bank, purse });
+const atmUI = createAtmUI({ bank, purse });
 const VENUES = {
   shop: { isOpen: shopOpen, ui: shopUI },
   fish: { isOpen: fishShopOpen, ui: fishShopUI },
@@ -190,6 +196,12 @@ const VENUES = {
 };
 bank.onCollect((owner, taken) => {
   if (owner === PLAYER) sayPlayer(`🏦 Ngân hàng trừ ${coins(taken)} nợ quá hạn`, 3);
+});
+bank.onMature((owner, term) => {
+  if (owner !== PLAYER) return;
+  const lines = [`Sổ ${term.days} ngày đã đáo hạn, ${coins(term.value)} (gốc + lãi) đã chuyển vào tài khoản không kỳ hạn.`];
+  if (bank.overdue(PLAYER)) lines.push('Bạn đang có khoản vay quá hạn, số tiền này có thể bị trừ để trả nợ.');
+  mailbox.notify({ icon: '🏦', title: 'Sổ tiết kiệm đáo hạn', lines, place: 'Ngân hàng · Xóm Bàn Cờ', point: district.bankDoor });
 });
 
 createFullscreenToggle();
@@ -488,10 +500,20 @@ const marker = new THREE.Mesh(
 marker.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
 marker.visible = false;
 scene.add(marker);
+let tripPending = false;
 player.onTarget = (point) => {
   marker.visible = !!point;
   if (point) marker.position.set(point.x, point.y + 0.03, point.z);
+  playerBubble.setTrip(tripPending && !!point);
+  tripPending = false;
 };
+function travelTo(point) {
+  stopWork();
+  setMode('play');
+  tripPending = true;
+  player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+  if (player.posture === 'free' && !player.lying && !player.path) tripPending = false;
+}
 
 await loadingStep(0.82, 'Gọi dân làng');
 const raycaster = new THREE.Raycaster();
@@ -526,6 +548,7 @@ town = new Town({
   river,
   bank,
   bankDesk: district.bankDesk,
+  atms: atms.list,
   footprints,
 });
 
@@ -830,7 +853,7 @@ function goDo(region, target, id) {
 }
 
 function clickTargets() {
-  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, school.root, studyHall.group, inn.group];
+  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, studyHall.group, inn.group];
 }
 
 player.onClick = (clientX, clientY, run) => {
@@ -866,6 +889,11 @@ player.onClick = (clientX, clientY, run) => {
   if (notice.owns(hit.object)) {
     leaveLine();
     goDo(noticeSpot, { stand: notice.stand, x: notice.group.position.x, z: notice.group.position.z }, 'notice');
+    return;
+  }
+  const atm = atms.atmOf(hit.object);
+  if (atm) {
+    joinLine(`atm:${atm.id}`, () => atmUI.open(atm), atmUI);
     return;
   }
   const region = regions.regionOf(hit.object) ?? regions.active;
@@ -1186,6 +1214,8 @@ let shownNight = -1;
 let framesShown = 0;
 let lastDay = context.day;
 renderer.setAnimationLoop((time) => {
+  const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active;
+  if (busy) lastInput = performance.now();
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const popup = popupOpen();
   if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
@@ -1230,7 +1260,7 @@ renderer.setAnimationLoop((time) => {
   playerStudyIcon.visible = inClass() && learningNow();
   scheduleBoard.refresh();
   refreshRest();
-  farm.tick();
+  if (farm.tick()) mailbox.sync(farm.chores(PLAYER, player.position));
   cullRooms();
   const simSpan = Math.min(elapsed, SIM_SPAN);
   const simSteps = Math.max(1, Math.ceil(simSpan / MAX_STEP));
@@ -1244,6 +1274,7 @@ renderer.setAnimationLoop((time) => {
     sayPlayer(`Hàng cá đóng cửa rồi, mở ${fishShopHours()} nhé!`, 2.4);
   }
   bank.tick(context.minutes);
+  bank.mature();
   if (bankUI.isOpen && !context.bankOpen) {
     bankUI.close();
     sayPlayer(`Ngân hàng đóng cửa rồi, mở ${bankHours()} nhé!`, 2.4);

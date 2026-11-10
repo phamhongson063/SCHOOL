@@ -10,7 +10,7 @@ import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, footprints = null }) {
+  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
@@ -31,6 +31,8 @@ export class Town {
     };
     this.bank = bank;
     if (bank && bankDesk) this.queues.bank = new ServiceQueue(bankDesk.line, bankDesk.look);
+    this.atms = bank ? atms : [];
+    for (const atm of this.atms) this.queues[`atm:${atm.id}`] = new ServiceQueue(atm.line, atm.look);
     for (const queue of Object.values(this.queues)) queue.snap = (point) => this.walkable(point);
     for (const spot of river.spots) {
       for (const berth of spot.berths) {
@@ -415,7 +417,7 @@ export class Town {
         continue;
       }
       if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'fishshop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank') continue;
+      if (member.task === 'shop' || member.task === 'fishshop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank' || member.task === 'atm') continue;
       if (member.shouldAttend(ctx)) member.goToClass();
     }
     const teacher = this.teacher;

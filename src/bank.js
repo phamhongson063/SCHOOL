@@ -1,4 +1,4 @@
-import { BANK, VILLAGER } from './config.js';
+import { ATM, BANK, VILLAGER } from './config.js';
 import { DAY_MINUTES, dayOf, durationText, isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { PLAYER } from './inventory.js';
@@ -62,6 +62,7 @@ export function createBank({ ledger, estate, now }) {
   const state = load(now());
   const listeners = [];
   const collectors = [];
+  const maturers = [];
   const store = createStore(KEY, () => state);
 
   function changed() {
@@ -117,14 +118,18 @@ export function createBank({ ledger, estate, now }) {
     return sum(loans, (loan) => Math.ceil(debtOf(loan) + accrued(loan, t)));
   }
 
-  function settle(account, t) {
+  function settle(owner, account, t) {
     settleSavings(account, t);
+    const matured = [];
     account.terms = account.terms.filter((term) => {
       const due = dueOf(term);
       if (due > t) return true;
-      account.savings += termValue(term, due) * (1 + (state.deposit * (t - due)) / DAY_MINUTES);
+      const value = termValue(term, due) * (1 + (state.deposit * (t - due)) / DAY_MINUTES);
+      account.savings += value;
+      matured.push({ days: term.days, value });
       return false;
     });
+    for (const term of matured) for (const maturer of maturers) maturer(owner, term);
     for (const loan of account.loans) settleLoan(loan, t);
   }
 
@@ -188,7 +193,7 @@ export function createBank({ ledger, estate, now }) {
     for (let day = Math.max(state.day + 1, today - BANK.catchUpDays + 1); day <= today; day++) {
       const edge = day * DAY_MINUTES;
       for (const [owner, account] of Object.entries(state.accounts)) {
-        settle(account, edge);
+        settle(owner, account, edge);
         collect(owner, account, edge);
       }
       retune();
@@ -197,11 +202,20 @@ export function createBank({ ledger, estate, now }) {
     changed();
   }
 
+  function mature() {
+    const t = now();
+    const due = Object.entries(state.accounts).filter(([, account]) => account.terms.some((term) => dueOf(term) <= t));
+    if (!due.length) return;
+    tick(t);
+    for (const [owner, account] of due) settle(owner, account, t);
+    changed();
+  }
+
   function begin(owner) {
     const t = now();
     tick(t);
     const account = accountOf(owner);
-    settle(account, t);
+    settle(owner, account, t);
     return { t, account };
   }
 
@@ -251,6 +265,47 @@ export function createBank({ ledger, estate, now }) {
     state.vault -= cash;
     purse.earn(cash);
     return done(`Đã rút ${coins(cash)}.`);
+  }
+
+  function atmWithdraw(owner, purse, value) {
+    const { account } = begin(owner);
+    const cash = Math.floor(value);
+    if (!(cash > 0)) return fail('Nhập số tiền cần rút.');
+    if (cash + ATM.fee > account.savings) return fail(`Số dư không đủ, phí rút ${coins(ATM.fee)}.`);
+    if (state.vault < cash) return fail('ATM tạm hết tiền mặt.');
+    account.savings -= cash + ATM.fee;
+    state.vault -= cash;
+    purse.earn(cash);
+    return done(`Đã rút ${coins(cash)} · phí ${coins(ATM.fee)}.`);
+  }
+
+  const atmDeposit = (owner, purse, value) => deposit(owner, purse, value, 0);
+
+  function atmBalance(owner) {
+    const { account } = begin(owner);
+    return Math.floor(account.savings);
+  }
+
+  function npcAtmPlan(client) {
+    const plan = npcPlan(client);
+    if (plan?.kind === 'withdraw') {
+      const liquid = Math.floor(state.accounts[client.id]?.savings ?? 0);
+      const amount = Math.min(plan.amount, liquid - ATM.fee);
+      return amount >= ATM.minWithdraw ? { ...plan, amount } : null;
+    }
+    if (plan?.kind === 'deposit' && plan.term === 0) return plan;
+    return null;
+  }
+
+  function npcAtmServe(client) {
+    const plan = npcAtmPlan(client);
+    if (!plan) return '🏧 Xem số dư thôi.';
+    if (plan.kind === 'deposit') {
+      const result = atmDeposit(client.id, client.purse, plan.amount);
+      return result.ok ? `🏧 Gửi ${coins(plan.amount)} vào tài khoản!` : result.text;
+    }
+    const result = atmWithdraw(client.id, client.purse, plan.amount);
+    return result.ok ? `🏧 Rút ${coins(plan.amount)} tiêu dần.` : result.text;
   }
 
   function closeTerm(owner, purse, id) {
@@ -321,7 +376,7 @@ export function createBank({ ledger, estate, now }) {
     const t = now();
     tick(t);
     const account = state.accounts[id] ?? null;
-    if (account) settle(account, t);
+    if (account) settle(id, account, t);
     const money = purse.money;
     const keep = BANK.npc.keepBase + BANK.npc.keepSpread * (1 - thrift);
     const liquid = account ? Math.floor(account.savings) : 0;
@@ -370,6 +425,7 @@ export function createBank({ ledger, estate, now }) {
 
   return {
     tick,
+    mature,
     debt,
     deposited,
     overdue,
@@ -382,11 +438,19 @@ export function createBank({ ledger, estate, now }) {
     repay,
     npcPlan,
     npcServe,
+    atmWithdraw,
+    atmDeposit,
+    atmBalance,
+    npcAtmPlan,
+    npcAtmServe,
     onChange(listener) {
       listeners.push(listener);
     },
     onCollect(listener) {
       collectors.push(listener);
+    },
+    onMature(listener) {
+      maturers.push(listener);
     },
   };
 }

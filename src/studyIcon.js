@@ -1,18 +1,22 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
 
-function studyTexture() {
+function badgeTexture(emoji) {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  paintStudy(canvas.getContext('2d'), size);
+  paintBadge(canvas.getContext('2d'), size, emoji);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paintStudy(ctx, size));
+  return keepCanvas(texture, (ctx) => paintBadge(ctx, size, emoji));
 }
 
-function paintStudy(ctx, size) {
+export function badgeMaterial(emoji) {
+  return new THREE.SpriteMaterial({ map: badgeTexture(emoji), transparent: true, depthWrite: false });
+}
+
+function paintBadge(ctx, size, emoji) {
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
   ctx.fillStyle = '#fff6d8';
@@ -23,13 +27,13 @@ function paintStudy(ctx, size) {
   ctx.font = `${size * 0.5}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('📖', size / 2, size / 2 + size * 0.03);
+  ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
 }
 
 let studyMaterial = null;
 
 export function createStudyIcon() {
-  studyMaterial ??= new THREE.SpriteMaterial({ map: studyTexture(), transparent: true, depthWrite: false });
+  studyMaterial ??= badgeMaterial('📖');
   const sprite = new THREE.Sprite(studyMaterial);
   sprite.scale.setScalar(0.42);
   sprite.renderOrder = 6;

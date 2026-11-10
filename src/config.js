@@ -267,7 +267,18 @@ export const BANK = {
   maxLoans: 3,
   maxTerms: 5,
   catchUpDays: 60,
-  npc: { keepBase: 40, keepSpread: 60, broke: 15, borrowBase: 60, dueSoon: 1, maxLine: 3 },
+  npc: { keepBase: 40, keepSpread: 60, broke: 15, borrowBase: 60, dueSoon: 1, maxLine: 3, urgentGap: 60, restGap: 8 * 60 },
+};
+
+export const ATM = {
+  fee: 2,
+  minWithdraw: 10,
+  detour: 40,
+  spots: [
+    { id: 'school', name: 'Trường làng', x: 6.6, z: 30.2 },
+    { id: 'market', name: 'Phố cổ', x: 49.3, z: 30.2 },
+    { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: -82, z: 30.3 },
+  ],
 };
 
 export const FLUORESCENT = 0xeef4ff;

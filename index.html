@@ -182,6 +182,13 @@
         <path d="M12 13v4M8 21h8M10 17h4l.5 4h-5z" />
       </svg>
     </button>
+    <button id="mailBtn" class="icon-btn mail-btn" type="button" title="Hộp thư" aria-label="Hộp thư" aria-expanded="false" aria-controls="mailPanel">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5.5" width="18" height="13" rx="2" />
+        <path d="m3.5 7 8.5 6.5L20.5 7" />
+      </svg>
+      <span id="mailDot" class="mail-dot" hidden></span>
+    </button>
   </div>
   <div id="bagVeil" class="bag-veil" hidden></div>
   <section id="bagPanel" class="bag-panel" role="dialog" aria-modal="true" aria-labelledby="bagTitle" hidden>
@@ -195,6 +202,17 @@
       <div id="bagSlots" class="bag-slots" role="tabpanel"></div>
     </div>
     <p id="bagInfo" class="bag-info" aria-live="polite"></p>
+  </section>
+  <div id="mailVeil" class="bag-veil" hidden></div>
+  <section id="mailPanel" class="bag-panel mail-panel" role="dialog" aria-modal="true" aria-labelledby="mailTitle" hidden>
+    <header class="bag-head">
+      <h2 id="mailTitle">Hộp thư<span id="mailCategory" class="bag-category"></span></h2>
+      <button id="mailClose" class="sched-x bag-close" type="button" aria-label="Đóng">×</button>
+    </header>
+    <div class="bag-tabs" role="tablist" aria-label="Loại thư"></div>
+    <div class="bag-well">
+      <div id="mailList" class="mail-list" role="tabpanel"></div>
+    </div>
   </section>
   <section id="lesson" class="lesson" aria-hidden="true" aria-label="Bài học">
     <button id="lessonClose" class="lesson-close" type="button" aria-label="Đóng bài học">×</button>
@@ -526,6 +544,29 @@
         <section id="bankHoldings" class="bank-holdings" hidden>
           <div id="bankList" class="bank-list"></div>
         </section>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="atmDialog" class="paper bank atm" aria-labelledby="atmTitle">
+    <div class="paper-body">
+      <header class="sched-head bank-head">
+        <span class="rank-emblem" aria-hidden="true">🏧</span>
+        <h2 id="atmTitle">ATM</h2>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="atmMoney"></span></span>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="bank-panel">
+        <p id="atmBalance" class="atm-balance"></p>
+        <form id="atmForm" class="bank-form atm-form">
+          <label class="bank-label" for="atmAmount">Số tiền</label>
+          <span class="bank-field bank-amount">
+            <span class="bank-coin" data-art="silver"></span>
+            <input id="atmAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="Nhập số tiền..." />
+          </span>
+          <button class="bank-go" type="submit" value="withdraw">Rút</button>
+          <button class="bank-go" type="submit" value="deposit">Gửi</button>
+        </form>
+        <p id="atmNote" class="paper-note bank-note"></p>
       </div>
     </div>
   </dialog>
