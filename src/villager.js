@@ -214,6 +214,7 @@ export class Villager {
 
   shouldAttend(ctx) {
     if (!this.attendsToday(ctx.day)) return false;
+    if (this.turnedAway === this.classSession(ctx)) return false;
     const phase = ctx.phase;
     if (phase.kind === 'free') return !!phase.next && phase.remaining <= ROUTINE.schoolLead;
     return phase.kind !== 'period';

@@ -110,6 +110,25 @@ function richText(ctx, text, x, y, maxWidth, size) {
   ctx.restore();
 }
 
+export function housePlaqueLines(house, nameOf) {
+  const owner = house.owner ? (house.owner === 'player' ? 'Nhà của bạn' : nameOf(house.owner)) : null;
+  return [`Nhà số ${house.id}`, owner ?? `Bán · ${coins(house.price)}`];
+}
+
+export function houseLabel(estate, house, nameOf) {
+  if (!house.owner) return `Nhà số ${house.id} · ${estate.sizeName(house)} · bán ${coins(house.price)}`;
+  return `Nhà số ${house.id} · chủ: ${house.owner === 'player' ? 'bạn' : nameOf(house.owner)}`;
+}
+
+export function visitHouse(options, house) {
+  if (house.owner === 'player') {
+    if (!options.isNight()) return 'Nhà của mình. Tối về đây ngủ cho lại sức nhé!';
+    options.sleep();
+    return null;
+  }
+  return houseLabel(options.estate, house, options.nameOf);
+}
+
 export function plaqueBoard(lines, { bg = 0x1c1310, fg = '#f2c14e', border = 0x8a1d14 } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -453,8 +472,7 @@ export function createVillage() {
     for (const house of bound.estate.houses) {
       const plaque = plaques.get(house.id);
       if (!plaque) continue;
-      const owner = house.owner ? bound.nameOf(house.owner) : null;
-      plaque.sign.paint([`Nhà số ${house.id}`, owner ? (house.owner === 'player' ? 'Nhà của bạn' : owner) : `Bán · ${coins(house.price)}`]);
+      plaque.sign.paint(housePlaqueLines(house, bound.nameOf));
     }
   }
 
@@ -466,9 +484,7 @@ export function createVillage() {
     if (target.kind === 'eatery') return bound.isEateryOpen() ? 'Quán ăn · ăn uống nạp năng lượng' : `Quán ăn · đóng cửa (mở ${bound.eateryHours()})`;
     if (target.kind === 'lodge') return lodgeLabel(target.id);
     const house = bound.estate.houses.find((item) => item.id === target.id);
-    if (!house) return null;
-    if (!house.owner) return `Nhà số ${house.id} · ${bound.estate.sizeName(house)} · bán ${coins(house.price)}`;
-    return `Nhà số ${house.id} · chủ: ${house.owner === 'player' ? 'bạn' : bound.nameOf(house.owner)}`;
+    return house ? houseLabel(bound.estate, house, bound.nameOf) : null;
   }
 
   const shared = {
@@ -513,12 +529,7 @@ export function createVillage() {
       }
       if (target.kind === 'lodge') return bound.rentLodge(target.id);
       const home = bound.estate.houses.find((item) => item.id === target.id);
-      if (home?.owner === 'player') {
-        if (!bound.isNight()) return 'Nhà của mình. Tối về đây ngủ cho lại sức nhé!';
-        bound.sleep();
-        return null;
-      }
-      return labelOf(target);
+      return home ? visitHouse(bound, home) : labelOf(target);
     },
   };
 

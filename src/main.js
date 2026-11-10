@@ -80,6 +80,7 @@ const IDLE_FRAME_RATE = 10;
 const READING_FRAME_RATE = 10;
 const POPUP_FRAME_RATE = 10;
 const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
+const WATCHING_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SLEEP_FRAME_RATE = 2;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
@@ -179,7 +180,7 @@ const market = createMarket();
 const shopUI = createShopUI({ market, purse });
 const fishShopUI = createFishShopUI({ market, purse });
 const martUI = createMartUI({ market, purse });
-const estate = createEstate({ houses: village.houses });
+const estate = createEstate({ houses: [...village.houses, ...quarter.homes] });
 let town = null;
 const NAMES = new Map(villagerProfiles().map((profile) => [profile.id, profile.name]));
 const nameOf = (id) => (id === PLAYER ? 'bạn' : NAMES.get(id) ?? 'người khác');
@@ -226,7 +227,15 @@ regions.add({
 regions.add(createRoad());
 const martOptions = { openMart: () => martUI.open(), isMartOpen: () => martOpen(gameNow()), martHours };
 const fieldMart = createFieldMart(martOptions);
-regions.add(quarter.region(martOptions));
+regions.add(
+  quarter.region({
+    ...martOptions,
+    estate,
+    nameOf,
+    isNight: () => context.night,
+    sleep: () => sleepAtHome(),
+  }),
+);
 regions.add(fieldMart.region);
 for (const region of countryside.regions()) regions.add(region);
 regions.add(
@@ -544,7 +553,7 @@ town = new Town({
   ledger,
   market,
   estate,
-  places: village.places,
+  places: { ...village.places, homes: new Map([...village.places.doors, ...quarter.homeDoors]) },
   lodges: district.lodges,
   river,
   bank,
@@ -1223,16 +1232,21 @@ renderer.setAnimationLoop((time) => {
   const watching = scenePopupOpen();
   const popup = !watching && popupOpen();
   if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
+  const reading = lesson.visible || study.visible;
+  const resting = reading || idle;
+  const still = resting && !town.anyMoving() && !mountain.moving();
   const frameRate = purse.sleeping
     ? SLEEP_FRAME_RATE
     : watching
       ? SCENE_POPUP_FRAME_RATE
       : popup
         ? POPUP_FRAME_RATE
-        : lesson.visible || study.visible
-          ? READING_FRAME_RATE
-          : idle
-            ? IDLE_FRAME_RATE
+        : still
+          ? reading
+            ? READING_FRAME_RATE
+            : IDLE_FRAME_RATE
+          : resting
+            ? WATCHING_FRAME_RATE
             : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
@@ -1310,7 +1324,7 @@ renderer.setAnimationLoop((time) => {
   for (const effect of Object.values(effects)) effect.update(dt);
   fishing.update();
   countryside.update(context.day);
-  mountain.update(dt, { camera, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
+  mountain.update(dt, { camera, night, rest: context.night, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
   regions.update(t, dt, mode === 'overview' ? orbit.target : player.position);
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);

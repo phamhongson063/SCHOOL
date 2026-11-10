@@ -1,14 +1,43 @@
 import { between } from './random.js';
 import { ROUTINE, SCHOOL } from './config.js';
-import { BACK, BROKE, LATE, PAID, PLAY, SELF_STUDY, TAKEN, pick } from './villagerData.js';
+import { BACK, BROKE, CLASS_FULL, LATE, PAID, PLAY, SELF_STUDY, TAKEN, pick } from './villagerData.js';
 import { economy } from './economy.js';
+import { CX, HOUSE } from './school.js';
+
+const CLASS_DOOR = { x: CX, z: HOUSE.front - 1.5 };
 
 export class SchoolBehavior {
+  classSession(ctx) {
+    const phase = ctx.phase;
+    const start = phase.kind === 'free' ? phase.next?.start : phase.start;
+    const session = start < SCHOOL.afternoon ? 'morning' : start < SCHOOL.evening ? 'afternoon' : 'evening';
+    return `${phase.day}:${session}`;
+  }
+
+  turnAway() {
+    const seat = this.town.spareSeat(this);
+    if (seat) {
+      this.targetSeat = seat;
+      this.town.seats.reserve(seat, this);
+      this.travel(seat.spot, { speed: this.returnSpeed, then: () => this.takeSeat(), fail: () => this.takeSeat() });
+      return;
+    }
+    this.targetSeat = null;
+    this.turnedAway = this.classSession(this.town.context);
+    this.say(pick(CLASS_FULL), 2);
+    this.think();
+  }
+
   goToClass() {
     const seats = this.town.seats;
     const own = this.homeSeat && seats.isFreeFor(this.homeSeat, this) ? this.homeSeat : this.town.spareSeat(this);
-    if (!own) return this.goFarm();
     this.cancel();
+    if (!own) {
+      this.task = 'class';
+      this.targetSeat = null;
+      this.travel(this.town.walkable(CLASS_DOOR), { then: () => this.turnAway(), fail: () => this.turnAway() });
+      return;
+    }
     this.task = 'class';
     seats.reserve(own, this);
     this.targetSeat = own;
@@ -31,8 +60,7 @@ export class SchoolBehavior {
     const next = this.town.spareSeat(this);
     this.targetSeat = next;
     if (!next) {
-      this.task = null;
-      this.wait(1);
+      this.turnAway();
       return;
     }
     seats.reserve(next, this);

@@ -6,9 +6,10 @@ import { keepCanvas } from './canvasRestore.js';
 
 export const MOUNTAIN = { x0: -152, z0: -146, x1: 84, z1: 22 };
 const STEP = 1;
+const MESH_STEP = 2;
+const MESH_SPAN = MESH_STEP / STEP;
 const MAX_SLOPE = 0.55;
 const FLAT = 0.04;
-const MESH_STEP = 2;
 const SINK = -0.08;
 
 const SPINE = [
@@ -23,14 +24,15 @@ const SPINE = [
 ];
 
 export const SUMMIT = { x: -55, z: -85 };
-export const PAGODA = { x: SUMMIT.x, z: SUMMIT.z, half: 2.4, porch: 0.55, stand: { x: SUMMIT.x, z: SUMMIT.z + 5.2 } };
+export const PAGODA = { x: SUMMIT.x, z: SUMMIT.z, half: 2.4, porch: 0.55, stand: { x: SUMMIT.x, z: SUMMIT.z + 5.2 }, urn: { x: SUMMIT.x, z: SUMMIT.z + 3.8 } };
+export const HERMITAGE = { x: SUMMIT.x, z: SUMMIT.z - 7.2, halfX: 1.8, halfZ: 1.2, door: { x: SUMMIT.x, z: SUMMIT.z - 5.4 } };
 const SUMMIT_FLAT = 9.5;
 const SUMMIT_BLEND = 10;
 const SUMMIT_CAP_SLOPE = 0.05;
 const COURTYARD = { half: 3.6, z0: 3.2, z1: 8.6, top: 0.03 };
 const STAIRS = { half: 1.3, from: SUMMIT_FLAT, steps: 16, run: 0.7, maxRise: 0.5 };
 const STAIRS_LENGTH = STAIRS.steps * STAIRS.run;
-const STAIRS_CARVE = STAIRS.half + 1.2;
+const STAIRS_CARVE = 3;
 export const SHELTERS = [
   { x: -57.9, z: -39.8, turn: 0.6 },
   { x: 24.8, z: -52.6, turn: -0.5 },
@@ -82,6 +84,8 @@ export const BRIDGE = { x: -108, z0: 32.2, z1: 37.8, half: 2.3, deck: 0.16 };
 
 const COLS = Math.round((MOUNTAIN.x1 - MOUNTAIN.x0) / STEP) + 1;
 const ROWS = Math.round((MOUNTAIN.z1 - MOUNTAIN.z0) / STEP) + 1;
+const MESH_COLS = (COLS - 1) / MESH_SPAN + 1;
+const MESH_ROWS = (ROWS - 1) / MESH_SPAN + 1;
 
 let heights = null;
 let summit = null;
@@ -153,9 +157,9 @@ function shapeSummit(grid) {
   }
   const foot = sampleGrid(grid, SUMMIT.x, SUMMIT.z + STAIRS.from + STAIRS_LENGTH);
   const rise = Math.min(STAIRS.maxRise, Math.max(0, top - foot) / STAIRS.steps);
-  forCellsNear(SUMMIT.x, SUMMIT.z + STAIRS.from + STAIRS_LENGTH / 2, STAIRS_LENGTH / 2 + 1, (n, x, z) => {
+  forCellsNear(SUMMIT.x, SUMMIT.z + STAIRS.from + STAIRS_LENGTH / 2, STAIRS_LENGTH / 2 + MESH_STEP, (n, x, z) => {
     const along = z - SUMMIT.z - STAIRS.from;
-    if (Math.abs(x - SUMMIT.x) > STAIRS_CARVE || along < 0 || along > STAIRS_LENGTH + 0.5) return;
+    if (Math.abs(x - SUMMIT.x) > STAIRS_CARVE || along < -MESH_STEP || along > STAIRS_LENGTH + 0.5) return;
     grid[n] = Math.min(grid[n], top - (along / STAIRS.run + 1) * rise);
   });
   summit = { top, rise };
@@ -163,8 +167,9 @@ function shapeSummit(grid) {
 
 function stairTop(x, z) {
   const along = z - SUMMIT.z - STAIRS.from;
-  if (Math.abs(x - SUMMIT.x) > STAIRS.half || along < 0 || along >= STAIRS_LENGTH) return null;
+  if (Math.abs(x - SUMMIT.x) > STAIRS.half || along < COURTYARD.z1 - STAIRS.from || along >= STAIRS_LENGTH) return null;
   heights ??= buildHeights();
+  if (along < 0) return summit.top + COURTYARD.top;
   return summit.top - (Math.floor(along / STAIRS.run) + 1) * summit.rise;
 }
 
@@ -202,10 +207,26 @@ function buildHeights() {
   return grid;
 }
 
+function sampleMesh(grid, x, z) {
+  const fx = (x - MOUNTAIN.x0) / MESH_STEP;
+  const fz = (z - MOUNTAIN.z0) / MESH_STEP;
+  const c = Math.min(MESH_COLS - 2, Math.floor(fx));
+  const r = Math.min(MESH_ROWS - 2, Math.floor(fz));
+  const tx = fx - c;
+  const tz = fz - r;
+  const n = r * MESH_SPAN * COLS + c * MESH_SPAN;
+  const a = grid[n];
+  const d = grid[n + MESH_SPAN];
+  const b = grid[n + MESH_SPAN * COLS];
+  const e = grid[n + MESH_SPAN * COLS + MESH_SPAN];
+  if (tx + tz <= 1) return a + (d - a) * tx + (b - a) * tz;
+  return e + (b - e) * (1 - tx) + (d - e) * (1 - tz);
+}
+
 export function terrainHeight(x, z) {
   if (x <= MOUNTAIN.x0 || x >= MOUNTAIN.x1 || z <= MOUNTAIN.z0 || z >= MOUNTAIN.z1) return 0;
   heights ??= buildHeights();
-  return sampleGrid(heights, x, z);
+  return sampleMesh(heights, x, z);
 }
 
 function shelterFloor(x, z) {
@@ -342,7 +363,10 @@ function buildLayout() {
   for (let px = -half; px <= half + 1e-6; px += 0.8) {
     for (let pz = -half; pz <= half + 1e-6; pz += 0.8) block(PAGODA.x + px, PAGODA.z + pz, 0.6);
   }
-  block(PAGODA.x, PAGODA.stand.z - 1.4, 0.45);
+  block(PAGODA.urn.x, PAGODA.urn.z, 0.45);
+  for (let px = -HERMITAGE.halfX; px <= HERMITAGE.halfX + 1e-6; px += 0.6) {
+    for (let pz = -HERMITAGE.halfZ; pz <= HERMITAGE.halfZ + 1e-6; pz += 0.6) block(HERMITAGE.x + px, HERMITAGE.z + pz, 0.45);
+  }
   for (const hut of SHELTERS) {
     for (const [dx, dz] of [[-1.3, -1.1], [1.3, -1.1], [-1.3, 1.1], [1.3, 1.1]]) {
       const c = Math.cos(hut.turn);
@@ -405,8 +429,8 @@ export function navSurface(x, z) {
 }
 
 function terrainMesh() {
-  const cols = Math.round((MOUNTAIN.x1 - MOUNTAIN.x0) / MESH_STEP) + 1;
-  const rows = Math.round((MOUNTAIN.z1 - MOUNTAIN.z0) / MESH_STEP) + 1;
+  const cols = MESH_COLS;
+  const rows = MESH_ROWS;
   const positions = new Float32Array(cols * rows * 3);
   const uvs = new Float32Array(cols * rows * 2);
   const colors = new Float32Array(cols * rows * 3);
@@ -597,15 +621,40 @@ function pagodaMeshes() {
     const bottom = Math.min(terrainHeight(x, stepZ), top - summit.rise) - 0.8;
     b.add(shapes.box(STAIRS.half * 2, top - bottom, STAIRS.run), i % 2 ? 0x9a9383 : 0xa49d8e, { p: [x, (top + bottom) / 2, stepZ] });
   }
-  const urn = { x, z: PAGODA.stand.z - 1.4 };
-  b.add(shapes.box(0.7, 0.3, 0.7), 0x8a8273, { p: [urn.x, paved + 0.15, urn.z] });
-  b.add(shapes.cylinder(0.32, 0.24, 0.5, 12), 0x8a6a3a, { p: [urn.x, paved + 0.55, urn.z] });
-  b.add(shapes.torus(0.32, 0.04, 14), 0x6a4e2a, { p: [urn.x, paved + 0.8, urn.z], r: [Math.PI / 2, 0, 0] });
-  for (const dx of [-0.06, 0, 0.06]) b.add(shapes.cylinder(0.008, 0.008, 0.4, 4), 0xc0281a, { p: [urn.x + dx, paved + 1.0, urn.z] });
   const body = b.mesh();
+  const { urn } = PAGODA;
+  const u = new Batch();
+  u.add(shapes.box(0.7, 0.3, 0.7), 0x8a8273, { p: [urn.x, paved + 0.15, urn.z] });
+  u.add(shapes.cylinder(0.32, 0.24, 0.5, 12), 0x8a6a3a, { p: [urn.x, paved + 0.55, urn.z] });
+  u.add(shapes.torus(0.32, 0.04, 14), 0x6a4e2a, { p: [urn.x, paved + 0.8, urn.z], r: [Math.PI / 2, 0, 0] });
+  for (const dx of [-0.06, 0, 0.06]) u.add(shapes.cylinder(0.008, 0.008, 0.4, 4), 0xc0281a, { p: [urn.x + dx, paved + 1.0, urn.z] });
+  const incense = u.mesh();
   const lower = tileRoofMeshes({ cx: x, cz: z, hx: half + 1.0, hz: half + 1.0, ridge: 0.6, eaveY: y + 3.45, height: 1.1, lift: 0.5, falloff: 1.4 });
   const upper = tileRoofMeshes({ cx: x, cz: z, hx: half - 0.1, hz: half - 0.1, ridge: 0.3, eaveY: y + 4.9, height: 1.3, lift: 0.45, falloff: 1.1 });
-  return { body, meshes: [body, ...lower, ...upper] };
+  return { body, incense, meshes: [body, incense, ...lower, ...upper] };
+}
+
+function hermitageMeshes() {
+  const { x, z, halfX, halfZ } = HERMITAGE;
+  const y = terrainHeight(x, z);
+  const b = new Batch();
+  b.add(shapes.box(halfX * 2 + 0.4, 0.6, halfZ * 2 + 0.4), 0x8a8273, { p: [x, y - 0.1, z] });
+  b.add(shapes.box(halfX * 2, 1.9, halfZ * 2), 0xd8c9a4, { p: [x, y + 1.15, z] });
+  for (const dx of [-halfX, halfX]) {
+    for (const dz of [-halfZ, halfZ]) b.add(shapes.box(0.18, 2.0, 0.18), 0x6a3a24, { p: [x + dx, y + 1.2, z + dz] });
+  }
+  b.add(shapes.box(halfX * 2 + 0.1, 0.16, 0.16), 0x5a3a22, { p: [x, y + 2.1, z + halfZ] });
+  const front = z + halfZ + 0.01;
+  b.add(shapes.box(0.8, 1.45, 0.05), 0x5a2418, { p: [x, y + 0.92, front] });
+  b.add(shapes.box(0.92, 0.08, 0.07), 0x6a3a24, { p: [x, y + 1.66, front] });
+  for (const dx of [-1.05, 1.05]) {
+    b.add(shapes.box(0.5, 0.42, 0.05), 0x3a2a1e, { p: [x + dx, y + 1.3, front] });
+    for (const bar of [-0.12, 0, 0.12]) b.add(shapes.box(0.04, 0.42, 0.07), 0x8a5a34, { p: [x + dx + bar, y + 1.3, front] });
+  }
+  b.add(shapes.box(1.2, 0.14, 0.5), 0x9a9383, { p: [x, y + 0.27, front + 0.25] });
+  const body = b.mesh();
+  const roof = tileRoofMeshes({ cx: x, cz: z, hx: halfX + 0.5, hz: halfZ + 0.5, ridge: 0.4, eaveY: y + 2.2, height: 0.9, lift: 0.3, falloff: 1.2 });
+  return { body, meshes: [body, ...roof] };
 }
 
 export function nearShelter(x, z) {
@@ -688,11 +737,14 @@ export function createMountainScenery() {
   const ground = terrainMesh();
   const stream = streamMeshes();
   const pagoda = pagodaMeshes();
-  group.add(ground, ...trails.map(trailMesh), ...forestMeshes(trees), rockMesh(rocks), ...stream.meshes, bridgeMesh(), shelterMesh(), ...pagoda.meshes);
+  const hermitage = hermitageMeshes();
+  group.add(ground, ...trails.map(trailMesh), ...forestMeshes(trees), rockMesh(rocks), ...stream.meshes, bridgeMesh(), shelterMesh(), ...pagoda.meshes, ...hermitage.meshes);
   return {
     group,
     ground,
     pagoda: pagoda.body,
+    incense: pagoda.incense,
+    hermitage: hermitage.body,
     update(dt) {
       stream.flow.offset.y -= dt * 0.6;
     },

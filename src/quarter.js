@@ -3,7 +3,7 @@ import { Batch, freeze, shapes } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse, createChiefHouse } from './architecture.js';
-import { paving, plaqueBoard } from './village.js';
+import { paving, plaqueBoard, housePlaqueLines, houseLabel, visitHouse } from './village.js';
 import { HO_VAN, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
 import { MART } from './config.js';
@@ -16,14 +16,14 @@ const ABOVE_PAVING = PAVING_LAYER + 1;
 const BOUNDS = { x0: -38, z0: 20, x1: 37, z1: 62 };
 
 const HOUSES = [
-  { id: 'c1', side: 'north', x: -26, width: 5.5, depth: 8, stories: 2, seed: 211 },
-  { id: 'c2', side: 'north', x: -32, width: 5.5, depth: 8, stories: 1, seed: 223 },
+  { id: 'c1', side: 'north', x: -26, width: 5.5, depth: 8, stories: 2, seed: 211, home: 9, size: 'medium' },
+  { id: 'c2', side: 'north', x: -32, width: 5.5, depth: 8, stories: 1, seed: 223, home: 10, size: 'small' },
   { id: 'd1', side: 'north', x: 26.5, width: 5.5, depth: 8, stories: 1, seed: 239 },
-  { id: 'd2', side: 'north', x: 32.5, width: 5.5, depth: 7, stories: 2, seed: 251 },
-  { id: 'a2', side: 'south', x: -18.5, width: 5.5, depth: 8, stories: 1, seed: 263 },
-  { id: 'b1', side: 'south', x: 19.5, width: 5.5, depth: 8, stories: 2, seed: 271 },
-  { id: 'b2', side: 'south', x: 25.5, width: 6, depth: 9, stories: 1, seed: 283 },
-  { id: 'b3', side: 'south', x: 31.75, width: 5.5, depth: 8, stories: 1, seed: 293 },
+  { id: 'd2', side: 'north', x: 32.5, width: 5.5, depth: 7, stories: 2, seed: 251, home: 11, size: 'medium' },
+  { id: 'a2', side: 'south', x: -18.5, width: 5.5, depth: 8, stories: 1, seed: 263, home: 12, size: 'small' },
+  { id: 'b1', side: 'south', x: 19.5, width: 5.5, depth: 8, stories: 2, seed: 271, home: 13, size: 'medium' },
+  { id: 'b2', side: 'south', x: 25.5, width: 6, depth: 9, stories: 1, seed: 283, home: 14, size: 'medium' },
+  { id: 'b3', side: 'south', x: 31.75, width: 5.5, depth: 8, stories: 1, seed: 293, home: 15, size: 'small' },
 ];
 const DINH = { id: 'dinh', side: 'south', x: -27, front: DINH_FRONT, seed: 307 };
 
@@ -136,8 +136,13 @@ export function createQuarter() {
     obstacles.push(...built.obstacles.map(f.box));
     group.add(built.group);
     clickables.push(built.group);
-    places.push({ id: spec.id, name, group: built.group, stand: f.toWorld(door), look: f.toWorld({ x: 0, z: -1 }) });
+    const place = { id: spec.id, name, group: built.group, stand: f.toWorld(door), look: f.toWorld({ x: 0, z: -1 }) };
+    places.push(place);
+    return place;
   };
+  const homes = [];
+  const homeDoors = new Map();
+  const homePlaques = new Map();
 
   for (const spec of HOUSES) {
     const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
@@ -147,7 +152,18 @@ export function createQuarter() {
       board.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
       house.group.add(board.mesh);
     }
-    addPlace(house, spec, mart ? 'Siêu thị' : 'Nhà dân', spec.side === 'north' ? NORTH_FRONT : SOUTH_FRONT, { x: house.door.x, z: house.door.z + 0.4 });
+    if (spec.home) {
+      const board = plaqueBoard([`Nhà số ${spec.home}`, 'Đang bán']);
+      board.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
+      house.group.add(board.mesh);
+      homePlaques.set(spec.home, board);
+    }
+    const place = addPlace(house, spec, mart ? 'Siêu thị' : 'Nhà dân', spec.side === 'north' ? NORTH_FRONT : SOUTH_FRONT, { x: house.door.x, z: house.door.z + 0.4 });
+    if (spec.home) {
+      place.home = spec.home;
+      homes.push({ id: spec.home, size: spec.size });
+      homeDoors.set(spec.home, place.stand);
+    }
   }
 
   const dinh = createChiefHouse({ seed: DINH.seed });
@@ -209,8 +225,19 @@ export function createQuarter() {
 
   return {
     obstacles,
+    homes,
+    homeDoors,
     martStand: places.find((place) => place.id === MART.house).stand,
     region(options = {}) {
+      const houseOf = (place) => (place?.home ? options.estate.houses.find((house) => house.id === place.home) : null);
+      const refreshPlaques = () => {
+        for (const [id, board] of homePlaques) {
+          const house = options.estate.houses.find((item) => item.id === id);
+          if (house) board.paint(housePlaqueLines(house, options.nameOf));
+        }
+      };
+      refreshPlaques();
+      options.estate.onChange(refreshPlaques);
       return {
         id: 'quarter',
         name: 'Xóm Văn Miếu',
@@ -225,12 +252,17 @@ export function createQuarter() {
           return { id: 'visit', hint: 'hand' };
         },
         labelOf(target) {
-          return places.find((place) => place.id === target.id)?.name ?? null;
+          const place = places.find((item) => item.id === target.id);
+          const house = houseOf(place);
+          if (house) return houseLabel(options.estate, house, options.nameOf);
+          return place?.name ?? null;
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 3.8, target.z);
         },
         act(action, target) {
+          const house = houseOf(places.find((item) => item.id === target.id));
+          if (house) return visitHouse(options, house);
           if (target.id !== MART.house) return null;
           if (!options.isMartOpen()) return `Siêu thị đóng cửa rồi, mở ${options.martHours()} nhé!`;
           options.openMart();

@@ -9,6 +9,8 @@ import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 
+const MOVING_SPEED = 0.1;
+
 export class Town {
   constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null }) {
     this.root = root;
@@ -109,7 +111,7 @@ export class Town {
 
   homeOf(member) {
     const house = this.estate.houseOf(member.id);
-    if (house) return this.places.doors.get(house.id);
+    if (house) return this.places.homes.get(house.id);
     return this.places.exits[member.profile.exit ?? 0];
   }
 
@@ -434,6 +436,10 @@ export class Town {
     for (const worker of this.shiftWorkers) {
       if (worker.state === 'away' && worker.onDuty(ctx) && worker.wakeAt === null) worker.wakeAt = worker.now + 0.5 + (worker.lag ?? between(0, 2.5));
     }
+  }
+
+  anyMoving() {
+    return this.all.some((member) => member.near && member.velocity > MOVING_SPEED);
   }
 
   updateLod(camera) {

@@ -52,6 +52,7 @@ export const CHAT = ['Chào cậu!', 'Hôm nay học gì thế?', 'Ha ha!', 'Ch�
 export const PLAY = ['Đuổi bắt nè!', 'Bắt được rồi!', 'Hí hí!', 'Chạy mau!', 'Không bắt được đâu!'];
 export const BACK = ['Sắp vào học rồi!', 'Về chỗ thôi!', 'Trống rồi kìa!', 'Chờ tớ với!'];
 export const LATE = ['Muộn mất rồi!', 'Chạy nhanh lên!', 'Chờ tớ với!'];
+export const CLASS_FULL = ['Hết chỗ rồi, về làm việc thôi!', 'Lớp đông quá, buổi sau học vậy.'];
 export const TAKEN = ['Ơ, có người ngồi rồi!', 'Tớ ngồi chỗ khác vậy.', 'Chỗ tớ bị chiếm mất rồi!'];
 export const FIELD = ['Nắng quá!', 'Mùa này được giá đó!', 'Ráng làm cho xong luống này.', 'Rau năm nay tốt ghê!', 'Nghỉ tay chút đã.'];
 export const TEND = ['Rau lên đều quá!', 'Mai mốt là thu được rồi.', 'Đất còn ẩm, khỏi tưới.', 'Lá xanh mướt ghê!', 'Coi chừng sâu nghen...'];
@@ -94,6 +95,13 @@ const FARMERS = [
   { id: 'sau', name: 'Ông Sáu', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xdccb94 } },
   { id: 'bay', name: 'Chị Bảy', model: 'girl-jade', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
   { id: 'tam', name: 'Út Tám', model: 'worker', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
+  { id: 'chin', name: 'Chú Chín', look: { shirt: 0x7a3a2e, pants: 0x2f2a26, skin: 0xd9a479, style: 'khan', khan: 0x2f3a4a, iris: 0x4a2a18, hat: 0xe2d29c, scarf: 0x5a7a4a } },
+  { id: 'muoi', name: 'Bà Mười', look: { shirt: 0x4a3a5a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8 } },
+  { id: 'ca', name: 'Bác Cả', look: { shirt: 0x8a7a5a, pants: 0x3a3430, skin: 0xcf9a70, style: 'toc', hairColor: 0xb8b2a8, old: true, beardColor: 0xe6e2da, iris: 0x3a2214, hat: 0xdccb94, scarf: 0x7a3a2a } },
+  { id: 'thim', name: 'Thím Ba', look: { shirt: 0x3a6a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'mo', name: 'Mợ Tư', look: { shirt: 0xa05a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe5d6a2, scarf: 0x34507a } },
+  { id: 'di', name: 'Dì Năm', look: { shirt: 0x6a4a7a, pants: 0x2f2a26, skin: 0xf2c4a0, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'cau', name: 'Cậu Bảy', look: { shirt: 0x4a6a9a, pants: 0x4a3a30, skin: 0xe0ad84, style: 'bachom', hairColor: 0x2a201b, iris: 0x7a4a24, hat: 0xe9dbab } },
 ];
 
 export const TEACHER = {
