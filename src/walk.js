@@ -8,7 +8,6 @@ const RADIUS = 0.3;
 const MAX_STEP = 0.55;
 const SNAP_DOWN = 0.45;
 const HEIGHT = 1.7;
-const EYE = 1.55;
 const PIVOT = 1.5;
 const LOOK_ABOVE = 0.55;
 const LOW_PITCH = -0.12;
@@ -40,7 +39,6 @@ export const REST_TIME = 0.6;
 const REST_SHIFT = 0.6;
 const REST_LIFT = 0.04;
 const REST_PIVOT = 0.55;
-const REST_EYE = 0.45;
 const REST_ARM_UP = Math.PI - 0.5;
 const REST_ARM_OUT = 0.55;
 const REST_HEAD = 0.3;
@@ -85,7 +83,6 @@ export class PlayerController {
     this.postureTimer = 0;
     this.postureFrom = new THREE.Vector3();
     this.pivotHeight = PIVOT;
-    this.eyeHeight = EYE;
     this.gait = new Gait({ stride: 0.72, armSwing: 0.85, bounce: 1 });
     avatar.group.rotation.order = 'YXZ';
     this.avatar = avatar;
@@ -97,7 +94,6 @@ export class PlayerController {
     this.hiddenLayers = new Set();
     this.onGround = false;
     this.enabled = false;
-    this.firstPerson = false;
     this.yaw = 0;
     this.pitch = 0.3;
     this.viewPitch = 0.3;
@@ -133,7 +129,7 @@ export class PlayerController {
     this.dom.addEventListener(
       'wheel',
       (e) => {
-        if (!this.enabled || this.firstPerson) return;
+        if (!this.enabled) return;
         this.distance = THREE.MathUtils.clamp(this.distance + Math.sign(e.deltaY) * 0.5, 2, 9);
       },
       { passive: true },
@@ -189,14 +185,7 @@ export class PlayerController {
   }
 
   clampPitch() {
-    const [min, max] = this.firstPerson ? [-1.45, 1.45] : [-0.35, 1.25];
-    this.pitch = THREE.MathUtils.clamp(this.pitch, min, max);
-  }
-
-  setFirstPerson(on) {
-    this.firstPerson = on;
-    this.cameraDistance = 0.5;
-    this.clampPitch();
+    this.pitch = THREE.MathUtils.clamp(this.pitch, -0.35, 1.25);
   }
 
   place(spawn, yaw) {
@@ -370,7 +359,6 @@ export class PlayerController {
     const point = new THREE.Vector3(target.x, (target.y ?? p.y) + TARGET_LIFT, target.z);
     const screen = point.clone().project(camera);
     if (screen.z > 1 || Math.abs(screen.x) > SCREEN_MARGIN || Math.abs(screen.y) > SCREEN_MARGIN) return true;
-    if (this.firstPerson) return false;
     const toTarget = point.clone().sub(camera.position);
     const reach = toTarget.length();
     const ray = new THREE.Ray(camera.position.clone(), toTarget.normalize());
@@ -386,7 +374,7 @@ export class PlayerController {
       return;
     }
     let yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
-    if (work && !this.firstPerson) {
+    if (work) {
       const left = Math.atan2(Math.sin(yaw + WORK_SIDE - this.yaw), Math.cos(yaw + WORK_SIDE - this.yaw));
       const right = Math.atan2(Math.sin(yaw - WORK_SIDE - this.yaw), Math.cos(yaw - WORK_SIDE - this.yaw));
       yaw += Math.abs(left) < Math.abs(right) ? WORK_SIDE : -WORK_SIDE;
@@ -396,7 +384,7 @@ export class PlayerController {
       this.working = true;
     }
     const diff = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
-    const pitch = work ? (this.firstPerson ? 0.7 : WORK_PITCH) : this.firstPerson ? 0.08 : 0.22;
+    const pitch = work ? WORK_PITCH : 0.22;
     this.cameraGoal = { yaw: this.yaw + diff, pitch, then };
   }
 
@@ -582,14 +570,6 @@ export class PlayerController {
       if (Math.abs(this.cameraGoal.yaw - this.yaw) < 0.02 && Math.abs(this.cameraGoal.pitch - this.pitch) < 0.02) this.completeFacing();
     }
     this.pivotHeight += ((seated ? 1.05 : this.resting ? REST_PIVOT : PIVOT) - this.pivotHeight) * ease;
-    this.eyeHeight += ((seated ? 0.95 : this.resting ? REST_EYE : EYE) - this.eyeHeight) * ease;
-    if (this.firstPerson) {
-      this.camera.position.set(p.x, p.y + this.eyeHeight + this.stepOffset, p.z);
-      this.camera.quaternion.setFromEuler(new THREE.Euler(-this.pitch, this.yaw, 0, 'YXZ'));
-      this.avatar.group.visible = false;
-      if (this.seating) this.seating.model.group.visible = false;
-      return;
-    }
 
     const pivot = new THREE.Vector3(p.x, p.y + this.pivotHeight + this.stepOffset, p.z);
     if (this.working && (this.posture !== 'free' || this.lying)) this.working = false;

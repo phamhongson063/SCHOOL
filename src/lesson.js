@@ -75,11 +75,20 @@ export function createLesson() {
   let current = null;
   let seated = false;
 
+  function fitPhrase() {
+    phrase.style.fontSize = '';
+    for (let i = 0; i < 3 && phrase.scrollWidth > phrase.clientWidth; i++) {
+      const size = parseFloat(getComputedStyle(phrase).fontSize);
+      phrase.style.fontSize = `${Math.floor((size * phrase.clientWidth) / phrase.scrollWidth)}px`;
+    }
+  }
+
   function render() {
     const [li, ei] = current;
     const lesson = LESSONS[li];
     const example = lesson.examples[ei];
     phrase.replaceChildren(japanese(lesson.phrase));
+    fitPhrase();
     romaji.textContent = lesson.romaji;
     meaning.textContent = lesson.meaning;
     situation.textContent = example.title;
@@ -138,6 +147,7 @@ export function createLesson() {
     const label = on ? 'Ẩn furigana' : 'Hiện furigana';
     furiganaBtn.title = label;
     furiganaBtn.setAttribute('aria-label', label);
+    fitPhrase();
   }
 
   showFurigana(loadFurigana());
@@ -166,6 +176,8 @@ export function createLesson() {
     } catch {}
   });
 
+  window.addEventListener('resize', fitPhrase);
+  document.fonts?.addEventListener('loadingdone', fitPhrase);
   close.addEventListener('click', () => setVisible(false));
   reopen.addEventListener('click', () => setVisible(true));
 

@@ -58,7 +58,9 @@ function mailRow(mail) {
     place.type = 'button';
     place.className = 'mail-place';
     place.textContent = `X: ${Math.round(mail.point.x)}  Y: ${Math.round(mail.point.z)}`;
-    main.append(place);
+    const last = lines.at(-1);
+    if (last) last.append(' ', place);
+    else main.append(place);
   }
   row.append(icon, main);
   return row;

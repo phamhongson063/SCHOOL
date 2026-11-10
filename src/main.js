@@ -5,7 +5,7 @@ import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from 
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
-import { createRooms } from './rooms.js';
+import { createRooms, inStudyRoom } from './rooms.js';
 import { Seats } from './seats.js';
 import { createLesson } from './lesson.js';
 import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
@@ -54,6 +54,7 @@ import { createAngler } from './angler.js';
 import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
+import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
@@ -79,6 +80,7 @@ const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
 const READING_FRAME_RATE = 10;
 const POPUP_FRAME_RATE = 10;
+const BAG_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const WATCHING_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SLEEP_FRAME_RATE = 2;
@@ -176,6 +178,7 @@ if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
 createBag(purse);
 const mailbox = createMailbox({ onTravel: travelTo });
 createVitals(purse);
+paintPortrait(renderer, modelReady ? createModel('player') : createPlayer(), document.getElementById('vitalsPortrait'));
 const market = createMarket();
 const shopUI = createShopUI({ market, purse });
 const fishShopUI = createFishShopUI({ market, purse });
@@ -973,7 +976,6 @@ orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: 
 orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
 orbit.enabled = false;
 const ui = {
-  viewBtn: document.getElementById('viewBtn'),
   modeBtn: document.getElementById('modeBtn'),
 };
 
@@ -986,9 +988,6 @@ function setLabel(button, text) {
 
 function refreshUI() {
   frameCamera();
-  ui.viewBtn.classList.toggle('active', player.firstPerson);
-  ui.viewBtn.disabled = mode !== 'play';
-  setLabel(ui.viewBtn, player.firstPerson ? 'Chuyển sang góc nhìn thứ ba' : 'Chuyển sang góc nhìn thứ nhất');
   ui.modeBtn.classList.toggle('active', mode === 'overview');
   setLabel(ui.modeBtn, mode === 'overview' ? 'Quay lại nhập vai' : 'Xem toàn cảnh');
 }
@@ -1061,10 +1060,6 @@ renderer.domElement.addEventListener('pointerup', (event) => {
   if (point) player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
 });
 
-ui.viewBtn.addEventListener('click', () => {
-  player.setFirstPerson(!player.firstPerson);
-  refreshUI();
-});
 ui.modeBtn.addEventListener('click', () => setMode(mode === 'play' ? 'overview' : 'play'));
 
 const restBtn = document.getElementById('restBtn');
@@ -1092,7 +1087,7 @@ restBtn.addEventListener('click', () => {
   refreshRest();
 });
 
-for (const button of [ui.viewBtn, ui.modeBtn, restBtn]) {
+for (const button of [ui.modeBtn, restBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
@@ -1114,7 +1109,7 @@ function frameCamera() {
   const width = window.innerWidth;
   const height = window.innerHeight;
   const narrow = Math.max(0, 1 - width / height);
-  const following = mode === 'play' && !player.firstPerson;
+  const following = mode === 'play';
   camera.fov = BASE_FOV + narrow * 32;
   camera.setViewOffset(width, height, 0, following ? -narrow * 0.3 * height : 0, width, height);
   player.distanceScale = 1 + narrow * 0.75;
@@ -1173,7 +1168,7 @@ function drainEnergy() {
   const lodging = asleep && purse.lodging;
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
   const resting = lodging || 'sleep';
-  const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : 'rest';
+  const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : inStudyRoom(player.position) ? 'studyRest' : 'rest';
   const studying = player.seat?.study || (inClass() && learningNow());
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
@@ -1240,7 +1235,9 @@ renderer.setAnimationLoop((time) => {
     : watching
       ? SCENE_POPUP_FRAME_RATE
       : popup
-        ? POPUP_FRAME_RATE
+        ? bagPanel.hidden
+          ? POPUP_FRAME_RATE
+          : BAG_FRAME_RATE
         : still
           ? reading
             ? READING_FRAME_RATE

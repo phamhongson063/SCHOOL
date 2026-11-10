@@ -1,12 +1,9 @@
 import { ENERGY } from './config.js';
 
-const RING = 2 * Math.PI * 29;
-
 export function createVitals(purse) {
   const root = document.getElementById('vitals');
-  const ring = document.getElementById('energyRing');
+  const bar = document.getElementById('energyBar');
   const text = document.getElementById('vitalsText');
-  ring.style.strokeDasharray = `${RING}`;
   let shown = null;
 
   function render() {
@@ -14,7 +11,7 @@ export function createVitals(purse) {
     if (energy === shown) return;
     shown = energy;
     const ratio = Math.max(0, Math.min(1, purse.energy / ENERGY.max));
-    ring.style.strokeDashoffset = `${RING * (1 - ratio)}`;
+    bar.style.width = `${ratio * 100}%`;
     const low = energy < ENERGY.low;
     root.classList.toggle('low', low);
     const label = `Năng lượng ${energy}/${ENERGY.max}`;

@@ -120,12 +120,13 @@ export function createBubble() {
         badgeX = Math.round(((low.x + 1) / 2) * window.innerWidth);
         badgeY = Math.round(((1 - low.y) / 2) * window.innerHeight);
       }
+      const spread = mood && trip ? BADGE_STEP / 2 : 0;
       if (mood) {
-        badge.style.transform = `translate(${badgeX}px, ${badgeY}px) translate(-50%, -100%)`;
+        badge.style.transform = `translate(${badgeX - spread}px, ${badgeY}px) translate(-50%, -100%)`;
         badge.style.zIndex = depth;
       }
       if (trip) {
-        tripBadge.style.transform = `translate(${badgeX + (mood ? BADGE_STEP : 0)}px, ${badgeY}px) translate(-50%, -100%)`;
+        tripBadge.style.transform = `translate(${badgeX + spread}px, ${badgeY}px) translate(-50%, -100%)`;
         tripBadge.style.zIndex = depth;
       }
     },

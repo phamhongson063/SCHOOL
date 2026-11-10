@@ -11,6 +11,7 @@ export function isNight(minutes) {
 export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
   if (activity === 'rest') return -ENERGY.restPerHour;
+  if (activity === 'studyRest') return -ENERGY.studyRestPerHour;
   if (activity === 'shelter') return -ENERGY.shelterPerHour;
   if (activity === 'lampStudy') return ENERGY.drain.study;
   if (LODGE_ROOMS[activity]) return -LODGES[LODGE_ROOMS[activity].tier].perHour;

@@ -24,6 +24,13 @@ function classroom() {
 
 const contains = (room, p) => p.x >= room.x0 && p.x <= room.x1 && p.z >= room.z0 && p.z <= room.z1 && p.y < room.top;
 
+let studyRooms = null;
+
+export function inStudyRoom(point) {
+  studyRooms ??= [studyHallRoom(), classroom()];
+  return studyRooms.some((room) => contains(room, point));
+}
+
 export function createRooms() {
   const rooms = [studyHallRoom(), classroom()].map((room) => ({
     ...room,

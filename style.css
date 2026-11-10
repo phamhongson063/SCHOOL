@@ -5,6 +5,11 @@
   --bar-height: 57px;
   --panel-bottom: calc(var(--safe-bottom) + var(--pill-gap) + var(--bar-height) + 12px);
   --panel-top: 76px;
+  --hud-edge: 16px;
+  --hud-face: 64px;
+  --hud-bar: 8px;
+  --hud-gap: 5px;
+  --hud-clock-top: calc(var(--hud-edge) + var(--hud-face) + var(--hud-gap) + var(--hud-bar) + 4px);
   --gold: #c9962f;
   --ink: #2b1c12;
   --lacquer: #8a1d14;
@@ -70,49 +75,65 @@ body {
 
 #hud {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: var(--hud-edge);
+  left: var(--hud-edge);
   z-index: var(--z-hud);
 }
 
 .vitals {
-  position: relative;
-  display: block;
-  width: 64px;
-  height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hud-gap);
+  width: var(--hud-face);
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: rgba(28, 20, 14, 0.75);
+  background: none;
   cursor: default;
 }
 
-.vitals svg {
+.vitals-face {
+  position: relative;
+  display: block;
+  width: var(--hud-face);
+  height: var(--hud-face);
+  box-sizing: border-box;
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  background: #a8d8f0;
+  box-shadow: 0 2px 8px var(--shadow-soft);
+}
+
+.vitals-face img {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: 6px;
 }
 
-.vitals-track {
-  fill: none;
-  stroke: rgba(28, 20, 14, 0.85);
-  stroke-width: 6;
+.vitals-bar {
+  display: block;
+  height: var(--hud-bar);
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(28, 20, 14, 0.9);
+  border-radius: 999px;
+  background: rgba(28, 20, 14, 0.75);
+  box-shadow: 0 1px 4px var(--shadow-soft);
 }
 
-.vitals-ring {
-  fill: none;
-  stroke: url(#energyGlow);
-  stroke-width: 5;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: 32px 32px;
-  transition: stroke-dashoffset 0.35s ease-out;
-  filter: drop-shadow(0 0 2px rgba(255, 210, 74, 0.8));
+.vitals-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #9cf27a, #3fae3a);
+  box-shadow: 0 0 4px rgba(120, 230, 100, 0.8);
+  transition: width 0.35s ease-out;
 }
 
-.vitals.low .vitals-ring {
-  stroke: #e8502a;
-  filter: drop-shadow(0 0 3px rgba(232, 80, 42, 0.9));
+.vitals.low .vitals-fill {
+  background: linear-gradient(180deg, #ff8a5c, #d8401f);
+  box-shadow: 0 0 4px rgba(232, 80, 42, 0.9);
   animation: energy-pulse 0.9s ease-in-out infinite;
 }
 
@@ -165,8 +186,16 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vitals.low .vitals-ring {
+  .vitals.low .vitals-fill {
     animation: none;
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  :root {
+    --hud-face: 48px;
+    --hud-bar: 6px;
+    --hud-gap: 4px;
   }
 }
 
@@ -226,13 +255,13 @@ body {
 
 #phasePill {
   position: fixed;
-  left: 16px;
-  top: 84px;
+  left: var(--hud-edge);
+  top: var(--hud-clock-top);
   z-index: var(--z-scene-ui);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
+  width: var(--hud-face);
   height: 28px;
   padding: 0;
   white-space: nowrap;
@@ -251,13 +280,14 @@ body {
 
 .coords {
   position: fixed;
-  left: 48px;
-  top: 114px;
+  left: var(--hud-edge);
+  top: calc(var(--hud-clock-top) + 28px);
   z-index: var(--z-scene-ui);
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 4px;
-  transform: translateX(-50%);
+  width: var(--hud-face);
   white-space: nowrap;
   pointer-events: none;
   color: #efe4c8;
@@ -277,8 +307,10 @@ body {
   font-weight: 800;
 }
 
-.coords b + span {
-  min-width: 2.2em;
+@media (max-width: 600px) and (orientation: portrait) {
+  .coords {
+    font-size: 11px;
+  }
 }
 
 .hover-tip {
@@ -715,6 +747,7 @@ body.mail-open #toolbar {
 }
 
 .mail-place {
+  vertical-align: baseline;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1350,6 +1383,7 @@ dialog.paper::backdrop {
 
 .lesson-phrase {
   margin: 0;
+  white-space: nowrap;
   font-size: clamp(28px, 8vw, 40px);
   font-weight: 700;
   line-height: 1.6;
@@ -2125,6 +2159,10 @@ dialog.paper.kanji:focus {
   vertical-align: middle;
 }
 
+.study-card .sched-head {
+  padding: 6px 10px 6px 16px;
+}
+
 .study-title {
   white-space: nowrap;
 }
@@ -2733,12 +2771,7 @@ dialog.paper.kanji:focus {
   z-index: var(--z-scene-ui);
   display: flex;
   gap: 6px;
-  padding: 4px;
   transform: translateX(-50%);
-  border: 1.5px solid var(--gold);
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(64, 44, 26, 0.88), rgba(28, 20, 14, 0.88));
-  box-shadow: 0 4px 14px var(--shadow-soft), inset 0 1px 0 rgba(255, 228, 170, 0.18);
 }
 
 .slot-btn {
@@ -2825,18 +2858,18 @@ dialog.paper.kanji:focus {
   }
 }
 
-.vitals.regen::after {
+.vitals.regen .vitals-face::after {
   content: "";
   position: absolute;
   inset: -6px;
-  border-radius: 50%;
+  border-radius: 12px;
   box-shadow: 0 0 14px 4px rgba(255, 214, 110, 0.75), inset 0 0 10px rgba(255, 230, 150, 0.6);
   pointer-events: none;
   animation: regen-halo 1.6s ease-in-out infinite;
 }
 
-.vitals.regen .vitals-ring {
-  filter: drop-shadow(0 0 4px rgba(255, 226, 120, 1));
+.vitals.regen .vitals-fill {
+  box-shadow: 0 0 6px rgba(160, 255, 130, 1);
 }
 
 .regen-pops {
@@ -2903,7 +2936,7 @@ dialog.paper.kanji:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vitals.regen::after {
+  .vitals.regen .vitals-face::after {
     animation: none;
   }
 
@@ -3786,7 +3819,7 @@ dialog.paper.kanji.closing::backdrop {
 
 .rank-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto 38px;
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(38px, auto);
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
@@ -3826,6 +3859,7 @@ dialog.paper.kanji.closing::backdrop {
 .rank-trend {
   font: 700 13px/1 var(--font-ui);
   text-align: right;
+  white-space: nowrap;
 }
 
 .rank-trend.up {
@@ -3843,7 +3877,7 @@ dialog.paper.kanji.closing::backdrop {
 
 @media (max-width: 600px) {
   .rank-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto 32px;
+    grid-template-columns: 30px minmax(0, 1fr) auto minmax(32px, auto);
     gap: 6px;
     padding: 6px 8px;
     font-size: 14px;

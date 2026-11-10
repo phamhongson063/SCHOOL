@@ -111,33 +111,8 @@
   <div id="app"></div>
   <div id="hud">
     <button id="vitals" class="vitals" type="button" aria-describedby="vitalsInfo">
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <defs>
-          <clipPath id="portraitClip"><circle cx="32" cy="32" r="25" /></clipPath>
-          <linearGradient id="energyGlow" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#ffe680" />
-            <stop offset="1" stop-color="#f2b630" />
-          </linearGradient>
-        </defs>
-        <circle class="vitals-track" cx="32" cy="32" r="29" />
-        <circle id="energyRing" class="vitals-ring" cx="32" cy="32" r="29" />
-        <g clip-path="url(#portraitClip)">
-          <circle cx="32" cy="32" r="25" fill="#a8d8f0" />
-          <ellipse cx="32" cy="62" rx="19" ry="13" fill="#3b6fb0" />
-          <path d="M14 57 Q32 52 50 57" stroke="#d8443a" stroke-width="3" fill="none" />
-          <rect x="29" y="43" width="6" height="6" fill="#f6caa4" />
-          <circle cx="32" cy="33" r="13.5" fill="#f6caa4" />
-          <path d="M18.5 32 Q18 18 32 17.5 Q46 18 45.5 32 Q44 25 38 23.5 Q33 27 26 24 Q20 26 18.5 32 Z" fill="#2a201b" />
-          <circle cx="32" cy="14.5" r="4" fill="#2a201b" />
-          <ellipse cx="27" cy="35" rx="1.9" ry="2.5" fill="#2b1c12" />
-          <ellipse cx="37" cy="35" rx="1.9" ry="2.5" fill="#2b1c12" />
-          <circle cx="27.6" cy="34" r="0.7" fill="#ffffff" />
-          <circle cx="37.6" cy="34" r="0.7" fill="#ffffff" />
-          <ellipse cx="23.5" cy="39" rx="2.2" ry="1.3" fill="#f39a8a" opacity="0.6" />
-          <ellipse cx="40.5" cy="39" rx="2.2" ry="1.3" fill="#f39a8a" opacity="0.6" />
-          <path d="M29.5 40.5 Q32 42.5 34.5 40.5" stroke="#8a3a2a" stroke-width="1.2" fill="none" stroke-linecap="round" />
-        </g>
-      </svg>
+      <span class="vitals-face"><img id="vitalsPortrait" alt="" draggable="false" /></span>
+      <span class="vitals-bar" aria-hidden="true"><span id="energyBar" class="vitals-fill"></span></span>
     </button>
     <div id="vitalsInfo" class="vitals-info" role="tooltip">
       <strong>Năng lượng</strong>
@@ -155,12 +130,6 @@
         <path d="M9.5 6.5 8 3.5h8l-1.5 3" />
         <path d="M9 6.5h6" />
         <path d="M9.5 6.5C6 8.5 4 12 4 15.5 4 19 7.5 21 12 21s8-2 8-5.5c0-3.5-2-7-5.5-9" />
-      </svg>
-    </button>
-    <button id="viewBtn" class="icon-btn" type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
-        <circle cx="12" cy="12" r="3" />
       </svg>
     </button>
     <button id="modeBtn" class="icon-btn" type="button">
@@ -237,7 +206,6 @@
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
     <div class="paper-body">
       <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">📖</span>
         <h2 class="study-title">N2</h2>
         <button id="studyMode" class="study-chip" type="button" hidden></button>
         <button id="studyClose" class="sched-x" type="button" aria-label="Đóng">×</button>

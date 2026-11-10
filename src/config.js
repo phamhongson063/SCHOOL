@@ -134,6 +134,7 @@ export const ENERGY = {
   nightFactor: 2,
   sleepPerHour: 8,
   restPerHour: 4,
+  studyRestPerHour: 6,
   shelterPerHour: 6,
   tiredSpeed: 0.6,
   low: 20,
@@ -239,7 +240,7 @@ export const ECONOMY = {
 export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
 
 export const RANKING = {
-  every: 200,
+  hours: [6 * 60, 12 * 60, 18 * 60],
 };
 
 export const BANK = {

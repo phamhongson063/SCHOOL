@@ -338,6 +338,8 @@ export function inStream(x, z) {
 }
 
 const BUCKET = 4;
+const ROCK_RISE = 1.35;
+const ROCK_STEP_OVER = 0.6;
 const bucketKey = (x, z) => `${Math.floor(x / BUCKET)},${Math.floor(z / BUCKET)}`;
 
 function buildLayout() {
@@ -392,8 +394,10 @@ function buildLayout() {
     const h = terrainHeight(px, pz);
     if (h < 2 || !clearOf(px, pz)) continue;
     const size = 0.55 + rand() * 1.1;
-    rocks.push({ x: px, z: pz, y: h, size, turn: rand() * Math.PI * 2, squash: 0.55 + rand() * 0.3 });
-    block(px, pz, size * 0.85);
+    const turn = rand() * Math.PI * 2;
+    const squash = 0.55 + rand() * 0.3;
+    rocks.push({ x: px, z: pz, y: h, size, turn, squash });
+    if (size * squash * ROCK_RISE > ROCK_STEP_OVER) block(px, pz, size * 0.85);
   }
   return { trails, trees, rocks, blockers };
 }

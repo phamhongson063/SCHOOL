@@ -4,6 +4,7 @@ import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf, moodOf } from './stamina.js';
 import { REST_TIME } from './walk.js';
+import { inStudyRoom } from './rooms.js';
 import { economy } from './economy.js';
 
 const VENDOR_TRIES = 2;
@@ -53,7 +54,7 @@ export class RestBehavior {
   activityNow(ctx) {
     if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
     if (this.state === 'inn') return this.lodge?.id ?? 'inn';
-    if (this.state === 'resting') return this.lyingDown ? 'rest' : 'idle';
+    if (this.state === 'resting') return this.lyingDown ? (inStudyRoom(this.position) ? 'studyRest' : 'rest') : 'idle';
     if (this.state === 'seated' && this.studying && (this.town.context.phase.kind === 'period' || this.task === 'selfstudy')) return 'study';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
