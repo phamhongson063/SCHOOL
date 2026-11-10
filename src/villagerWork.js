@@ -6,6 +6,11 @@ import { FISHING, ENERGY, HUNTING } from './config.js';
 import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
+import { badgeMaterial } from './studyIcon.js';
+
+const SIGN_SECONDS = 2.4;
+const PEN_LIFT = 1.9;
+let penMaterial = null;
 
 export class WorkBehavior {
   nearby(radius) {
@@ -35,7 +40,7 @@ export class WorkBehavior {
       idle();
       return;
     }
-    const stand = farm.standFor(job.index, this.position);
+    const stand = job.stand ?? farm.standFor(job.index, this.position);
     farm.claim(job.index, this.id);
     this.job = job;
     this.task = 'farm';
@@ -238,11 +243,43 @@ export class WorkBehavior {
     });
   }
 
+  showPen(on) {
+    if (!this.pen) {
+      if (!on) return;
+      penMaterial ??= badgeMaterial('✍️');
+      this.pen = new THREE.Sprite(penMaterial);
+      this.pen.scale.setScalar(0.42);
+      this.pen.renderOrder = 6;
+      this.pen.position.set(0, PEN_LIFT, 0);
+      this.walker.group.add(this.pen);
+    }
+    this.pen.visible = on;
+  }
+
+  signLease(job) {
+    const farm = this.town.farm;
+    const sign = farm.signOf(job.bed);
+    this.facing = Math.atan2(sign.x - this.position.x, sign.z - this.position.z);
+    this.showPen(true);
+    this.wait(SIGN_SECONDS, () => {
+      this.showPen(false);
+      farm.signLease(job.bed, this.id, job.offer);
+      farm.release(job.index, this.id);
+      this.job = null;
+      this.wait(between(0.6, 1.2));
+    });
+    this.lookAt = sign;
+  }
+
   work() {
     const job = this.job;
     const farm = this.town.farm;
     if (!job) {
       this.wait(0.5);
+      return;
+    }
+    if (job.action === 'lease') {
+      this.signLease(job);
       return;
     }
     const cost = ENERGY.costs[job.action] ?? 0;

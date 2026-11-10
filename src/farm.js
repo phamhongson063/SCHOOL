@@ -6,12 +6,13 @@ import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
-import { CROP_ECONOMY, ENERGY, FARMING, SHOP, growDays } from './config.js';
+import { CROP_ECONOMY, ENERGY, FARMING, SHOP, VILLAGER, growDays } from './config.js';
 import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
+import { keepCanvas } from './canvasRestore.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const LEASE_KEY = 'truong-lang-xua.farmLeases';
@@ -328,10 +329,7 @@ class FarmState {
     if (spot.stage === 0) {
       const now = gameNow();
       const bed = bedOf(index);
-      if (!this.leases.holds(bed, actor, now)) {
-        if (this.leases.holder(bed, now)) return { id: 'look', hint: null };
-        return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
-      }
+      if (!this.leases.holds(bed, actor, now)) return { id: 'look', hint: null };
       const options = seedOptions(purse);
       return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
     }
@@ -358,8 +356,14 @@ class FarmState {
 
   leaseAction(bed, actor = PLAYER) {
     const lease = this.leases.holder(bed, gameNow());
-    if (lease?.owner !== actor) return { id: 'look', hint: null };
+    if (!lease) return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
+    if (lease.owner !== actor) return { id: 'look', hint: null };
     return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(true) } };
+  }
+
+  signLease(bed, actor, offer) {
+    const purse = this.ledger.purse(actor);
+    return this.leases.rent(bed, actor, FARMING.leases[offer] ?? FARMING.leases[0], purse, gameNow());
   }
 
   stakeLabel(bed, now) {
@@ -457,6 +461,23 @@ function modelKey(stage, crop, variety) {
   return stage < SHAPED_FROM ? `base:${stage}` : `${crop}:${variety}:${stage}`;
 }
 
+const STAKE_BOARD_Y = 0.78;
+const NAME_TAG = { size: [0.38, 0.13], px: [256, 88] };
+let nameTagGeometry = null;
+
+function paintNameTag(ctx, tag) {
+  const [w, h] = NAME_TAG.px;
+  ctx.clearRect(0, 0, w, h);
+  let size = 52;
+  const font = (px) => `700 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = font(size);
+  while (size > 26 && ctx.measureText(tag.text).width > w - 16) ctx.font = font((size -= 2));
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = tag.mine ? '#ffffff' : '#4a2a12';
+  ctx.fillText(tag.text, w / 2, h / 2 + 2);
+}
+
 const position = new THREE.Vector3();
 const rotation = new THREE.Quaternion();
 const scale = new THREE.Vector3();
@@ -487,8 +508,6 @@ class FarmView {
       });
     }
     this.wet = this.instanced((b) => b.add(shapes.cylinder(0.22, 0.22, 0.012, 16), C.wet, { p: [0, 0.006, 0] }), { shadow: false, click: false });
-    this.marks = this.instanced((b) => b.add(shapes.torus(0.27, 0.022, 36), C.mine, { p: [0, 0.018, 0], r: [Math.PI / 2, 0, 0] }), { shadow: false, click: false });
-    this.marks.material = new THREE.MeshBasicMaterial({ color: C.mine });
     this.drops = this.instanced(
       (b) => {
         b.add(shapes.sphere(0.065, 10, 8), C.drop, { p: [0, 0, 0] });
@@ -548,32 +567,76 @@ class FarmView {
     };
     this.stakes = marker((b) => {
       b.add(shapes.box(0.1, 0.85, 0.1), 0x8a5a2b, { p: [0, 0.425, 0] });
-      b.add(shapes.box(0.42, 0.28, 0.05), 0xc9a26a, { p: [0, 0.78, 0] });
+      b.add(shapes.box(0.42, 0.28, 0.05), 0xc9a26a, { p: [0, STAKE_BOARD_Y, 0] });
     });
-    this.flags = marker((b) => b.add(shapes.box(0.34, 0.22, 0.03), C.mine, { p: [0, 0.78, -0.03] }));
+    this.flags = marker((b) => b.add(shapes.box(0.34, 0.22, 0.03), C.mine, { p: [0, STAKE_BOARD_Y, -0.03] }));
     this.stakeBeds = [];
     this.flagBeds = [];
+    this.nameTags = new Map();
     this.stakeKey = null;
     this.stakeAt = 0;
+  }
+
+  nameTag(bed) {
+    let tag = this.nameTags.get(bed);
+    if (tag) return tag;
+    const canvas = document.createElement('canvas');
+    canvas.width = NAME_TAG.px[0];
+    canvas.height = NAME_TAG.px[1];
+    tag = { text: '', mine: false, group: new THREE.Group() };
+    const texture = keepCanvas(new THREE.CanvasTexture(canvas), (ctx) => paintNameTag(ctx, tag));
+    texture.colorSpace = THREE.SRGBColorSpace;
+    tag.texture = texture;
+    nameTagGeometry ??= new THREE.PlaneGeometry(...NAME_TAG.size);
+    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+    for (const [z, yaw] of [
+      [-0.05, Math.PI],
+      [0.03, 0],
+    ]) {
+      const plane = new THREE.Mesh(nameTagGeometry, material);
+      plane.position.set(0, STAKE_BOARD_Y, z);
+      plane.rotation.y = yaw;
+      tag.group.add(plane);
+    }
+    this.group.add(tag.group);
+    this.nameTags.set(bed, tag);
+    return tag;
+  }
+
+  showNameTag(bed, lease, at) {
+    const tag = this.nameTag(bed);
+    const mine = lease.owner === PLAYER;
+    const name = this.state.nameOf(lease.owner);
+    const text = name.charAt(0).toUpperCase() + name.slice(1);
+    tag.group.visible = true;
+    tag.group.position.copy(at);
+    if (tag.text === text && tag.mine === mine) return;
+    tag.text = text;
+    tag.mine = mine;
+    paintNameTag(tag.texture.image.getContext('2d'), tag);
+    tag.texture.needsUpdate = true;
   }
 
   refreshStakes() {
     const now = gameNow();
     const leases = this.state.leases;
-    const key = ALL_BEDS.map(({ field }, bed) => {
-      const lease = field === this.field ? leases.holder(bed, now) : null;
-      return lease ? (lease.owner === PLAYER ? 'p' : 'o') : '-';
-    }).join('');
+    const holders = ALL_BEDS.map(({ field }, bed) => (field === this.field ? leases.holder(bed, now) : null));
+    const key = ALL_BEDS.map(({ field }, bed) => (field === this.field ? holders[bed]?.owner ?? '-' : '')).join('|');
     if (key === this.stakeKey) return;
     this.stakeKey = key;
     this.stakeBeds = [];
     this.flagBeds = [];
-    ALL_BEDS.forEach(({ x, shape, front }, bed) => {
-      if (key[bed] === '-') return;
-      matrix.makeTranslation(x + shape.offset(front), 0, front - 0.35);
+    for (const tag of this.nameTags.values()) tag.group.visible = false;
+    ALL_BEDS.forEach(({ x, shape, front, field }, bed) => {
+      if (field !== this.field) return;
+      position.set(x + shape.offset(front), 0, front - 0.35);
+      matrix.makeTranslation(position.x, position.y, position.z);
       this.stakes.setMatrixAt(this.stakeBeds.length, matrix);
       this.stakeBeds.push(bed);
-      if (key[bed] !== 'p') return;
+      const lease = holders[bed];
+      if (!lease) return;
+      this.showNameTag(bed, lease, position);
+      if (lease.owner !== PLAYER) return;
       this.flags.setMatrixAt(this.flagBeds.length, matrix);
       this.flagBeds.push(bed);
     });
@@ -705,7 +768,6 @@ class FarmView {
     this.refreshStakes();
     const lists = new Map();
     const wet = [];
-    const mine = [];
     const thirsty = [];
     const ripe = [];
     this.state.spots.forEach((spot, i) => {
@@ -714,18 +776,12 @@ class FarmView {
       if (!lists.has(key)) lists.set(key, []);
       lists.get(key).push(i);
       if (spot.watered) wet.push(i);
-      if (spot.stage > 0 && spot.owner === PLAYER) mine.push(i);
       if (this.state.thirsty(spot)) thirsty.push(i);
       if (spot.stage === RIPE && spot.owner === PLAYER) ripe.push(i);
     });
     this.placeRipeIcons(ripe);
     for (const [key, mesh] of this.models) this.place(mesh, lists.get(key) ?? [], this.plantTransform);
     this.place(this.wet, wet, (spot) => {
-      position.set(spot.x, spot.y, spot.z);
-      rotation.identity();
-      scale.setScalar(1);
-    });
-    this.place(this.marks, mine, (spot) => {
       position.set(spot.x, spot.y, spot.z);
       rotation.identity();
       scale.setScalar(1);
@@ -832,16 +888,41 @@ export function createFarm({ ledger, nameOf, nav }) {
     return changed;
   };
 
-  function bedsFor(actor, purse, from) {
+  function leaseOffer(purse, seed) {
+    const horizon = growDays(seed) * VILLAGER.leaseCycles;
+    const budget = purse.money - VILLAGER.leaseReserve;
+    let pick = -1;
+    FARMING.leases.forEach((offer, i) => {
+      if (offer.price <= budget && (i === 0 || offer.days <= horizon)) pick = i;
+    });
+    if (pick < 0 && purse.money >= FARMING.leases[0].price) pick = 0;
+    return pick;
+  }
+
+  function renewJob(actor, beds, purse, seed) {
     const now = gameNow();
-    const held = state.leases.heldBy(actor, now);
-    if (held.length) return held;
-    const offer = FARMING.leases[0];
-    if (purse.money < offer.price) return [];
+    const due = beds.filter((bed) => {
+      const claimant = claims.get(SPOT_BED.indexOf(bed));
+      return state.leases.holder(bed, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && (!claimant || claimant === actor);
+    });
+    if (!due.length) return null;
+    const offer = leaseOffer(purse, seed);
+    if (offer < 0) return null;
+    const bed = due[0];
+    return { action: 'lease', bed, offer, index: SPOT_BED.indexOf(bed), stand: bedHead(bed) };
+  }
+
+  function leaseJob(actor, purse, from, seed) {
+    const offer = leaseOffer(purse, seed);
+    if (offer < 0) return null;
     const gap = (bed) => Math.hypot(ALL_BEDS[bed].x - from.x, ALL_BEDS[bed].front + (ALL_BEDS[bed].count * SPACING) / 2 - from.z);
-    const bed = state.leases.free(now).sort((a, b) => gap(a) - gap(b))[0];
-    if (bed === undefined) return [];
-    return state.leases.rent(bed, actor, offer, purse, now) ? [bed] : [];
+    const open = state.leases.free(gameNow()).filter((bed) => {
+      const claimant = claims.get(SPOT_BED.indexOf(bed));
+      return !claimant || claimant === actor;
+    });
+    const bed = open.sort((a, b) => gap(a) - gap(b))[0];
+    if (bed === undefined) return null;
+    return { action: 'lease', bed, offer, index: SPOT_BED.indexOf(bed), stand: bedHead(bed) };
   }
 
   const crew = {
@@ -863,6 +944,15 @@ export function createFarm({ ledger, nameOf, nav }) {
       const reply = state.act(action, index, gameNow(), choice, actor);
       refreshAll();
       return reply;
+    },
+    signOf(bed) {
+      const head = ALL_BEDS[bed];
+      return { x: head.x + head.shape.offset(head.front), z: head.front - 0.35 };
+    },
+    signLease(bed, actor, offer) {
+      const lease = state.signLease(bed, actor, offer);
+      refreshAll();
+      return lease;
     },
     animate: (index, kind, duration) => viewOf(index)?.animate(index, kind, duration),
     randomPlot(actor) {
@@ -908,7 +998,10 @@ export function createFarm({ ledger, nameOf, nav }) {
         else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
       if (owned < FARMING.villagerPlots && seedChoice) {
-        const beds = bedsFor(worker.id, purse, worker.position);
+        const beds = state.leases.heldBy(worker.id, gameNow());
+        if (!beds.length) return best ?? leaseJob(worker.id, purse, worker.position, seedChoice);
+        const renew = best ? null : renewJob(worker.id, beds, purse, seedChoice);
+        if (renew) return renew;
         state.spots.forEach((plant, index) => {
           if (plant.stage === 0 && beds.includes(bedOf(index))) consider(index, 'plant', 4, seedChoice);
         });
@@ -927,7 +1020,7 @@ export function createFarm({ ledger, nameOf, nav }) {
         if (bed !== null) {
           const index = SPOT_BED.indexOf(bed);
           const head = ALL_BEDS[bed];
-          return { index, stake: bed, x: head.x + head.shape.offset(head.front), z: head.front - 0.35, stand: standFor(spots[index], from) };
+          return { index, stake: bed, x: head.x + head.shape.offset(head.front), z: head.front - 0.35, stand: bedHead(bed) };
         }
         const index = views[field]?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
         if (index == null || index < 0 || fieldOf(index) !== field) return null;

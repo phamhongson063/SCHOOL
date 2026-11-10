@@ -79,6 +79,7 @@ const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
 const READING_FRAME_RATE = 10;
 const POPUP_FRAME_RATE = 10;
+const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SLEEP_FRAME_RATE = 2;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
@@ -1147,6 +1148,8 @@ function cullRooms() {
 const dialogs = [...document.querySelectorAll('dialog')];
 const bagPanel = document.getElementById('bagPanel');
 const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dialog) => dialog.open);
+const scenePopups = [() => fishing.active && kanjiQuiz.open];
+const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
 const sleepVeil = document.getElementById('sleepVeil');
 const sleepEnergy = document.getElementById('sleepEnergy');
@@ -1217,9 +1220,20 @@ renderer.setAnimationLoop((time) => {
   const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active;
   if (busy) lastInput = performance.now();
   const idle = performance.now() - lastInput > IDLE_AFTER;
-  const popup = popupOpen();
+  const watching = scenePopupOpen();
+  const popup = !watching && popupOpen();
   if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
-  const frameRate = purse.sleeping ? SLEEP_FRAME_RATE : popup ? POPUP_FRAME_RATE : lesson.visible || study.visible ? READING_FRAME_RATE : idle ? IDLE_FRAME_RATE : FRAME_RATE;
+  const frameRate = purse.sleeping
+    ? SLEEP_FRAME_RATE
+    : watching
+      ? SCENE_POPUP_FRAME_RATE
+      : popup
+        ? POPUP_FRAME_RATE
+        : lesson.visible || study.visible
+          ? READING_FRAME_RATE
+          : idle
+            ? IDLE_FRAME_RATE
+            : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
   if (LOW_POWER) {

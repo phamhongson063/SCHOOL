@@ -122,6 +122,9 @@ export const VILLAGER = {
   sitWithoutPaying: 0.3,
   restUntil: 10,
   tuitionReserve: 4,
+  leaseReserve: 20,
+  leaseCycles: 3,
+  renewBefore: 0.5,
 };
 
 export const ENERGY = {

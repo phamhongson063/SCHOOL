@@ -5,11 +5,14 @@ import { DISTRICT_STREETS } from './district.js';
 import { ROAD } from './road.js';
 
 export const SPACING = 0.62;
+export const PASS_SPACING = 0.85;
 export const STREET_MID = (ROAD.z0 + ROAD.z1) / 2;
 export const STOP_SPACING = 2;
 export const LOOKAHEAD = 0.85;
 const MAX_STEP = 0.55;
-export const AVOID_RANGE = 1.15;
+export const AVOID_RANGE = 1.5;
+export const PLAYER_AVOID_RANGE = 1.8;
+export const AVOID_PROBE = 0.6;
 export const QUEUE_DRIFT = 0.5;
 export const NO_REST_RADIUS = 3;
 export const BED_SCATTER = 1.8;

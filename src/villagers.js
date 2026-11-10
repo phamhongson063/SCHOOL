@@ -4,7 +4,7 @@ import { INN_STAND } from './inn.js';
 import { realSeconds } from './clock.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
-import { AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GROUP, GUARDS, HANGOUTS, NO_REST_RADIUS, PATHS_PER_FRAME, PEDDLER, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
+import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GROUP, GUARDS, HANGOUTS, NO_REST_RADIUS, PASS_SPACING, PATHS_PER_FRAME, PEDDLER, PLAYER_AVOID_RANGE, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
 import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
@@ -234,7 +234,7 @@ export class Town {
     return best;
   }
 
-  steerAround(position, facing, remaining, self, { range = AVOID_RANGE, gain = 0.9, includePlayer = true } = {}) {
+  steerAround(position, facing, remaining, self, { range = AVOID_RANGE, gain = 0.9, includePlayer = true, blocked = null } = {}) {
     const fx = Math.sin(facing);
     const fz = Math.cos(facing);
     let turn = 0;
@@ -253,7 +253,9 @@ export class Town {
       if (other !== self && other.visible) consider(other.position);
     }
     if (includePlayer && this.player && this.player.posture === 'free') consider(this.player.position);
-    return clamp(turn, -1.1, 1.1);
+    turn = clamp(turn, -1.1, 1.1);
+    if (blocked && turn && blocked(facing + turn) && !blocked(facing - turn)) return -turn;
+    return turn;
   }
 
   avoidance(member, remaining) {
@@ -263,7 +265,11 @@ export class Town {
 
   playerAvoidance(position, dirX, dirZ, remaining) {
     if (remaining < 0.5) return 0;
-    return this.steerAround(position, Math.atan2(dirX, dirZ), remaining, null, { range: 1.5, gain: 1.2, includePlayer: false });
+    const blocked = (heading) => {
+      const probe = { x: position.x + Math.sin(heading) * AVOID_PROBE, y: position.y, z: position.z + Math.cos(heading) * AVOID_PROBE };
+      return this.player.collides(probe);
+    };
+    return this.steerAround(position, Math.atan2(dirX, dirZ), remaining, null, { range: PLAYER_AVOID_RANGE, gain: 1.2, includePlayer: false, blocked });
   }
 
   separate(player) {
@@ -280,13 +286,15 @@ export class Town {
         const dx = b.x - a.x;
         const dz = b.z - a.z;
         const d = Math.hypot(dx, dz);
-        if (d >= SPACING) continue;
+        if (d >= PASS_SPACING) continue;
         const nx = d < 1e-3 ? 1 : dx / d;
         const nz = d < 1e-3 ? 0 : dz / d;
         if (j >= bodies.length) {
           const villager = bodies[i];
-          const full = SPACING - d;
-          if (playerMoving || villager.state !== 'walking') this.nudge(player, nx * full, nz * full);
+          const villagerWalking = villager.state === 'walking';
+          const full = (playerMoving && villagerWalking ? PASS_SPACING : SPACING) - d;
+          if (full <= 0) continue;
+          if (playerMoving || !villagerWalking) this.nudge(player, nx * full, nz * full);
           else this.nudge(villager, -nx * full, -nz * full);
           continue;
         }
@@ -294,7 +302,8 @@ export class Town {
         const second = bodies[j];
         const firstStill = first.state !== 'walking';
         const secondStill = second.state !== 'walking';
-        const full = SPACING - d;
+        const full = (firstStill || secondStill ? SPACING : PASS_SPACING) - d;
+        if (full <= 0) continue;
         if (firstStill && !secondStill) {
           this.nudge(second, nx * full, nz * full);
           continue;
@@ -311,19 +320,18 @@ export class Town {
   }
 
   nudge(body, dx, dz) {
-    if (body instanceof Villager) {
-      const x = body.position.x + dx;
-      const z = body.position.z + dz;
-      if (!canMove(this.nav, body.position.y, x, z)) return;
-      body.position.x = x;
-      body.position.z = z;
+    const p = body.position;
+    const free = body instanceof Villager ? (x, z) => canMove(this.nav, p.y, x, z) : (x, z) => !body.collides({ x, y: p.y, z });
+    for (const [mx, mz] of [
+      [dx, dz],
+      [dx, 0],
+      [0, dz],
+    ]) {
+      if ((!mx && !mz) || !free(p.x + mx, p.z + mz)) continue;
+      p.x += mx;
+      p.z += mz;
       return;
     }
-    const p = body.position;
-    const next = { x: p.x + dx, y: p.y, z: p.z + dz };
-    if (body.collides(next)) return;
-    p.x = next.x;
-    p.z = next.z;
   }
 
   restore(ctx) {

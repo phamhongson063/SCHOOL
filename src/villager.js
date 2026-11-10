@@ -336,6 +336,7 @@ export class Villager {
 
   cancel() {
     this.dropJob();
+    this.showPen(false);
     this.leaveQueue();
     this.town.river.leave(this);
     this.fishing = null;
