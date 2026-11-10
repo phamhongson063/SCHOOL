@@ -147,9 +147,10 @@ const KHANS = [0x3a3430, 0x8a3a2a, 0x4a6a9a];
 const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 
 export const pick = (list) => list[Math.floor(Math.random() * list.length)];
-export const PACE = { chance: 0.4, every: [25, 50], stops: [1, 3], pause: [4, 8], speed: 0.5, watch: 3 };
+export const PACE = { chance: 0.4, every: [25, 50], stops: [1, 3], pause: [4, 8], watch: 3 };
 export const LANE = 0.7;
-export const GROUP = { size: [2, 4], start: [0.3, 7], spread: 0.8, lanes: [-0.7, -0.2, 0.3, 0.8], speed: [0.95, 1.05], together: 40 };
+export const TURN_RATE = 3.75;
+export const GROUP = { size: [2, 4], start: [0.3, 7], spread: 0.8, lanes: [-0.7, -0.2, 0.3, 0.8], together: 40 };
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 

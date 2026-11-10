@@ -10,12 +10,12 @@ import { createClearing } from './clearing.js';
 import { createAngler } from './angler.js';
 import { between } from './random.js';
 import { ITEMS } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, ENERGY } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, ENERGY, MOVE } from './config.js';
 import { leaveRoom } from './lodging.js';
 import { amount } from './format.js';
 import { iconTag } from './itemArt.js';
 import { layDown, restEase } from './walk.js';
-import { CHAT, CLASSROOM, FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, canMove, clamp, pick, wrap } from './villagerData.js';
+import { CHAT, CLASSROOM, FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, pick, wrap } from './villagerData.js';
 import { createStudyIcon } from './studyIcon.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 import { RestBehavior } from './villagerRest.js';
@@ -74,18 +74,14 @@ export class Villager {
     this.fx = null;
 
     const adult = this.kind !== 'student';
-    this.walkSpeed = (adult ? 1.4 : 1.6) * between(0.85, 1.2);
-    this.runSpeed = 3.3 * between(0.85, 1.15);
+    this.walkSpeed = MOVE.walk;
+    this.runSpeed = MOVE.run;
     this.lane = between(-LANE, LANE);
     this.together = null;
-    this.accel = between(2.2, 4);
-    this.decel = between(2.5, 4.5);
-    this.turnRate = between(3, 4.5);
-    this.wobbleF = between(0.35, 0.9);
     this.wobbleP = Math.random() * Math.PI * 2;
     this.stepTime = between(0.35, 0.6);
     this.chatty = between(0.6, 1.4);
-    this.returnSpeed = this.walkSpeed * 1.15;
+    this.returnSpeed = this.walkSpeed;
     this.returnMargin = 6;
     this.gait = new Gait({ stride: between(0.6, 0.85), armSwing: between(0.55, 1.0), bounce: adult ? 0.8 : between(0.7, 1.4) });
     this.writing = Math.random() < 0.6;
@@ -442,7 +438,7 @@ export class Villager {
     else this.wait(0.5);
   }
 
-  steer(t, dt) {
+  steer(dt) {
     const pos = this.position;
     const route = this.route;
     while (this.seg < route.length - 1) {
@@ -480,22 +476,19 @@ export class Villager {
     }
 
     const target = this.lookAhead(LOOKAHEAD);
-    const running = this.cruise > this.walkSpeed * 1.6;
-    const rate = this.turnRate * (running ? 1.3 : 1) * (remaining < 0.8 ? 3 : 1);
+    const running = this.cruise > (this.walkSpeed + this.runSpeed) / 2;
+    const rate = TURN_RATE * (running ? 1.3 : 1) * (remaining < 0.8 ? 3 : 1);
     const heading = Math.atan2(target.x - pos.x, target.z - pos.z) + this.town.avoidance(this, remaining);
-    const err = this.turnTo(heading, rate, dt);
+    this.turnTo(heading, rate, dt);
 
     if (this.activity === 'wander' && this.pauseTimer <= 0 && Math.random() < dt * 0.12) this.pauseTimer = between(0.6, 1.8);
-    let wanted = this.cruise * (1 + 0.12 * Math.sin(t * this.wobbleF + this.wobbleP));
-    wanted *= Math.max(0.3, Math.cos(err));
+    let wanted = this.cruise * Math.min(1, remaining / 0.5 + 0.2);
     if (this.squeezeLeft > 0) wanted *= SQUEEZE.pace;
-    wanted = Math.min(wanted, Math.sqrt(2 * this.decel * Math.max(0, remaining - 0.05)) + 0.15);
     if (this.pauseTimer > 0) {
       wanted = 0;
-      if (this.velocity < 0.05) this.pauseTimer -= dt;
+      this.pauseTimer -= dt;
     }
-    const accel = wanted > this.velocity ? this.accel : this.decel;
-    this.velocity += clamp(wanted - this.velocity, -accel * dt, accel * dt);
+    this.velocity = wanted;
 
     const travel = this.velocity * dt;
     if (travel <= 1e-5) return;
@@ -531,21 +524,12 @@ export class Villager {
     }
   }
 
-  slowDown(dt) {
-    this.velocity = Math.max(0, this.velocity - this.decel * dt);
-    if (this.velocity <= 0) return;
-    const nx = this.position.x + Math.sin(this.facing) * this.velocity * dt;
-    const nz = this.position.z + Math.cos(this.facing) * this.velocity * dt;
-    if (!canMove(this.town.nav, this.position.y, nx, nz)) {
-      this.velocity = 0;
-      return;
-    }
-    this.position.x = nx;
-    this.position.z = nz;
+  slowDown() {
+    this.velocity = 0;
   }
 
   idleUpdate(dt) {
-    this.slowDown(dt);
+    this.slowDown();
     this.timer -= dt;
     const focus = this.lookAt ?? this.town.nearestRoaming(this, 2.2)?.position;
     if (focus) this.turnTo(Math.atan2(focus.x - this.position.x, focus.z - this.position.z), 4, dt);
@@ -564,7 +548,7 @@ export class Villager {
   }
 
   heedUpdate(dt) {
-    this.slowDown(dt);
+    this.slowDown();
     this.turnTo(Math.atan2(CLASSROOM.x - this.position.x, CLASSROOM.z - this.position.z), 3, dt);
     this.timer -= dt;
     if (this.timer <= 0) this.headBack();
@@ -634,7 +618,7 @@ export class Villager {
         this.step(dt, this.seatRef.sit, () => this.sitDown());
         break;
       case 'walking':
-        this.steer(t, dt);
+        this.steer(dt);
         break;
       case 'idle':
         this.idleUpdate(dt);
@@ -646,10 +630,10 @@ export class Villager {
         this.heedUpdate(dt);
         break;
       case 'working':
-        this.slowDown(dt);
+        this.slowDown();
         break;
       case 'fishing': {
-        this.slowDown(dt);
+        this.slowDown();
         const session = this.fishing;
         if (!session) {
           this.wait(0.5);
@@ -662,7 +646,7 @@ export class Villager {
         break;
       }
       case 'queued':
-        this.slowDown(dt);
+        this.slowDown();
         if (this.fishing && !this.town.river.hasFish(this.fishing.spot)) {
           this.endFishing();
           break;
@@ -717,6 +701,7 @@ export class Villager {
     w.face.update(t, this.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
     this.shadow.place(pos.x, pos.y, pos.z, hop);
     if (g.step && this.roaming) this.town.footprints?.step(pos.x, pos.y, pos.z, this.facing, g.step.side);
+    if (g.step) this.town.stepSound?.play(this.velocity > (this.walkSpeed + this.runSpeed) / 2, pos.x, pos.y, pos.z, true);
   }
 }
 

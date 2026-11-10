@@ -97,6 +97,7 @@
       </svg>
       <div class="loader-track"><span class="loader-fill"></span></div>
       <p class="loader-stage"><span class="loader-label">Đang tải</span><span class="loader-dots" aria-hidden="true"><i></i><i></i><i></i></span></p>
+      <button type="button" class="loader-start">Vào game</button>
     </div>
   </div>
   <script>
@@ -203,6 +204,7 @@
     </div>
   </section>
   <button id="lessonOpen" type="button" hidden>📜 Bài học</button>
+  <div id="studyDim" class="study-dim" aria-hidden="true"></div>
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
     <div class="paper-body">
       <header class="sched-head">
@@ -223,13 +225,15 @@
           <button id="studyFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
           <button id="studyTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
         </div>
-        <p id="studyReading" class="study-reading" lang="ja"></p>
-        <p id="studyWord" class="study-word" lang="ja"></p>
-        <p id="studyHanViet" class="study-hanviet"></p>
-        <p id="studyMeaning" class="study-meaning"></p>
-        <div class="study-example">
-          <p id="studyExample" class="study-example-ja" lang="ja"></p>
-          <p id="studyExampleVi" class="study-example-vi"></p>
+        <div class="study-scroll">
+          <p id="studyReading" class="study-reading" lang="ja"></p>
+          <p id="studyWord" class="study-word" lang="ja"></p>
+          <p id="studyHanViet" class="study-hanviet"></p>
+          <p id="studyMeaning" class="study-meaning"></p>
+          <div class="study-example">
+            <p id="studyExample" class="study-example-ja" lang="ja"></p>
+            <p id="studyExampleVi" class="study-example-vi"></p>
+          </div>
         </div>
         <div class="study-progress"><span id="studyBar"></span></div>
         <div class="study-nav">

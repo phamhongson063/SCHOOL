@@ -136,9 +136,11 @@ export const ENERGY = {
   restPerHour: 4,
   studyRestPerHour: 6,
   shelterPerHour: 6,
-  tiredSpeed: 0.6,
+  tiredSpeed: 0.5,
   low: 20,
 };
+
+export const MOVE = { walk: 2, run: 3 };
 
 export const LODGES = {
   inn: { price: 25, perHour: 14, comfort: 0.6 },
@@ -193,7 +195,6 @@ export const VENDOR = {
   reach: 2.4,
   chat: 1.3,
   lure: 18,
-  pace: 0.7,
   roamPause: [8, 18],
   foods: {
     cheden: { icon: '🍧', name: 'Chè đậu đen', price: 8, energy: 10 },
@@ -205,7 +206,6 @@ export const VENDOR = {
 
 export const GUARD = {
   day: [6 * 60, 18 * 60],
-  speed: 1.2,
   pause: 4,
   lag: 1.4,
   gap: 1.3,

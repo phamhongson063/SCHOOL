@@ -8,7 +8,6 @@ import { setRich } from './goldArt.js';
 import { gameNow } from './clock.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
-const TRANSLATE_KEY = 'truong-lang-xua.studyTranslate';
 const MODES = { random: { icon: '🔀', name: 'Ngẫu nhiên' }, smart: { icon: '🧠', name: 'Thông minh' } };
 const NO_MONEY = 'Xin lỗi, bạn không đủ tiền mua gói này.';
 const WORDS = N2_VOCAB.map((entry) => entry.word);
@@ -29,14 +28,6 @@ function loadFurigana() {
   }
 }
 
-function loadTranslate() {
-  try {
-    return localStorage.getItem(TRANSLATE_KEY) === 'on';
-  } catch {
-    return false;
-  }
-}
-
 function packButton(offer) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -50,7 +41,7 @@ function packButton(offer) {
   return button;
 }
 
-export function createStudy({ purse }) {
+export function createStudy({ purse, music = null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -80,15 +71,18 @@ export function createStudy({ purse }) {
   let pack = null;
   let packCard = false;
   let seated = false;
+  let studying = false;
+  const dim = document.getElementById('studyDim');
 
   recall.seed(WORDS);
   showFurigana(loadFurigana());
-  showTranslation(loadTranslate());
+  showTranslation(false);
 
   function endPack() {
     if (!pack) return;
     const refund = Math.floor(((pack.left * pack.price) / pack.words) * STUDY.refund);
     pack = null;
+    music?.stop();
     if (refund <= 0) return;
     economy.refund('teacher', refund);
     purse.earn(refund);
@@ -109,6 +103,8 @@ export function createStudy({ purse }) {
 
   function showStart() {
     endPack();
+    music?.stop();
+    setStudying(false);
     start.hidden = false;
     packs.hidden = true;
     body.hidden = true;
@@ -116,6 +112,7 @@ export function createStudy({ purse }) {
   }
 
   function showPacks() {
+    setStudying(true);
     showChip('smart');
     start.hidden = true;
     packs.hidden = false;
@@ -212,6 +209,7 @@ export function createStudy({ purse }) {
     const index = pickSmart();
     if (index < 0) {
       pack = null;
+      music?.stop();
       showPacks();
       return;
     }
@@ -229,6 +227,8 @@ export function createStudy({ purse }) {
     }
     economy.income('teacher', offer.price);
     pack = { ...offer, left: offer.words };
+    music?.start();
+    showTranslation(false);
     current = -1;
     prev.hidden = true;
     next.hidden = true;
@@ -238,6 +238,9 @@ export function createStudy({ purse }) {
   }
 
   function beginRandom() {
+    music?.start();
+    showTranslation(false);
+    setStudying(true);
     showChip('random');
     current = -1;
     prev.hidden = false;
@@ -254,12 +257,14 @@ export function createStudy({ purse }) {
 
   function go(step) {
     pos = (pos + step + total) % total;
+    showTranslation(false);
     renderRandom();
   }
 
   function answer(knew) {
     recall.record(WORDS[current], knew);
     if (packCard) pack.left -= 1;
+    showTranslation(false);
     renderSmart();
   }
 
@@ -267,6 +272,21 @@ export function createStudy({ purse }) {
     panel.classList.toggle('show', visible);
     panel.setAttribute('aria-hidden', String(!visible));
     reopen.hidden = visible || !seated;
+    refreshFocus();
+  }
+
+  function focused() {
+    return studying && panel.classList.contains('show');
+  }
+
+  function refreshFocus() {
+    const on = focused();
+    dim.classList.toggle('on', on);
+    panel.classList.toggle('focus', on);  }
+
+  function setStudying(on) {
+    studying = on;
+    refreshFocus();
   }
 
   for (const offer of STUDY.packs) {
@@ -287,13 +307,7 @@ export function createStudy({ purse }) {
       localStorage.setItem(FURIGANA_KEY, on ? 'on' : 'off');
     } catch {}
   });
-  translateBtn.addEventListener('click', () => {
-    const on = !panel.classList.contains('show-vi');
-    showTranslation(on);
-    try {
-      localStorage.setItem(TRANSLATE_KEY, on ? 'on' : 'off');
-    } catch {}
-  });
+  translateBtn.addEventListener('click', () => showTranslation(!panel.classList.contains('show-vi')));
   prev.addEventListener('click', () => go(-1));
   next.addEventListener('click', () => go(1));
   forgot.addEventListener('click', () => answer(false));
@@ -305,6 +319,9 @@ export function createStudy({ purse }) {
     get visible() {
       return panel.classList.contains('show');
     },
+    get focused() {
+      return focused();
+    },
     open() {
       seated = true;
       showStart();
@@ -313,6 +330,8 @@ export function createStudy({ purse }) {
     close() {
       seated = false;
       endPack();
+      music?.stop();
+      setStudying(false);
       setVisible(false);
     },
   };

@@ -116,6 +116,17 @@ export class RegionManager {
     }
   }
 
+  shoreAt(x, z) {
+    for (const region of this.regions) {
+      const shore = region.shore;
+      if (!shore || x < region.bounds.x0 || x > region.bounds.x1) continue;
+      const gap = shore.edge(x) - z;
+      if (gap <= shore.reach) return { region, zone: 'near' };
+      if (gap <= shore.reach + shore.hush) return { region, zone: 'hush' };
+    }
+    return null;
+  }
+
   regionAt(x, z) {
     for (const region of this.regions) {
       if (region.handle && inside(region.bounds, x, z)) return region;

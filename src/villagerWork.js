@@ -226,7 +226,7 @@ export class WorkBehavior {
     if (r < 0.75 || this.kind === 'student') {
       const point = this.kind === 'student' ? this.town.strollPoint() : this.town.fieldEdgePoint();
       this.travel(point, {
-        speed: this.walkSpeed * between(0.75, 0.95),
+        speed: this.walkSpeed,
         then: () => {
           if (this.kind !== 'student' && Math.random() < 0.2) this.say(pick(FIELD), 2.2);
           this.wait(between(2, 5));

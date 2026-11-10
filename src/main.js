@@ -12,6 +12,11 @@ import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
 import { NavGrid } from './nav.js';
 import { createSky, createClouds } from './sky.js';
 import { Footprints, createBlobShadow } from './groundfx.js';
+import { StepSound } from './stepSound.js';
+import { Music } from './music.js';
+import { Ambience } from './ambience.js';
+import { StudyMusic } from './studyMusic.js';
+import { createUiSounds } from './uiSound.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
 import { createWatering } from './watering.js';
@@ -84,6 +89,7 @@ const BAG_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const WATCHING_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SLEEP_FRAME_RATE = 2;
+const STUDY_FRAME_RATE = 10;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
 const IDLE_AFTER = 20000;
@@ -160,6 +166,21 @@ const modelReady = hasModel('player');
 const avatar = modelReady ? createModel('player') : createPlayer();
 scene.add(avatar.group);
 const footprints = new Footprints(scene);
+const stepSound = new StepSound();
+const uiSounds = createUiSounds();
+const villageMusic = new Music(['assets/music/village.ogg', 'assets/music/village.m4a']);
+const fieldMusic = new Music(['assets/music/field.ogg', 'assets/music/field.m4a']);
+const riverAmbience = new Ambience({ bed: 'assets/music/river', volume: 0.3 });
+const FIELD_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice']);
+const QUIET_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice', 'river', 'mountain']);
+let soundRegion = null;
+function updateSoundscape(focus) {
+  const village = soundRegion !== null && !QUIET_REGIONS.has(soundRegion);
+  const shore = village ? regions.shoreAt(focus.x, focus.z) : null;
+  riverAmbience.set(soundRegion === 'river' || shore?.zone === 'near');
+  fieldMusic.set(FIELD_REGIONS.has(soundRegion));
+  villageMusic.set(village && !shore && !studyMusic.playing);
+}
 const player = new PlayerController({
   camera,
   domElement: renderer.domElement,
@@ -167,6 +188,7 @@ const player = new PlayerController({
   obstacles: school.obstacles,
   avatar,
   footprints,
+  stepSound,
   shadow: createBlobShadow(scene, 0.34),
 });
 player.surfaceAt = (x, z) => stairHeight(x, z) ?? terrainFloor(x, z);
@@ -211,10 +233,12 @@ bank.onMature((owner, term) => {
 
 createFullscreenToggle();
 
+let placeLocked = false;
 createSettings({
   onReset() {
     renderer.setAnimationLoop(null);
     haltStores();
+    placeLocked = true;
     wipeGame();
     window.location.reload();
   },
@@ -310,6 +334,7 @@ const picker = createPicker();
 const regionControls = [...document.querySelectorAll('[data-region]')];
 const hoverTip = createHoverTip({ renderer, camera, regions, player, playing: () => mode === 'play', working: () => effectTask });
 regions.onChange = (region) => {
+  if (region) soundRegion = region.id;
   for (const control of regionControls) control.hidden = control.dataset.region !== region?.id;
   hoverTip.reset();
   picker.close();
@@ -489,6 +514,7 @@ if (savedClear) {
 } else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
 
 function savePlace() {
+  if (placeLocked) return;
   const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
   try {
     localStorage.setItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
@@ -548,6 +574,7 @@ player.attachSeating({
 
 town = new Town({
   root: villagerRoot,
+  stepSound,
   nav: player.nav,
   seats,
   studySeats,
@@ -630,6 +657,7 @@ const fishing = createPlayerFishing({
 });
 const mountain = createMountain({
   nav: () => player.nav,
+  stepSound,
   purse,
   quiz: kanjiQuiz,
   player,
@@ -653,7 +681,8 @@ function dropSpoiledFish(delay = 0) {
 dropSpoiledFish(1500);
 
 const lesson = createLesson();
-const study = createStudy({ purse });
+const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
+const study = createStudy({ purse, music: studyMusic });
 const inClass = () => player.posture === 'seated' && !player.seat?.study;
 const learningNow = () => context.phase.kind === 'period' && tuition.studying;
 const tuition = createTuition({
@@ -869,13 +898,13 @@ function clickTargets() {
   return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, studyHall.group, inn.group];
 }
 
-player.onClick = (clientX, clientY, run) => {
+function sceneClick(clientX, clientY, run) {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
   const targets = clickTargets();
   if (roof.visible) targets.push(roof);
   const hit = raycaster.intersectObjects(targets, true)[0];
-  if (!hit) return;
+  if (!hit) return false;
   player.getUp();
   stopWork();
   const queueing = playerLine;
@@ -883,43 +912,43 @@ player.onClick = (clientX, clientY, run) => {
   if (villager === town.vendor) {
     leaveLine();
     visitVendor();
-    return;
+    return true;
   }
   if (villager) {
     villager.greet(player.position);
-    return;
+    return true;
   }
   if (school.isTeacher(hit.object)) {
     leaveLine();
     goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
-    return;
+    return true;
   }
   if (inn.owns(hit.object)) {
     leaveLine();
     goDo(innDesk, { stand: INN_STAND, x: INN_DOOR.x, z: INN_DOOR.z }, 'inn');
-    return;
+    return true;
   }
   if (notice.owns(hit.object)) {
     leaveLine();
     goDo(noticeSpot, { stand: notice.stand, x: notice.group.position.x, z: notice.group.position.z }, 'notice');
-    return;
+    return true;
   }
   const atm = atms.atmOf(hit.object);
   if (atm) {
     joinLine(`atm:${atm.id}`, () => atmUI.open(atm), atmUI);
-    return;
+    return true;
   }
   const region = regions.regionOf(hit.object) ?? regions.active;
   if (region?.interact?.(hit.object, player.position)) {
     leaveLine();
-    return;
+    return true;
   }
   const target = region?.target?.(hit, player.position);
   const blank = target ? null : region?.blankTap?.(hit);
   if (blank) {
     if (queueing) leaveLine();
     sayPlayer(blank, 1.8);
-    return;
+    return false;
   }
   const kind = target?.kind;
   const venue = VENUES[kind];
@@ -927,7 +956,7 @@ player.onClick = (clientX, clientY, run) => {
     if (!venue.isOpen(gameNow())) {
       leaveLine();
       sayPlayer(region.act('visit', target), 2.4);
-      return;
+      return true;
     }
     joinLine(
       kind,
@@ -937,7 +966,7 @@ player.onClick = (clientX, clientY, run) => {
       },
       venue.ui,
     );
-    return;
+    return true;
   }
   if (queueing) leaveLine();
   if (target) {
@@ -948,7 +977,7 @@ player.onClick = (clientX, clientY, run) => {
     };
     if (action.choices) picker.open({ ...action.choices, x: clientX, y: clientY }, (option) => go(option.id));
     else go();
-    return;
+    return true;
   }
   const point = hit.point.clone();
   if (hit.face) {
@@ -958,9 +987,14 @@ player.onClick = (clientX, clientY, run) => {
   const seat = playerSeats.at(hit.point);
   if (seat && playerSeats.canTake(seat, 'player')) {
     player.requestSeat(seat, run);
-    return;
+    return true;
   }
   player.requestMove(point, run);
+  return false;
+}
+
+player.onClick = (clientX, clientY, run) => {
+  if (sceneClick(clientX, clientY, run)) uiSounds.click();
 };
 
 const MAP_VIEW = { height: 95, tilt: 0.45, near: 2, min: 25, max: 170, fogNear: 400, fogFar: 900, tapGap: 350, tapSlop: 12 };
@@ -1232,7 +1266,9 @@ renderer.setAnimationLoop((time) => {
   const still = resting && !town.anyMoving() && !mountain.moving();
   const frameRate = purse.sleeping
     ? SLEEP_FRAME_RATE
-    : watching
+    : study.focused
+      ? STUDY_FRAME_RATE
+      : watching
       ? SCENE_POPUP_FRAME_RATE
       : popup
         ? bagPanel.hidden
@@ -1281,6 +1317,8 @@ renderer.setAnimationLoop((time) => {
     dropSpoiledFish();
   }
   footprints.update(t);
+  stepSound.listen(camera);
+  riverAmbience.update(dt);
   tuition.update(context, inClass());
   playerStudyIcon.visible = inClass() && learningNow();
   scheduleBoard.refresh();
@@ -1323,7 +1361,9 @@ renderer.setAnimationLoop((time) => {
   countryside.update(context.day);
   mountain.update(dt, { camera, night, rest: context.night, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
-  regions.update(t, dt, mode === 'overview' ? orbit.target : player.position);
+  const focus = mode === 'overview' ? orbit.target : player.position;
+  regions.update(t, dt, focus);
+  updateSoundscape(focus);
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
   summon.update(dt, context);
   catchFireflies(t, dt);

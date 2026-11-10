@@ -19,7 +19,7 @@ export class RestBehavior {
       else this.wait(between(2, 4), () => this.think());
     };
     this.travel(this.town.fieldEdgePoint(), {
-      speed: this.walkSpeed * 0.8,
+      speed: this.walkSpeed,
       then: settle,
       fail: settle,
     });

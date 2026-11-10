@@ -3,6 +3,7 @@ const track = root?.querySelector('.loader-track');
 const fill = root?.querySelector('.loader-fill');
 const stage = root?.querySelector('.loader-stage');
 const label = root?.querySelector('.loader-label');
+const start = root?.querySelector('.loader-start');
 const HOLD_FULL = 450;
 const REMOVE_AFTER = 2600;
 
@@ -43,13 +44,25 @@ export function loadingStep(value, text) {
   return nextPaint();
 }
 
-export function loadingDone() {
-  if (!root) return;
-  setProgress(1);
+function leave() {
   const remove = () => root.remove();
   root.addEventListener('transitionend', (event) => {
     if (event.target === root && event.propertyName === 'opacity') remove();
   });
-  setTimeout(() => root.classList.add('done'), HOLD_FULL);
-  setTimeout(remove, HOLD_FULL + REMOVE_AFTER);
+  root.classList.add('done');
+  setTimeout(remove, REMOVE_AFTER);
+}
+
+export function loadingDone() {
+  if (!root) return;
+  setProgress(1);
+  if (!start) {
+    setTimeout(leave, HOLD_FULL);
+    return;
+  }
+  start.addEventListener('click', leave, { once: true });
+  setTimeout(() => {
+    root.classList.add('loaded');
+    start.focus({ preventScroll: true });
+  }, HOLD_FULL);
 }

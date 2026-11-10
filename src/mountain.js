@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HUNTING, PRAYER } from './config.js';
+import { HUNTING, MOVE, PRAYER } from './config.js';
 import { HERMITAGE, MOUNTAIN, PAGODA, createMountainScenery, terrainHeight } from './terrain.js';
 import { createPagodaHalo } from './pagodaHalo.js';
 import { Gait } from './gait.js';
@@ -15,7 +15,7 @@ const MONKS = [
 ];
 const MONK_GREETINGS = ['A Di Đà Phật!', 'Mô Phật, thí chủ lên chùa lễ Phật à?', 'Nam mô A Di Đà Phật.'];
 const MONK_DISTANCE = 60;
-const MONK_WALK = { speed: 0.9, turn: 6, stagger: 1.6, arrive: 0.05 };
+const MONK_WALK = { speed: MOVE.walk, turn: 6, stagger: 1.6, arrive: 0.05 };
 const PLATFORM_HALF = 3.2;
 
 function monkRoute(spec) {
@@ -38,7 +38,7 @@ function monkGround(x, z) {
   return onPlatform ? terrainHeight(PAGODA.x, PAGODA.z) + PAGODA.porch : terrainHeight(x, z);
 }
 
-export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }) {
+export function createMountain({ nav, stepSound = null, purse, quiz, player, say, day, onBoarHit }) {
   const scenery = createMountainScenery();
   const wildlife = createWildlife({ nav, onBoarHit });
   const group = new THREE.Group();
@@ -176,6 +176,7 @@ export function createMountain({ nav, purse, quiz, player, say, day, onBoarHit }
         }
         monk.bubble.update(clock);
         const g = monk.gait.update(w, monk.speed, dt, true);
+        if (g.step) stepSound?.play(false, monk.position.x, monk.position.y, monk.position.z, true);
         w.group.position.set(monk.position.x, monk.position.y + g.bob, monk.position.z);
         w.group.rotation.set(g.lean, monk.facing, 0);
         const idle = monk.speed === 0;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Gait } from './gait.js';
-import { ENERGY } from './config.js';
+import { ENERGY, MOVE } from './config.js';
 import { ObstacleGrid } from './obstacleGrid.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 
@@ -15,8 +15,8 @@ const PITCH_STEP = 0.12;
 const ROOMY = 0.85;
 const GRAVITY = 30;
 const JUMP_SPEED = 9;
-export const WALK_SPEED = 2.4;
-export const RUN_SPEED = 4.9;
+export const WALK_SPEED = MOVE.walk;
+export const RUN_SPEED = MOVE.run;
 const WORK_SIDE = 1.75;
 const STUCK_SKIP = 0.7;
 const STUCK_STOP = 2.5;
@@ -60,13 +60,14 @@ export function layDown(avatar, position, facing, k, t) {
 }
 
 export class PlayerController {
-  constructor({ camera, domElement, world, obstacles, avatar, footprints = null, shadow = null }) {
+  constructor({ camera, domElement, world, obstacles, avatar, footprints = null, stepSound = null, shadow = null }) {
     this.camera = camera;
     this.dom = domElement;
     this.world = world;
     this.obstacles = obstacles;
     this.obstacleGrid = new ObstacleGrid(obstacles);
     this.footprints = footprints;
+    this.stepSound = stepSound;
     this.shadow = shadow;
     this.surfaceAt = null;
     this.terrainAt = null;
@@ -511,9 +512,8 @@ export class PlayerController {
     const moving = this.enabled && !this.held;
     const wish = (moving && this.followPath(dt)) || new THREE.Vector3();
 
-    const response = 1 - Math.exp(-(this.onGround ? 14 : 4) * dt);
-    this.velocity.x += (wish.x - this.velocity.x) * response;
-    this.velocity.z += (wish.z - this.velocity.z) * response;
+    this.velocity.x = wish.x;
+    this.velocity.z = wish.z;
     if (moving && this.onGround && this.keys.has('Space')) this.velocity.y = JUMP_SPEED;
     this.velocity.y = Math.max(this.velocity.y - GRAVITY * dt, -40);
 
@@ -556,7 +556,10 @@ export class PlayerController {
 
     const ground = this.onGround ? p.y : this.nav?.heightAt(p.x, p.z) ?? p.y;
     this.shadow?.place(p.x, ground, p.z, Math.max(0, p.y - ground));
-    if (g.step && this.onGround) this.footprints?.step(p.x, p.y, p.z, this.facing, g.step.side);
+    if (g.step && this.onGround) {
+      this.footprints?.step(p.x, p.y, p.z, this.facing, g.step.side);
+      this.stepSound?.play(speed > (WALK_SPEED + RUN_SPEED) / 2, p.x, p.y, p.z);
+    }
   }
 
   updateCamera(dt) {

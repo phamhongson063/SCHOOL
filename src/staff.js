@@ -15,14 +15,12 @@ export class Teacher extends Villager {
 
   think() {
     const ctx = this.town.context;
-    const pacing = this.task === 'pace';
     this.task = null;
     this.lookAt = null;
     if (!this.onDuty(ctx)) return this.goHome();
     if (this.goMeal(ctx)) return;
     this.task = 'teach';
-    const speed = pacing ? this.walkSpeed * PACE.speed : this.walkSpeed;
-    this.travel(TEACHER_STAND, { speed, then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
+    this.travel(TEACHER_STAND, { then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
   }
 
   watchedStudent() {
@@ -81,7 +79,7 @@ export class Teacher extends Villager {
     const spot = pick(PACE_SPOTS);
     this.lookAt = null;
     this.travel(new THREE.Vector3(spot.x, FLOOR, spot.z), {
-      speed: this.walkSpeed * PACE.speed,
+      speed: this.walkSpeed,
       then: () => {
         this.lookAt = this.watchedStudent();
         this.wait(between(...PACE.pause), () => this.paceNext());
@@ -171,7 +169,6 @@ export class Peddler extends ShiftWorker {
   constructor(profile, town) {
     super(profile, town);
     if (!this.walker.model) this.walker.group.add(carryingPole());
-    this.walkSpeed *= VENDOR.pace;
   }
 
   roamsAt(ctx) {
@@ -263,7 +260,6 @@ export class Peddler extends ShiftWorker {
 export class Guard extends ShiftWorker {
   constructor(profile, town) {
     super(profile, town);
-    this.walkSpeed = GUARD.speed;
     this.lag = profile.follower ? GUARD.lag : 0;
   }
 

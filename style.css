@@ -2116,9 +2116,11 @@ dialog.paper.kanji:focus {
   left: 50%;
   bottom: var(--panel-bottom);
   z-index: var(--z-hud);
+  display: flex;
+  flex-direction: column;
   width: min(460px, calc(100vw - 24px));
-  max-height: calc(100dvh - var(--panel-bottom) - var(--panel-top));
-  overflow-y: auto;
+  height: min(560px, calc(100dvh - var(--panel-bottom) - var(--panel-top)));
+  overflow: hidden;
   border: 6px solid var(--wood);
   border-radius: 14px;
   outline: 2px solid var(--gold);
@@ -2142,6 +2144,75 @@ dialog.paper.kanji:focus {
   transform: translate(-50%, 0) scale(1);
 }
 
+.study-card.focus {
+  z-index: var(--z-over);
+}
+
+.study-card > .paper-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.study-card .sched-head,
+.study-card .study-progress,
+.study-card .study-nav {
+  flex: none;
+}
+
+.study-card .study-start,
+.study-card .study-packs {
+  min-height: 0;
+  margin: auto 0;
+  overflow-y: auto;
+}
+
+.study-card .study-body:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.study-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .study-card {
+    top: 50%;
+    bottom: auto;
+    height: calc(100dvh * 2 / 3);
+    transform: translate(-50%, calc(-50% + 20px)) scale(0.92);
+    transform-origin: 50% 50%;
+  }
+
+  .study-card.show {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.study-dim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-float);
+  background: #05070d;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+
+.study-dim.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.study-dim.on ~ .hover-tip {
+  z-index: var(--z-hud);
+}
 .study-chip {
   flex: none;
   padding: 0 4px;
@@ -2258,7 +2329,7 @@ dialog.paper.kanji:focus {
 .study-meaning {
   max-width: 340px;
   margin: 0 auto 14px;
-  padding: 10px 14px;
+  padding: 5px 10px;
   border: 1px dashed #c9b07c;
   border-radius: 10px;
   background: rgba(255, 252, 240, 0.8);
@@ -2276,7 +2347,7 @@ dialog.paper.kanji:focus {
 .study-progress span {
   display: block;
   height: 100%;
-  background: var(--gold);
+  background: #2f7fd6;
   transform-origin: left;
   transition: transform 0.2s ease;
 }
@@ -2285,7 +2356,14 @@ dialog.paper.kanji:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 10px;
+}
+
+#studyPrev,
+#studyNext {
+  width: 36px;
+  height: 36px;
+  font-size: 21px;
 }
 
 .study-step {
@@ -2669,6 +2747,44 @@ dialog.paper.kanji:focus {
 .loader.ready .loader-track,
 .loader.ready .loader-stage {
   opacity: 1;
+}
+
+.loader-start {
+  display: none;
+  margin-top: 26px;
+  padding: 10px 38px;
+  border: 2px solid var(--gold);
+  border-radius: 99px;
+  background: linear-gradient(180deg, #fff7e6 0%, #f3dcb2 100%);
+  color: #5a3a22;
+  font: 600 clamp(20px, 2.6vw, 26px)/1.2 "Dancing Script", cursive;
+  box-shadow: 0 4px 18px rgba(90, 58, 34, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.loader-start:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(90, 58, 34, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.loader-start:active {
+  transform: translateY(1px);
+}
+
+.loader-start:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.loader.loaded .loader-track,
+.loader.loaded .loader-stage {
+  display: none;
+}
+
+.loader.loaded .loader-start {
+  display: inline-block;
+  animation: loader-enter 0.55s ease both;
 }
 
 @keyframes loader-creep {

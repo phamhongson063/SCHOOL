@@ -45,7 +45,7 @@ export class SchoolBehavior {
     const phase = this.town.context.phase;
     const hurry = phase.kind !== 'free' || phase.remaining < 6;
     this.travel(own.spot, {
-      speed: hurry ? this.runSpeed * 0.9 : this.walkSpeed * 1.1,
+      speed: hurry ? this.runSpeed : this.walkSpeed,
       then: () => this.takeSeat(),
       fail: () => {
         this.cancel();
@@ -229,7 +229,7 @@ export class SchoolBehavior {
 
   startRecess(delay) {
     if (this.task !== 'class') return;
-    this.returnSpeed = Math.random() < 0.4 ? this.runSpeed * between(0.9, 1) : this.walkSpeed * between(1, 1.25);
+    this.returnSpeed = Math.random() < 0.4 ? this.runSpeed : this.walkSpeed;
     this.returnMargin = between(4, 9);
     if (this.state === 'seated') {
       this.rise(() => {
@@ -267,7 +267,7 @@ export class SchoolBehavior {
     this.state = 'heeding';
     this.route = null;
     this.timer = late ? between(0, 0.5) : between(0, 1.6);
-    if (late) this.returnSpeed = Math.max(this.returnSpeed, this.runSpeed * between(0.9, 1));
+    if (late) this.returnSpeed = this.runSpeed;
     this.lateReturn = late;
   }
 
@@ -322,13 +322,13 @@ export class SchoolBehavior {
     }
     if (r < 0.75) {
       this.activity = 'wander';
-      this.travel(this.town.yardPoint(), { speed: this.walkSpeed * between(0.85, 1.1), then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
+      this.travel(this.town.yardPoint(), { speed: this.walkSpeed, then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
       return;
     }
     this.activity = 'play';
     this.playLegs = 3 + Math.floor(Math.random() * 3);
     this.say(pick(PLAY), 1.4);
-    this.travel(this.nearby(4), { speed: this.runSpeed * between(0.85, 1.05), then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
+    this.travel(this.nearby(4), { speed: this.runSpeed, then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
   }
 
   arriveActivity() {
@@ -343,7 +343,7 @@ export class SchoolBehavior {
     }
     if (this.activity === 'play' && --this.playLegs > 0) {
       if (Math.random() < 0.3) this.say(pick(PLAY), 1.2);
-      this.travel(this.nearby(4), { speed: this.runSpeed * between(0.8, 1.05), then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
+      this.travel(this.nearby(4), { speed: this.runSpeed, then: () => this.arriveActivity(), fail: () => this.arriveActivity() });
       return;
     }
     this.wait(between(1.5, 4.5), () => this.recessNext());

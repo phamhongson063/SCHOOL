@@ -671,6 +671,7 @@ export function createRiver() {
         name: 'Bến sông Hoài',
         bounds: { x0: WORLD.x0 - 10, z0: 66, x1: WORLD.x1 + 10, z1: 84 },
         staticNav: true,
+        shore: { edge: northBank, reach: 12, hush: 6 },
         target(hit) {
           if (hit.object !== water) return null;
           const spot = nearestFish(hit.point, FISH_PICK_RADIUS);

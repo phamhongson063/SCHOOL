@@ -13,7 +13,7 @@ import { SQUEEZE, squeezePast } from './squeeze.js';
 const MOVING_SPEED = 0.1;
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null }) {
+  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null, stepSound = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
@@ -44,6 +44,7 @@ export class Town {
       }
     }
     this.footprints = footprints;
+    this.stepSound = stepSound;
     this.context = null;
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
     this.restGlow = createRestGlow();
@@ -451,7 +452,7 @@ export class Town {
     while (pool.length) {
       const group = pool.splice(0, lo + Math.floor(Math.random() * (hi - lo + 1)));
       const start = between(...GROUP.start);
-      const speed = (group.reduce((sum, member) => sum + member.walkSpeed, 0) / group.length) * between(...GROUP.speed);
+      const speed = (group.reduce((sum, member) => sum + member.walkSpeed, 0) / group.length);
       const lanes = [...GROUP.lanes].sort(() => Math.random() - 0.5);
       group.forEach((member, k) => {
         member.lane = lanes[k % lanes.length];
