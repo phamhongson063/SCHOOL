@@ -17,6 +17,7 @@ import { iconTag } from './itemArt.js';
 import { layDown, restEase } from './walk.js';
 import { CHAT, CLASSROOM, FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, canMove, clamp, pick, wrap } from './villagerData.js';
 import { createStudyIcon } from './studyIcon.js';
+import { SQUEEZE, squeezeTurn } from './squeeze.js';
 import { RestBehavior } from './villagerRest.js';
 import { SchoolBehavior } from './villagerSchool.js';
 import { WorkBehavior } from './villagerWork.js';
@@ -487,6 +488,7 @@ export class Villager {
     if (this.activity === 'wander' && this.pauseTimer <= 0 && Math.random() < dt * 0.12) this.pauseTimer = between(0.6, 1.8);
     let wanted = this.cruise * (1 + 0.12 * Math.sin(t * this.wobbleF + this.wobbleP));
     wanted *= Math.max(0.3, Math.cos(err));
+    if (this.squeezeLeft > 0) wanted *= SQUEEZE.pace;
     wanted = Math.min(wanted, Math.sqrt(2 * this.decel * Math.max(0, remaining - 0.05)) + 0.15);
     if (this.pauseTimer > 0) {
       wanted = 0;
@@ -709,7 +711,7 @@ export class Villager {
     w.head.rotation.y += (headTarget - w.head.rotation.y) * (1 - Math.exp(-4 * dt));
     const hop = this.velocity > 2.5 ? Math.abs(Math.sin(g.phase)) * 0.08 * Math.min(1, (this.velocity - 2.5) / 0.8) : 0;
     w.group.position.set(pos.x, pos.y + g.bob + hop, pos.z);
-    w.group.rotation.set(g.lean, this.facing, 0);
+    w.group.rotation.set(g.lean, this.facing + squeezeTurn(this, dt), 0);
     if (this.pop > 0) this.pop = Math.max(0, this.pop - dt);
     w.group.scale.setScalar(this.pop > 0 ? 1 + Math.sin((1 - this.pop / 0.25) * Math.PI) * 0.08 : 1);
     w.face.update(t, this.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');

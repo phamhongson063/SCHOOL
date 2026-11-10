@@ -8,6 +8,7 @@ import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR
 import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
+import { SQUEEZE, squeezePast } from './squeeze.js';
 
 const MOVING_SPEED = 0.1;
 
@@ -274,16 +275,21 @@ export class Town {
     return this.steerAround(position, Math.atan2(dirX, dirZ), remaining, null, { range: PLAYER_AVOID_RANGE, gain: 1.2, includePlayer: false, blocked });
   }
 
-  separate(player) {
+  separate(player, dt) {
     const bodies = this.all.filter((member) => member.visible);
     const playerFree = player && player.posture === 'free';
     const count = bodies.length + (playerFree ? 1 : 0);
-    const posOf = (i) => (i < bodies.length ? bodies[i].position : player.position);
+    const bodyOf = (i) => (i < bodies.length ? bodies[i] : player);
     const playerMoving = playerFree && (!!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.25);
+    const moving = (body) => (body === player ? playerMoving : body.state === 'walking');
+    for (let i = 0; i < count; i++) {
+      const body = bodyOf(i);
+      if (body.squeezeLeft > 0) body.squeezeLeft = Math.max(0, body.squeezeLeft - dt);
+    }
     for (let i = 0; i < count; i++) {
       for (let j = i + 1; j < count; j++) {
-        const a = posOf(i);
-        const b = posOf(j);
+        const a = bodyOf(i).position;
+        const b = bodyOf(j).position;
         if (Math.abs(a.y - b.y) > 1.2) continue;
         const dx = b.x - a.x;
         const dz = b.z - a.z;
@@ -291,6 +297,13 @@ export class Town {
         if (d >= PASS_SPACING) continue;
         const nx = d < 1e-3 ? 1 : dx / d;
         const nz = d < 1e-3 ? 0 : dz / d;
+        if (this.squeezes(bodyOf(i), bodyOf(j), moving, nx, nz)) {
+          const push = (SQUEEZE.spacing - d) / 2;
+          if (push <= 0) continue;
+          this.nudge(bodyOf(i), -nx * push, -nz * push);
+          this.nudge(bodyOf(j), nx * push, nz * push);
+          continue;
+        }
         if (j >= bodies.length) {
           const villager = bodies[i];
           const villagerWalking = villager.state === 'walking';
@@ -321,9 +334,39 @@ export class Town {
     }
   }
 
+  squeezes(first, second, moving, nx, nz) {
+    if (first.roaming === false || second.roaming === false || (!moving(first) && !moving(second))) return false;
+    const narrow = (first.squeezeLeft > 0 && second.squeezeLeft > 0) || this.narrow(first, nx, nz) || this.narrow(second, nx, nz);
+    if (!narrow) return false;
+    squeezePast(first, second.position);
+    squeezePast(second, first.position);
+    return true;
+  }
+
+  narrow(body, nx, nz) {
+    const p = body.position;
+    const free = this.freeFor(body);
+    let room = 0;
+    for (const side of [1, -1]) {
+      let reach = 0;
+      while (reach < SQUEEZE.probe) {
+        const next = reach + SQUEEZE.step;
+        if (!free(p.x - nz * side * next, p.z + nx * side * next)) break;
+        reach = next;
+      }
+      room += reach;
+    }
+    return room < SQUEEZE.room;
+  }
+
+  freeFor(body) {
+    const p = body.position;
+    return body instanceof Villager ? (x, z) => canMove(this.nav, p.y, x, z) : (x, z) => !body.collides({ x, y: p.y, z });
+  }
+
   nudge(body, dx, dz) {
     const p = body.position;
-    const free = body instanceof Villager ? (x, z) => canMove(this.nav, p.y, x, z) : (x, z) => !body.collides({ x, y: p.y, z });
+    const free = this.freeFor(body);
     for (const [mx, mz] of [
       [dx, dz],
       [dx, 0],
@@ -503,7 +546,7 @@ export class Town {
       member.skipDt = 0;
       member.update(t, dt);
     }
-    this.separate(player);
+    this.separate(player, dt);
     blinkStudyIcons(t);
     this.restGlow.update(t);
   }

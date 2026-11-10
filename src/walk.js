@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Gait } from './gait.js';
 import { ENERGY } from './config.js';
 import { ObstacleGrid } from './obstacleGrid.js';
+import { SQUEEZE, squeezeTurn } from './squeeze.js';
 
 const RADIUS = 0.3;
 const MAX_STEP = 0.55;
@@ -18,6 +19,8 @@ const JUMP_SPEED = 9;
 export const WALK_SPEED = 2.4;
 export const RUN_SPEED = 4.9;
 const WORK_SIDE = 1.75;
+const STUCK_SKIP = 0.7;
+const STUCK_STOP = 2.5;
 const WORK_PITCH = 0.28;
 const WORK_DROP = 0.5;
 const WORK_DISTANCE = 6.6;
@@ -486,9 +489,14 @@ export class PlayerController {
       if (dist < this.bestDistance - 0.02) {
         this.bestDistance = dist;
         this.stuckTime = 0;
-      } else if (Math.abs(turn) < 0.2) {
+      } else {
         this.stuckTime += dt;
-        if (this.stuckTime > 0.7) {
+        if (Math.abs(turn) >= 0.2) {
+          if (this.stuckTime > STUCK_STOP) {
+            this.clearPath();
+            return null;
+          }
+        } else if (this.stuckTime > STUCK_SKIP) {
           this.advanceWaypoint();
           return null;
         }
@@ -496,7 +504,7 @@ export class PlayerController {
 
       const running = !this.tired && (this.running || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'));
       const pace = running ? RUN_SPEED : this.tired ? WALK_SPEED * ENERGY.tiredSpeed : WALK_SPEED;
-      const speed = pace * (last ? Math.min(1, dist / 0.5 + 0.2) : 1);
+      const speed = pace * (last ? Math.min(1, dist / 0.5 + 0.2) : 1) * (this.squeezeLeft > 0 ? SQUEEZE.pace : 1);
       const heading = Math.atan2(dx, dz) + turn;
       return new THREE.Vector3(Math.sin(heading) * speed, 0, Math.cos(heading) * speed);
     }
@@ -556,7 +564,7 @@ export class PlayerController {
     const speed = Math.hypot(this.velocity.x, this.velocity.z);
     const g = this.gait.update(a, speed, dt, this.onGround);
     a.group.position.set(p.x, p.y + this.stepOffset + g.bob, p.z);
-    a.group.rotation.set(g.lean, this.facing, 0);
+    a.group.rotation.set(g.lean, this.facing + squeezeTurn(this, dt), 0);
 
     const ground = this.onGround ? p.y : this.nav?.heightAt(p.x, p.z) ?? p.y;
     this.shadow?.place(p.x, ground, p.z, Math.max(0, p.y - ground));
