@@ -24,13 +24,13 @@ const SPINE = [
 
 export const SUMMIT = { x: -55, z: -85 };
 export const PAGODA = { x: SUMMIT.x, z: SUMMIT.z, half: 2.4, porch: 0.55, stand: { x: SUMMIT.x, z: SUMMIT.z + 5.2 } };
-const SUMMIT_TOP = 40;
 const SUMMIT_FLAT = 9.5;
-const SUMMIT_SLOPE = 0.5;
-const SUMMIT_CAP_SLOPE = 0.1;
+const SUMMIT_BLEND = 10;
+const SUMMIT_CAP_SLOPE = 0.05;
 const COURTYARD = { half: 3.6, z0: 3.2, z1: 8.6, top: 0.03 };
-const STAIRS = { half: 1.3, from: SUMMIT_FLAT, steps: 16, run: 0.7, rise: 0.35 };
+const STAIRS = { half: 1.3, from: SUMMIT_FLAT, steps: 16, run: 0.7, maxRise: 0.5 };
 const STAIRS_LENGTH = STAIRS.steps * STAIRS.run;
+const STAIRS_CARVE = STAIRS.half + 1.2;
 export const SHELTERS = [
   { x: -57.9, z: -39.8, turn: 0.6 },
   { x: 24.8, z: -52.6, turn: -0.5 },
@@ -84,6 +84,7 @@ const COLS = Math.round((MOUNTAIN.x1 - MOUNTAIN.x0) / STEP) + 1;
 const ROWS = Math.round((MOUNTAIN.z1 - MOUNTAIN.z0) / STEP) + 1;
 
 let heights = null;
+let summit = null;
 let layout = null;
 
 function spineHeight(x, z) {
@@ -112,24 +113,59 @@ function mask(x, z) {
   return m;
 }
 
-function shapeSummit(x, z, natural) {
-  const beyond = Math.hypot(x - SUMMIT.x, z - SUMMIT.z) - SUMMIT_FLAT;
-  if (beyond <= 0) return SUMMIT_TOP;
-  const ramp = SUMMIT_TOP - beyond * SUMMIT_SLOPE;
-  const cap = SUMMIT_TOP - beyond * SUMMIT_CAP_SLOPE;
-  return Math.min(Math.max(natural, ramp), cap);
+function sampleGrid(grid, x, z) {
+  const fx = (x - MOUNTAIN.x0) / STEP;
+  const fz = (z - MOUNTAIN.z0) / STEP;
+  const c = Math.min(COLS - 2, Math.floor(fx));
+  const r = Math.min(ROWS - 2, Math.floor(fz));
+  const tx = fx - c;
+  const tz = fz - r;
+  const n = r * COLS + c;
+  const a = grid[n];
+  const b = grid[n + 1];
+  const d = grid[n + COLS];
+  const e = grid[n + COLS + 1];
+  return (a + (b - a) * tx) * (1 - tz) + (d + (e - d) * tx) * tz;
 }
 
-function carveStairs(x, z, h) {
-  const along = z - SUMMIT.z - STAIRS.from;
-  if (Math.abs(x - SUMMIT.x) > STAIRS.half + 1.2 || along < 0 || along > STAIRS_LENGTH + 0.5) return h;
-  return Math.min(h, SUMMIT_TOP - along * SUMMIT_SLOPE - STAIRS.rise);
+function forCellsNear(x, z, radius, visit) {
+  const c0 = Math.max(0, Math.floor((x - radius - MOUNTAIN.x0) / STEP));
+  const c1 = Math.min(COLS - 1, Math.ceil((x + radius - MOUNTAIN.x0) / STEP));
+  const r0 = Math.max(0, Math.floor((z - radius - MOUNTAIN.z0) / STEP));
+  const r1 = Math.min(ROWS - 1, Math.ceil((z + radius - MOUNTAIN.z0) / STEP));
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) visit(r * COLS + c, MOUNTAIN.x0 + c * STEP, MOUNTAIN.z0 + r * STEP);
+  }
+}
+
+function shapeSummit(grid) {
+  let top = 0;
+  forCellsNear(SUMMIT.x, SUMMIT.z, SUMMIT_FLAT, (n, x, z) => {
+    if (Math.hypot(x - SUMMIT.x, z - SUMMIT.z) <= SUMMIT_FLAT) top = Math.max(top, grid[n]);
+  });
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const n = r * COLS + c;
+      const beyond = Math.max(0, Math.hypot(MOUNTAIN.x0 + c * STEP - SUMMIT.x, MOUNTAIN.z0 + r * STEP - SUMMIT.z) - SUMMIT_FLAT);
+      if (beyond < SUMMIT_BLEND) grid[n] += (top - grid[n]) * (1 - smoothstep(0, SUMMIT_BLEND, beyond));
+      grid[n] = Math.min(grid[n], top - beyond * SUMMIT_CAP_SLOPE);
+    }
+  }
+  const foot = sampleGrid(grid, SUMMIT.x, SUMMIT.z + STAIRS.from + STAIRS_LENGTH);
+  const rise = Math.min(STAIRS.maxRise, Math.max(0, top - foot) / STAIRS.steps);
+  forCellsNear(SUMMIT.x, SUMMIT.z + STAIRS.from + STAIRS_LENGTH / 2, STAIRS_LENGTH / 2 + 1, (n, x, z) => {
+    const along = z - SUMMIT.z - STAIRS.from;
+    if (Math.abs(x - SUMMIT.x) > STAIRS_CARVE || along < 0 || along > STAIRS_LENGTH + 0.5) return;
+    grid[n] = Math.min(grid[n], top - (along / STAIRS.run + 1) * rise);
+  });
+  summit = { top, rise };
 }
 
 function stairTop(x, z) {
   const along = z - SUMMIT.z - STAIRS.from;
   if (Math.abs(x - SUMMIT.x) > STAIRS.half || along < 0 || along >= STAIRS_LENGTH) return null;
-  return SUMMIT_TOP - (Math.floor(along / STAIRS.run) + 1) * STAIRS.rise;
+  heights ??= buildHeights();
+  return summit.top - (Math.floor(along / STAIRS.run) + 1) * summit.rise;
 }
 
 function buildHeights() {
@@ -142,7 +178,7 @@ function buildHeights() {
       const x = MOUNTAIN.x0 + c * STEP;
       const base = spineHeight(x, z);
       const relief = ((broad(x, z) - 0.5) * 9 + (fine(x, z) - 0.5) * 2.5) * smoothstep(0, 8, base);
-      grid[r * COLS + c] = carveStairs(x, z, shapeSummit(x, z, Math.max(0, (base + relief) * mask(x, z))));
+      grid[r * COLS + c] = Math.max(0, (base + relief) * mask(x, z));
     }
   }
   const diag = MAX_SLOPE * STEP * Math.SQRT2;
@@ -162,24 +198,14 @@ function buildHeights() {
       }
     }
   }
+  shapeSummit(grid);
   return grid;
 }
 
 export function terrainHeight(x, z) {
   if (x <= MOUNTAIN.x0 || x >= MOUNTAIN.x1 || z <= MOUNTAIN.z0 || z >= MOUNTAIN.z1) return 0;
   heights ??= buildHeights();
-  const fx = (x - MOUNTAIN.x0) / STEP;
-  const fz = (z - MOUNTAIN.z0) / STEP;
-  const c = Math.min(COLS - 2, Math.floor(fx));
-  const r = Math.min(ROWS - 2, Math.floor(fz));
-  const tx = fx - c;
-  const tz = fz - r;
-  const n = r * COLS + c;
-  const a = heights[n];
-  const b = heights[n + 1];
-  const d = heights[n + COLS];
-  const e = heights[n + COLS + 1];
-  return (a + (b - a) * tx) * (1 - tz) + (d + (e - d) * tx) * tz;
+  return sampleGrid(heights, x, z);
 }
 
 function shelterFloor(x, z) {
@@ -566,9 +592,10 @@ function pagodaMeshes() {
   b.add(shapes.box(COURTYARD.half * 2, 0.12, COURTYARD.z1 - COURTYARD.z0), 0xb3ab99, { p: [x, paved - 0.06, z + (COURTYARD.z0 + COURTYARD.z1) / 2] });
   b.add(shapes.box(STAIRS.half * 2, 0.12, STAIRS.from - COURTYARD.z1), 0xa49d8e, { p: [x, paved - 0.06, z + (COURTYARD.z1 + STAIRS.from) / 2] });
   for (let i = 0; i < STAIRS.steps; i++) {
-    const top = y - (i + 1) * STAIRS.rise;
-    const height = STAIRS.rise + 1.2;
-    b.add(shapes.box(STAIRS.half * 2, height, STAIRS.run), i % 2 ? 0x9a9383 : 0xa49d8e, { p: [x, top - height / 2, z + STAIRS.from + (i + 0.5) * STAIRS.run] });
+    const stepZ = z + STAIRS.from + (i + 0.5) * STAIRS.run;
+    const top = y - (i + 1) * summit.rise;
+    const bottom = Math.min(terrainHeight(x, stepZ), top - summit.rise) - 0.8;
+    b.add(shapes.box(STAIRS.half * 2, top - bottom, STAIRS.run), i % 2 ? 0x9a9383 : 0xa49d8e, { p: [x, (top + bottom) / 2, stepZ] });
   }
   const urn = { x, z: PAGODA.stand.z - 1.4 };
   b.add(shapes.box(0.7, 0.3, 0.7), 0x8a8273, { p: [urn.x, paved + 0.15, urn.z] });
