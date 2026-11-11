@@ -750,7 +750,8 @@ body.mail-open #toolbar {
 
 .mail-row {
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 35px 1fr auto;
+  align-items: start;
   gap: 8px;
   padding: 8px;
   border: 1.5px solid rgba(20, 12, 6, 0.7);
@@ -767,8 +768,21 @@ body.mail-open #toolbar {
   box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.12);
 }
 
+.mail-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mail-side .mail-new {
+  margin-top: 2px;
+}
+
 .mail-icon {
-  font-size: 22px;
+  display: grid;
+  place-items: center;
+  height: 35px;
+  font-size: 28px;
   line-height: 1;
 }
 
@@ -793,15 +807,18 @@ body.mail-open #toolbar {
 }
 
 .mail-time {
-  margin-left: auto;
   font: 600 12px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   opacity: 0.8;
 }
 
 .mail-body {
-  margin: 3px 0 6px;
+  margin: 0;
   font: 500 13px/1.35 var(--font-ui);
+}
+
+.mail-body + .mail-body {
+  margin-top: 4px;
 }
 
 .mail-place {
@@ -896,7 +913,6 @@ dialog.paper::backdrop {
   gap: 10px;
   margin: -18px -22px 16px;
   padding: 12px 14px 12px 20px;
-  border-bottom: 2px solid var(--gold);
   background:
     repeating-linear-gradient(177deg, rgba(255, 220, 160, 0.08) 0 2px, transparent 2px 7px),
     repeating-linear-gradient(183deg, rgba(30, 14, 4, 0.16) 0 1px, transparent 1px 11px),
@@ -2141,6 +2157,11 @@ dialog.paper.kanji:focus {
   position: static;
   display: block;
   margin-bottom: 10px;
+  background: #5a3519;
+}
+
+.kanji-track .pay-bar {
+  background: #d2452f;
 }
 
 .kanji-result {
@@ -3260,9 +3281,9 @@ dialog.paper.kanji:focus {
 .kanji-fish {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  font-size: 36px;
+  width: 38px;
+  height: 38px;
+  font-size: 24px;
   line-height: 1;
   filter: drop-shadow(0 2px 3px var(--shadow-strong));
   transform-origin: 50% 60%;

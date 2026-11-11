@@ -42,9 +42,6 @@ export function createFieldMart(options) {
       actionFor() {
         return { id: 'visit', hint: 'hand' };
       },
-      labelOf() {
-        return 'Siêu thị';
-      },
       topOf(target) {
         return new THREE.Vector3(target.x, 3.8, target.z);
       },

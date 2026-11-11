@@ -226,6 +226,10 @@ function brickTexture() {
   );
 }
 
+export function brickMaterial() {
+  return toonMaterial({ muted: true, map: brickTexture() });
+}
+
 export function paving() {
   return toonMaterial({
     muted: true,

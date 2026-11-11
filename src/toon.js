@@ -150,11 +150,11 @@ export class Batch {
     return this.add(geometry, hex, { p: a.add(b).multiplyScalar(0.5).toArray(), q });
   }
 
-  group(p, r, fn) {
+  group(p, r, fn, s = 1) {
     const saved = this.base.clone();
     dummy.position.fromArray(p);
     dummy.rotation.set(r[0], r[1], r[2]);
-    dummy.scale.setScalar(1);
+    dummy.scale.setScalar(s);
     dummy.updateMatrix();
     this.base.multiply(dummy.matrix);
     fn();

@@ -7,7 +7,7 @@ import { createShophouse, createBank, shophousePots } from './architecture.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
-import { roomTier, lodgeLabel } from './lodging.js';
+import { roomTier } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
 
 const AVENUES = [104, 126, 148, 170];
@@ -306,10 +306,6 @@ export function createDistrict() {
         },
         actionFor() {
           return { id: 'visit', hint: 'hand' };
-        },
-        labelOf(target) {
-          if (target.kind === 'bank') return null;
-          return lodgeLabel(target.id);
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 3.6, target.z);

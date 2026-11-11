@@ -12,7 +12,6 @@ import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
-import { keepCanvas } from './canvasRestore.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const LEASE_KEY = 'truong-lang-xua.farmLeases';
@@ -174,6 +173,7 @@ const C = {
   jar: 0x6a3a22,
   water: 0x5bb8e6,
   mine: 0x3d8bff,
+  taken: 0xb8322a,
 };
 
 const fresh = () => ({ stage: 0, stageStart: 0, watered: false, late: false, missed: 0, crop: null, variety: 0, owner: null });
@@ -462,22 +462,6 @@ function modelKey(stage, crop, variety) {
 }
 
 const STAKE_BOARD_Y = 0.78;
-const NAME_TAG = { size: [0.38, 0.13], px: [256, 88] };
-let nameTagGeometry = null;
-
-function paintNameTag(ctx, tag) {
-  const [w, h] = NAME_TAG.px;
-  ctx.clearRect(0, 0, w, h);
-  let size = 52;
-  const font = (px) => `700 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.font = font(size);
-  while (size > 26 && ctx.measureText(tag.text).width > w - 16) ctx.font = font((size -= 2));
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = tag.mine ? '#ffffff' : '#4a2a12';
-  ctx.fillText(tag.text, w / 2, h / 2 + 2);
-}
-
 const position = new THREE.Vector3();
 const rotation = new THREE.Quaternion();
 const scale = new THREE.Vector3();
@@ -569,52 +553,14 @@ class FarmView {
       b.add(shapes.box(0.1, 0.85, 0.1), 0x8a5a2b, { p: [0, 0.425, 0] });
       b.add(shapes.box(0.42, 0.28, 0.05), 0xc9a26a, { p: [0, STAKE_BOARD_Y, 0] });
     });
-    this.flags = marker((b) => b.add(shapes.box(0.34, 0.22, 0.03), C.mine, { p: [0, STAKE_BOARD_Y, -0.03] }));
+    const flag = (color) => marker((b) => b.add(shapes.box(0.34, 0.22, 0.03), color, { p: [0, STAKE_BOARD_Y, -0.03] }));
+    this.flags = flag(C.mine);
+    this.takenFlags = flag(C.taken);
     this.stakeBeds = [];
     this.flagBeds = [];
-    this.nameTags = new Map();
+    this.takenBeds = [];
     this.stakeKey = null;
     this.stakeAt = 0;
-  }
-
-  nameTag(bed) {
-    let tag = this.nameTags.get(bed);
-    if (tag) return tag;
-    const canvas = document.createElement('canvas');
-    canvas.width = NAME_TAG.px[0];
-    canvas.height = NAME_TAG.px[1];
-    tag = { text: '', mine: false, group: new THREE.Group() };
-    const texture = keepCanvas(new THREE.CanvasTexture(canvas), (ctx) => paintNameTag(ctx, tag));
-    texture.colorSpace = THREE.SRGBColorSpace;
-    tag.texture = texture;
-    nameTagGeometry ??= new THREE.PlaneGeometry(...NAME_TAG.size);
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-    for (const [z, yaw] of [
-      [-0.05, Math.PI],
-      [0.03, 0],
-    ]) {
-      const plane = new THREE.Mesh(nameTagGeometry, material);
-      plane.position.set(0, STAKE_BOARD_Y, z);
-      plane.rotation.y = yaw;
-      tag.group.add(plane);
-    }
-    this.group.add(tag.group);
-    this.nameTags.set(bed, tag);
-    return tag;
-  }
-
-  showNameTag(bed, lease, at) {
-    const tag = this.nameTag(bed);
-    const mine = lease.owner === PLAYER;
-    const name = this.state.nameOf(lease.owner);
-    const text = name.charAt(0).toUpperCase() + name.slice(1);
-    tag.group.visible = true;
-    tag.group.position.copy(at);
-    if (tag.text === text && tag.mine === mine) return;
-    tag.text = text;
-    tag.mine = mine;
-    paintNameTag(tag.texture.image.getContext('2d'), tag);
-    tag.texture.needsUpdate = true;
   }
 
   refreshStakes() {
@@ -626,7 +572,7 @@ class FarmView {
     this.stakeKey = key;
     this.stakeBeds = [];
     this.flagBeds = [];
-    for (const tag of this.nameTags.values()) tag.group.visible = false;
+    this.takenBeds = [];
     ALL_BEDS.forEach(({ x, shape, front, field }, bed) => {
       if (field !== this.field) return;
       position.set(x + shape.offset(front), 0, front - 0.35);
@@ -635,12 +581,11 @@ class FarmView {
       this.stakeBeds.push(bed);
       const lease = holders[bed];
       if (!lease) return;
-      this.showNameTag(bed, lease, position);
-      if (lease.owner !== PLAYER) return;
-      this.flags.setMatrixAt(this.flagBeds.length, matrix);
-      this.flagBeds.push(bed);
+      const [mesh, beds] = lease.owner === PLAYER ? [this.flags, this.flagBeds] : [this.takenFlags, this.takenBeds];
+      mesh.setMatrixAt(beds.length, matrix);
+      beds.push(bed);
     });
-    for (const [mesh, beds] of [[this.stakes, this.stakeBeds], [this.flags, this.flagBeds]]) {
+    for (const [mesh, beds] of [[this.stakes, this.stakeBeds], [this.flags, this.flagBeds], [this.takenFlags, this.takenBeds]]) {
       mesh.count = beds.length;
       mesh.instanceMatrix.needsUpdate = true;
       mesh.boundingSphere = null;
@@ -840,6 +785,7 @@ class FarmView {
     if (instanceId == null) return null;
     if (mesh === this.stakes) return this.stakeBeds[instanceId] ?? null;
     if (mesh === this.flags) return this.flagBeds[instanceId] ?? null;
+    if (mesh === this.takenFlags) return this.takenBeds[instanceId] ?? null;
     return null;
   }
 

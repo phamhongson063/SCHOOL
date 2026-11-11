@@ -223,7 +223,7 @@ function roofTexture() {
   });
 }
 
-export function roundedRectGeometry(x0, z0, x1, z1, r) {
+export function roundedRectShape(x0, z0, x1, z1, r) {
   const s = new THREE.Shape();
   const ay = -z1;
   const by = -z0;
@@ -236,7 +236,11 @@ export function roundedRectGeometry(x0, z0, x1, z1, r) {
   s.quadraticCurveTo(x0, by, x0, by - r);
   s.lineTo(x0, ay + r);
   s.quadraticCurveTo(x0, ay, x0 + r, ay);
-  const g = new THREE.ShapeGeometry(s, 6);
+  return s;
+}
+
+export function roundedRectGeometry(x0, z0, x1, z1, r) {
+  const g = new THREE.ShapeGeometry(roundedRectShape(x0, z0, x1, z1, r), 6);
   g.rotateX(-Math.PI / 2);
   return g;
 }
@@ -763,30 +767,42 @@ function sideGate(b, x, z) {
 }
 
 function thuongDien(b) {
-  const { x, z, hx, hz } = THUONG_DIEN;
-  b.add(shapes.box(hx * 2 + 1.6, 0.04, hz * 2 + 2.4), C.stone, { p: [x, 0.02, z + 0.4] });
-  b.add(shapes.box(hx * 2, 4.2, hz * 2), C.ochre, { p: [x, 2.1, z] });
-  b.add(shapes.box(hx * 2 + 0.06, 0.5, hz * 2 + 0.06), C.dado, { p: [x, 0.25, z] });
-  const front = z + hz;
-  for (let px = x - hx + 1.4; px < x + hx - 1; px += 2.6) {
-    b.add(shapes.box(2.2, 3.0, 0.06), C.lacquerDark, { p: [px + 0.9, 1.9, front + 0.03] });
-    for (let k = 0; k < 4; k++) b.add(shapes.box(0.04, 3.0, 0.08), C.beam, { p: [px + 0.35 + k * 0.55, 1.9, front + 0.05] });
-  }
-  for (let px = x - hx + 0.5; px <= x + hx - 0.5; px += 4.2) {
-    b.add(shapes.cylinder(0.36, 0.42, 0.2, 12), C.stone, { p: [px, 0.1, front + 1.0] });
-    b.add(shapes.cylinder(0.22, 0.25, 4.2, 14), C.lacquer, { p: [px, 2.2, front + 1.0] });
-  }
-  b.add(shapes.box(hx * 2 + 0.4, 0.34, 0.3), C.beam, { p: [x, 4.4, front + 1.0] });
-  const lower = tiledRoof({ cx: x, cz: z, hx: hx + 2.5, hz: hz + 2.5, ridge: 7, eaveY: 4.6, height: 3, lift: 0.6, falloff: 2.5, thickness: 0.25, rings: 12 });
-  const upper = tiledRoof({ cx: x, cz: z, hx, hz: hz + 0.2, ridge: 7, eaveY: 6.3, height: 2.3, lift: 0.5, falloff: 2, thickness: 0.25, rings: 10 });
-  for (const side of [-1, 1]) {
-    b.add(shapes.box((hx - 0.6) * 2, 1.0, 0.14), C.ochre, { p: [x, 6.0, z + side * (hz - 0.4)] });
-    b.add(shapes.box(0.14, 1.0, (hz - 0.4) * 2), C.ochre, { p: [x + side * (hx - 0.6), 6.0, z] });
-  }
-  hipRidges(b, lower, 0.1);
-  hipRidges(b, upper, 0.1);
-  ridgeDecor(b, upper, { scale: 0.8, dragons: true });
-  return [lower.geometry, upper.geometry];
+  const { x: cx, z: cz, hx, hz, scale } = THUONG_DIEN;
+  const x = 0;
+  const z = 0;
+  let roofs;
+  b.group(
+    [cx, 0, cz],
+    [0, 0, 0],
+    () => {
+      b.add(shapes.box(hx * 2 + 1.6, 0.04, hz * 2 + 2.4), C.stone, { p: [x, 0.02, z + 0.4] });
+      b.add(shapes.box(hx * 2, 4.2, hz * 2), C.ochre, { p: [x, 2.1, z] });
+      b.add(shapes.box(hx * 2 + 0.06, 0.5, hz * 2 + 0.06), C.dado, { p: [x, 0.25, z] });
+      const front = z + hz;
+      for (let px = x - hx + 1.4; px < x + hx - 1; px += 2.6) {
+        b.add(shapes.box(2.2, 3.0, 0.06), C.lacquerDark, { p: [px + 0.9, 1.9, front + 0.03] });
+        for (let k = 0; k < 4; k++) b.add(shapes.box(0.04, 3.0, 0.08), C.beam, { p: [px + 0.35 + k * 0.55, 1.9, front + 0.05] });
+      }
+      for (let px = x - hx + 0.5; px <= x + hx - 0.5; px += 4.2) {
+        b.add(shapes.cylinder(0.36, 0.42, 0.2, 12), C.stone, { p: [px, 0.1, front + 1.0] });
+        b.add(shapes.cylinder(0.22, 0.25, 4.2, 14), C.lacquer, { p: [px, 2.2, front + 1.0] });
+      }
+      b.add(shapes.box(hx * 2 + 0.4, 0.34, 0.3), C.beam, { p: [x, 4.4, front + 1.0] });
+      const lower = tiledRoof({ cx: x, cz: z, hx: hx + 2.5, hz: hz + 2.5, ridge: 7, eaveY: 4.6, height: 3, lift: 0.6, falloff: 2.5, thickness: 0.25, rings: 12 });
+      const upper = tiledRoof({ cx: x, cz: z, hx, hz: hz + 0.2, ridge: 7, eaveY: 6.3, height: 2.3, lift: 0.5, falloff: 2, thickness: 0.25, rings: 10 });
+      for (const side of [-1, 1]) {
+        b.add(shapes.box((hx - 0.6) * 2, 1.0, 0.14), C.ochre, { p: [x, 6.0, z + side * (hz - 0.4)] });
+        b.add(shapes.box(0.14, 1.0, (hz - 0.4) * 2), C.ochre, { p: [x + side * (hx - 0.6), 6.0, z] });
+      }
+      hipRidges(b, lower, 0.1);
+      hipRidges(b, upper, 0.1);
+      ridgeDecor(b, upper, { scale: 0.8, dragons: true });
+      roofs = [lower.geometry, upper.geometry];
+    },
+    scale,
+  );
+  for (const geometry of roofs) geometry.scale(scale, scale, scale).translate(cx, 0, cz);
+  return roofs;
 }
 
 function vuHouses(b) {
@@ -866,10 +882,12 @@ export function createScenery(scene, layout) {
   const pondBack = POND.z - POND.half - 1.2;
   const ringX0 = POND.x - POND.half - 3.2;
   const ringX1 = POND.x + POND.half + 3.2;
-  const tdBack = THUONG_DIEN.z - THUONG_DIEN.hz - 4.5;
-  const tdFront = THUONG_DIEN.z + THUONG_DIEN.hz + 4.5;
-  const laneX0 = THUONG_DIEN.x - THUONG_DIEN.hx - 5;
-  const laneX1 = THUONG_DIEN.x + THUONG_DIEN.hx + 5;
+  const tdHx = THUONG_DIEN.hx * THUONG_DIEN.scale;
+  const tdHz = THUONG_DIEN.hz * THUONG_DIEN.scale;
+  const tdBack = THUONG_DIEN.z - tdHz - 4.5;
+  const tdFront = THUONG_DIEN.z + tdHz + 4.5;
+  const laneX0 = THUONG_DIEN.x - tdHx - 5;
+  const laneX1 = THUONG_DIEN.x + tdHx + 5;
   for (const [x0, z0, x1, z1] of [
     [-1.5, pathEnd, 2.5, tdBack],
     [laneX0, tdBack, laneX1, tdBack + 1.5],

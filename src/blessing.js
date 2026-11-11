@@ -504,13 +504,13 @@ const inBed = (x, z) => [...CORNER_BEDS, ...EDGE_BEDS].some((bed) => Math.abs(x 
 
 function createOfficial(scene) {
   const npc = keeperNPC(OFFICIAL_LOOK, OFFICIAL.model);
-  const at = new THREE.Vector3(OFFICIAL.x, 0, OFFICIAL.z);
+  const at = new THREE.Vector3(OFFICIAL.x, PLAZA.rise, OFFICIAL.z);
   npc.walker.group.position.copy(at);
   npc.walker.group.rotation.y = OFFICIAL.facing;
   scene.add(npc.walker.group);
   const ahead = { x: Math.sin(OFFICIAL.facing), z: Math.cos(OFFICIAL.facing) };
   const side = { x: ahead.z, z: -ahead.x };
-  const spots = OFFICIAL.spots.map((offset) => new THREE.Vector3(at.x + ahead.x * OFFICIAL.reach + side.x * offset, 0, at.z + ahead.z * OFFICIAL.reach + side.z * offset));
+  const spots = OFFICIAL.spots.map((offset) => new THREE.Vector3(at.x + ahead.x * OFFICIAL.reach + side.x * offset, PLAZA.rise, at.z + ahead.z * OFFICIAL.reach + side.z * offset));
   return {
     ...npc,
     at,
@@ -543,16 +543,16 @@ export function createBlessing(scene) {
   for (const bed of [...CORNER_BEDS, ...EDGE_BEDS]) boxBed(flowers, rand, bed);
 
   const statue = new THREE.Group();
-  statue.position.set(PLAZA.x, 0, PLAZA.z);
+  statue.position.set(PLAZA.x, PLAZA.rise, PLAZA.z);
   const statueMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: AURA_GOLD, emissiveIntensity: 0 });
   const body = b.mesh(statueMaterial);
   statue.add(flowers.mesh(), body);
-  const altarSpots = ALTAR.spots.map((dx) => new THREE.Vector3(PLAZA.x + dx, 0, PLAZA.z - ALTAR.ahead));
+  const altarSpots = ALTAR.spots.map((dx) => new THREE.Vector3(PLAZA.x + dx, PLAZA.rise, PLAZA.z - ALTAR.ahead));
   scene.add(statue);
   freeze(statue);
 
   const aura = createAura(statueMaterial);
-  aura.group.position.set(PLAZA.x, 0, PLAZA.z);
+  aura.group.position.set(PLAZA.x, PLAZA.rise, PLAZA.z);
   scene.add(aura.group);
   aura.lamp.position.add(aura.group.position);
   scene.add(aura.lamp);

@@ -3,11 +3,11 @@ import { setRich } from './goldArt.js';
 
 const TABS = [{ key: 'system', icon: '🔔', label: 'Hệ thống', empty: 'Chưa có thư.' }];
 const KINDS = {
-  ripe: { icon: '🧺', title: 'Cây chín rồi', body: (crops) => `${crops} đã chín, ra thu hoạch thôi!` },
-  water: { icon: '💧', title: 'Cây cần tưới', body: (crops) => `${crops} đang khát nước, tưới ngay nhé!` },
+  ripe: { icon: '🧺', body: (crops) => `${crops} đã chín, ra thu hoạch thôi!` },
+  water: { icon: '💧', body: (crops) => `${crops} đang khát nước, tưới ngay nhé!` },
 };
 const KIND_ORDER = Object.keys(KINDS);
-const MIXED = { icon: '📬', title: 'Luống cần chăm' };
+const MIXED = { icon: '📬' };
 
 function choreView(mail) {
   const kinds = KIND_ORDER.filter((kind) => mail.events.has(kind));
@@ -17,7 +17,7 @@ function choreView(mail) {
     const text = KINDS[id].body(mail.events.get(id).join(', '));
     return mixed ? `${KINDS[id].icon} ${text}` : text;
   });
-  return { icon: kind.icon, title: kind.title, lines };
+  return { icon: kind.icon, lines };
 }
 
 function mailRow(mail) {
@@ -29,18 +29,18 @@ function mailRow(mail) {
   icon.className = 'mail-icon';
   icon.setAttribute('aria-hidden', 'true');
   icon.textContent = kind.icon;
+  const side = document.createElement('div');
+  side.className = 'mail-side';
+  side.append(icon);
   const main = document.createElement('div');
   main.className = 'mail-main';
   const head = document.createElement('div');
   head.className = 'mail-head';
-  const title = document.createElement('span');
-  title.textContent = kind.title;
-  head.append(title);
   if (!mail.read) {
     const tag = document.createElement('span');
     tag.className = 'mail-new';
     tag.textContent = 'NEW';
-    head.append(tag);
+    side.append(tag);
   }
   const time = document.createElement('span');
   time.className = 'mail-time';
@@ -52,7 +52,7 @@ function mailRow(mail) {
     setRich(line, text);
     return line;
   });
-  main.append(head, ...lines);
+  main.append(...lines);
   if (mail.point) {
     const place = document.createElement('button');
     place.type = 'button';
@@ -62,7 +62,7 @@ function mailRow(mail) {
     if (last) last.append(' ', place);
     else main.append(place);
   }
-  row.append(icon, main);
+  row.append(side, main, head);
   return row;
 }
 
@@ -148,10 +148,15 @@ export function createMailbox({ onTravel }) {
     return id;
   }
 
-  function notify({ icon, title, lines, place, point }) {
+  function notify({ icon, lines, place, point }) {
     const id = order;
-    mails.set(id, { id, icon, title, lines, place, point, at: gameNow(), order: order++, read: false });
+    mails.set(id, { id, icon, lines, place, point, at: gameNow(), order: order++, read: false });
     refresh();
+    return id;
+  }
+
+  function remove(id) {
+    if (mails.delete(id)) refresh();
   }
 
   function sync(chores) {
@@ -208,5 +213,5 @@ export function createMailbox({ onTravel }) {
     if (event.key === 'Escape' && isOpen()) setOpen(false);
   });
 
-  return { sync, notify };
+  return { sync, notify, remove };
 }

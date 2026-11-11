@@ -3,7 +3,7 @@ import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial } from './too
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse, createChiefHouse } from './architecture.js';
-import { paving, plaqueBoard, housePlaqueLines, houseLabel, visitHouse } from './village.js';
+import { brickMaterial, paving, plaqueBoard, housePlaqueLines, visitHouse } from './village.js';
 import { PLAZA, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
 import { MART } from './config.js';
@@ -33,7 +33,8 @@ const KERB = 0.4;
 const RING = 1.7;
 const LAKE = { x0: PLAZA.x0 - KERB, z0: PLAZA.z0 - KERB, x1: PLAZA.x1 + KERB, z1: PLAZA.z1 + KERB };
 const RING_OUT = { x0: LAKE.x0 - RING, z0: ROAD.z1 + 0.4, x1: LAKE.x1 + RING, z1: LAKE.z1 + RING };
-const FORECOURT = { x0: RING_OUT.x0, z0: RING_OUT.z0, x1: RING_OUT.x1, z1: RING_OUT.z0 + 5 };
+const FORECOURT = { x0: RING_OUT.x0, z0: SOUTH_FRONT - 1, x1: RING_OUT.x1, z1: SOUTH_FRONT };
+const PLAZA_STEPS = { xs: [PLAZA.x - 8, PLAZA.x, PLAZA.x + 8], width: 3, depth: 0.35, cheek: 0.2 };
 const SETTS = { grout: 0x4f4d48, stones: [0x8e8b84, 0x7f7c76, 0x9a968e, 0x86827a, 0x8a8f94, 0x968c80], perRow: 12, rows: 12 };
 
 const C = {
@@ -58,6 +59,36 @@ function frame(side, x, front) {
       ? { minX: x + b.minX, maxX: x + b.maxX, minZ: front + b.minZ, maxZ: front + b.maxZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 }
       : { minX: x - b.maxX, maxX: x - b.minX, minZ: front - b.maxZ, maxZ: front - b.minZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 };
   return { toWorld, box, turn: north ? 0 : Math.PI };
+}
+
+const onStep = (x, z) => z >= FORECOURT.z1 - PLAZA_STEPS.depth && z < FORECOURT.z1 && PLAZA_STEPS.xs.some((sx) => Math.abs(x - sx) <= PLAZA_STEPS.width / 2);
+
+export function plazaFloor(x, z) {
+  if (onStep(x, z)) return PLAZA.rise / 2;
+  return x >= RING_OUT.x0 && x <= RING_OUT.x1 && z >= FORECOURT.z1 && z <= RING_OUT.z1 ? PLAZA.rise : null;
+}
+
+function plazaShape(x0, z0, x1, z1, r) {
+  const s = new THREE.Shape();
+  const back = -z1;
+  const front = -z0;
+  s.moveTo(x0 + r, back);
+  s.lineTo(x1 - r, back);
+  s.quadraticCurveTo(x1, back, x1, back + r);
+  s.lineTo(x1, front);
+  s.lineTo(x0, front);
+  s.lineTo(x0, back + r);
+  s.quadraticCurveTo(x0, back, x0 + r, back);
+  return s;
+}
+
+function plazaSlab() {
+  const geometry = new THREE.ExtrudeGeometry(plazaShape(RING_OUT.x0, FORECOURT.z1, RING_OUT.x1, RING_OUT.z1, 0.4), { depth: PLAZA.rise, bevelEnabled: false, curveSegments: 6 });
+  geometry.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geometry, [brickMaterial(), toonMaterial({ muted: true, color: C.stoneDark })]);
+  mesh.receiveShadow = true;
+  mesh.renderOrder = PAVING_LAYER;
+  return mesh;
 }
 
 const cssHex = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
@@ -97,7 +128,7 @@ function settsMaterial() {
     },
     [0.45, 0.45],
   );
-  return toonMaterial({ muted: true, map, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+  return toonMaterial({ muted: true, map, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
 }
 
 function well(b, x, z) {
@@ -163,8 +194,10 @@ export function createQuarter() {
   };
 
   pave(ENCLOSURE.x0 + 0.6, ENCLOSURE.front + 0.6, ENCLOSURE.x1 + 0.4, ROAD.z0 + 0.2, 0.5);
-  pave(RING_OUT.x0, RING_OUT.z0, RING_OUT.x1, RING_OUT.z1);
-  const forecourt = groundDecal(roundedRectGeometry(FORECOURT.x0, FORECOURT.z0, FORECOURT.x1, FORECOURT.z1, 0.4), settsMaterial(), PAVING_LAYER + 0.5, 0.016);
+  const slab = plazaSlab();
+  group.add(slab);
+  clickables.push(slab);
+  const forecourt = groundDecal(roundedRectGeometry(FORECOURT.x0, FORECOURT.z0, FORECOURT.x1, FORECOURT.z1 + 0.4, 0.4), settsMaterial(), PAVING_LAYER + 0.5, 0.016);
   group.add(forecourt);
   clickables.push(forecourt);
   pave(DINH.x - 4, ROAD.z1 - 0.2, DINH.x + 4, DINH_FRONT + 0.4, 0.5);
@@ -223,25 +256,44 @@ export function createQuarter() {
   banyan(b, BANYAN.x, BANYAN.z);
   block(BANYAN.x, BANYAN.z, 0.9, 0.9, 5);
 
-  const lanterns = [
-    [RING_OUT.x0 + 0.5, RING_OUT.z0 + 0.6],
-    [RING_OUT.x1 - 0.5, RING_OUT.z0 + 0.6],
+  const frontLanterns = [
+    [RING_OUT.x0 + 0.5, FORECOURT.z0 + 0.5],
+    [RING_OUT.x1 - 0.5, FORECOURT.z0 + 0.5],
+  ];
+  const backLanterns = [
     [RING_OUT.x0 + 0.5, RING_OUT.z1 - 0.5],
     [RING_OUT.x1 - 0.5, RING_OUT.z1 - 0.5],
+  ];
+  const dinhLanterns = [
     [DINH.x - 3.4, DINH_FRONT - 1],
     [DINH.x + 3.4, DINH_FRONT - 1],
   ];
-  for (const [x, z] of lanterns) {
-    stoneLantern(b, x, z);
-    block(x, z, 0.3, 0.3);
-  }
+  for (const [x, z] of [...frontLanterns, ...backLanterns, ...dinhLanterns]) block(x, z, 0.3, 0.3);
+  for (const [x, z] of dinhLanterns) stoneLantern(b, x, z);
 
   const midZ = (LAKE.z0 + LAKE.z1) / 2;
+  const west = RING_OUT.x0 + 0.55;
+  const east = RING_OUT.x1 - 0.55;
+  for (const [x, z] of frontLanterns) stoneLantern(b, x, z);
+  b.group([0, PLAZA.rise, 0], [0, 0, 0], () => {
+    for (const [x, z] of backLanterns) stoneLantern(b, x, z);
+    for (const z of [midZ - 5, midZ + 5]) {
+      bench(b, west, z, Math.PI / 2);
+      bench(b, east, z, Math.PI / 2);
+    }
+  });
+  const stepZ = FORECOURT.z1 - PLAZA_STEPS.depth / 2;
+  const tread = PLAZA.rise / 2;
+  const cheek = PLAZA.rise + 0.06;
+  for (const x of PLAZA_STEPS.xs) {
+    b.add(shapes.box(PLAZA_STEPS.width, tread, PLAZA_STEPS.depth), C.stone, { p: [x, tread / 2, stepZ] });
+    for (const side of [-1, 1]) {
+      const cx = x + side * (PLAZA_STEPS.width / 2 + PLAZA_STEPS.cheek / 2);
+      b.add(shapes.box(PLAZA_STEPS.cheek, cheek, PLAZA_STEPS.depth), C.stoneDark, { p: [cx, cheek / 2, stepZ] });
+      block(cx, stepZ, PLAZA_STEPS.cheek / 2, PLAZA_STEPS.depth / 2, cheek);
+    }
+  }
   for (const z of [midZ - 5, midZ + 5]) {
-    const west = RING_OUT.x0 + 0.55;
-    const east = RING_OUT.x1 - 0.55;
-    bench(b, west, z, Math.PI / 2);
-    bench(b, east, z, Math.PI / 2);
     block(west, z, 0.3, 0.9, 1);
     block(east, z, 0.3, 0.9, 1);
   }
@@ -292,12 +344,6 @@ export function createQuarter() {
         },
         actionFor() {
           return { id: 'visit', hint: 'hand' };
-        },
-        labelOf(target) {
-          const place = places.find((item) => item.id === target.id);
-          const house = houseOf(place);
-          if (house) return houseLabel(options.estate, house, options.nameOf);
-          return place?.name ?? null;
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 3.8, target.z);

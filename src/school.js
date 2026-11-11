@@ -33,9 +33,9 @@ export const HOUSE = {
 export const ENCLOSURE = { x0: -22, x1: 22, front: 28, back: -42 };
 export const CROSS_WALLS = [28, -12];
 export const SIDE_GATES = [-8.5, 9.5];
-export const PLAZA = { x0: -13, z0: 45, x1: 14, z1: 63, x: 0.5, z: 54 };
+export const PLAZA = { x0: -13, z0: 45, x1: 14, z1: 63, x: 0.5, z: 54, rise: 0.2 };
 export const POND = { x: 0.5, z: 18, half: 4 };
-export const THUONG_DIEN = { x: 0.5, z: -1.2, hx: 8.8, hz: 3.2 };
+export const THUONG_DIEN = { x: 0.5, z: -1.2, hx: 8.8, hz: 3.2, scale: 2 / 3 };
 export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -17.5 : 18.5, z0: -7, z1: 7 }));
 export const STELE_SHEDS = [-1, 1].map((side) => ({ x: side < 0 ? -14.5 : 15.5, z0: 9, z1: 25 }));
 export const KHUE_VAN_CAC = { x: 0.5, z: 28.5, half: 2 };
@@ -157,7 +157,9 @@ function courtyard(world) {
     }
   }
   const td = THUONG_DIEN;
-  world.fill(Math.floor(td.x - td.hx), 0, Math.floor(td.z - td.hz), Math.ceil(td.x + td.hx) - 1, 4, Math.ceil(td.z + td.hz) - 1, 'plaster');
+  const tdX = td.hx * td.scale;
+  const tdZ = td.hz * td.scale;
+  world.fill(Math.floor(td.x - tdX), 0, Math.floor(td.z - tdZ), Math.ceil(td.x + tdX) - 1, Math.ceil(4 * td.scale), Math.ceil(td.z + tdZ) - 1, 'plaster');
   for (const vu of VU) world.fill(Math.floor(vu.x - 2), 0, vu.z0, Math.ceil(vu.x + 2) - 1, 3, vu.z1 - 1, 'plaster');
 }
 

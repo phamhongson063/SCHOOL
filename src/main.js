@@ -45,7 +45,7 @@ import { Town } from './villagers.js';
 import { createStudyIcon } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
-import { createQuarter } from './quarter.js';
+import { createQuarter, plazaFloor } from './quarter.js';
 import { createFieldMart } from './fieldMart.js';
 import { createMountain } from './mountain.js';
 import { createCountryside } from './countryside.js';
@@ -201,7 +201,7 @@ const player = new PlayerController({
   stepSound,
   shadow: createBlobShadow(scene, 0.34),
 });
-player.surfaceAt = (x, z) => stairHeight(x, z) ?? terrainFloor(x, z);
+player.surfaceAt = (x, z) => stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
 player.terrainAt = terrainHeight;
 
 const ledger = new Ledger();
@@ -238,7 +238,7 @@ bank.onMature((owner, term) => {
   if (owner !== PLAYER) return;
   const lines = [`Sổ ${term.days} ngày đã đáo hạn, ${coins(term.value)} (gốc + lãi) đã chuyển vào tài khoản không kỳ hạn.`];
   if (bank.overdue(PLAYER)) lines.push('Bạn đang có khoản vay quá hạn, số tiền này có thể bị trừ để trả nợ.');
-  mailbox.notify({ icon: '🏦', title: 'Sổ tiết kiệm đáo hạn', lines, place: 'Ngân hàng · Xóm Bàn Cờ', point: district.bankDoor });
+  mailbox.notify({ icon: '🏦', lines, place: 'Ngân hàng · Xóm Bàn Cờ', point: district.bankDoor });
 });
 
 createFullscreenToggle();
@@ -327,7 +327,7 @@ regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
 await loadingStep(0.72, 'Mở lối đi');
 player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
-  surfaceAt: (x, z) => stairHeight(x, z) ?? navSurface(x, z),
+  surfaceAt: (x, z) => stairHeight(x, z) ?? plazaFloor(x, z) ?? navSurface(x, z),
   blocked: (p) => player.blocks(p),
 });
 regions.onLoad = (region) => {
@@ -608,7 +608,11 @@ town.blessing = blessing;
 const blessingDialog = createBlessingDialog({
   blessing,
   minutes: () => context.minutes,
-  onJoin: () => blessing.join(PLAYER, context.minutes),
+  onJoin: () => {
+    const joined = blessing.join(PLAYER, context.minutes);
+    if (joined) mailbox.remove(blessingMail);
+    return joined;
+  },
   onStart: () => blessing.startTest(PLAYER, context.minutes),
 });
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
@@ -780,7 +784,8 @@ const summon = createSummon({
     !quiz.open &&
     !fishing.active &&
     !fieldTask &&
-    !effectTask,
+    !effectTask &&
+    !blessing.member(PLAYER, context.minutes),
   inClass,
   prepare() {
     stopWork();
@@ -1232,13 +1237,13 @@ const scenePopups = [() => fishing.active && kanjiQuiz.open];
 const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
 const blessingReminded = new Set();
+let blessingMail = null;
 function remindBlessing() {
   const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
   if (!next || blessingReminded.has(next.key)) return;
   blessingReminded.add(next.key);
-  mailbox.notify({
+  blessingMail = mailbox.notify({
     icon: '✨',
-    title: 'Sắp tới giờ chúc phúc',
     lines: [`Giờ chúc phúc ${next.hours} sắp bắt đầu. Bạn hãy tới sân tượng gặp quan để tham gia nhận chúc phúc.`],
     place: 'Sân chúc phúc · Xóm Văn Miếu',
     point: blessing.official.stand,

@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { studentFurniture, lantern, textBoard } from './props.js';
-import { tileRoofMeshes, groundDecal, roundedRectGeometry, GROUND_LAYER } from './scenery.js';
+import { tileRoofMeshes, groundDecal, roundedRectGeometry, roundedRectShape, earthMaterial, GROUND_LAYER } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { paving } from './village.js';
+import { brickMaterial } from './village.js';
 
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
 export const STUDY_HALLS = [
@@ -36,6 +36,9 @@ const STONE_LANTERNS = [
   [4.3, -2.7],
 ];
 const COURT = { x0: -5.1, z0: -3.3, x1: 5.1, z1: 0.2 };
+const COURT_EARTH_PAD = 0.35;
+const COURT_BRICK_TOP = 0.04;
+const STEP_TOP = 0.09;
 const COUPLETS = [
   [['Học', 'Hải', 'Vô', 'Biên'], -3.28],
   [['Ôn', 'Cố', 'Tri', 'Tân'], 3.28],
@@ -117,9 +120,9 @@ function facade(b) {
 
 function doorway(b) {
   const { door, doorHeight } = HALL_SIZE;
-  for (const s of [-1, 1]) b.add(shapes.box(0.18, doorHeight, T + 0.12), WOOD, { p: [s * (door / 2 + 0.07), doorHeight / 2, T / 2] });
+  for (const s of [-1, 1]) b.add(shapes.box(0.18, doorHeight, T + 0.16), WOOD, { p: [s * (door / 2 + 0.07), doorHeight / 2, T / 2] });
   b.add(shapes.box(door + 0.4, 0.2, T + 0.14), WOOD, { p: [0, doorHeight + 0.08, T / 2] });
-  b.add(shapes.box(door + 0.8, 0.05, 1.2), STONE, { p: [0, 0.025, -0.6] });
+  b.add(shapes.box(door + 0.8, STEP_TOP, 1.2), STONE, { p: [0, STEP_TOP / 2, -0.6] });
   for (const s of [-1, 1]) {
     const lx = s * (door * 0.75);
     b.add(shapes.box(door / 2 - 0.06, doorHeight - 0.1, 0.06), LACQUER, { p: [lx, (doorHeight - 0.1) / 2, T + 0.04] });
@@ -138,6 +141,19 @@ function porch(b, obstacles) {
   });
   const span = COLUMNS[COLUMNS.length - 1] - COLUMNS[0];
   b.add(shapes.box(span + 0.5, 0.24, 0.22), WOOD_DARK, { p: [(COLUMNS[0] + COLUMNS[COLUMNS.length - 1]) / 2, beamY, PORCH_Z] });
+}
+
+function courtEarth() {
+  const pad = COURT_EARTH_PAD;
+  return groundDecal(roundedRectGeometry(COURT.x0 - pad, COURT.z0 - pad, COURT.x1 + pad, COURT.z1, 0.5 + pad), earthMaterial(), GROUND_LAYER.earth);
+}
+
+function courtBricks() {
+  const geometry = new THREE.ExtrudeGeometry(roundedRectShape(COURT.x0, COURT.z0, COURT.x1, COURT.z1, 0.5), { depth: COURT_BRICK_TOP, bevelEnabled: false, curveSegments: 6 });
+  geometry.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geometry, brickMaterial());
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 function stoneLantern(b, paper, x, z) {
@@ -229,7 +245,7 @@ export function createStudyHall(scene, hall) {
   const group = new THREE.Group();
   group.position.set(hall.x, 0, hall.front);
   group.rotation.y = hall.turn;
-  group.add(groundDecal(roundedRectGeometry(COURT.x0, COURT.z0, COURT.x1, COURT.z1, 0.5), paving(), GROUND_LAYER.mark + 1, 0.014));
+  group.add(courtEarth(), courtBricks());
   const paperMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: LAMP_EMISSIVE, emissiveIntensity: 0 });
   group.add(b.mesh(), walls.mesh(plasterMaterial()), lampPaper.mesh(paperMaterial));
   boards(group, hall);

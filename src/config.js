@@ -248,7 +248,7 @@ export const BLESSING = {
   recovery: 2,
   quizSeconds: 3,
   quizCloseMs: 500,
-  remindBefore: 60,
+  remindBefore: 30,
   firstQuiz: 3,
   villagerChance: 0.35,
   villagerStay: [20, 40],
