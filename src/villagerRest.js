@@ -30,7 +30,20 @@ export class RestBehavior {
       then: () => {
         if (!blessing.join(this.id, this.town.context.minutes)) return this.think();
         this.lookAt = blessing.official.at;
-        this.wait(between(1.5, 2.5), () => this.stayBlessed());
+        this.wait(between(1.5, 2.5), () => this.startBlessingTest());
+      },
+      fail: () => this.think(),
+    });
+  }
+
+  startBlessingTest() {
+    const blessing = this.town.blessing;
+    this.lookAt = null;
+    this.travel(blessing.altarFor(), {
+      then: () => {
+        if (!blessing.startTest(this.id, this.town.context.minutes)) return this.think();
+        this.lookAt = blessing.statueAt;
+        this.wait(between(1, 2), () => this.stayBlessed());
       },
       fail: () => this.think(),
     });
@@ -112,7 +125,7 @@ export class RestBehavior {
   }
 
   blessingQuiz(blessed) {
-    if (!blessed) {
+    if (!blessed || !this.town.blessing.testing(this.id, this.town.context.minutes)) {
       this.blessingAsk = null;
       return;
     }

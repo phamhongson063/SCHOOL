@@ -43,6 +43,7 @@ const BODY_GLOW = { idle: 0.16, blessed: 0.3 };
 const OFFICIAL = { x: PLAZA.x - 8, z: ROAD.z1 + 4.4, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
+const ALTAR = { ahead: RING_BED.outer + 0.8, spots: [-1.2, 0, 1.2] };
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
 const LIGHT = 'rgba(255,255,255,1)';
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
@@ -401,8 +402,9 @@ function createAura(statueMaterial) {
     group,
     lamp,
     update(dt, visible, k, { toward, night }) {
-      group.visible = visible;
-      if (!visible) {
+      const on = Math.max(k, night);
+      group.visible = visible && on > 0.01;
+      if (!group.visible) {
         lamp.intensity = 0;
         statueMaterial.emissiveIntensity = 0;
         return;
@@ -410,7 +412,7 @@ function createAura(statueMaterial) {
       clock += dt;
       const cycle = clock * AURA_CYCLE;
       const pulse = 0.85 + 0.15 * Math.sin(clock * 1.4);
-      const level = (idle, blessed) => lerp(idle, blessed, k);
+      const level = (idle, blessed) => lerp(idle, blessed, k) * on;
       const dark = 0.35 + 0.65 * night;
       tint(lamp.color, k, cycle);
       lamp.intensity = level(LAMP.idle, LAMP.blessed) * dark * pulse;
@@ -484,6 +486,14 @@ function sessionAt(minutes) {
   return index < 0 ? null : `${dayOf(minutes)}:${index}`;
 }
 
+function upcomingWindow(minutes, lead) {
+  const m = minuteOfDay(minutes);
+  const index = BLESSING.windows.findIndex(([start]) => m >= start - lead && m < start);
+  if (index < 0) return null;
+  const [start, end] = BLESSING.windows[index];
+  return { key: `${dayOf(minutes)}:${index}`, hours: `${clockText(start)}–${clockText(end)}` };
+}
+
 function nextWindowText(minutes) {
   const m = minuteOfDay(minutes);
   const [start, end] = BLESSING.windows.find(([open]) => open > m) ?? BLESSING.windows[0];
@@ -535,7 +545,9 @@ export function createBlessing(scene) {
   const statue = new THREE.Group();
   statue.position.set(PLAZA.x, 0, PLAZA.z);
   const statueMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: AURA_GOLD, emissiveIntensity: 0 });
-  statue.add(flowers.mesh(), b.mesh(statueMaterial));
+  const body = b.mesh(statueMaterial);
+  statue.add(flowers.mesh(), body);
+  const altarSpots = ALTAR.spots.map((dx) => new THREE.Vector3(PLAZA.x + dx, 0, PLAZA.z - ALTAR.ahead));
   scene.add(statue);
   freeze(statue);
 
@@ -557,6 +569,11 @@ export function createBlessing(scene) {
   ];
 
   const members = new Map();
+  const testing = new Set();
+  const drop = (id) => {
+    members.delete(id);
+    testing.delete(id);
+  };
   let clock = 0;
   const active = (minutes) => strengthAt(minutes) > 0;
   const inside = (position) => Math.hypot(position.x - PLAZA.x, position.z - PLAZA.z) <= BLESSING.radius;
@@ -570,18 +587,18 @@ export function createBlessing(scene) {
     clickables: [statue, official.walker.group],
     official,
     statueAt: { x: PLAZA.x, z: PLAZA.z },
+    altar: altarSpots[1],
+    ownsStatue: (object) => object === body,
     active,
     member,
+    testing: (id, minutes) => member(id, minutes) && testing.has(id),
     session: sessionAt,
     nextWindow: nextWindowText,
+    upcoming: upcomingWindow,
     blessed(id, position, minutes) {
       if (!members.has(id)) return false;
-      if (!member(id, minutes)) {
-        members.delete(id);
-        return false;
-      }
-      if (inside(position)) return true;
-      members.delete(id);
+      if (member(id, minutes) && inside(position)) return true;
+      drop(id);
       return false;
     },
     recoveryAt(id, position, minutes) {
@@ -591,8 +608,17 @@ export function createBlessing(scene) {
       const session = active(minutes) ? sessionAt(minutes) : null;
       if (!session) return false;
       members.set(id, session);
+      testing.delete(id);
       official.bubble.show('Thần linh phù hộ ngươi!', 2.2, clock);
       return true;
+    },
+    startTest(id, minutes) {
+      if (!member(id, minutes)) return false;
+      testing.add(id);
+      return true;
+    },
+    altarFor() {
+      return altarSpots[Math.floor(Math.random() * altarSpots.length)];
     },
     greet() {
       official.bubble.show(OFFICIAL_LINES[Math.floor(Math.random() * OFFICIAL_LINES.length)], 2, clock);
@@ -623,17 +649,29 @@ export function createBlessing(scene) {
   return api;
 }
 
-export function createBlessingDialog({ blessing, minutes, onJoin }) {
+export function createBlessingDialog({ blessing, minutes, onJoin, onStart }) {
   const dialog = document.getElementById('blessingDialog');
   const text = document.getElementById('blessingText');
   const yes = document.getElementById('blessingYes');
   const no = document.getElementById('blessingNo');
-  let joining = false;
+  let confirmed = null;
   no.addEventListener('click', () => dialog.close());
   yes.addEventListener('click', () => {
     dialog.close();
-    if (joining) onJoin();
+    confirmed?.();
   });
+
+  function show(message, { accept = null, label = 'OK' } = {}) {
+    text.textContent = message;
+    confirmed = accept;
+    no.hidden = !accept;
+    yes.textContent = label;
+    dialog.showModal();
+    yes.focus({ preventScroll: true });
+  }
+
+  const tooEarly = (now) => `Giờ chúc phúc chưa tới. Ngươi hãy quay lại vào khung giờ kế tiếp (${blessing.nextWindow(now)}) nhé.`;
+
   return {
     get isOpen() {
       return dialog.open;
@@ -642,12 +680,15 @@ export function createBlessingDialog({ blessing, minutes, onJoin }) {
       const now = minutes();
       blessing.greet();
       if (blessing.member(id, now)) return;
-      joining = blessing.active(now);
-      text.textContent = joining ? 'Ngươi có muốn tham gia nhận chúc phúc không?' : `Giờ chúc phúc chưa tới. Ngươi hãy quay lại vào khung giờ kế tiếp (${blessing.nextWindow(now)}) nhé.`;
-      no.hidden = !joining;
-      yes.textContent = joining ? 'Tham gia' : 'OK';
-      dialog.showModal();
-      yes.focus({ preventScroll: true });
+      if (!blessing.active(now)) show(tooEarly(now));
+      else show('Ngươi có muốn tham gia nhận chúc phúc không?', { accept: onJoin, label: 'Tham gia' });
+    },
+    openStatue(id) {
+      const now = minutes();
+      if (blessing.testing(id, now)) return;
+      if (!blessing.active(now)) show(tooEarly(now));
+      else if (!blessing.member(id, now)) show('Ngươi hãy tới gặp quan để tham gia nhận chúc phúc trước.');
+      else show('Ngươi đã sẵn sàng nhận kiểm tra chưa?', { accept: onStart, label: 'Bắt đầu' });
     },
   };
 }

@@ -605,7 +605,12 @@ town = new Town({
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
 town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
-const blessingDialog = createBlessingDialog({ blessing, minutes: () => context.minutes, onJoin: () => blessing.join(PLAYER, context.minutes) });
+const blessingDialog = createBlessingDialog({
+  blessing,
+  minutes: () => context.minutes,
+  onJoin: () => blessing.join(PLAYER, context.minutes),
+  onStart: () => blessing.startTest(PLAYER, context.minutes),
+});
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 economy.start({
   ledger,
@@ -817,6 +822,13 @@ const noticeSpot = {
 };
 const lodgeDesk = createLodgeDesk({ purse, onRent: (id) => sleepAtLodge(id) });
 
+const blessingAltar = {
+  act() {
+    blessingDialog.openStatue(PLAYER);
+    return null;
+  },
+};
+
 const blessingDesk = {
   act() {
     blessingDialog.open(PLAYER);
@@ -941,6 +953,11 @@ function sceneClick(clientX, clientY, run) {
   if (school.isTeacher(hit.object)) {
     leaveLine();
     goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    return true;
+  }
+  if (blessing.ownsStatue(hit.object)) {
+    leaveLine();
+    goDo(blessingAltar, { stand: blessing.altar, x: blessing.statueAt.x, z: blessing.statueAt.z }, 'altar');
     return true;
   }
   if (blessing.official.owns(hit.object)) {
@@ -1214,9 +1231,23 @@ const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dial
 const scenePopups = [() => fishing.active && kanjiQuiz.open];
 const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
+const blessingReminded = new Set();
+function remindBlessing() {
+  const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
+  if (!next || blessingReminded.has(next.key)) return;
+  blessingReminded.add(next.key);
+  mailbox.notify({
+    icon: '✨',
+    title: 'Sắp tới giờ chúc phúc',
+    lines: [`Giờ chúc phúc ${next.hours} sắp bắt đầu. Bạn hãy tới sân tượng gặp quan để tham gia nhận chúc phúc.`],
+    place: 'Sân chúc phúc · Xóm Văn Miếu',
+    point: blessing.official.stand,
+  });
+}
+
 let blessingQuizIn = BLESSING.firstQuiz;
 function updateBlessingQuiz(dt) {
-  if (mode !== 'play' || purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes)) {
+  if (mode !== 'play' || purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes) || !blessing.testing(PLAYER, context.minutes)) {
     blessingQuizIn = BLESSING.firstQuiz;
     return;
   }
@@ -1407,6 +1438,7 @@ renderer.setAnimationLoop((time) => {
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
+  remindBlessing();
   summon.update(dt, context);
   catchFireflies(t, dt);
   updateLamp(t);
