@@ -33,7 +33,7 @@ export const HOUSE = {
 export const ENCLOSURE = { x0: -22, x1: 22, front: 28, back: -42 };
 export const CROSS_WALLS = [28, -12];
 export const SIDE_GATES = [-8.5, 9.5];
-export const PLAZA = { x0: -13, z0: 40, x1: 14, z1: 58, x: 0.5, z: 49 };
+export const PLAZA = { x0: -13, z0: 45, x1: 14, z1: 63, x: 0.5, z: 54 };
 export const POND = { x: 0.5, z: 18, half: 4 };
 export const THUONG_DIEN = { x: 0.5, z: -1.2, hx: 8.8, hz: 3.2 };
 export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -17.5 : 18.5, z0: -7, z1: 7 }));

@@ -2010,6 +2010,44 @@ dialog.paper.wide {
   background: rgba(201, 150, 47, 0.2);
 }
 
+.music-toggle .music-label {
+  flex: 1;
+  text-align: left;
+}
+
+.music-toggle .switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 2px solid var(--bark);
+  border-radius: 999px;
+  background: #b9a98a;
+  transition: background 0.15s;
+}
+
+.music-toggle .switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: 0 1px 2px var(--shadow-soft);
+  transition: transform 0.15s;
+}
+
+.music-toggle[aria-checked="true"] .switch {
+  background: #4fae3a;
+}
+
+.music-toggle[aria-checked="true"] .switch::after {
+  transform: translateX(18px);
+}
+
 #fullscreenBtn .fs-exit,
 #fullscreenBtn.active .fs-enter {
   display: none;

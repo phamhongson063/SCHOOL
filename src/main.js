@@ -174,6 +174,8 @@ const stepSound = new StepSound();
 const uiSounds = createUiSounds();
 const villageMusic = new Music(['assets/music/village.ogg', 'assets/music/village.m4a']);
 const fieldMusic = new Music(['assets/music/field.ogg', 'assets/music/field.m4a']);
+const blessingTracks = ['blessing-1', 'blessing-2'].map((name) => new Music([`assets/music/${name}.ogg`, `assets/music/${name}.m4a`]));
+let blessingTrack = null;
 const riverAmbience = new Ambience({ bed: 'assets/music/river', volume: 0.3 });
 const FIELD_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice']);
 const QUIET_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice', 'river', 'mountain']);
@@ -182,8 +184,12 @@ function updateSoundscape(focus) {
   const village = soundRegion !== null && !QUIET_REGIONS.has(soundRegion);
   const shore = village ? regions.shoreAt(focus.x, focus.z) : null;
   riverAmbience.set(soundRegion === 'river' || shore?.zone === 'near');
-  fieldMusic.set(FIELD_REGIONS.has(soundRegion));
-  villageMusic.set(village && !shore && !studyMusic.playing);
+  const blessed = blessing.member(PLAYER, context.minutes);
+  if (!blessed) blessingTrack = null;
+  else blessingTrack ??= blessingTracks[Math.floor(Math.random() * blessingTracks.length)];
+  for (const track of blessingTracks) track.set(track === blessingTrack);
+  fieldMusic.set(FIELD_REGIONS.has(soundRegion) && !blessed);
+  villageMusic.set(village && !shore && !studyMusic.playing && !blessed);
 }
 const player = new PlayerController({
   camera,

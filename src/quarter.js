@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, freeze, shapes } from './toon.js';
+import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse, createChiefHouse } from './architecture.js';
@@ -13,7 +13,7 @@ const SOUTH_FRONT = 40.6;
 const DINH_FRONT = 43;
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
-const BOUNDS = { x0: -38, z0: 20, x1: 37, z1: 62 };
+const BOUNDS = { x0: -38, z0: 20, x1: 37, z1: 66 };
 
 const HOUSES = [
   { id: 'c1', side: 'north', x: -26, width: 5.5, depth: 8, stories: 2, seed: 211, home: 9, size: 'medium' },
@@ -33,6 +33,8 @@ const KERB = 0.4;
 const RING = 1.7;
 const LAKE = { x0: PLAZA.x0 - KERB, z0: PLAZA.z0 - KERB, x1: PLAZA.x1 + KERB, z1: PLAZA.z1 + KERB };
 const RING_OUT = { x0: LAKE.x0 - RING, z0: ROAD.z1 + 0.4, x1: LAKE.x1 + RING, z1: LAKE.z1 + RING };
+const FORECOURT = { x0: RING_OUT.x0, z0: RING_OUT.z0, x1: RING_OUT.x1, z1: RING_OUT.z0 + 5 };
+const SETTS = { grout: 0x4f4d48, stones: [0x8e8b84, 0x7f7c76, 0x9a968e, 0x86827a, 0x8a8f94, 0x968c80], perRow: 12, rows: 12 };
 
 const C = {
   stone: 0xb3ab99,
@@ -56,6 +58,46 @@ function frame(side, x, front) {
       ? { minX: x + b.minX, maxX: x + b.maxX, minZ: front + b.minZ, maxZ: front + b.maxZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 }
       : { minX: x - b.maxX, maxX: x - b.minX, minZ: front - b.maxZ, maxZ: front - b.minZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 };
   return { toWorld, box, turn: north ? 0 : Math.PI };
+}
+
+const cssHex = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
+
+function settsMaterial() {
+  const map = canvasTexture(
+    256,
+    (ctx, s) => {
+      const rand = makeRandom(4242);
+      const w = s / SETTS.perRow;
+      const h = s / SETTS.rows;
+      ctx.fillStyle = cssHex(SETTS.grout);
+      ctx.fillRect(0, 0, s, s);
+      for (let r = 0; r < SETTS.rows; r++) {
+        const offset = (r % 2) * w * (0.3 + rand() * 0.4);
+        for (let c = -1; c <= SETTS.perRow; c++) {
+          const x = c * w + offset + (rand() - 0.5) * 2;
+          const y = r * h + (rand() - 0.5) * 2;
+          const base = SETTS.stones[Math.floor(rand() * SETTS.stones.length)];
+          const inset = 1.6 + rand() * 1.2;
+          ctx.fillStyle = cssHex(shade(base, 0.85 + rand() * 0.3));
+          ctx.beginPath();
+          ctx.roundRect(x + inset, y + inset, w - inset * 2, h - inset * 2, 3);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(x + inset + 1, y + inset + 1, w - inset * 2 - 2, 2);
+          ctx.fillStyle = 'rgba(0,0,0,0.14)';
+          ctx.fillRect(x + inset + 1, y + h - inset - 3, w - inset * 2 - 2, 2);
+          for (let k = 0; k < 2; k++) {
+            ctx.fillStyle = `rgba(40,38,35,${0.1 + rand() * 0.15})`;
+            ctx.beginPath();
+            ctx.ellipse(x + inset + 2 + rand() * (w - inset * 2 - 4), y + inset + 2 + rand() * (h - inset * 2 - 4), 0.6 + rand() * 1.4, 0.6 + rand(), 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    },
+    [0.45, 0.45],
+  );
+  return toonMaterial({ muted: true, map, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
 }
 
 function well(b, x, z) {
@@ -122,6 +164,9 @@ export function createQuarter() {
 
   pave(ENCLOSURE.x0 + 0.6, ENCLOSURE.front + 0.6, ENCLOSURE.x1 + 0.4, ROAD.z0 + 0.2, 0.5);
   pave(RING_OUT.x0, RING_OUT.z0, RING_OUT.x1, RING_OUT.z1);
+  const forecourt = groundDecal(roundedRectGeometry(FORECOURT.x0, FORECOURT.z0, FORECOURT.x1, FORECOURT.z1, 0.4), settsMaterial(), PAVING_LAYER + 0.5, 0.016);
+  group.add(forecourt);
+  clickables.push(forecourt);
   pave(DINH.x - 4, ROAD.z1 - 0.2, DINH.x + 4, DINH_FRONT + 0.4, 0.5);
   pave(WELL.x - 2, WELL.z - 2, WELL.x + 2, WELL.z + 2, 1.2);
 
@@ -201,14 +246,14 @@ export function createQuarter() {
     block(east, z, 0.3, 0.9, 1);
   }
 
-  for (const [x, z, h] of [[-19, 53, 4], [20, 54, 5], [30, 53.5, 4], [1, 62.5, 4]]) {
+  for (const [x, z, h] of [[-19, 53, 4], [20, 54, 5], [30, 53.5, 4], [-19, 62.5, 4]]) {
     roundTree(b, rand, { x, z, h });
     block(x + 0.5, z + 0.5, 0.3, 0.3, h);
   }
 
   group.add(b.mesh());
   group.traverse((node) => {
-    if (node.isMesh && node.renderOrder !== PAVING_LAYER) node.renderOrder = ABOVE_PAVING;
+    if (node.isMesh && node.renderOrder !== PAVING_LAYER && node !== forecourt) node.renderOrder = ABOVE_PAVING;
   });
   freeze(group);
 

@@ -1,7 +1,8 @@
 import { closable } from './dialog.js';
+import { musicEnabled, setMusicEnabled } from './audio.js';
 
 const PREFIX = 'truong-lang-xua.';
-const KEEP = new Set(['lessonMode', 'lessonChoice', 'furigana', 'translate', 'bagTab'].map((key) => PREFIX + key));
+const KEEP = new Set(['lessonMode', 'lessonChoice', 'furigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key));
 
 export function wipeGame() {
   const doomed = [];
@@ -21,6 +22,14 @@ export function createSettings({ onReset }) {
   const confirmBox = document.getElementById('resetConfirm');
   const confirm = document.getElementById('resetConfirmBtn');
   const cancel = document.getElementById('resetCancel');
+  const music = document.getElementById('musicBtn');
+
+  const paintMusic = () => music.setAttribute('aria-checked', String(musicEnabled()));
+  paintMusic();
+  music.addEventListener('click', () => {
+    setMusicEnabled(!musicEnabled());
+    paintMusic();
+  });
 
   const showConfirm = (shown) => {
     confirmBox.hidden = !shown;

@@ -5,6 +5,7 @@ import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
+import { ROAD } from './road.js';
 import { keeperNPC } from './village.js';
 
 const STONE = 0xb3ab99;
@@ -33,7 +34,7 @@ const BURST = { y: PEDESTAL_TOP + 1.7, size: 13, glow: 6.5, spin: 0.035 };
 const GROUND_RING = 6.5;
 const SPARKS = 60;
 const SPARK_REACH = 7.5;
-const OFFICIAL = { dx: 3, dz: -7.6, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
+const OFFICIAL = { x: PLAZA.x + 3, z: ROAD.z1 + 1.6, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
@@ -414,7 +415,7 @@ const inBed = (x, z) => [...CORNER_BEDS, ...EDGE_BEDS].some((bed) => Math.abs(x 
 
 function createOfficial(scene) {
   const npc = keeperNPC(OFFICIAL_LOOK, OFFICIAL.model);
-  const at = new THREE.Vector3(PLAZA.x + OFFICIAL.dx, 0, PLAZA.z + OFFICIAL.dz);
+  const at = new THREE.Vector3(OFFICIAL.x, 0, OFFICIAL.z);
   npc.walker.group.position.copy(at);
   npc.walker.group.rotation.y = OFFICIAL.facing;
   scene.add(npc.walker.group);
@@ -469,7 +470,7 @@ export function createBlessing(scene) {
     box(0, 0, 2.1, 2.1, HEAD_Y + 0.8),
     box(0, 0, RING_BED.outer + 0.1, RING_BED.outer + 0.1, 0.5),
     ...[...CORNER_BEDS, ...EDGE_BEDS].map((bed) => box(bed.x, bed.z, bed.hx + 0.1, bed.hz + 0.1, 0.5)),
-    box(OFFICIAL.dx, OFFICIAL.dz, 0.35, 0.35, 2),
+    { minX: OFFICIAL.x - 0.35, maxX: OFFICIAL.x + 0.35, minZ: OFFICIAL.z - 0.35, maxZ: OFFICIAL.z + 0.35, minY: 0, maxY: 2 },
   ];
 
   const members = new Map();
@@ -522,7 +523,7 @@ export function createBlessing(scene) {
         const r = RING_BED.outer + 0.9 + Math.random() * 1.6;
         const x = Math.cos(a) * r;
         const z = Math.sin(a) * r;
-        if (inBed(x, z) || Math.hypot(x - OFFICIAL.dx, z - OFFICIAL.dz) < 2) continue;
+        if (inBed(x, z)) continue;
         return new THREE.Vector3(PLAZA.x + x, 0, PLAZA.z + z);
       }
       return new THREE.Vector3(PLAZA.x, 0, PLAZA.z - RING_BED.outer - 1.2);

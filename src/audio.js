@@ -1,5 +1,18 @@
+const MUSIC_KEY = 'truong-lang-xua.music';
+const MUSIC_FADE = 0.15;
+
 let ctx = null;
+let musicOut = null;
+let musicOn = readMusic();
 const waiting = [];
+
+function readMusic() {
+  try {
+    return localStorage.getItem(MUSIC_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
 
 function wake() {
   if (!ctx) {
@@ -22,6 +35,25 @@ document.addEventListener('visibilitychange', () => {
 export function onAudio(fn) {
   if (ctx) fn(ctx);
   else waiting.push(fn);
+}
+
+export function musicBus(context) {
+  if (!musicOut) {
+    musicOut = context.createGain();
+    musicOut.gain.value = musicOn ? 1 : 0;
+    musicOut.connect(context.destination);
+  }
+  return musicOut;
+}
+
+export const musicEnabled = () => musicOn;
+
+export function setMusicEnabled(on) {
+  musicOn = on;
+  try {
+    localStorage.setItem(MUSIC_KEY, on ? 'on' : 'off');
+  } catch {}
+  if (musicOut) musicOut.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, MUSIC_FADE);
 }
 
 export async function loadClip(ctx, urls) {

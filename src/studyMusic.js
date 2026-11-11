@@ -1,4 +1,4 @@
-import { loadClip, onAudio } from './audio.js';
+import { loadClip, musicBus, onAudio } from './audio.js';
 
 const VOLUME = 0.85;
 const FADE = 2;
@@ -14,7 +14,7 @@ export class StudyMusic {
       this.ctx = ctx;
       this.out = ctx.createGain();
       this.out.gain.value = VOLUME;
-      this.out.connect(ctx.destination);
+      this.out.connect(musicBus(ctx));
       for (const path of paths) {
         loadClip(ctx, [`${path}.ogg`, `${path}.m4a`]).then((clip) => {
           if (!clip) return;

@@ -1,4 +1,4 @@
-import { loadClip, onAudio } from './audio.js';
+import { loadClip, musicBus, onAudio } from './audio.js';
 
 const VOLUME = 0.25;
 const FADE = 2.5;
@@ -14,7 +14,7 @@ export class Music {
       this.ctx = ctx;
       this.gain = ctx.createGain();
       this.gain.gain.value = 0;
-      this.gain.connect(ctx.destination);
+      this.gain.connect(musicBus(ctx));
       this.clip = await loadClip(ctx, urls);
       this.apply();
     });
