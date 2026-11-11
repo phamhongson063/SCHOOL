@@ -609,6 +609,20 @@
       <p id="kanjiResult" class="kanji-result"></p>
     </div>
   </dialog>
+  <dialog id="phraseDialog" class="paper phrase-quiz" aria-label="Câu hỏi mẫu câu" tabindex="-1">
+    <div class="paper-body">
+      <header class="phrase-head">
+        <span id="phraseIcon" class="phrase-icon" aria-hidden="true"></span>
+        <span id="phraseLevel" class="phrase-level"></span>
+        <span class="sched-fill"></span>
+        <button id="phraseClose" class="sched-x" type="button" aria-label="Đóng" hidden>×</button>
+      </header>
+      <div id="phraseText" class="phrase-text" lang="ja"></div>
+      <div id="phraseOptions" class="phrase-options"></div>
+      <span class="pay-track phrase-track"><span id="phraseBar" class="pay-bar"></span></span>
+      <p id="phraseResult" class="phrase-result"></p>
+    </div>
+  </dialog>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

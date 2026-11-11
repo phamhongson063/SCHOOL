@@ -91,6 +91,8 @@ export const FISHING = {
   castPause: 1.6,
 };
 
+export const PHRASE_QUIZ = { clozeSeconds: 40, meaningSeconds: 20, choices: 4 };
+
 export const WILDLIFE = {
   rabbit: { name: 'Thỏ rừng', icon: '🐇', price: 6, gentle: true, count: 7, speed: 1.5, flee: 5.4, wary: 0.35 },
   pheasant: { name: 'Gà rừng', icon: '🐓', price: 9, gentle: true, count: 5, speed: 1.2, flee: 4.6, wary: 0.3 },

@@ -750,7 +750,7 @@ body.mail-open #toolbar {
 
 .mail-row {
   display: grid;
-  grid-template-columns: 35px 1fr auto;
+  grid-template-columns: 35px 1fr;
   align-items: start;
   gap: 8px;
   padding: 8px;
@@ -799,17 +799,11 @@ body.mail-open #toolbar {
   min-width: 0;
 }
 
-.mail-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font: 700 14px/1.3 var(--font-ui);
-}
-
 .mail-time {
-  font: 600 12px/1 var(--font-ui);
+  margin-top: 3px;
+  font: 600 10px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  opacity: 0.75;
 }
 
 .mail-body {
@@ -2098,64 +2092,6 @@ dialog.paper.kanji:focus {
   text-align: center;
 }
 
-.kanji-word ruby {
-  ruby-position: over;
-}
-
-.kanji-word rt {
-  font-size: 0.45em;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--tan);
-}
-
-.kanji-word.phrase {
-  font-size: clamp(26px, 7vw, 36px);
-  letter-spacing: 0.02em;
-}
-
-.kanji-word.cloze {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font: 500 17px/1.9 "BIZ UDPGothic", system-ui, sans-serif;
-  letter-spacing: 0;
-  text-align: left;
-  line-break: strict;
-  word-break: auto-phrase;
-}
-
-.kanji-line b {
-  margin-right: 6px;
-  color: var(--tan);
-}
-
-.kanji-blank {
-  display: inline-block;
-  min-width: 4.5em;
-  margin: 0 2px;
-  border-bottom: 2px solid #c2287e;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.kanji-blank.filled {
-  min-width: 0;
-}
-
-.kanji-word mark,
-.kanji-options mark {
-  background: none;
-  color: #c2287e;
-  font-weight: 700;
-}
-
-.kanji-options rt {
-  font-size: 0.5em;
-  font-weight: 500;
-  color: var(--tan);
-}
-
 .kanji-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2249,6 +2185,223 @@ dialog.paper.kanji:focus {
 }
 
 .kanji.brief .kanji-result {
+  display: none;
+}
+
+dialog.paper.phrase-quiz {
+  width: min(420px, calc(100vw - 24px));
+}
+
+dialog.paper.phrase-quiz:focus {
+  outline: none;
+}
+
+.phrase-quiz .paper-body {
+  padding: 14px 18px 16px;
+}
+
+.phrase-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -14px -18px 12px;
+  padding: 6px 10px 6px 14px;
+  background:
+    repeating-linear-gradient(177deg, rgba(255, 220, 160, 0.08) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #9a6638 0%, #7a4a26 45%, #5a3519 100%);
+  box-shadow: 0 2px 0 #3a2212;
+}
+
+.phrase-head .sched-x {
+  width: 30px;
+  height: 26px;
+}
+
+.phrase-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  line-height: 1;
+  transform-origin: 50% 60%;
+}
+
+.phrase-icon.hooked {
+  animation: fish-struggle 0.55s ease-in-out infinite alternate;
+}
+
+.phrase-icon.caught {
+  animation: fish-caught 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+
+.phrase-icon.escaped {
+  animation: fish-escaped 0.7s ease-in both;
+}
+
+.phrase-level {
+  color: #ffe08a;
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+}
+
+.phrase-text {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-family: "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  line-break: strict;
+}
+
+.phrase-text.single {
+  margin: 6px 0 14px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.phrase-text.dialogue {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(120, 90, 40, 0.07);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.9;
+}
+
+.phrase-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 8px;
+  margin: 0;
+}
+
+.phrase-line b {
+  color: var(--tan);
+  font: 700 12px/1 var(--font-ui);
+}
+
+.phrase-text rt,
+.phrase-options rt {
+  font-size: 0.5em;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--tan);
+}
+
+.phrase-blank {
+  display: inline-block;
+  min-width: 3.5em;
+  margin: 0 2px;
+  border-bottom: 1.5px solid #c2287e;
+  line-height: 1.3;
+}
+
+.phrase-blank.filled {
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.phrase-text mark {
+  background: none;
+  color: #c2287e;
+  font-weight: 700;
+}
+
+.phrase-text mark rt {
+  color: #c2287e;
+}
+
+.phrase-options {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.phrase-options button {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1.5px solid #d9c49a;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.9);
+  color: var(--ink);
+  font: 600 16px/1.5 "BIZ UDPGothic", system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+
+.phrase-options.meanings button {
+  font: 600 14px/1.35 var(--font-ui);
+}
+
+.phrase-letter {
+  flex: none;
+  color: var(--tan);
+  font: 700 12px/1 var(--font-ui);
+}
+
+.phrase-options button:hover:not(:disabled) {
+  border-color: var(--gold);
+}
+
+.phrase-options button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.phrase-options button:disabled {
+  cursor: default;
+}
+
+.phrase-options button.right {
+  border-color: #2e6e46;
+  background: #dff1e3;
+  color: #1f5534;
+}
+
+.phrase-options button.wrong {
+  border-color: var(--lacquer);
+  background: #f8dcd8;
+  color: var(--lacquer);
+}
+
+.phrase-track {
+  position: static;
+  display: block;
+  margin-bottom: 8px;
+  background: #5a3519;
+}
+
+.phrase-track .pay-bar {
+  background: #d2452f;
+}
+
+.phrase-result {
+  min-height: 2.6em;
+  margin: 0;
+  color: var(--wood);
+  font-size: 13px;
+  text-align: center;
+}
+
+.phrase-result.right {
+  color: #1f5534;
+  font-weight: 700;
+}
+
+.phrase-result.wrong {
+  color: var(--lacquer);
+  font-weight: 700;
+}
+
+.phrase-quiz.brief .phrase-track {
+  margin-bottom: 0;
+}
+
+.phrase-quiz.brief .phrase-result {
   display: none;
 }
 
@@ -2693,7 +2846,6 @@ dialog.paper.kanji:focus {
   color: var(--ink);
   font: 500 16px/1.9 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
   line-break: strict;
-  word-break: auto-phrase;
 }
 
 .study-example-ja ruby {
@@ -3390,7 +3542,10 @@ dialog.paper.kanji:focus {
 @media (prefers-reduced-motion: reduce) {
   .kanji-fish.hooked,
   .kanji-fish.caught,
-  .kanji-fish.escaped {
+  .kanji-fish.escaped,
+  .phrase-icon.hooked,
+  .phrase-icon.caught,
+  .phrase-icon.escaped {
     animation: none;
   }
 }
@@ -4045,13 +4200,15 @@ dialog.paper.bank {
   }
 }
 
-dialog.paper.kanji.closing {
+dialog.paper.kanji.closing,
+dialog.paper.phrase-quiz.closing {
   overflow: hidden;
   pointer-events: none;
   animation: kanji-close 0.6s cubic-bezier(0.55, 0, 0.75, 0.2) both;
 }
 
-dialog.paper.kanji.closing::after {
+dialog.paper.kanji.closing::after,
+dialog.paper.phrase-quiz.closing::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -4061,7 +4218,8 @@ dialog.paper.kanji.closing::after {
   animation: lesson-sheen 0.45s ease-out both;
 }
 
-dialog.paper.kanji.closing::backdrop {
+dialog.paper.kanji.closing::backdrop,
+dialog.paper.phrase-quiz.closing::backdrop {
   animation: kanji-backdrop-out 0.6s ease-in both;
 }
 

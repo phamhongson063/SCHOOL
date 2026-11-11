@@ -1,4 +1,4 @@
-import { FISH, FISHING } from './config.js';
+import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
 import { recall } from './recall.js';
 import { japanese } from './ruby.js';
@@ -8,7 +8,6 @@ const AUTO_CLOSE_MS = 3000;
 const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
 const LETTERS = ['A', 'B', 'C', 'D'];
-const PHRASE_CHOICES = 4;
 const MARK = /\[([^\]]+)\]/;
 const MARKS = /\[[^\]]+\]/g;
 const plain = (text) => text.replace(/\{[^}]+\}/g, '');
@@ -61,30 +60,90 @@ function shuffle(list) {
   return list;
 }
 
+function view(prefix, textId, iconId) {
+  const node = (id) => document.getElementById(`${prefix}${id}`);
+  return {
+    prefix,
+    dialog: node('Dialog'),
+    text: node(textId),
+    level: node('Level'),
+    options: node('Options'),
+    bar: node('Bar'),
+    result: node('Result'),
+    close: node('Close'),
+    icon: node(iconId),
+  };
+}
+
+function clozeLines(lines) {
+  let blank = null;
+  const nodes = lines.map(([speaker, text]) => {
+    const line = document.createElement('p');
+    line.className = 'phrase-line';
+    if (speaker) {
+      const who = document.createElement('b');
+      who.textContent = speaker;
+      line.append(who);
+    }
+    const words = document.createElement('span');
+    const match = text.match(MARK);
+    if (!match) words.append(japanese(text));
+    else {
+      blank = document.createElement('span');
+      blank.className = 'phrase-blank';
+      words.append(japanese(text.slice(0, match.index)), blank, japanese(text.slice(match.index + match[0].length)));
+    }
+    line.append(words);
+    return line;
+  });
+  return { nodes, blank };
+}
+
+function question(entry, entries, kind, choices) {
+  if (entry.deck === 'n2') {
+    const byMeaning = kind === 'meaning';
+    const answer = byMeaning ? entry.meaning : entry.reading;
+    const others = byMeaning
+      ? shuffle([...new Set(entries.filter((other) => other.deck === 'n2').map((other) => other.meaning))].filter((meaning) => meaning !== answer))
+      : shuffle([...entry.distractors]);
+    return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : others.length) };
+  }
+  const count = (choices || PHRASE_QUIZ.choices) - 1;
+  const rest = entries.filter((other) => other.deck === entry.deck && other.key !== entry.key);
+  if (!entry.clozes.length || Math.random() < 0.5) {
+    const others = shuffle([...new Set(rest.map((other) => other.meaning))].filter((meaning) => meaning !== entry.meaning));
+    return { kind: 'meaning', answer: entry.meaning, wrong: others.slice(0, count) };
+  }
+  const cloze = entry.clozes[Math.floor(Math.random() * entry.clozes.length)];
+  const seen = new Set([plain(cloze.answer)]);
+  const forms = shuffle(rest.flatMap((other) => other.clozes.map((item) => item.answer))).filter((form) => !seen.has(plain(form)) && seen.add(plain(form)));
+  const ending = plain(cloze.answer).at(-1);
+  const wrong = [...forms.filter((form) => plain(form).at(-1) === ending), ...forms.filter((form) => plain(form).at(-1) !== ending)].slice(0, count);
+  return { kind: 'cloze', answer: cloze.answer, wrong, lines: cloze.lines };
+}
+
+function quizSeconds(kind, phrase) {
+  if (!phrase) return FISHING.quizSeconds;
+  return kind === 'cloze' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
+}
+
 export function createKanjiQuiz() {
-  const dialog = document.getElementById('kanjiDialog');
-  const word = document.getElementById('kanjiWord');
-  const level = document.getElementById('kanjiLevel');
-  const options = document.getElementById('kanjiOptions');
-  const bar = document.getElementById('kanjiBar');
-  const result = document.getElementById('kanjiResult');
-  const closeBtn = document.getElementById('kanjiClose');
-  const fishIcon = document.getElementById('kanjiFish');
+  const views = { kanji: view('kanji', 'Word', 'Fish'), phrase: view('phrase', 'Text', 'Icon') };
   const recent = [];
   let pending = null;
   let closing = null;
 
-  function hide() {
-    dialog.classList.remove('closing');
-    if (dialog.open) dialog.close();
+  function hide(current) {
+    current.dialog.classList.remove('closing');
+    if (current.dialog.open) current.dialog.close();
   }
 
   function endClosing() {
     if (!closing) return;
-    const { timer, done } = closing;
+    const { timer, done, view: shown } = closing;
     clearTimeout(timer);
     closing = null;
-    hide();
+    hide(shown);
     done();
   }
 
@@ -97,68 +156,23 @@ export function createKanjiQuiz() {
     return entry;
   }
 
-  function clozeLines(lines) {
-    let blank = null;
-    const nodes = lines.map(([speaker, text]) => {
-      const line = document.createElement('span');
-      line.className = 'kanji-line';
-      if (speaker) {
-        const who = document.createElement('b');
-        who.textContent = speaker;
-        line.append(who);
-      }
-      const match = text.match(MARK);
-      if (!match) {
-        line.append(japanese(text));
-        return line;
-      }
-      blank = document.createElement('span');
-      blank.className = 'kanji-blank';
-      line.append(japanese(text.slice(0, match.index)), blank, japanese(text.slice(match.index + match[0].length)));
-      return line;
-    });
-    return { nodes, blank };
-  }
-
-  function question(entry, entries, kind, choices) {
-    if (entry.deck === 'n2') {
-      const byMeaning = kind === 'meaning';
-      const answer = byMeaning ? entry.meaning : entry.reading;
-      const others = byMeaning
-        ? shuffle([...new Set(entries.filter((other) => other.deck === 'n2').map((other) => other.meaning))].filter((meaning) => meaning !== answer))
-        : shuffle([...entry.distractors]);
-      return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : others.length) };
-    }
-    const count = (choices || PHRASE_CHOICES) - 1;
-    const rest = entries.filter((other) => other.deck === entry.deck && other.key !== entry.key);
-    if (!entry.clozes.length || Math.random() < 0.5) {
-      const others = shuffle([...new Set(rest.map((other) => other.meaning))].filter((meaning) => meaning !== entry.meaning));
-      return { kind: 'meaning', answer: entry.meaning, wrong: others.slice(0, count) };
-    }
-    const cloze = entry.clozes[Math.floor(Math.random() * entry.clozes.length)];
-    const seen = new Set([plain(cloze.answer)]);
-    const forms = shuffle(rest.flatMap((other) => other.clozes.map((item) => item.answer))).filter((form) => !seen.has(plain(form)) && seen.add(plain(form)));
-    const ending = plain(cloze.answer).at(-1);
-    const wrong = [...forms.filter((form) => plain(form).at(-1) === ending), ...forms.filter((form) => plain(form).at(-1) !== ending)].slice(0, count);
-    return { kind: 'cloze', answer: cloze.answer, wrong, lines: cloze.lines };
-  }
-
   function settle(correct, chosen) {
     if (!pending || pending.answered) return;
     const current = pending;
+    const ui = current.view;
     current.answered = true;
     current.correct = correct;
     clearInterval(current.tick);
-    fishIcon.classList.remove('hooked');
-    fishIcon.classList.add(correct ? 'caught' : 'escaped');
-    for (const button of options.children) {
+    ui.icon.classList.remove('hooked');
+    ui.icon.classList.add(correct ? 'caught' : 'escaped');
+    for (const button of ui.options.children) {
       button.disabled = true;
       if (button.dataset.value === current.answer) button.classList.add('right');
       else if (button.dataset.value === chosen) button.classList.add('wrong');
     }
-    result.className = correct ? 'kanji-result right' : 'kanji-result wrong';
+    ui.result.className = `${ui.prefix}-result ${correct ? 'right' : 'wrong'}`;
     const shown = plain(current.entry.word);
-    result.textContent = current.entry.reading ? `${shown}（${current.entry.reading}）: ${current.entry.meaning}` : `${shown}: ${current.entry.meaning}`;
+    ui.result.textContent = current.entry.reading ? `${shown}（${current.entry.reading}）: ${current.entry.meaning}` : `${shown}: ${current.entry.meaning}`;
     if (current.blank) {
       const mark = document.createElement('mark');
       mark.append(japanese(current.answer));
@@ -168,8 +182,8 @@ export function createKanjiQuiz() {
     recall.record(current.entry.key, correct);
     current.onAnswer?.(correct);
     if (!current.brief) {
-      closeBtn.hidden = false;
-      closeBtn.focus({ preventScroll: true });
+      ui.close.hidden = false;
+      ui.close.focus({ preventScroll: true });
     }
     const delay = current.closeAfter ?? (current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null);
     if (delay !== null) current.closeAt = setTimeout(finish, delay);
@@ -180,25 +194,62 @@ export function createKanjiQuiz() {
     if (!current?.answered) return;
     clearTimeout(current.closeAt);
     pending = null;
-    if (!dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      hide();
+    const ui = current.view;
+    if (!ui.dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      hide(ui);
       current.resolve({ correct: current.correct, entry: current.entry });
       return;
     }
-    dialog.classList.add('closing');
+    ui.dialog.classList.add('closing');
     closing = {
+      view: ui,
       timer: setTimeout(endClosing, CLOSE_ANIMATION_MS),
       done: () => current.resolve({ correct: current.correct, entry: current.entry }),
     };
   }
 
-  closeBtn.addEventListener('click', finish);
+  for (const ui of Object.values(views)) {
+    ui.close.addEventListener('click', finish);
+    ui.dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      if (pending?.answered) finish();
+      else if (pending) settle(false, null);
+    });
+  }
 
-  dialog.addEventListener('cancel', (event) => {
-    event.preventDefault();
-    if (pending?.answered) finish();
-    else if (pending) settle(false, null);
-  });
+  function showPrompt(ui, entry, asked) {
+    if (ui === views.kanji) {
+      ui.text.textContent = entry.word;
+      return null;
+    }
+    if (asked.kind !== 'cloze') {
+      ui.text.className = 'phrase-text single';
+      ui.text.replaceChildren(japanese(entry.word));
+      return null;
+    }
+    const cloze = clozeLines(asked.lines);
+    ui.text.className = 'phrase-text dialogue';
+    ui.text.replaceChildren(...cloze.nodes);
+    return cloze.blank;
+  }
+
+  function optionButton(ui, asked, value, letter) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.lang = asked.kind === 'meaning' ? 'vi' : 'ja';
+    button.dataset.value = value;
+    if (letter) {
+      const tag = document.createElement('span');
+      tag.className = `${ui.prefix}-letter`;
+      tag.textContent = ui === views.kanji ? `${letter}. ` : letter;
+      button.append(tag);
+    }
+    const label = document.createElement('span');
+    label.append(asked.kind === 'cloze' ? japanese(value) : value);
+    button.append(label);
+    button.addEventListener('click', () => settle(value === pending?.answer, value));
+    return button;
+  }
 
   return {
     get open() {
@@ -210,47 +261,32 @@ export function createKanjiQuiz() {
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
       const asked = question(entry, entries, kind, choices);
-      const { answer, wrong } = asked;
-      const byMeaning = asked.kind === 'meaning';
-      const lettered = choices > 0 || entry.deck !== 'n2';
-      const cloze = asked.kind === 'cloze' ? clozeLines(asked.lines) : null;
+      const phrase = entry.deck !== 'n2';
+      const ui = phrase ? views.phrase : views.kanji;
+      const lettered = phrase || choices > 0;
       return new Promise((resolve) => {
-        pending = { entry, answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blank: cloze?.blank ?? null };
-        closeBtn.hidden = true;
-        dialog.classList.toggle('brief', brief);
-        paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
-        fishIcon.className = 'kanji-fish hooked';
-        word.className = cloze ? 'kanji-word cloze' : entry.deck === 'n2' ? 'kanji-word' : 'kanji-word phrase';
-        if (cloze) word.replaceChildren(...cloze.nodes);
-        else word.replaceChildren(japanese(entry.word));
-        level.textContent = entry.level;
-        result.textContent = '';
-        result.className = 'kanji-result';
-        options.classList.toggle('lettered', lettered);
-        options.classList.toggle('meanings', byMeaning);
-        options.replaceChildren(
-          ...shuffle([answer, ...wrong]).map((value, i) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.lang = byMeaning ? 'vi' : 'ja';
-            button.dataset.value = value;
-            const text = asked.kind === 'cloze' ? japanese(value) : value;
-            if (lettered) button.append(`${LETTERS[i]}. `, text);
-            else button.append(text);
-            button.addEventListener('click', () => settle(value === answer, value));
-            return button;
-          }),
-        );
+        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blank: null };
+        ui.close.hidden = true;
+        ui.dialog.classList.toggle('brief', brief);
+        paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
+        ui.icon.className = `${ui === views.kanji ? 'kanji-fish' : 'phrase-icon'} hooked`;
+        pending.blank = showPrompt(ui, entry, asked);
+        ui.level.textContent = entry.level;
+        ui.result.textContent = '';
+        ui.result.className = `${ui.prefix}-result`;
+        ui.options.classList.toggle('lettered', lettered);
+        ui.options.classList.toggle('meanings', asked.kind === 'meaning');
+        ui.options.replaceChildren(...shuffle([asked.answer, ...asked.wrong]).map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
         const started = performance.now();
-        const total = FISHING.quizSeconds * 1000;
-        bar.style.transform = 'scaleX(1)';
+        const total = quizSeconds(asked.kind, phrase) * 1000;
+        ui.bar.style.transform = 'scaleX(1)';
         pending.tick = setInterval(() => {
           const left = Math.max(0, 1 - (performance.now() - started) / total);
-          bar.style.transform = `scaleX(${left})`;
+          ui.bar.style.transform = `scaleX(${left})`;
           if (left <= 0) settle(false, null);
         }, 100);
-        if (!dialog.open) dialog.showModal();
-        dialog.focus({ preventScroll: true });
+        if (!ui.dialog.open) ui.dialog.showModal();
+        ui.dialog.focus({ preventScroll: true });
       });
     },
     cancel() {
@@ -259,7 +295,7 @@ export function createKanjiQuiz() {
       clearInterval(current.tick);
       clearTimeout(current.closeAt);
       pending = null;
-      hide();
+      hide(current.view);
       current.resolve({ correct: false, entry: current.entry, cancelled: true });
     },
   };

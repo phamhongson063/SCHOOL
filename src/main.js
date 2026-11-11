@@ -615,7 +615,7 @@ const blessingDialog = createBlessingDialog({
   minutes: () => context.minutes,
   onJoin: () => {
     const joined = blessing.join(PLAYER, context.minutes);
-    if (joined) mailbox.remove(blessingMail);
+    if (joined) dropBlessingMail();
     return joined;
   },
   onStart: () => blessing.startTest(PLAYER, context.minutes),
@@ -1243,10 +1243,19 @@ const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.s
 
 const blessingReminded = new Set();
 let blessingMail = null;
+let blessingMailKey = null;
+function dropBlessingMail() {
+  if (blessingMail !== null) mailbox.remove(blessingMail);
+  blessingMail = null;
+  blessingMailKey = null;
+}
+
 function remindBlessing() {
   const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
+  if (blessingMailKey && next?.key !== blessingMailKey && blessing.session(context.minutes) !== blessingMailKey) dropBlessingMail();
   if (!next || blessingReminded.has(next.key)) return;
   blessingReminded.add(next.key);
+  blessingMailKey = next.key;
   blessingMail = mailbox.notify({
     icon: '✨',
     lines: [`Giờ chúc phúc ${next.hours} sắp bắt đầu. Bạn hãy tới sân tượng gặp quan để tham gia nhận chúc phúc.`],

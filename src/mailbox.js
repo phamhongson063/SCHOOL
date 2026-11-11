@@ -29,17 +29,14 @@ function mailRow(mail) {
   icon.className = 'mail-icon';
   icon.setAttribute('aria-hidden', 'true');
   icon.textContent = kind.icon;
-  const side = document.createElement('div');
-  side.className = 'mail-side';
-  side.append(icon);
-  const main = document.createElement('div');
-  main.className = 'mail-main';
-  const head = document.createElement('div');
-  head.className = 'mail-head';
   const time = document.createElement('span');
   time.className = 'mail-time';
   time.textContent = clockText(mail.at);
-  head.append(time);
+  const side = document.createElement('div');
+  side.className = 'mail-side';
+  side.append(icon, time);
+  const main = document.createElement('div');
+  main.className = 'mail-main';
   const lines = kind.lines.map((text) => {
     const line = document.createElement('p');
     line.className = 'mail-body';
@@ -56,7 +53,7 @@ function mailRow(mail) {
     if (last) last.append(' ', place);
     else main.append(place);
   }
-  row.append(side, main, head);
+  row.append(side, main);
   return row;
 }
 
