@@ -2074,10 +2074,8 @@ dialog.paper.wide {
 
 dialog.paper.kanji {
   width: min(420px, calc(100vw - 24px));
-}
-
-dialog.paper.kanji:focus {
   outline: none;
+  will-change: transform, opacity;
 }
 
 .kanji .paper-body {
@@ -2190,10 +2188,8 @@ dialog.paper.kanji:focus {
 
 dialog.paper.phrase-quiz {
   width: min(420px, calc(100vw - 24px));
-}
-
-dialog.paper.phrase-quiz:focus {
   outline: none;
+  will-change: transform, opacity;
 }
 
 .phrase-quiz .paper-body {
@@ -4202,20 +4198,8 @@ dialog.paper.bank {
 
 dialog.paper.kanji.closing,
 dialog.paper.phrase-quiz.closing {
-  overflow: hidden;
   pointer-events: none;
   animation: kanji-close 0.6s cubic-bezier(0.55, 0, 0.75, 0.2) both;
-}
-
-dialog.paper.kanji.closing::after,
-dialog.paper.phrase-quiz.closing::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.6) 48%, transparent 62%);
-  transform: translateX(-130%);
-  pointer-events: none;
-  animation: lesson-sheen 0.45s ease-out both;
 }
 
 dialog.paper.kanji.closing::backdrop,

@@ -83,6 +83,7 @@ export function createStudy({ purse, music = null }) {
   let packCard = false;
   let seated = false;
   let studying = false;
+  let dimmed = false;
   const dim = document.getElementById('studyDim');
 
   recall.seed(DECKS.n2.cards.map((card) => card.key));
@@ -322,8 +323,10 @@ export function createStudy({ purse, music = null }) {
 
   function refreshFocus() {
     const on = focused();
+    if (!on) dimmed = false;
     dim.classList.toggle('on', on);
-    panel.classList.toggle('focus', on);  }
+    panel.classList.toggle('focus', on);
+  }
 
   function setStudying(on) {
     studying = on;
@@ -350,6 +353,9 @@ export function createStudy({ purse, music = null }) {
   }
 
   addEventListener('resize', fitWord);
+  dim.addEventListener('transitionend', (event) => {
+    if (event.propertyName === 'opacity') dimmed = dim.classList.contains('on');
+  });
   useDeck('n2');
   start.querySelector('[data-mode="random"]').addEventListener('click', beginRandom);
   start.querySelector('[data-mode="smart"]').addEventListener('click', showPacks);
@@ -378,6 +384,9 @@ export function createStudy({ purse, music = null }) {
     },
     get focused() {
       return focused();
+    },
+    get dimmed() {
+      return dimmed;
     },
     open(id = 'n2') {
       useDeck(id);

@@ -1483,6 +1483,6 @@ renderer.setAnimationLoop((time) => {
     clampMapView();
   }
   if (marker.visible) marker.scale.setScalar(1 + Math.sin(t * 6) * 0.15);
-  renderer.render(scene, camera);
+  if (!study.dimmed) renderer.render(scene, camera);
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });
