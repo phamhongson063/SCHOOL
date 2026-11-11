@@ -1,6 +1,6 @@
 import { loadClip, onAudio } from './audio.js';
 
-const VOLUME = 0.25;
+const VOLUME = 0.85;
 const FADE = 2;
 
 export class StudyMusic {

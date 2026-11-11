@@ -130,7 +130,7 @@ export const VILLAGER = {
 export const ENERGY = {
   max: 100,
   costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 1, fish: 2 },
-  drain: { seated: 0.5, idle: 1, walk: 2, study: 3, run: 4 },
+  drain: { seated: 0.5, idle: 0.5, walk: 1, study: 3, run: 2 },
   nightFactor: 2,
   sleepPerHour: 8,
   restPerHour: 4,
