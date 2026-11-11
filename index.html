@@ -220,6 +220,10 @@
       <header class="sched-head">
         <h2 class="study-title">N2</h2>
         <button id="studyMode" class="study-chip" type="button" hidden></button>
+        <div class="study-tools">
+          <button id="studyFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
+          <button id="studyTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
+        </div>
         <button id="studyClose" class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
       <div id="studyStart" class="study-start">
@@ -231,10 +235,6 @@
         <p id="studyPackNote" class="study-pack-note" hidden></p>
       </div>
       <div id="studyBody" class="study-body" hidden>
-        <div class="study-tools">
-          <button id="studyFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
-          <button id="studyTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
-        </div>
         <div class="study-scroll">
           <p id="studyReading" class="study-reading" lang="ja"></p>
           <p id="studyWord" class="study-word" lang="ja"></p>

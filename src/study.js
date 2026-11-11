@@ -151,7 +151,9 @@ export function createStudy({ purse, music = null }) {
       ...(situation ? [el('span', 'study-situation', situation)] : []),
       ...lines.map(([speaker, text]) => {
         const line = el('span', 'study-line');
-        line.append(el('b', 'study-speaker', speaker), japanese(text));
+        const words = el('span', 'study-words');
+        words.append(japanese(text));
+        line.append(el('b', 'study-speaker', speaker), words);
         return line;
       }),
     );
