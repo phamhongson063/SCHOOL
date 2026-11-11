@@ -36,7 +36,8 @@ import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay } from './clock.js';
 import { phaseAt } from './timetable.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING } from './config.js';
+import { createBlessing } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -60,7 +61,7 @@ import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
-import { buildStudyHall, createStudyHall } from './studyHall.js';
+import { buildStudyHall, createStudyHall, STUDY_HALLS } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createSummon } from './summon.js';
@@ -125,7 +126,7 @@ const itemImages = loadItemImages();
 await loadingStep(0.4, 'Dựng trường làng');
 const world = new VoxelWorld();
 const layout = buildWorld(world);
-buildStudyHall(world);
+for (const hall of STUDY_HALLS) buildStudyHall(world, hall);
 const scenery = createScenery(scene, layout);
 const roof = scenery.roof;
 
@@ -144,9 +145,11 @@ scene.add(village.lights);
 const streetLamps = createStreetLamps();
 scene.add(streetLamps.group);
 const river = createRiver();
-const studyHall = createStudyHall(scene);
+const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
+const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
 const inn = createInn(scene);
 const quarter = createQuarter();
+const blessing = createBlessing(scene);
 const countryside = createCountryside();
 const district = createDistrict();
 school.obstacles.push(
@@ -154,9 +157,10 @@ school.obstacles.push(
   ...atms.obstacles,
   ...village.obstacles,
   ...river.obstacles,
-  ...studyHall.obstacles,
+  ...studyHalls.flatMap((hall) => hall.obstacles),
   ...inn.obstacles,
   ...quarter.obstacles,
+  ...blessing.obstacles,
   ...countryside.obstacles,
   ...district.obstacles,
 );
@@ -559,8 +563,8 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
-const playerSeats = new Seats([...school.seats, ...studyHall.seats]);
-const studySeats = new Seats(studyHall.seats);
+const playerSeats = new Seats([...school.seats, ...studyHallSeats]);
+const studySeats = new Seats(studyHallSeats);
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
@@ -594,6 +598,7 @@ town = new Town({
 
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
 town.martStands = [quarter.martStand, fieldMart.stand];
+town.blessing = blessing;
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 economy.start({
   ledger,
@@ -695,7 +700,7 @@ const tuition = createTuition({
 });
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
-  if (player.seat?.study) study.open();
+  if (player.seat?.study) study.open(player.seat.deck);
   else if (learningNow()) lesson.open();
 };
 player.onStand = () => {
@@ -895,7 +900,7 @@ function goDo(region, target, id) {
 }
 
 function clickTargets() {
-  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, studyHall.group, inn.group];
+  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.map((hall) => hall.group), ...blessing.clickables, inn.group];
 }
 
 function sceneClick(clientX, clientY, run) {
@@ -1189,6 +1194,19 @@ const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dial
 const scenePopups = [() => fishing.active && kanjiQuiz.open];
 const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
+let blessingQuizIn = BLESSING.firstQuiz;
+function updateBlessingQuiz(dt) {
+  if (mode !== 'play' || purse.sleeping || !blessing.blessed(player.position, context.minutes)) {
+    blessingQuizIn = BLESSING.firstQuiz;
+    return;
+  }
+  if (kanjiQuiz.open || quiz.open || fishing.active || summon.active || popupOpen()) return;
+  blessingQuizIn -= dt;
+  if (blessingQuizIn > 0) return;
+  blessingQuizIn = BLESSING.quizSeconds;
+  kanjiQuiz.ask({ icon: '✨', quick: true, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning' });
+}
+
 const sleepVeil = document.getElementById('sleepVeil');
 const sleepEnergy = document.getElementById('sleepEnergy');
 
@@ -1206,7 +1224,7 @@ function drainEnergy() {
   const studying = player.seat?.study || (inClass() && learningNow());
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
-  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
+  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline, blessing.recoveryAt(player.position, context.minutes));
   player.tired = purse.energy <= 0;
   if (!asleep) return;
   if (lodging && purse.full) {
@@ -1305,7 +1323,7 @@ renderer.setAnimationLoop((time) => {
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
     school.setNight(night);
-    studyHall.setNight(night);
+    for (const hall of studyHalls) hall.setNight(night);
     inn.setNight(night);
     village.setNight(night);
     river.setNight(night);
@@ -1345,7 +1363,7 @@ renderer.setAnimationLoop((time) => {
   district.update(t, context, camera);
   updateLine();
   school.update(t, context.phase.kind === 'period');
-  studyHall.update(t);
+  for (const hall of studyHalls) hall.update(t);
   inn.update(t);
   village.update(t, context, camera);
   streetLamps.update(t);
@@ -1365,6 +1383,8 @@ renderer.setAnimationLoop((time) => {
   regions.update(t, dt, focus);
   updateSoundscape(focus);
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
+  blessing.update(dt, context.minutes, camera);
+  updateBlessingQuiz(dt);
   summon.update(dt, context);
   catchFireflies(t, dt);
   updateLamp(t);

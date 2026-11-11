@@ -1,6 +1,6 @@
 import { loadClip, onAudio } from './audio.js';
 
-const VOLUME = 0.5;
+const VOLUME = 0.4;
 const NPC_VOLUME = 0.6;
 const NEAR = 3;
 const FAR = 15;

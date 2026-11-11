@@ -33,8 +33,7 @@ export const HOUSE = {
 export const ENCLOSURE = { x0: -22, x1: 22, front: 28, back: -42 };
 export const CROSS_WALLS = [28, -12];
 export const SIDE_GATES = [-8.5, 9.5];
-export const HO_VAN = { x0: -13, z0: 40, x1: 14, z1: 58, island: { x: 0.5, z: 49, r: 2.6 } };
-const LAKE_KEEP_OUT = 0.65;
+export const PLAZA = { x0: -13, z0: 40, x1: 14, z1: 58, x: 0.5, z: 49 };
 export const POND = { x: 0.5, z: 18, half: 4 };
 export const THUONG_DIEN = { x: 0.5, z: -1.2, hx: 8.8, hz: 3.2 };
 export const VU = [-1, 1].map((side) => ({ x: side < 0 ? -17.5 : 18.5, z0: -7, z1: 7 }));
@@ -162,17 +161,6 @@ function courtyard(world) {
   for (const vu of VU) world.fill(Math.floor(vu.x - 2), 0, vu.z0, Math.ceil(vu.x + 2) - 1, 3, vu.z1 - 1, 'plaster');
 }
 
-function hoVan(world) {
-  const { x0, z0, x1, z1, island } = HO_VAN;
-  for (let x = x0; x < x1; x++) {
-    for (let z = z0; z < z1; z++) {
-      if (Math.hypot(x + 0.5 - island.x, z + 0.5 - island.z) < island.r) continue;
-      world.set(x, -1, z, 'water');
-      world.set(x, -2, z, 'water');
-    }
-  }
-}
-
 function walls(world) {
   const { x0, x1, front, back } = ENCLOSURE;
   const row = (z, open) => {
@@ -208,7 +196,6 @@ export function buildWorld(world) {
   roof(world);
   courtyard(world);
   walls(world);
-  hoVan(world);
   for (const [x, z] of [[-36, -24], [-34, 12], [36, -26], [37, 10], [0, -65], [-36, -40], [37, -45]]) {
     layout.trees.push(roundTree(world, rand, x, z));
   }
@@ -222,7 +209,6 @@ export function populate(scene) {
   const block = (minX, minZ, maxX, maxZ, minY = FLOOR) => {
     obstacles.push({ minX, minZ, maxX, maxZ, minY, maxY: minY + 3 });
   };
-  block(HO_VAN.x0 - LAKE_KEEP_OUT, HO_VAN.z0 - LAKE_KEEP_OUT, HO_VAN.x1 + LAKE_KEEP_OUT, HO_VAN.z1 + LAKE_KEEP_OUT, -1);
 
   const area = new THREE.Group();
   area.position.set(CX, FLOOR, TEACHER_Z);

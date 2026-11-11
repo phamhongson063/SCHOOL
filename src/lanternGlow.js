@@ -83,9 +83,9 @@ export function createLanternGlow(lights, { warmth = 0.55, steady = false } = {}
   const tints = new Float32Array(lights.length * 3);
   const phases = new Float32Array(lights.length);
   const color = new THREE.Color();
-  lights.forEach(({ position, tint }, i) => {
+  lights.forEach(({ position, tint, intensity = 1 }, i) => {
     position.toArray(positions, i * 3);
-    color.setHex(tint).lerp(WARM, warmth).toArray(tints, i * 3);
+    color.setHex(tint).lerp(WARM, warmth).multiplyScalar(intensity).toArray(tints, i * 3);
     phases[i] = Math.random() * Math.PI * 2;
   });
   const geometry = new THREE.BufferGeometry();

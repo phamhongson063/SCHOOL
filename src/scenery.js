@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, shapes, shade, toonMaterial, canvasTexture } from './toon.js';
 import { makeRandom } from './random.js';
-import { STAIRS, HOUSE, KHUE_VAN_CAC, STELES, ENCLOSURE, POND, VU, STELE_SHEDS, CROSS_WALLS, SIDE_GATES, THUONG_DIEN, HO_VAN } from './school.js';
+import { STAIRS, HOUSE, KHUE_VAN_CAC, STELES, ENCLOSURE, POND, VU, STELE_SHEDS, CROSS_WALLS, SIDE_GATES, THUONG_DIEN } from './school.js';
 import { ROAD } from './road.js';
 
 const C = {
@@ -466,7 +466,6 @@ function foundation(scene, b, clickables) {
 }
 
 const TIE_Y = 6.6;
-const PAD_GAP = 0.008;
 
 function house(b, walls) {
   const { back, front, midColumn, windows } = HOUSE;
@@ -790,39 +789,6 @@ function thuongDien(b) {
   return [lower.geometry, upper.geometry];
 }
 
-function hoVanLake(b, rand) {
-  const { x0, z0, x1, z1, island } = HO_VAN;
-  const kerb = 0.4;
-  for (const z of [z0 - kerb / 2, z1 + kerb / 2]) b.add(shapes.box(x1 - x0 + kerb * 2, 0.35, kerb), C.stone, { p: [(x0 + x1) / 2, 0.17, z] });
-  for (const x of [x0 - kerb / 2, x1 + kerb / 2]) b.add(shapes.box(kerb, 0.35, z1 - z0), C.stone, { p: [x, 0.17, (z0 + z1) / 2] });
-  b.add(shapes.sphere(island.r, 18, 8), C.leafDark, { p: [island.x, -0.6, island.z], s: [1, 0.3, 1] });
-  for (const [dx, dz] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) {
-    b.add(shapes.cylinder(0.1, 0.12, 2.2, 8), C.lacquer, { p: [island.x + dx * 0.7, 1.1, island.z + dz * 0.7] });
-  }
-  b.add(shapes.box(2.2, 0.12, 2.2), C.beam, { p: [island.x, 2.25, island.z] });
-  const lower = tiledRoof({ cx: island.x, cz: island.z, hx: 1.7, hz: 1.7, ridge: 0.2, eaveY: 2.3, height: 0.9, lift: 0.35, falloff: 0.9 });
-  const upper = tiledRoof({ cx: island.x, cz: island.z, hx: 1.2, hz: 1.2, ridge: 0.2, eaveY: 2.9, height: 0.8, lift: 0.3, falloff: 0.8 });
-  hipRidges(b, lower, 0.05);
-  hipRidges(b, upper, 0.05);
-  const pads = [];
-  for (let i = 0; i < 140; i++) {
-    const x = x0 + 0.8 + rand() * (x1 - x0 - 1.6);
-    const z = z0 + 0.8 + rand() * (z1 - z0 - 1.6);
-    if (Math.hypot(x - island.x, z - island.z) < island.r + 0.6) continue;
-    const r = 0.3 + rand() * 0.3;
-    const color = rand() < 0.5 ? C.leafDark : C.leaf;
-    let y = 0.1 + rand() * 0.01;
-    for (const pad of pads) if (Math.hypot(x - pad.x, z - pad.z) < r + pad.r) y = Math.max(y, pad.y + PAD_GAP);
-    pads.push({ x, z, r, y });
-    b.add(shapes.cylinder(r, r, 0.02, 10), color, { p: [x, y, z] });
-    if (rand() < 0.22) {
-      b.add(shapes.cone(0.12, 0.22, 6), 0xe58aa6, { p: [x + 0.1, 0.22, z], r: [Math.PI, 0, 0] });
-      b.add(shapes.sphere(0.06, 6, 4), 0xf5d36a, { p: [x + 0.1, 0.24, z] });
-    }
-  }
-  return [lower.geometry, upper.geometry];
-}
-
 function vuHouses(b) {
   const roofs = [];
   for (const vu of VU) {
@@ -920,8 +886,6 @@ export function createScenery(scene, layout) {
     addFlat(groundDecal(roundedRectGeometry(x0, z0, x1, z1, 0.3), paving, GROUND_LAYER.earth));
   }
   const pondWater = toonMaterial({ color: 0x5f8a6a, transparent: true, opacity: 0.92, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
-  const lake = addFlat(groundDecal(roundedRectGeometry(HO_VAN.x0, HO_VAN.z0, HO_VAN.x1, HO_VAN.z1, 0.2), pondWater, GROUND_LAYER.mark, 0.05));
-  lake.receiveShadow = false;
   const well = addFlat(new THREE.Mesh(new THREE.PlaneGeometry(POND.half * 2, POND.half * 2), pondWater));
   well.rotation.x = -Math.PI / 2;
   well.position.set(POND.x, 0.05, POND.z);
@@ -940,7 +904,7 @@ export function createScenery(scene, layout) {
   house(env, walls);
   foundation(scene, env, clickables);
   const bricks = [];
-  const gateRoofs = [...khueVanCac(env), ...compound(env, bricks), ...hoVanLake(env, rand)];
+  const gateRoofs = [...khueVanCac(env), ...compound(env, bricks)];
   steles(env);
   const brickWalls = new THREE.Mesh(mergeGeometries(bricks, false), toonMaterial({ muted: true, map: brickTexture() }));
   brickWalls.castShadow = true;

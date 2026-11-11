@@ -1,20 +1,21 @@
 import * as THREE from 'three';
-import { STUDY_HALL } from './studyHall.js';
+import { STUDY_HALLS, HALL_SIZE, hallBounds } from './studyHall.js';
 import { HOUSE } from './school.js';
 
 const WALL = 0.25;
 const DOOR_MARGIN = 0.3;
 const PASS = new THREE.Plane(new THREE.Vector3(0, 1, 0), 1e9);
 
-function studyHallRoom() {
-  const { x, front, width, depth, door, height } = STUDY_HALL;
+function studyHallRoom(hall) {
+  const { door, doorHeight, height } = HALL_SIZE;
+  const { x0, x1, z0, z1, out } = hallBounds(hall);
   return {
-    x0: x - width / 2 + WALL,
-    x1: x + width / 2 - WALL,
-    z0: front + WALL,
-    z1: front + depth - WALL,
+    x0: x0 + WALL,
+    x1: x1 - WALL,
+    z0: z0 + WALL,
+    z1: z1 - WALL,
     top: height + 2,
-    door: { x0: x - door / 2, x1: x + door / 2, top: STUDY_HALL.doorHeight, z: front, out: -1 },
+    door: { x0: hall.x - door / 2, x1: hall.x + door / 2, top: doorHeight, z: hall.front, out },
   };
 }
 
@@ -24,15 +25,17 @@ function classroom() {
 
 const contains = (room, p) => p.x >= room.x0 && p.x <= room.x1 && p.z >= room.z0 && p.z <= room.z1 && p.y < room.top;
 
+const allRooms = () => [...STUDY_HALLS.map(studyHallRoom), classroom()];
+
 let studyRooms = null;
 
 export function inStudyRoom(point) {
-  studyRooms ??= [studyHallRoom(), classroom()];
+  studyRooms ??= allRooms();
   return studyRooms.some((room) => contains(room, point));
 }
 
 export function createRooms() {
-  const rooms = [studyHallRoom(), classroom()].map((room) => ({
+  const rooms = allRooms().map((room) => ({
     ...room,
     box: new THREE.Box3(new THREE.Vector3(room.x0, -1, room.z0), new THREE.Vector3(room.x1, room.top, room.z1)),
   }));

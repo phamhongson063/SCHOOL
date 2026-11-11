@@ -4,7 +4,7 @@ import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse, createChiefHouse } from './architecture.js';
 import { paving, plaqueBoard, housePlaqueLines, houseLabel, visitHouse } from './village.js';
-import { HO_VAN, ENCLOSURE } from './school.js';
+import { PLAZA, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
 import { MART } from './config.js';
 
@@ -31,7 +31,7 @@ const WELL = { x: -34.2, z: 46.5 };
 const BANYAN = { x: -27, z: 56.5 };
 const KERB = 0.4;
 const RING = 1.7;
-const LAKE = { x0: HO_VAN.x0 - KERB, z0: HO_VAN.z0 - KERB, x1: HO_VAN.x1 + KERB, z1: HO_VAN.z1 + KERB };
+const LAKE = { x0: PLAZA.x0 - KERB, z0: PLAZA.z0 - KERB, x1: PLAZA.x1 + KERB, z1: PLAZA.z1 + KERB };
 const RING_OUT = { x0: LAKE.x0 - RING, z0: ROAD.z1 + 0.4, x1: LAKE.x1 + RING, z1: LAKE.z1 + RING };
 
 const C = {
@@ -121,10 +121,7 @@ export function createQuarter() {
   };
 
   pave(ENCLOSURE.x0 + 0.6, ENCLOSURE.front + 0.6, ENCLOSURE.x1 + 0.4, ROAD.z0 + 0.2, 0.5);
-  pave(RING_OUT.x0, RING_OUT.z0, RING_OUT.x1, LAKE.z0);
-  pave(RING_OUT.x0, LAKE.z1, RING_OUT.x1, RING_OUT.z1);
-  pave(RING_OUT.x0, LAKE.z0, LAKE.x0, LAKE.z1, 0.2);
-  pave(LAKE.x1, LAKE.z0, RING_OUT.x1, LAKE.z1, 0.2);
+  pave(RING_OUT.x0, RING_OUT.z0, RING_OUT.x1, RING_OUT.z1);
   pave(DINH.x - 4, ROAD.z1 - 0.2, DINH.x + 4, DINH_FRONT + 0.4, 0.5);
   pave(WELL.x - 2, WELL.z - 2, WELL.x + 2, WELL.z + 2, 1.2);
 

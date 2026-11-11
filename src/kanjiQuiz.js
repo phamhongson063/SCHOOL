@@ -6,6 +6,7 @@ const RECENT = 40;
 const AUTO_CLOSE_MS = 3000;
 const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
+const LETTERS = ['A', 'B', 'C', 'D'];
 
 let bank = null;
 
@@ -78,8 +79,8 @@ export function createKanjiQuiz() {
     fishIcon.classList.add(correct ? 'caught' : 'escaped');
     for (const button of options.children) {
       button.disabled = true;
-      if (button.dataset.reading === current.entry.reading) button.classList.add('right');
-      else if (button.dataset.reading === chosen) button.classList.add('wrong');
+      if (button.dataset.value === current.answer) button.classList.add('right');
+      else if (button.dataset.value === chosen) button.classList.add('wrong');
     }
     result.className = correct ? 'kanji-result right' : 'kanji-result wrong';
     result.textContent = `${current.entry.word}（${current.entry.reading}）: ${current.entry.meaning}`;
@@ -119,13 +120,20 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ fish = null, icon = null, quick = false } = {}) {
+    async ask({ fish = null, icon = null, quick = false, kind = 'reading', choices = 0 } = {}) {
       const entries = await loadBank();
       endClosing();
       if (!entries.length) return { correct: true, entry: null };
       const entry = pick(entries);
+      const byMeaning = kind === 'meaning';
+      const answer = byMeaning ? entry.meaning : entry.reading;
+      const others = byMeaning
+        ? shuffle([...new Set(entries.map((other) => other.meaning))].filter((meaning) => meaning !== answer))
+        : shuffle([...entry.distractors]);
+      const wrong = others.slice(0, choices ? choices - 1 : others.length);
+      const lettered = choices > 0;
       return new Promise((resolve) => {
-        pending = { entry, resolve, quick: quick || !!fish, answered: false, correct: false, tick: null, closeAt: null };
+        pending = { entry, answer, resolve, quick: quick || !!fish, answered: false, correct: false, tick: null, closeAt: null };
         closeBtn.hidden = true;
         paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         fishIcon.className = 'kanji-fish hooked';
@@ -133,14 +141,16 @@ export function createKanjiQuiz() {
         level.textContent = entry.level;
         result.textContent = '';
         result.className = 'kanji-result';
+        options.classList.toggle('lettered', lettered);
+        options.classList.toggle('meanings', byMeaning);
         options.replaceChildren(
-          ...shuffle([entry.reading, ...entry.distractors]).map((reading) => {
+          ...shuffle([answer, ...wrong]).map((value, i) => {
             const button = document.createElement('button');
             button.type = 'button';
-            button.lang = 'ja';
-            button.dataset.reading = reading;
-            button.textContent = reading;
-            button.addEventListener('click', () => settle(reading === entry.reading, reading));
+            button.lang = byMeaning ? 'vi' : 'ja';
+            button.dataset.value = value;
+            button.textContent = lettered ? `${LETTERS[i]}. ${value}` : value;
+            button.addEventListener('click', () => settle(value === answer, value));
             return button;
           }),
         );

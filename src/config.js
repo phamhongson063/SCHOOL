@@ -239,6 +239,17 @@ export const ECONOMY = {
 
 export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
 
+export const BLESSING = {
+  windows: [
+    [6 * 60, 8 * 60],
+    [19 * 60, 21 * 60],
+  ],
+  radius: 20,
+  recovery: 2,
+  quizSeconds: 45,
+  firstQuiz: 3,
+};
+
 export const RANKING = {
   hours: [6 * 60, 12 * 60, 18 * 60],
 };

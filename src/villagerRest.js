@@ -63,7 +63,7 @@ export class RestBehavior {
   tickEnergy(ctx) {
     const activity = this.activityNow(ctx);
     const stay = this.state === 'inn' ? activity : null;
-    this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle');
+    this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle', this.town.blessing?.recoveryAt(this.position, ctx.minutes) ?? 1);
     this.tired = this.purse.energy <= 0;
     if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
     const mood = moodOf(this.purse.energy);

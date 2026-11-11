@@ -1,4 +1,4 @@
-import { N2_VOCAB } from './vocabN2.js';
+import { DECKS } from './studyDecks.js';
 import { recall, MASTERED_BOX } from './recall.js';
 import { japanese } from './ruby.js';
 import { STUDY } from './config.js';
@@ -10,7 +10,6 @@ import { gameNow } from './clock.js';
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
 const MODES = { random: { icon: '🔀', name: 'Ngẫu nhiên' }, smart: { icon: '🧠', name: 'Thông minh' } };
 const NO_MONEY = 'Xin lỗi, bạn không đủ tiền mua gói này.';
-const WORDS = N2_VOCAB.map((entry) => entry.word);
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -28,7 +27,14 @@ function loadFurigana() {
   }
 }
 
-function packButton(offer) {
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function packButton(offer, unit) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'study-pick';
@@ -37,7 +43,7 @@ function packButton(offer) {
   const price = document.createElement('span');
   price.className = 'study-pack-price';
   setRich(price, coins(offer.price));
-  button.append(size, 'từ mới', price);
+  button.append(size, unit, price);
   return button;
 }
 
@@ -54,6 +60,8 @@ export function createStudy({ purse, music = null }) {
   const reading = document.getElementById('studyReading');
   const hanViet = document.getElementById('studyHanViet');
   const meaning = document.getElementById('studyMeaning');
+  const note = document.getElementById('studyNote');
+  const title = panel.querySelector('.study-title');
   const count = document.getElementById('studyCount');
   const bar = document.getElementById('studyBar');
   const prev = document.getElementById('studyPrev');
@@ -64,7 +72,10 @@ export function createStudy({ purse, music = null }) {
   const exampleVi = document.getElementById('studyExampleVi');
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
-  const total = N2_VOCAB.length;
+  let deck = null;
+  let cards = [];
+  let keys = [];
+  let total = 0;
   let order = [];
   let pos = 0;
   let current = -1;
@@ -74,7 +85,7 @@ export function createStudy({ purse, music = null }) {
   let studying = false;
   const dim = document.getElementById('studyDim');
 
-  recall.seed(WORDS);
+  recall.seed(DECKS.n2.cards.map((card) => card.key));
   showFurigana(loadFurigana());
   showTranslation(false);
 
@@ -120,15 +131,43 @@ export function createStudy({ purse, music = null }) {
     body.hidden = true;
   }
 
+  function fitWord() {
+    word.style.fontSize = '';
+    const room = word.clientWidth;
+    const need = word.scrollWidth;
+    if (room > 0 && need > room) {
+      word.style.fontSize = `${Math.floor((parseFloat(getComputedStyle(word).fontSize) * room) / need)}px`;
+    }
+  }
+
+  function showExample({ title: situation, lines }) {
+    const [only] = lines;
+    if (lines.length === 1 && !only[0]) {
+      example.replaceChildren(japanese(only[1]));
+      exampleVi.textContent = only[2];
+      return;
+    }
+    example.replaceChildren(
+      ...(situation ? [el('span', 'study-situation', situation)] : []),
+      ...lines.map(([speaker, text]) => {
+        const line = el('span', 'study-line');
+        line.append(el('b', 'study-speaker', speaker), japanese(text));
+        return line;
+      }),
+    );
+    exampleVi.replaceChildren(...lines.filter((line) => line[2]).map(([speaker, , vi]) => el('span', 'study-line', `${speaker}: ${vi}`)));
+  }
+
   function fill(index) {
     current = index;
-    const entry = N2_VOCAB[index];
-    word.textContent = entry.word;
-    reading.textContent = entry.reading;
-    hanViet.textContent = entry.hanViet;
-    meaning.textContent = entry.meaning;
-    example.replaceChildren(japanese(entry.example));
-    exampleVi.textContent = entry.exampleVi;
+    const card = cards[index];
+    word.replaceChildren(japanese(card.word));
+    fitWord();
+    reading.textContent = card.reading;
+    hanViet.textContent = card.hanViet;
+    meaning.textContent = card.meaning;
+    note.textContent = card.note;
+    showExample(card.examples[Math.floor(Math.random() * card.examples.length)]);
   }
 
   function showFurigana(on) {
@@ -154,7 +193,7 @@ export function createStudy({ purse, music = null }) {
 
   function setCovered(covered) {
     body.classList.toggle('covered', covered);
-    meaning.textContent = covered ? '?' : N2_VOCAB[current].meaning;
+    meaning.textContent = covered ? '?' : cards[current].meaning;
     forgot.hidden = covered;
     remembered.hidden = covered;
   }
@@ -163,8 +202,8 @@ export function createStudy({ purse, music = null }) {
     let overdue = -1;
     for (let i = 0; i < total; i++) {
       if (i === current) continue;
-      const due = recall.due(WORDS[i]);
-      if (due !== null && due <= now && (overdue < 0 || due < recall.due(WORDS[overdue]))) overdue = i;
+      const due = recall.due(keys[i]);
+      if (due !== null && due <= now && (overdue < 0 || due < recall.due(keys[overdue]))) overdue = i;
     }
     return overdue;
   }
@@ -177,15 +216,15 @@ export function createStudy({ purse, music = null }) {
         best = i;
         continue;
       }
-      const box = recall.box(WORDS[i]);
-      const bestBox = recall.box(WORDS[best]);
-      if (box < bestBox || (box === bestBox && recall.due(WORDS[i]) < recall.due(WORDS[best]))) best = i;
+      const box = recall.box(keys[i]);
+      const bestBox = recall.box(keys[best]);
+      if (box < bestBox || (box === bestBox && recall.due(keys[i]) < recall.due(keys[best]))) best = i;
     }
     return best;
   }
 
   function newWord() {
-    const unseen = WORDS.findIndex((w, i) => i !== current && recall.due(w) === null);
+    const unseen = keys.findIndex((key, i) => i !== current && recall.due(key) === null);
     return unseen >= 0 ? unseen : weakest();
   }
 
@@ -216,7 +255,7 @@ export function createStudy({ purse, music = null }) {
     fill(index);
     showPackLeft();
     setCovered(true);
-    showProgress(WORDS.filter((w) => recall.box(w) >= MASTERED_BOX).length);
+    showProgress(keys.filter((key) => recall.box(key) >= MASTERED_BOX).length);
   }
 
   function buy(offer) {
@@ -250,7 +289,7 @@ export function createStudy({ purse, music = null }) {
     body.classList.remove('covered');
     forgot.hidden = true;
     remembered.hidden = true;
-    order = shuffle(N2_VOCAB.map((_, i) => i));
+    order = shuffle(cards.map((_, i) => i));
     pos = 0;
     renderRandom();
   }
@@ -262,7 +301,7 @@ export function createStudy({ purse, music = null }) {
   }
 
   function answer(knew) {
-    recall.record(WORDS[current], knew);
+    recall.record(keys[current], knew);
     if (packCard) pack.left -= 1;
     showTranslation(false);
     renderSmart();
@@ -289,11 +328,27 @@ export function createStudy({ purse, music = null }) {
     refreshFocus();
   }
 
-  for (const offer of STUDY.packs) {
-    const button = packButton(offer);
-    button.addEventListener('click', () => buy(offer));
-    packList.append(button);
+  function useDeck(id) {
+    if (deck === DECKS[id]) return;
+    deck = DECKS[id];
+    cards = deck.cards;
+    keys = cards.map((card) => card.key);
+    total = cards.length;
+    current = -1;
+    title.textContent = deck.title;
+    panel.setAttribute('aria-label', deck.label);
+    reopen.textContent = `📜 ${deck.label}`;
+    packList.replaceChildren(
+      ...STUDY.packs.map((offer) => {
+        const button = packButton(offer, deck.unit);
+        button.addEventListener('click', () => buy(offer));
+        return button;
+      }),
+    );
   }
+
+  addEventListener('resize', fitWord);
+  useDeck('n2');
   start.querySelector('[data-mode="random"]').addEventListener('click', beginRandom);
   start.querySelector('[data-mode="smart"]').addEventListener('click', showPacks);
   modeChip.addEventListener('click', showStart);
@@ -322,7 +377,8 @@ export function createStudy({ purse, music = null }) {
     get focused() {
       return focused();
     },
-    open() {
+    open(id = 'n2') {
+      useDeck(id);
       seated = true;
       showStart();
       setVisible(true);

@@ -2004,6 +2004,19 @@ dialog.paper.kanji:focus {
   transition: border-color 0.15s, background 0.15s, transform 0.08s;
 }
 
+.kanji-options.lettered {
+  grid-template-columns: 1fr;
+}
+
+.kanji-options.lettered button {
+  text-align: left;
+  padding: 10px 14px;
+}
+
+.kanji-options.meanings button {
+  font: 600 16px/1.35 var(--font-ui);
+}
+
 .kanji-options button:hover:not(:disabled) {
   border-color: var(--gold);
 }
@@ -2181,6 +2194,11 @@ dialog.paper.kanji:focus {
   overflow-y: auto;
 }
 
+.study-card:has(.study-body[hidden]) {
+  height: auto;
+  max-height: min(560px, calc(100dvh - var(--panel-bottom) - var(--panel-top)));
+}
+
 @media (max-width: 600px) {
   .study-card {
     top: 50%;
@@ -2188,6 +2206,10 @@ dialog.paper.kanji:focus {
     height: calc(100dvh * 2 / 3);
     transform: translate(-50%, calc(-50% + 20px)) scale(0.92);
     transform-origin: 50% 50%;
+  }
+
+  .study-card:has(.study-body[hidden]) {
+    max-height: calc(100dvh * 2 / 3);
   }
 
   .study-card.show {
@@ -2312,7 +2334,10 @@ dialog.paper.kanji:focus {
 .study-word {
   margin: 2px 0 8px;
   color: var(--ink);
-  font: 700 clamp(48px, 14vw, 72px)/1.15 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font: 700 clamp(32px, 12vw, 56px)/1.15 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  white-space: nowrap;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .study-hanviet {
@@ -2406,8 +2431,53 @@ dialog.paper.kanji:focus {
 
 .study-body.covered .study-reading,
 .study-body.covered .study-hanviet,
+.study-body.covered .study-note,
 .study-body.covered .study-example {
   visibility: hidden;
+}
+
+.study-hanviet:empty,
+.study-note:empty {
+  display: none;
+}
+
+.study-note {
+  max-width: 340px;
+  margin: -6px auto 14px;
+  color: var(--wood);
+  font: 500 13px/1.5 var(--font-ui);
+}
+
+.study-word ruby {
+  ruby-position: over;
+}
+
+.study-word rt {
+  font-size: 0.32em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--tan);
+}
+
+.study-card.no-furigana .study-word rt {
+  visibility: hidden;
+}
+
+.study-situation {
+  display: block;
+  color: var(--tan);
+  font: 600 12px/1.6 var(--font-ui);
+  letter-spacing: 0.04em;
+}
+
+.study-line {
+  display: block;
+  text-align: left;
+}
+
+.study-speaker {
+  margin-right: 8px;
+  color: var(--lacquer);
 }
 
 .study-example {
