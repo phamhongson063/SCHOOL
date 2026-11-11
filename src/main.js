@@ -1405,7 +1405,7 @@ renderer.setAnimationLoop((time) => {
   regions.update(t, dt, focus);
   updateSoundscape(focus);
   quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
-  blessing.update(dt, context.minutes, camera);
+  blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
   summon.update(dt, context);
   catchFireflies(t, dt);

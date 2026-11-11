@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, freeze, shapes } from './toon.js';
+import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
@@ -37,7 +37,10 @@ const SPARK_REACH = 7.5;
 const FLOOR_RAYS = { x: 13.5, z: 9.5 };
 const AURA_GOLD = 0xffd36e;
 const AURA_CYCLE = 0.08;
-const OFFICIAL = { x: PLAZA.x + 3, z: ROAD.z1 + 1.6, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
+const BURST_AHEAD = 1.1;
+const LAMP = { y: HEAD_Y + 0.6, ahead: -2.6, distance: 16, idle: 14, blessed: 24 };
+const BODY_GLOW = { idle: 0.16, blessed: 0.3 };
+const OFFICIAL = { x: PLAZA.x - 8, z: ROAD.z1 + 4.4, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
@@ -319,7 +322,7 @@ function burstSprite(rays, seed) {
 
 const lerp = (a, b, k) => a + (b - a) * k;
 
-function createAura() {
+function createAura(statueMaterial) {
   const group = new THREE.Group();
   const gold = new THREE.Color(AURA_GOLD);
   const hue = new THREE.Color();
@@ -389,18 +392,31 @@ function createAura() {
 
   group.add(floor, ringSpin, glow, ...bursts, halo, crown.orbit, sky.orbit, sparks);
   group.visible = false;
+  const lamp = new THREE.PointLight(AURA_GOLD, 0, LAMP.distance, 2);
+  lamp.position.set(0, LAMP.y, LAMP.ahead);
   let clock = 0;
   const color = new THREE.Color();
 
   return {
     group,
-    update(dt, visible, k) {
+    lamp,
+    update(dt, visible, k, { toward, night }) {
       group.visible = visible;
-      if (!visible) return;
+      if (!visible) {
+        lamp.intensity = 0;
+        statueMaterial.emissiveIntensity = 0;
+        return;
+      }
       clock += dt;
       const cycle = clock * AURA_CYCLE;
       const pulse = 0.85 + 0.15 * Math.sin(clock * 1.4);
       const level = (idle, blessed) => lerp(idle, blessed, k);
+      const dark = 0.35 + 0.65 * night;
+      tint(lamp.color, k, cycle);
+      lamp.intensity = level(LAMP.idle, LAMP.blessed) * dark * pulse;
+      tint(statueMaterial.emissive, k, cycle + 0.1);
+      statueMaterial.emissiveIntensity = level(BODY_GLOW.idle, BODY_GLOW.blessed) * dark * pulse;
+      for (const sprite of [glow, ...bursts]) sprite.position.set(toward.x * BURST_AHEAD, BURST.y, toward.z * BURST_AHEAD);
       ringSpin.rotation.y += dt * 0.08;
       floorMap.rotation += dt * 0.03;
       ringMaterial.opacity = level(0.45, 0.8) * pulse;
@@ -518,13 +534,17 @@ export function createBlessing(scene) {
 
   const statue = new THREE.Group();
   statue.position.set(PLAZA.x, 0, PLAZA.z);
-  statue.add(flowers.mesh(), b.mesh());
+  const statueMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: AURA_GOLD, emissiveIntensity: 0 });
+  statue.add(flowers.mesh(), b.mesh(statueMaterial));
   scene.add(statue);
   freeze(statue);
 
-  const aura = createAura();
+  const aura = createAura(statueMaterial);
   aura.group.position.set(PLAZA.x, 0, PLAZA.z);
   scene.add(aura.group);
+  aura.lamp.position.add(aura.group.position);
+  scene.add(aura.lamp);
+  const toward = new THREE.Vector3();
 
   const official = createOfficial(scene);
 
@@ -591,11 +611,13 @@ export function createBlessing(scene) {
       }
       return new THREE.Vector3(PLAZA.x, 0, PLAZA.z - RING_BED.outer - 1.2);
     },
-    update(dt, minutes, camera) {
+    update(dt, minutes, camera, night = 0) {
       clock += dt;
       official.update(clock, camera);
       const near = camera.position.distanceTo(aura.group.position) < VIEW_DISTANCE;
-      aura.update(dt, near, strengthAt(minutes));
+      toward.subVectors(camera.position, aura.group.position).setY(0);
+      if (toward.lengthSq() > 1e-6) toward.normalize();
+      aura.update(dt, near, strengthAt(minutes), { toward, night });
     },
   };
   return api;

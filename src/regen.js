@@ -9,6 +9,7 @@ const MOTE_RATE = 12;
 const SPREAD = 0.75;
 const PILLAR_HEIGHT = 2.4;
 const POP_LIFT = 1.1;
+const HEAD_LIFT = 2.4;
 const POP_EVERY = 5;
 const FLASH_FADE = 1.6;
 
@@ -217,8 +218,8 @@ export function createRegen({ scene, camera, purse }) {
     floatUp([`+${gained.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}⚡`], center);
   }
 
-  function floatUp(parts, center) {
-    screen.set(center.x, center.y + POP_LIFT, center.z).project(camera);
+  function floatUp(parts, center, lift = POP_LIFT) {
+    screen.set(center.x, center.y + lift, center.z).project(camera);
     if (screen.z > 1) return;
     const el = document.createElement('span');
     el.className = 'regen-pop';
@@ -241,7 +242,7 @@ export function createRegen({ scene, camera, purse }) {
       const icon = document.createElement('span');
       icon.className = 'regen-coin';
       icon.innerHTML = BANK_ART.silver;
-      floatUp([`+${gained}`, icon], center);
+      floatUp([`+${gained}`, icon], center, HEAD_LIFT);
     },
     update(dt, t, center, amount, resting, minutes) {
       if (!resting || amount < 1) mark = null;
