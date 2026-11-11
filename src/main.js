@@ -1255,7 +1255,7 @@ function updateBlessingQuiz(dt) {
   blessingQuizIn -= dt;
   if (blessingQuizIn > 0) return;
   blessingQuizIn = BLESSING.quizSeconds;
-  kanjiQuiz.ask({ icon: '✨', quick: true, closeAfter: 0, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning' }).then(({ correct }) => {
+  kanjiQuiz.ask({ icon: '✨', quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then(({ correct }) => {
     if (correct) purse.addIntellect(1);
   });
 }

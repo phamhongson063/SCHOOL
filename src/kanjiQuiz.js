@@ -85,8 +85,11 @@ export function createKanjiQuiz() {
     result.className = correct ? 'kanji-result right' : 'kanji-result wrong';
     result.textContent = `${current.entry.word}（${current.entry.reading}）: ${current.entry.meaning}`;
     recall.record(current.entry.word, correct);
-    closeBtn.hidden = false;
-    closeBtn.focus({ preventScroll: true });
+    current.onAnswer?.(correct);
+    if (!current.brief) {
+      closeBtn.hidden = false;
+      closeBtn.focus({ preventScroll: true });
+    }
     const delay = current.closeAfter ?? (current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null);
     if (delay !== null) current.closeAt = setTimeout(finish, delay);
   }
@@ -120,7 +123,7 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null } = {}) {
+    async ask({ fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false } = {}) {
       const entries = await loadBank();
       endClosing();
       if (!entries.length) return { correct: true, entry: null };
@@ -133,8 +136,9 @@ export function createKanjiQuiz() {
       const wrong = others.slice(0, choices ? choices - 1 : others.length);
       const lettered = choices > 0;
       return new Promise((resolve) => {
-        pending = { entry, answer, resolve, quick: quick || !!fish, closeAfter, answered: false, correct: false, tick: null, closeAt: null };
+        pending = { entry, answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null };
         closeBtn.hidden = true;
+        dialog.classList.toggle('brief', brief);
         paintIcon(fishIcon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         fishIcon.className = 'kanji-fish hooked';
         word.textContent = entry.word;

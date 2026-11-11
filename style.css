@@ -2161,6 +2161,18 @@ dialog.paper.kanji:focus {
   font-weight: 700;
 }
 
+.kanji.brief .kanji-options {
+  margin-bottom: 14px;
+}
+
+.kanji.brief .kanji-track {
+  margin-bottom: 0;
+}
+
+.kanji.brief .kanji-result {
+  display: none;
+}
+
 .sleep-veil {
   position: fixed;
   inset: 0;
