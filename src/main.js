@@ -28,7 +28,7 @@ import { createFireflies, createFireflyLamp } from './fireflies.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
 import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
-import { Ledger, PLAYER } from './inventory.js';
+import { ITEMS, Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { createMailbox } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
@@ -353,7 +353,7 @@ regions.onChange = (region) => {
 const playerBubble = createBubble();
 playerBubble.sprite.position.set(0, modelReady ? 2.12 : 1.95, 0);
 avatar.group.add(playerBubble.sprite);
-const sayPlayer = (text, seconds = 2.2) => playerBubble.show(text, seconds, clock.elapsedTime);
+const sayPlayer = (text, seconds = 2.2, options) => playerBubble.show(text, seconds, clock.elapsedTime, options);
 const coordsX = document.getElementById('coordsX');
 const coordsY = document.getElementById('coordsY');
 let coordsKey = '';
@@ -493,7 +493,12 @@ function stopWork() {
 function perform(task, cost) {
   const finish = () => {
     const reply = task.region.act(task.action.id, task.target, task.choice);
-    if (reply) sayPlayer(reply, 1.8);
+    const farmed = task.region.farmland && task.region.didChange?.();
+    if (farmed) {
+      uiSounds.pop();
+      if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
+      if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
+    } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
   };
   const settings = task.action.effect;

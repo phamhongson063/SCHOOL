@@ -172,7 +172,8 @@ export function createBubble() {
     get visible() {
       return shown;
     },
-    show(text, duration, now) {
+    show(text, duration, now, { plain = false } = {}) {
+      element.className = plain ? 'speech plain' : 'speech';
       element.replaceChildren(...content(text));
       element.hidden = true;
       bubbleHeight = 0;

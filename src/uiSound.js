@@ -11,17 +11,19 @@ export function createUiSounds() {
   let click = null;
   let correct = null;
   let wrong = null;
+  let pop = null;
 
   onAudio(async (context) => {
     ctx = context;
     out = ctx.createGain();
     out.gain.value = VOLUME;
     out.connect(ctx.destination);
-    [close, click, correct, wrong] = await Promise.all([
+    [close, click, correct, wrong, pop] = await Promise.all([
       loadClip(ctx, ['assets/sfx/close.ogg', 'assets/sfx/close.m4a']),
       loadClip(ctx, ['assets/sfx/click.ogg', 'assets/sfx/click.m4a']),
       loadClip(ctx, ['assets/sfx/correct.ogg', 'assets/sfx/correct.m4a']),
       loadClip(ctx, ['assets/sfx/wrong.ogg', 'assets/sfx/wrong.m4a']),
+      loadClip(ctx, ['assets/sfx/pop.ogg', 'assets/sfx/pop.m4a']),
     ]);
   });
 
@@ -43,5 +45,6 @@ export function createUiSounds() {
     click: () => play(click),
     correct: () => play(correct),
     wrong: () => play(wrong),
+    pop: () => play(pop),
   };
 }

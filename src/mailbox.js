@@ -36,12 +36,6 @@ function mailRow(mail) {
   main.className = 'mail-main';
   const head = document.createElement('div');
   head.className = 'mail-head';
-  if (!mail.read) {
-    const tag = document.createElement('span');
-    tag.className = 'mail-new';
-    tag.textContent = 'NEW';
-    side.append(tag);
-  }
   const time = document.createElement('span');
   time.className = 'mail-time';
   time.textContent = clockText(mail.at);
