@@ -24,7 +24,7 @@ function n2Bank() {
         reading: entry.reading,
         distractors: entry.distractors,
         meaning: entry.meaning,
-        level: 'N2',
+        level: '単語 N2',
       })),
     () => [],
   );
@@ -164,7 +164,7 @@ export function createKanjiQuiz() {
     current.correct = correct;
     clearInterval(current.tick);
     ui.icon.classList.remove('hooked');
-    ui.icon.classList.add(correct ? 'caught' : 'escaped');
+    if (correct) ui.icon.classList.add('caught');
     for (const button of ui.options.children) {
       button.disabled = true;
       if (button.dataset.value === current.answer) button.classList.add('right');
@@ -181,10 +181,7 @@ export function createKanjiQuiz() {
     }
     recall.record(current.entry.key, correct);
     current.onAnswer?.(correct);
-    if (!current.brief) {
-      ui.close.hidden = false;
-      ui.close.focus({ preventScroll: true });
-    }
+    if (!current.brief) ui.close.hidden = false;
     const delay = current.closeAfter ?? (current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null);
     if (delay !== null) current.closeAt = setTimeout(finish, delay);
   }
@@ -269,7 +266,7 @@ export function createKanjiQuiz() {
         ui.close.hidden = true;
         ui.dialog.classList.toggle('brief', brief);
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
-        ui.icon.className = `${ui === views.kanji ? 'kanji-fish' : 'phrase-icon'} hooked`;
+        ui.icon.className = 'quiz-icon hooked';
         pending.blank = showPrompt(ui, entry, asked);
         ui.level.textContent = entry.level;
         ui.result.textContent = '';

@@ -1779,15 +1779,6 @@ dialog.paper.wide {
   line-height: 1;
 }
 
-.paper-money {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(20, 10, 4, 0.35);
-  color: #ffe08a;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 .paper-note {
   margin: 0 0 12px;
   color: var(--wood);
@@ -2078,10 +2069,6 @@ dialog.paper.kanji {
   will-change: transform, opacity;
 }
 
-.kanji .paper-body {
-  position: relative;
-}
-
 .kanji-word {
   margin: 4px 0 14px;
   color: var(--ink);
@@ -2192,11 +2179,11 @@ dialog.paper.phrase-quiz {
   will-change: transform, opacity;
 }
 
-.phrase-quiz .paper-body {
+.quiz-body {
   padding: 14px 18px 16px;
 }
 
-.phrase-head {
+.quiz-head {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2208,12 +2195,12 @@ dialog.paper.phrase-quiz {
   box-shadow: 0 2px 0 #3a2212;
 }
 
-.phrase-head .sched-x {
+.quiz-head .sched-x {
   width: 30px;
   height: 26px;
 }
 
-.phrase-icon {
+.quiz-icon {
   display: grid;
   place-items: center;
   width: 24px;
@@ -2223,19 +2210,15 @@ dialog.paper.phrase-quiz {
   transform-origin: 50% 60%;
 }
 
-.phrase-icon.hooked {
+.quiz-icon.hooked {
   animation: fish-struggle 0.55s ease-in-out infinite alternate;
 }
 
-.phrase-icon.caught {
+.quiz-icon.caught {
   animation: fish-caught 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
 }
 
-.phrase-icon.escaped {
-  animation: fish-escaped 0.7s ease-in both;
-}
-
-.phrase-level {
+.quiz-level {
   color: #ffe08a;
   font: 700 12px/1 var(--font-ui);
   letter-spacing: 0.04em;
@@ -3484,29 +3467,6 @@ dialog.paper.phrase-quiz {
   }
 }
 
-.kanji-fish {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  font-size: 24px;
-  line-height: 1;
-  filter: drop-shadow(0 2px 3px var(--shadow-strong));
-  transform-origin: 50% 60%;
-}
-
-.kanji-fish.hooked {
-  animation: fish-struggle 0.55s ease-in-out infinite alternate;
-}
-
-.kanji-fish.caught {
-  animation: fish-caught 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
-}
-
-.kanji-fish.escaped {
-  animation: fish-escaped 0.7s ease-in both;
-}
-
 @keyframes fish-struggle {
   from {
     transform: rotate(-14deg) translateY(1px);
@@ -3528,20 +3488,9 @@ dialog.paper.phrase-quiz {
   }
 }
 
-@keyframes fish-escaped {
-  to {
-    opacity: 0.25;
-    transform: translate(-10px, 8px) rotate(-30deg) scale(0.85);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .kanji-fish.hooked,
-  .kanji-fish.caught,
-  .kanji-fish.escaped,
-  .phrase-icon.hooked,
-  .phrase-icon.caught,
-  .phrase-icon.escaped {
+  .quiz-icon.hooked,
+  .quiz-icon.caught {
     animation: none;
   }
 }
