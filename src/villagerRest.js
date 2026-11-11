@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING } from './config.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf, moodOf } from './stamina.js';
@@ -10,6 +10,44 @@ import { economy } from './economy.js';
 const VENDOR_TRIES = 2;
 
 export class RestBehavior {
+  wantsBlessing(ctx) {
+    const blessing = this.town.blessing;
+    if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes)) return false;
+    const session = blessing.session(ctx.minutes);
+    if (this.blessingSession !== session) {
+      this.blessingSession = session;
+      this.blessingWish = Math.random() < BLESSING.villagerChance;
+    }
+    return this.blessingWish || this.purse.energy < ENERGY.costs.clear;
+  }
+
+  goBlessing() {
+    const blessing = this.town.blessing;
+    this.blessingWish = false;
+    this.task = 'blessing';
+    this.lookAt = null;
+    this.travel(blessing.standFor(), {
+      then: () => {
+        if (!blessing.join(this.id, this.town.context.minutes)) return this.think();
+        this.lookAt = blessing.official.at;
+        this.wait(between(1.5, 2.5), () => this.stayBlessed());
+      },
+      fail: () => this.think(),
+    });
+  }
+
+  stayBlessed() {
+    const blessing = this.town.blessing;
+    this.lookAt = null;
+    const settle = () => {
+      if (!blessing.member(this.id, this.town.context.minutes)) return this.think();
+      if (this.purse.energy < VILLAGER.restUntil) return this.lieDown();
+      this.lookAt = blessing.statueAt;
+      this.wait(between(...BLESSING.villagerStay), () => this.think());
+    };
+    this.travel(blessing.stayPoint(), { then: settle, fail: settle });
+  }
+
   goRest(tries = 0) {
     this.task = 'rest';
     this.lookAt = null;
@@ -63,12 +101,35 @@ export class RestBehavior {
   tickEnergy(ctx) {
     const activity = this.activityNow(ctx);
     const stay = this.state === 'inn' ? activity : null;
-    this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle', this.town.blessing?.recoveryAt(this.position, ctx.minutes) ?? 1);
+    const blessed = this.town.blessing?.blessed(this.id, this.position, ctx.minutes) ?? false;
+    this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle', blessed ? BLESSING.recovery : 1);
+    this.blessingQuiz(blessed);
     this.tired = this.purse.energy <= 0;
     if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
     const mood = moodOf(this.purse.energy);
     this.bubble.setMood(mood);
     this.seatBubble?.setMood(mood);
+  }
+
+  blessingQuiz(blessed) {
+    if (!blessed) {
+      this.blessingAsk = null;
+      return;
+    }
+    const ask = (this.blessingAsk ??= { at: this.now + BLESSING.firstQuiz, answerAt: null });
+    if (ask.answerAt === null) {
+      if (this.now < ask.at) return;
+      const thinking = between(...FISHING.villagerAnswer);
+      ask.answerAt = this.now + thinking;
+      this.say('🤔', thinking);
+      return;
+    }
+    if (this.now < ask.answerAt) return;
+    ask.answerAt = null;
+    ask.at = this.now + BLESSING.quizSeconds;
+    if (Math.random() >= (FISHING.villagerSkill[this.kind] ?? 0.5)) return;
+    this.purse.addIntellect(1);
+    this.say('💡', 1.2);
   }
 
   wantsFood(ctx) {

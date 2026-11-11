@@ -116,8 +116,18 @@
       <span class="vitals-bar" aria-hidden="true"><span id="energyBar" class="vitals-fill"></span></span>
     </button>
     <div id="vitalsInfo" class="vitals-info" role="tooltip">
-      <strong>Năng lượng</strong>
-      <span id="vitalsText"></span>
+      <div class="stat-row stat-energy" title="Năng lượng">
+        <span class="stat-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M13.5 2 5 13.5h6L10 22l9-12h-6.2z" /></svg>
+        </span>
+        <span id="vitalsText" class="stat-value"></span>
+      </div>
+      <div class="stat-row stat-intellect" title="Trí lực">
+        <span class="stat-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 6.2C9.8 4.6 6.6 4 3 4.3v13.4c3.6-.3 6.8.3 9 1.9 2.2-1.6 5.4-2.2 9-1.9V4.3c-3.6-.3-6.8.3-9 1.9z" /><path class="stat-spine" d="M12 6.2v13.4" /></svg>
+        </span>
+        <span id="intellectText" class="stat-value"></span>
+      </div>
     </div>
   </div>
   <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
@@ -424,6 +434,20 @@
     </div>
   </dialog>
   <div id="summonVeil" class="summon-veil" aria-hidden="true"></div>
+  <dialog id="blessingDialog" class="paper" aria-labelledby="blessingTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">✨</span>
+        <h2 id="blessingTitle">Chúc phúc</h2>
+      </header>
+      <p id="blessingText" class="paper-note"></p>
+      <div class="sched-actions">
+        <span class="spacer"></span>
+        <button id="blessingNo" class="sched-ghost" type="button">Không</button>
+        <button id="blessingYes" class="sched-primary" type="button">Tham gia</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
       <header class="sched-head bank-head">

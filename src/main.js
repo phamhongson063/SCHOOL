@@ -37,7 +37,7 @@ import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay } from './clock.js';
 import { phaseAt } from './timetable.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING } from './config.js';
-import { createBlessing } from './blessing.js';
+import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { createTuition } from './tuition.js';
@@ -599,6 +599,7 @@ town = new Town({
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
 town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
+const blessingDialog = createBlessingDialog({ blessing, minutes: () => context.minutes, onJoin: () => blessing.join(PLAYER, context.minutes) });
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 economy.start({
   ledger,
@@ -809,6 +810,13 @@ const noticeSpot = {
 };
 const lodgeDesk = createLodgeDesk({ purse, onRent: (id) => sleepAtLodge(id) });
 
+const blessingDesk = {
+  act() {
+    blessingDialog.open(PLAYER);
+    return null;
+  },
+};
+
 const innDesk = {
   act() {
     return lodgeDesk.rent('inn');
@@ -926,6 +934,11 @@ function sceneClick(clientX, clientY, run) {
   if (school.isTeacher(hit.object)) {
     leaveLine();
     goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    return true;
+  }
+  if (blessing.official.owns(hit.object)) {
+    leaveLine();
+    goDo(blessingDesk, { stand: blessing.official.stand, x: blessing.official.at.x, z: blessing.official.at.z }, 'blessing');
     return true;
   }
   if (inn.owns(hit.object)) {
@@ -1196,7 +1209,7 @@ const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.s
 
 let blessingQuizIn = BLESSING.firstQuiz;
 function updateBlessingQuiz(dt) {
-  if (mode !== 'play' || purse.sleeping || !blessing.blessed(player.position, context.minutes)) {
+  if (mode !== 'play' || purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes)) {
     blessingQuizIn = BLESSING.firstQuiz;
     return;
   }
@@ -1204,7 +1217,9 @@ function updateBlessingQuiz(dt) {
   blessingQuizIn -= dt;
   if (blessingQuizIn > 0) return;
   blessingQuizIn = BLESSING.quizSeconds;
-  kanjiQuiz.ask({ icon: '✨', quick: true, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning' });
+  kanjiQuiz.ask({ icon: '✨', quick: true, closeAfter: 0, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning' }).then(({ correct }) => {
+    if (correct) purse.addIntellect(1);
+  });
 }
 
 const sleepVeil = document.getElementById('sleepVeil');
@@ -1224,7 +1239,7 @@ function drainEnergy() {
   const studying = player.seat?.study || (inClass() && learningNow());
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
-  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline, blessing.recoveryAt(player.position, context.minutes));
+  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline, blessing.recoveryAt(PLAYER, player.position, context.minutes));
   player.tired = purse.energy <= 0;
   if (!asleep) return;
   if (lodging && purse.full) {

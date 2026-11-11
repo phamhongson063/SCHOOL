@@ -36,7 +36,7 @@ ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
 
 const GIFTS = ['fishing'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
+const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, intellect: 0, sleeping: false, lodging: false });
 
 function starter() {
   const account = blank();
@@ -78,6 +78,7 @@ function clean(raw) {
   account.credits = Math.max(0, Math.floor(Number(raw.credits) || 0));
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
+  account.intellect = Math.max(0, Math.floor(Number(raw.intellect) || 0));
   account.sleeping = raw.sleeping === true;
   account.lodging = account.sleeping && (raw.lodging === true ? 'inn' : LODGE_ROOMS[raw.lodging] ? raw.lodging : false);
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
@@ -188,6 +189,16 @@ export class Purse {
 
   get energy() {
     return this.data.energy;
+  }
+
+  get intellect() {
+    return this.data.intellect;
+  }
+
+  addIntellect(amount) {
+    if (!(amount > 0)) return;
+    this.data.intellect += Math.floor(amount);
+    this.changed({ intellect: amount });
   }
 
   get full() {

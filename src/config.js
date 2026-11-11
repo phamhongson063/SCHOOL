@@ -246,8 +246,10 @@ export const BLESSING = {
   ],
   radius: 20,
   recovery: 2,
-  quizSeconds: 45,
+  quizSeconds: 2,
   firstQuiz: 3,
+  villagerChance: 0.35,
+  villagerStay: [20, 40],
 };
 
 export const RANKING = {

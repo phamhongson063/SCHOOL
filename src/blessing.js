@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { Batch, freeze, shapes } from './toon.js';
 import { makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
-import { minuteOfDay } from './clock.js';
+import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
+import { keeperNPC } from './village.js';
 
 const STONE = 0xb3ab99;
 const STONE_DARK = 0x8a8273;
@@ -28,9 +29,14 @@ const VIEW_DISTANCE = 120;
 const GLYPHS = ['文', '智', '福', '學', '道', '神', '靈', '光', '德', '明', '聖', '仁'];
 const CROWN = { count: 8, radius: 1.25, height: HEAD_Y + 1.15, size: 0.62, spin: 0.35, bob: 0.12 };
 const SKY = { count: 6, radius: 2.6, height: HEAD_Y + 2.3, size: 0.9, spin: -0.18, bob: 0.25 };
-const PILLAR = { radius: 2.4, height: 11 };
+const BURST = { y: PEDESTAL_TOP + 1.7, size: 13, glow: 6.5, spin: 0.035 };
 const GROUND_RING = 6.5;
-const SPARKS = 70;
+const SPARKS = 60;
+const SPARK_REACH = 7.5;
+const OFFICIAL = { dx: 3, dz: -7.6, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
+const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
+const OFFICIAL_DISTANCE = 60;
+const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
 const GOLD = 'rgba(255,214,110,1)';
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 
@@ -125,8 +131,8 @@ function paintGroundRing(ctx, size) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
   const wash = ctx.createRadialGradient(c, c, 0, c, c, c);
-  wash.addColorStop(0, 'rgba(255,225,140,0.55)');
-  wash.addColorStop(0.55, 'rgba(255,210,110,0.18)');
+  wash.addColorStop(0, 'rgba(255,225,140,0.3)');
+  wash.addColorStop(0.55, 'rgba(255,210,110,0.1)');
   wash.addColorStop(1, 'rgba(255,200,100,0)');
   ctx.fillStyle = wash;
   ctx.fillRect(0, 0, size, size);
@@ -158,24 +164,39 @@ function paintGroundRing(ctx, size) {
   }
 }
 
-function paintPillar(ctx, width, height) {
-  ctx.clearRect(0, 0, width, height);
-  const fade = ctx.createLinearGradient(0, height, 0, 0);
-  fade.addColorStop(0, 'rgba(255,225,150,0.6)');
-  fade.addColorStop(0.4, 'rgba(255,215,130,0.22)');
-  fade.addColorStop(1, 'rgba(255,210,120,0)');
-  ctx.fillStyle = fade;
-  ctx.fillRect(0, 0, width, height);
-  const rays = 28;
+function paintBurst(ctx, size, rays, seed) {
+  const c = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'lighter';
+  const rand = makeRandom(seed);
   for (let i = 0; i < rays; i++) {
-    const x = ((i + 0.5) / rays) * width;
-    const reach = height * (i % 3 ? 0.6 : 0.95);
-    const ray = ctx.createLinearGradient(0, height, 0, height - reach);
-    ray.addColorStop(0, 'rgba(255,245,200,0.55)');
-    ray.addColorStop(1, 'rgba(255,245,200,0)');
+    const a = ((i + rand() * 0.6) / rays) * Math.PI * 2;
+    const length = c * (0.45 + rand() * 0.55);
+    const half = 0.006 + rand() * 0.012;
+    const ray = ctx.createRadialGradient(c, c, c * 0.08, c, c, length);
+    ray.addColorStop(0, 'rgba(255,240,195,0.32)');
+    ray.addColorStop(0.5, 'rgba(255,232,170,0.12)');
+    ray.addColorStop(1, 'rgba(255,225,150,0)');
     ctx.fillStyle = ray;
-    ctx.fillRect(x - width * 0.005, height - reach, width * 0.01, reach);
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.lineTo(c + Math.cos(a - half) * length, c + Math.sin(a - half) * length);
+    ctx.lineTo(c + Math.cos(a + half) * length, c + Math.sin(a + half) * length);
+    ctx.closePath();
+    ctx.fill();
   }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function paintGlow(ctx, size) {
+  const c = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
+  glow.addColorStop(0, 'rgba(255,238,190,0.28)');
+  glow.addColorStop(0.35, 'rgba(255,226,160,0.1)');
+  glow.addColorStop(1, 'rgba(255,215,140,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, size, size);
 }
 
 function paintHalo(ctx, size) {
@@ -183,8 +204,8 @@ function paintHalo(ctx, size) {
   ctx.clearRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'lighter';
   const core = ctx.createRadialGradient(c, c, 0, c, c, c);
-  core.addColorStop(0, 'rgba(255,240,190,0.9)');
-  core.addColorStop(0.3, 'rgba(255,220,140,0.45)');
+  core.addColorStop(0, 'rgba(255,240,190,0.5)');
+  core.addColorStop(0.3, 'rgba(255,220,140,0.2)');
   core.addColorStop(1, 'rgba(255,200,100,0)');
   ctx.fillStyle = core;
   ctx.fillRect(0, 0, size, size);
@@ -193,7 +214,7 @@ function paintHalo(ctx, size) {
     const a = (i / rays) * Math.PI * 2;
     const length = c * (i % 2 ? 0.7 : 0.98);
     const ray = ctx.createRadialGradient(c, c, 0, c, c, length);
-    ray.addColorStop(0, 'rgba(255,235,170,0.5)');
+    ray.addColorStop(0, 'rgba(255,235,170,0.3)');
     ray.addColorStop(1, 'rgba(255,235,170,0)');
     ctx.fillStyle = ray;
     ctx.beginPath();
@@ -253,6 +274,15 @@ function glyphOrbit({ count, radius, height, size }, offset) {
   return { orbit, items };
 }
 
+function burstSprite(rays, seed) {
+  const material = new THREE.SpriteMaterial({ map: canvasTexture(512, 512, (ctx, w) => paintBurst(ctx, w, rays, seed)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.y = BURST.y;
+  sprite.scale.setScalar(BURST.size);
+  sprite.renderOrder = 3;
+  return sprite;
+}
+
 function createAura() {
   const group = new THREE.Group();
 
@@ -264,27 +294,43 @@ function createAura() {
   const ringSpin = new THREE.Group();
   ringSpin.add(ring);
 
-  const pillarMaterial = glowMaterial(canvasTexture(512, 256, paintPillar), { side: THREE.DoubleSide });
-  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(PILLAR.radius, PILLAR.radius, PILLAR.height, 48, 1, true), pillarMaterial);
-  pillar.position.y = PILLAR.height / 2;
-  pillar.renderOrder = 3;
+  const glowMaterialSprite = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintGlow(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glow = new THREE.Sprite(glowMaterialSprite);
+  glow.position.y = BURST.y;
+  glow.scale.setScalar(BURST.glow);
+  glow.renderOrder = 3;
+  const bursts = [burstSprite(40, 17), burstSprite(28, 53)];
+  bursts[1].scale.setScalar(BURST.size * 0.8);
 
   const haloMaterial = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintHalo(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const halo = new THREE.Sprite(haloMaterial);
   halo.position.set(0, HEAD_Y, 0.4);
-  halo.scale.setScalar(2.6);
+  halo.scale.setScalar(2.2);
   halo.renderOrder = 4;
 
   const crown = glyphOrbit(CROWN, 0);
   const sky = glyphOrbit(SKY, CROWN.count);
 
-  const sparkData = Array.from({ length: SPARKS }, () => ({ a: Math.random() * Math.PI * 2, r: Math.random() * PILLAR.radius, y: Math.random() * PILLAR.height, v: 0.5 + Math.random() * 0.9 }));
+  const launch = (spark, distance) => {
+    const heading = Math.random() * Math.PI * 2;
+    const rise = -0.15 + Math.random() * 1.3;
+    spark.dx = Math.cos(rise) * Math.cos(heading);
+    spark.dy = Math.sin(rise);
+    spark.dz = Math.cos(rise) * Math.sin(heading);
+    spark.d = distance;
+    spark.v = 0.6 + Math.random() * 0.8;
+    return spark;
+  };
+  const sparkData = Array.from({ length: SPARKS }, () => launch({}, Math.random() * SPARK_REACH));
   const sparkPositions = new Float32Array(SPARKS * 3);
+  const sparkColors = new Float32Array(SPARKS * 3);
   const sparkGeometry = new THREE.BufferGeometry();
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+  sparkGeometry.setAttribute('color', new THREE.BufferAttribute(sparkColors, 3));
   const sparkMaterial = new THREE.PointsMaterial({
     map: canvasTexture(64, 64, (ctx, w) => paintSpark(ctx, w)),
-    size: 0.28,
+    size: 0.22,
+    vertexColors: true,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -293,7 +339,7 @@ function createAura() {
   sparks.frustumCulled = false;
   sparks.renderOrder = 4;
 
-  group.add(ringSpin, pillar, halo, crown.orbit, sky.orbit, sparks);
+  group.add(ringSpin, glow, ...bursts, halo, crown.orbit, sky.orbit, sparks);
   group.visible = false;
   let clock = 0;
 
@@ -305,9 +351,12 @@ function createAura() {
       clock += dt;
       const pulse = 0.85 + 0.15 * Math.sin(clock * 1.4);
       ringSpin.rotation.y += dt * 0.08;
-      pillar.rotation.y -= dt * 0.05;
-      ringMaterial.opacity = strength * pulse;
-      pillarMaterial.opacity = strength * (0.7 + 0.3 * Math.sin(clock * 0.9));
+      ringMaterial.opacity = strength * 0.8 * pulse;
+      glowMaterialSprite.opacity = strength * pulse;
+      bursts[0].material.rotation += dt * BURST.spin;
+      bursts[1].material.rotation -= dt * BURST.spin * 1.4;
+      bursts[0].material.opacity = strength * (0.75 + 0.25 * Math.sin(clock * 0.8));
+      bursts[1].material.opacity = strength * (0.75 + 0.25 * Math.sin(clock * 0.8 + 2));
       haloMaterial.opacity = strength * pulse;
       haloMaterial.rotation += dt * 0.15;
       for (const [orbit, spec, items] of [
@@ -317,32 +366,81 @@ function createAura() {
         orbit.rotation.y += dt * spec.spin;
         for (const { sprite, phase } of items) {
           sprite.position.y = spec.height + Math.sin(clock * 1.2 + phase) * spec.bob;
-          sprite.material.opacity = strength * (0.75 + 0.25 * Math.sin(clock * 2 + phase));
+          sprite.material.opacity = strength * (0.45 + 0.2 * Math.sin(clock * 2 + phase));
         }
       }
       sparkData.forEach((spark, i) => {
-        spark.y += dt * spark.v;
-        if (spark.y > PILLAR.height) {
-          spark.y = 0;
-          spark.a = Math.random() * Math.PI * 2;
-          spark.r = Math.random() * PILLAR.radius;
-        }
-        sparkPositions[i * 3] = Math.cos(spark.a + clock * 0.3) * spark.r;
-        sparkPositions[i * 3 + 1] = spark.y;
-        sparkPositions[i * 3 + 2] = Math.sin(spark.a + clock * 0.3) * spark.r;
+        spark.d += dt * spark.v;
+        if (spark.d > SPARK_REACH) launch(spark, 0.4);
+        const fade = Math.sin((spark.d / SPARK_REACH) * Math.PI) * strength;
+        sparkPositions[i * 3] = spark.dx * spark.d;
+        sparkPositions[i * 3 + 1] = BURST.y + spark.dy * spark.d;
+        sparkPositions[i * 3 + 2] = spark.dz * spark.d;
+        sparkColors[i * 3] = fade;
+        sparkColors[i * 3 + 1] = fade * 0.92;
+        sparkColors[i * 3 + 2] = fade * 0.7;
       });
       sparkGeometry.attributes.position.needsUpdate = true;
-      sparkMaterial.opacity = strength;
+      sparkGeometry.attributes.color.needsUpdate = true;
     },
   };
 }
 
-function strengthAt(minutes) {
+const windowIndexAt = (minutes) => {
   const m = minuteOfDay(minutes);
-  const window = BLESSING.windows.find(([start, end]) => m >= start && m < end);
-  if (!window) return 0;
-  const [start, end] = window;
+  return BLESSING.windows.findIndex(([start, end]) => m >= start && m < end);
+};
+
+function strengthAt(minutes) {
+  const index = windowIndexAt(minutes);
+  if (index < 0) return 0;
+  const m = minuteOfDay(minutes);
+  const [start, end] = BLESSING.windows[index];
   return Math.min(1, (m - start) / FADE, (end - m) / FADE);
+}
+
+function sessionAt(minutes) {
+  const index = windowIndexAt(minutes);
+  return index < 0 ? null : `${dayOf(minutes)}:${index}`;
+}
+
+function nextWindowText(minutes) {
+  const m = minuteOfDay(minutes);
+  const [start, end] = BLESSING.windows.find(([open]) => open > m) ?? BLESSING.windows[0];
+  return `${clockText(start)}–${clockText(end)}`;
+}
+
+const inBed = (x, z) => [...CORNER_BEDS, ...EDGE_BEDS].some((bed) => Math.abs(x - bed.x) < bed.hx + 0.5 && Math.abs(z - bed.z) < bed.hz + 0.5);
+
+function createOfficial(scene) {
+  const npc = keeperNPC(OFFICIAL_LOOK, OFFICIAL.model);
+  const at = new THREE.Vector3(PLAZA.x + OFFICIAL.dx, 0, PLAZA.z + OFFICIAL.dz);
+  npc.walker.group.position.copy(at);
+  npc.walker.group.rotation.y = OFFICIAL.facing;
+  scene.add(npc.walker.group);
+  const ahead = { x: Math.sin(OFFICIAL.facing), z: Math.cos(OFFICIAL.facing) };
+  const side = { x: ahead.z, z: -ahead.x };
+  const spots = OFFICIAL.spots.map((offset) => new THREE.Vector3(at.x + ahead.x * OFFICIAL.reach + side.x * offset, 0, at.z + ahead.z * OFFICIAL.reach + side.z * offset));
+  return {
+    ...npc,
+    at,
+    stand: spots[1],
+    spots,
+    owns(object) {
+      for (let node = object; node; node = node.parent) if (node === npc.walker.group) return true;
+      return false;
+    },
+    update(t, camera) {
+      const near = camera.position.distanceTo(at) < OFFICIAL_DISTANCE;
+      npc.walker.group.visible = near;
+      if (!near) return;
+      npc.bubble.update(t);
+      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
+      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
+      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+      npc.walker.pose?.();
+    },
+  };
 }
 
 export function createBlessing(scene) {
@@ -364,26 +462,106 @@ export function createBlessing(scene) {
   aura.group.position.set(PLAZA.x, 0, PLAZA.z);
   scene.add(aura.group);
 
+  const official = createOfficial(scene);
+
   const box = (x, z, hx, hz, maxY) => ({ minX: PLAZA.x + x - hx, maxX: PLAZA.x + x + hx, minZ: PLAZA.z + z - hz, maxZ: PLAZA.z + z + hz, minY: 0, maxY });
   const obstacles = [
     box(0, 0, 2.1, 2.1, HEAD_Y + 0.8),
     box(0, 0, RING_BED.outer + 0.1, RING_BED.outer + 0.1, 0.5),
     ...[...CORNER_BEDS, ...EDGE_BEDS].map((bed) => box(bed.x, bed.z, bed.hx + 0.1, bed.hz + 0.1, 0.5)),
+    box(OFFICIAL.dx, OFFICIAL.dz, 0.35, 0.35, 2),
   ];
 
+  const members = new Map();
+  let clock = 0;
   const active = (minutes) => strengthAt(minutes) > 0;
-  const blessed = (position, minutes) => active(minutes) && Math.hypot(position.x - PLAZA.x, position.z - PLAZA.z) <= BLESSING.radius;
+  const inside = (position) => Math.hypot(position.x - PLAZA.x, position.z - PLAZA.z) <= BLESSING.radius;
+  const member = (id, minutes) => {
+    const session = sessionAt(minutes);
+    return !!session && members.get(id) === session;
+  };
 
-  return {
+  const api = {
     obstacles,
-    clickables: [statue],
-    blessed,
-    recoveryAt(position, minutes) {
-      return blessed(position, minutes) ? BLESSING.recovery : 1;
+    clickables: [statue, official.walker.group],
+    official,
+    statueAt: { x: PLAZA.x, z: PLAZA.z },
+    active,
+    member,
+    session: sessionAt,
+    nextWindow: nextWindowText,
+    blessed(id, position, minutes) {
+      if (!members.has(id)) return false;
+      if (!member(id, minutes)) {
+        members.delete(id);
+        return false;
+      }
+      if (inside(position)) return true;
+      members.delete(id);
+      return false;
+    },
+    recoveryAt(id, position, minutes) {
+      return api.blessed(id, position, minutes) ? BLESSING.recovery : 1;
+    },
+    join(id, minutes) {
+      const session = active(minutes) ? sessionAt(minutes) : null;
+      if (!session) return false;
+      members.set(id, session);
+      official.bubble.show('Thần linh phù hộ ngươi!', 2.2, clock);
+      return true;
+    },
+    greet() {
+      official.bubble.show(OFFICIAL_LINES[Math.floor(Math.random() * OFFICIAL_LINES.length)], 2, clock);
+    },
+    standFor() {
+      return official.spots[Math.floor(Math.random() * official.spots.length)];
+    },
+    stayPoint() {
+      for (let tries = 0; tries < 12; tries++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = RING_BED.outer + 0.9 + Math.random() * 1.6;
+        const x = Math.cos(a) * r;
+        const z = Math.sin(a) * r;
+        if (inBed(x, z) || Math.hypot(x - OFFICIAL.dx, z - OFFICIAL.dz) < 2) continue;
+        return new THREE.Vector3(PLAZA.x + x, 0, PLAZA.z + z);
+      }
+      return new THREE.Vector3(PLAZA.x, 0, PLAZA.z - RING_BED.outer - 1.2);
     },
     update(dt, minutes, camera) {
+      clock += dt;
+      official.update(clock, camera);
       const near = camera.position.distanceTo(aura.group.position) < VIEW_DISTANCE;
       aura.update(dt, near ? strengthAt(minutes) : 0);
+    },
+  };
+  return api;
+}
+
+export function createBlessingDialog({ blessing, minutes, onJoin }) {
+  const dialog = document.getElementById('blessingDialog');
+  const text = document.getElementById('blessingText');
+  const yes = document.getElementById('blessingYes');
+  const no = document.getElementById('blessingNo');
+  let joining = false;
+  no.addEventListener('click', () => dialog.close());
+  yes.addEventListener('click', () => {
+    dialog.close();
+    if (joining) onJoin();
+  });
+  return {
+    get isOpen() {
+      return dialog.open;
+    },
+    open(id) {
+      const now = minutes();
+      blessing.greet();
+      if (blessing.member(id, now)) return;
+      joining = blessing.active(now);
+      text.textContent = joining ? 'Ngươi có muốn tham gia nhận chúc phúc không?' : `Giờ chúc phúc chưa tới. Ngươi hãy quay lại vào khung giờ kế tiếp (${blessing.nextWindow(now)}) nhé.`;
+      no.hidden = !joining;
+      yes.textContent = joining ? 'Tham gia' : 'OK';
+      dialog.showModal();
+      yes.focus({ preventScroll: true });
     },
   };
 }

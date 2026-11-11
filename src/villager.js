@@ -229,6 +229,7 @@ export class Villager {
     if (this.shouldAttend(ctx)) return this.goToClass();
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
+    if (this.wantsBlessing(ctx)) return this.goBlessing();
     if (this.wantsSelfStudy(ctx)) return this.goSelfStudy();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
