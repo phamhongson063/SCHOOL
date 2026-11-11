@@ -2537,6 +2537,10 @@ dialog.paper.kanji:focus {
   display: none;
 }
 
+.study-reading:empty {
+  min-height: 28px;
+}
+
 .study-note {
   max-width: 340px;
   margin: -6px auto 14px;

@@ -30,9 +30,10 @@ export const DECKS = {
     cards: LESSONS.map((lesson) => ({
       key: `sugu1:${lesson.no}`,
       word: lesson.phrase,
-      reading: lesson.romaji,
+      reading: '',
       hanViet: '',
-      ...splitMeaning(lesson.meaning),
+      meaning: splitMeaning(lesson.meaning).meaning,
+      note: '',
       examples: lesson.examples,
     })),
   },
