@@ -785,6 +785,7 @@ const summon = createSummon({
     return player.position.clone();
   },
   teleport() {
+    tuition.waive(context.phase.key);
     const free = school.seats.filter((seat) => seats.isFreeFor(seat, 'player'));
     const seat = free.length ? free[Math.floor(Math.random() * free.length)] : null;
     const spot = (seat ?? school.seats[0]).spot.clone();

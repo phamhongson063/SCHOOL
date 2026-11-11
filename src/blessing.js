@@ -34,11 +34,14 @@ const BURST = { y: PEDESTAL_TOP + 1.7, size: 13, glow: 6.5, spin: 0.035 };
 const GROUND_RING = 6.5;
 const SPARKS = 60;
 const SPARK_REACH = 7.5;
+const FLOOR_RAYS = { x: 13.5, z: 9.5 };
+const AURA_GOLD = 0xffd36e;
+const AURA_CYCLE = 0.08;
 const OFFICIAL = { x: PLAZA.x + 3, z: ROAD.z1 + 1.6, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
-const GOLD = 'rgba(255,214,110,1)';
+const LIGHT = 'rgba(255,255,255,1)';
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 
 function lotusPedestal(b) {
@@ -132,13 +135,13 @@ function paintGroundRing(ctx, size) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
   const wash = ctx.createRadialGradient(c, c, 0, c, c, c);
-  wash.addColorStop(0, 'rgba(255,225,140,0.3)');
-  wash.addColorStop(0.55, 'rgba(255,210,110,0.1)');
-  wash.addColorStop(1, 'rgba(255,200,100,0)');
+  wash.addColorStop(0, 'rgba(255,255,255,0.3)');
+  wash.addColorStop(0.55, 'rgba(255,255,255,0.1)');
+  wash.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = wash;
   ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = GOLD;
-  ctx.shadowColor = GOLD;
+  ctx.strokeStyle = LIGHT;
+  ctx.shadowColor = LIGHT;
   ctx.shadowBlur = size * 0.012;
   for (const [r, w] of [
     [0.92, 0.006],
@@ -150,7 +153,7 @@ function paintGroundRing(ctx, size) {
     ctx.arc(c, c, c * r, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.fillStyle = GOLD;
+  ctx.fillStyle = LIGHT;
   ctx.font = `${size * 0.05}px ${SERIF}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -175,9 +178,9 @@ function paintBurst(ctx, size, rays, seed) {
     const length = c * (0.45 + rand() * 0.55);
     const half = 0.006 + rand() * 0.012;
     const ray = ctx.createRadialGradient(c, c, c * 0.08, c, c, length);
-    ray.addColorStop(0, 'rgba(255,240,195,0.32)');
-    ray.addColorStop(0.5, 'rgba(255,232,170,0.12)');
-    ray.addColorStop(1, 'rgba(255,225,150,0)');
+    ray.addColorStop(0, 'rgba(255,255,255,0.32)');
+    ray.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+    ray.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = ray;
     ctx.beginPath();
     ctx.moveTo(c, c);
@@ -193,9 +196,9 @@ function paintGlow(ctx, size) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
   const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
-  glow.addColorStop(0, 'rgba(255,238,190,0.28)');
-  glow.addColorStop(0.35, 'rgba(255,226,160,0.1)');
-  glow.addColorStop(1, 'rgba(255,215,140,0)');
+  glow.addColorStop(0, 'rgba(255,255,255,0.28)');
+  glow.addColorStop(0.35, 'rgba(255,255,255,0.1)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
 }
@@ -205,9 +208,9 @@ function paintHalo(ctx, size) {
   ctx.clearRect(0, 0, size, size);
   ctx.globalCompositeOperation = 'lighter';
   const core = ctx.createRadialGradient(c, c, 0, c, c, c);
-  core.addColorStop(0, 'rgba(255,240,190,0.5)');
-  core.addColorStop(0.3, 'rgba(255,220,140,0.2)');
-  core.addColorStop(1, 'rgba(255,200,100,0)');
+  core.addColorStop(0, 'rgba(255,255,255,0.5)');
+  core.addColorStop(0.3, 'rgba(255,255,255,0.2)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = core;
   ctx.fillRect(0, 0, size, size);
   const rays = 16;
@@ -215,8 +218,8 @@ function paintHalo(ctx, size) {
     const a = (i / rays) * Math.PI * 2;
     const length = c * (i % 2 ? 0.7 : 0.98);
     const ray = ctx.createRadialGradient(c, c, 0, c, c, length);
-    ray.addColorStop(0, 'rgba(255,235,170,0.3)');
-    ray.addColorStop(1, 'rgba(255,235,170,0)');
+    ray.addColorStop(0, 'rgba(255,255,255,0.3)');
+    ray.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = ray;
     ctx.beginPath();
     ctx.moveTo(c, c);
@@ -232,13 +235,13 @@ function paintGlyph(ctx, size, glyph) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
   const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
-  glow.addColorStop(0, 'rgba(255,220,130,0.5)');
-  glow.addColorStop(0.5, 'rgba(255,200,100,0.15)');
-  glow.addColorStop(1, 'rgba(255,200,100,0)');
+  glow.addColorStop(0, 'rgba(255,255,255,0.5)');
+  glow.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = GOLD;
-  ctx.shadowColor = GOLD;
+  ctx.fillStyle = LIGHT;
+  ctx.shadowColor = LIGHT;
   ctx.shadowBlur = size * 0.1;
   ctx.font = `700 ${size * 0.58}px ${SERIF}`;
   ctx.textAlign = 'center';
@@ -249,9 +252,9 @@ function paintGlyph(ctx, size, glyph) {
 function paintSpark(ctx, size) {
   const c = size / 2;
   const dot = ctx.createRadialGradient(c, c, 0, c, c, c);
-  dot.addColorStop(0, 'rgba(255,250,220,1)');
-  dot.addColorStop(0.4, 'rgba(255,220,140,0.5)');
-  dot.addColorStop(1, 'rgba(255,200,100,0)');
+  dot.addColorStop(0, 'rgba(255,255,255,1)');
+  dot.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+  dot.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = dot;
   ctx.fillRect(0, 0, size, size);
 }
@@ -275,6 +278,36 @@ function glyphOrbit({ count, radius, height, size }, offset) {
   return { orbit, items };
 }
 
+function paintFloorRays(ctx, size) {
+  const c = size / 2;
+  ctx.clearRect(0, 0, size, size);
+  const wash = ctx.createRadialGradient(c, c, 0, c, c, c);
+  wash.addColorStop(0, 'rgba(255,255,255,0.22)');
+  wash.addColorStop(0.4, 'rgba(255,255,255,0.07)');
+  wash.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'lighter';
+  const rand = makeRandom(91);
+  const rays = 30;
+  for (let i = 0; i < rays; i++) {
+    const a = ((i + rand() * 0.5) / rays) * Math.PI * 2;
+    const half = 0.025 + rand() * 0.03;
+    const ray = ctx.createRadialGradient(c, c, c * 0.15, c, c, c);
+    ray.addColorStop(0, 'rgba(255,255,255,0.2)');
+    ray.addColorStop(0.6, 'rgba(255,255,255,0.07)');
+    ray.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = ray;
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.lineTo(c + Math.cos(a - half) * c, c + Math.sin(a - half) * c);
+    ctx.lineTo(c + Math.cos(a + half) * c, c + Math.sin(a + half) * c);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 function burstSprite(rays, seed) {
   const material = new THREE.SpriteMaterial({ map: canvasTexture(512, 512, (ctx, w) => paintBurst(ctx, w, rays, seed)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const sprite = new THREE.Sprite(material);
@@ -284,8 +317,13 @@ function burstSprite(rays, seed) {
   return sprite;
 }
 
+const lerp = (a, b, k) => a + (b - a) * k;
+
 function createAura() {
   const group = new THREE.Group();
+  const gold = new THREE.Color(AURA_GOLD);
+  const hue = new THREE.Color();
+  const tint = (color, k, shift) => color.copy(gold).lerp(hue.setHSL((((shift % 1) + 1) % 1), 0.9, 0.62), k);
 
   const ringMaterial = glowMaterial(canvasTexture(1024, 1024, (ctx, w) => paintGroundRing(ctx, w)));
   const ring = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_RING * 2, GROUND_RING * 2), ringMaterial);
@@ -295,8 +333,16 @@ function createAura() {
   const ringSpin = new THREE.Group();
   ringSpin.add(ring);
 
-  const glowMaterialSprite = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintGlow(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const glow = new THREE.Sprite(glowMaterialSprite);
+  const floorMap = canvasTexture(1024, 1024, (ctx, w) => paintFloorRays(ctx, w));
+  floorMap.center.set(0.5, 0.5);
+  const floorMaterial = glowMaterial(floorMap);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(FLOOR_RAYS.x * 2, FLOOR_RAYS.z * 2), floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.07;
+  floor.renderOrder = 2;
+
+  const glowSpriteMaterial = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintGlow(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glow = new THREE.Sprite(glowSpriteMaterial);
   glow.position.y = BURST.y;
   glow.scale.setScalar(BURST.glow);
   glow.renderOrder = 3;
@@ -320,6 +366,7 @@ function createAura() {
     spark.dz = Math.cos(rise) * Math.sin(heading);
     spark.d = distance;
     spark.v = 0.6 + Math.random() * 0.8;
+    spark.hue = Math.random();
     return spark;
   };
   const sparkData = Array.from({ length: SPARKS }, () => launch({}, Math.random() * SPARK_REACH));
@@ -340,46 +387,62 @@ function createAura() {
   sparks.frustumCulled = false;
   sparks.renderOrder = 4;
 
-  group.add(ringSpin, glow, ...bursts, halo, crown.orbit, sky.orbit, sparks);
+  group.add(floor, ringSpin, glow, ...bursts, halo, crown.orbit, sky.orbit, sparks);
   group.visible = false;
   let clock = 0;
+  const color = new THREE.Color();
 
   return {
     group,
-    update(dt, strength) {
-      group.visible = strength > 0.01;
-      if (!group.visible) return;
+    update(dt, visible, k) {
+      group.visible = visible;
+      if (!visible) return;
       clock += dt;
+      const cycle = clock * AURA_CYCLE;
       const pulse = 0.85 + 0.15 * Math.sin(clock * 1.4);
+      const level = (idle, blessed) => lerp(idle, blessed, k);
       ringSpin.rotation.y += dt * 0.08;
-      ringMaterial.opacity = strength * 0.8 * pulse;
-      glowMaterialSprite.opacity = strength * pulse;
+      floorMap.rotation += dt * 0.03;
+      ringMaterial.opacity = level(0.45, 0.8) * pulse;
+      tint(ringMaterial.color, k, cycle + 0.5);
+      floorMaterial.opacity = level(0.75, 1) * (0.85 + 0.15 * Math.sin(clock * 0.7));
+      tint(floorMaterial.color, k, cycle + 0.25);
+      glowSpriteMaterial.opacity = level(0.85, 1) * pulse;
+      tint(glowSpriteMaterial.color, k, cycle);
       bursts[0].material.rotation += dt * BURST.spin;
       bursts[1].material.rotation -= dt * BURST.spin * 1.4;
-      bursts[0].material.opacity = strength * (0.75 + 0.25 * Math.sin(clock * 0.8));
-      bursts[1].material.opacity = strength * (0.75 + 0.25 * Math.sin(clock * 0.8 + 2));
-      haloMaterial.opacity = strength * pulse;
+      bursts.forEach((burst, i) => {
+        burst.material.opacity = level(0.7, 1) * (0.75 + 0.25 * Math.sin(clock * 0.8 + i * 2));
+        tint(burst.material.color, k, cycle + i * 0.33);
+      });
+      haloMaterial.opacity = level(0.85, 1) * pulse;
       haloMaterial.rotation += dt * 0.15;
+      tint(haloMaterial.color, k, cycle + 0.66);
       for (const [orbit, spec, items] of [
         [crown.orbit, CROWN, crown.items],
         [sky.orbit, SKY, sky.items],
       ]) {
+        orbit.visible = k > 0.01;
         orbit.rotation.y += dt * spec.spin;
-        for (const { sprite, phase } of items) {
+        if (!orbit.visible) continue;
+        items.forEach(({ sprite, phase }, i) => {
           sprite.position.y = spec.height + Math.sin(clock * 1.2 + phase) * spec.bob;
-          sprite.material.opacity = strength * (0.45 + 0.2 * Math.sin(clock * 2 + phase));
-        }
+          sprite.material.opacity = k * (0.45 + 0.2 * Math.sin(clock * 2 + phase));
+          tint(sprite.material.color, k, cycle + i / items.length);
+        });
       }
+      const sparkLevel = level(0.55, 1);
       sparkData.forEach((spark, i) => {
         spark.d += dt * spark.v;
         if (spark.d > SPARK_REACH) launch(spark, 0.4);
-        const fade = Math.sin((spark.d / SPARK_REACH) * Math.PI) * strength;
+        const fade = Math.sin((spark.d / SPARK_REACH) * Math.PI) * sparkLevel;
         sparkPositions[i * 3] = spark.dx * spark.d;
         sparkPositions[i * 3 + 1] = BURST.y + spark.dy * spark.d;
         sparkPositions[i * 3 + 2] = spark.dz * spark.d;
-        sparkColors[i * 3] = fade;
-        sparkColors[i * 3 + 1] = fade * 0.92;
-        sparkColors[i * 3 + 2] = fade * 0.7;
+        tint(color, k, cycle + spark.hue);
+        sparkColors[i * 3] = color.r * fade;
+        sparkColors[i * 3 + 1] = color.g * fade;
+        sparkColors[i * 3 + 2] = color.b * fade;
       });
       sparkGeometry.attributes.position.needsUpdate = true;
       sparkGeometry.attributes.color.needsUpdate = true;
@@ -532,7 +595,7 @@ export function createBlessing(scene) {
       clock += dt;
       official.update(clock, camera);
       const near = camera.position.distanceTo(aura.group.position) < VIEW_DISTANCE;
-      aura.update(dt, near ? strengthAt(minutes) : 0);
+      aura.update(dt, near, strengthAt(minutes));
     },
   };
   return api;

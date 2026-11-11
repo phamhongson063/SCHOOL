@@ -144,25 +144,20 @@ body {
 
 .vitals-info {
   position: absolute;
-  top: calc(100% + 12px);
+  top: calc(100% + 9px);
   left: 0;
   display: grid;
-  gap: 8px;
-  min-width: 128px;
-  padding: 10px 16px 10px 10px;
-  box-sizing: border-box;
-  border: 2px solid var(--gold);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #5a3820 0%, #3a2312 55%, #2b1a0e 100%);
+  gap: 6px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid rgba(201, 150, 47, 0.85);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(48, 32, 20, 0.96), rgba(30, 20, 12, 0.96));
   box-shadow:
-    inset 0 0 0 2px #1c120a,
-    inset 0 0 0 3px rgba(242, 207, 99, 0.35),
-    inset 0 10px 14px rgba(255, 220, 150, 0.08),
-    0 6px 16px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 rgba(255, 228, 170, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.4);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-4px) scale(0.96);
-  transform-origin: 24px 0;
+  transform: translateY(-3px);
   transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
   pointer-events: none;
 }
@@ -170,69 +165,61 @@ body {
 .vitals-info::before {
   content: "";
   position: absolute;
-  top: -8px;
-  left: calc(var(--hud-face) / 2 - 7px);
-  width: 12px;
-  height: 12px;
-  border-top: 2px solid var(--gold);
-  border-left: 2px solid var(--gold);
-  background: #5a3820;
+  top: -5px;
+  left: calc(var(--hud-face) / 2 - 5px);
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid rgba(201, 150, 47, 0.85);
+  border-left: 1px solid rgba(201, 150, 47, 0.85);
+  background: rgb(48, 32, 20);
   transform: rotate(45deg);
 }
 
 .stat-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stat-icon {
   display: grid;
   flex: none;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   box-sizing: border-box;
-  border: 2px solid var(--amber);
+  border: 1px solid rgba(242, 207, 99, 0.7);
   border-radius: 50%;
-  box-shadow:
-    inset 0 -3px 0 rgba(0, 0, 0, 0.25),
-    inset 0 2px 0 rgba(255, 255, 255, 0.35),
-    0 2px 0 #1c120a;
 }
 
 .stat-energy .stat-icon {
-  background: radial-gradient(circle at 35% 30%, #c6f7a0, #47b63c 60%, #2a7a24);
+  background: linear-gradient(180deg, #5cbf4e, #3a8f33);
 }
 
 .stat-intellect .stat-icon {
-  background: radial-gradient(circle at 35% 30%, #bfe0ff, #4a86e0 60%, #2a4f9a);
+  background: linear-gradient(180deg, #5b8fe0, #3a63b0);
 }
 
 .stat-icon svg {
-  width: 18px;
-  height: 18px;
-  fill: #fffbe8;
-  stroke: rgba(28, 18, 10, 0.75);
-  stroke-width: 1.4;
-  stroke-linejoin: round;
+  width: 13px;
+  height: 13px;
+  fill: #fffaf0;
+  stroke: none;
 }
 
 .stat-icon .stat-spine {
   fill: none;
+  stroke: rgba(30, 50, 100, 0.55);
+  stroke-width: 1.2;
 }
 
 .stat-value {
-  color: var(--cream);
-  font: 800 18px/1 var(--font-ui);
+  color: #f4ead2;
+  font: 500 14px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
   white-space: nowrap;
-  text-shadow:
-    -1px -1px 0 var(--ink),
-    1px -1px 0 var(--ink),
-    -1px 1px 0 var(--ink),
-    1px 1px 0 var(--ink),
-    0 2px 3px var(--shadow-strong);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 
 .vitals.low + .vitals-info .stat-energy .stat-value {

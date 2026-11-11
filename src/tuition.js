@@ -21,6 +21,7 @@ export function createTuition({ purse, onStudy, onCredit }) {
   let studying = false;
   let resolved = false;
   let period = 0;
+  let waivedKey = null;
 
   function hidePopup() {
     popup.hidden = true;
@@ -78,6 +79,9 @@ export function createTuition({ purse, onStudy, onCredit }) {
     get studying() {
       return studying;
     },
+    waive(key) {
+      waivedKey = key;
+    },
     openTeacher() {
       countInput.value = 5;
       setRich(note, `Thầy đồ: "Mỗi tiết ${coins(SCHOOL.tuition)}. Đóng trước bao nhiêu tiết thì đóng."`);
@@ -102,6 +106,13 @@ export function createTuition({ purse, onStudy, onCredit }) {
       }
       if (!seated || resolved) {
         hidePopup();
+        return;
+      }
+      if (waivedKey === periodKey) {
+        studying = true;
+        resolved = true;
+        hidePopup();
+        onStudy?.();
         return;
       }
       if (purse.useCredit()) {
