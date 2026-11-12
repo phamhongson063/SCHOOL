@@ -12,6 +12,7 @@ const END_MARGIN = 6;
 const INSET = 0.45;
 const HEIGHT = 3.2;
 const ARM = 0.7;
+const POST_REACH = 0.22;
 const POOL_RADIUS = 6;
 const POOL_STRENGTH = 1;
 const LAMP_GLOW = 3;
@@ -73,9 +74,11 @@ export function createStreetLamps() {
   const lamps = new Batch();
   const pools = [];
   const halos = [];
+  const obstacles = [];
 
   for (const { x, z, toward } of spots) {
     const headZ = z + toward * ARM;
+    obstacles.push({ minX: x - POST_REACH, maxX: x + POST_REACH, minZ: z - POST_REACH, maxZ: z + POST_REACH, minY: 0, maxY: HEIGHT });
     posts.add(shapes.cylinder(0.16, 0.2, 0.25, 8), STONE, { p: [x, 0.125, z] });
     posts.add(shapes.cylinder(0.06, 0.075, HEIGHT, 8), WOOD, { p: [x, HEIGHT / 2, z] });
     posts.add(shapes.box(0.07, 0.07, ARM + 0.1), WOOD, { p: [x, HEIGHT - 0.1, z + (toward * ARM) / 2] });
@@ -118,6 +121,7 @@ export function createStreetLamps() {
 
   return {
     group,
+    obstacles,
     setNight(k) {
       night = k;
       lampMaterial.emissiveIntensity = k * LAMP_GLOW;

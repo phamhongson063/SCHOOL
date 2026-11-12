@@ -164,6 +164,7 @@ school.obstacles.push(
   ...blessing.obstacles,
   ...countryside.obstacles,
   ...district.obstacles,
+  ...streetLamps.obstacles,
 );
 
 await loadingStep(0.62, 'Gieo mạ, mở chợ');
