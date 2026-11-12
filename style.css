@@ -325,14 +325,8 @@ body {
   white-space: nowrap;
   border: none;
   background: none;
-  color: #f4ead2;
-  font: 600 15px/1 var(--font-ui);
-  text-shadow:
-    -1.5px -1.5px 0 var(--ink),
-    1.5px -1.5px 0 var(--ink),
-    -1.5px 1.5px 0 var(--ink),
-    1.5px 1.5px 0 var(--ink),
-    0 2px 5px var(--shadow-strong);
+  color: #fff;
+  font: 400 15px/1 var(--font-ui);
   cursor: pointer;
 }
 
@@ -348,21 +342,14 @@ body {
   width: var(--hud-face);
   white-space: nowrap;
   pointer-events: none;
-  color: #efe4c8;
-  font: 700 12px/1 var(--font-ui);
+  color: #fff;
+  font: 400 12px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  text-shadow:
-    -1px -1px 0 var(--ink),
-    1px -1px 0 var(--ink),
-    -1px 1px 0 var(--ink),
-    1px 1px 0 var(--ink),
-    0 1px 4px var(--shadow-strong);
 }
 
 .coords b {
-  color: #ffd86b;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 @media (max-width: 600px) and (orientation: portrait) {
@@ -1686,7 +1673,6 @@ dialog.paper::backdrop {
 #phaseClock {
   font-size: 16px;
   font-variant-numeric: tabular-nums;
-  color: var(--cream);
 }
 
 .pay-popup {
