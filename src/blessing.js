@@ -5,7 +5,6 @@ import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
-import { ROAD } from './road.js';
 import { keeperNPC } from './village.js';
 
 const STONE = 0xb3ab99;
@@ -40,7 +39,7 @@ const AURA_CYCLE = 0.08;
 const BURST_AHEAD = 1.1;
 const LAMP = { y: HEAD_Y + 0.6, ahead: -2.6, distance: 16, idle: 14, blessed: 24 };
 const BODY_GLOW = { idle: 0.16, blessed: 0.3 };
-const OFFICIAL = { x: PLAZA.x - 8, z: ROAD.z1 + 4.4, facing: Math.PI, model: 'scholar-ink', reach: 1.3, spots: [-0.9, 0, 0.9] };
+const OFFICIAL = { x: PLAZA.x - 8, z: PLAZA.z0 + 1.6, facing: Math.PI, model: 'scholar-ink', reach: 1, spots: [-0.9, 0, 0.9] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
 const ALTAR = { ahead: RING_BED.outer + 0.8, spots: [-1.2, 0, 1.2] };
@@ -538,15 +537,17 @@ export function createBlessing(scene) {
   const b = new Batch();
   lotusPedestal(b);
   scholarDeity(b);
+  const ringFlowers = new Batch();
+  ringBed(ringFlowers, rand);
   const flowers = new Batch();
-  ringBed(flowers, rand);
   for (const bed of [...CORNER_BEDS, ...EDGE_BEDS]) boxBed(flowers, rand, bed);
 
   const statue = new THREE.Group();
   statue.position.set(PLAZA.x, PLAZA.rise, PLAZA.z);
   const statueMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: AURA_GOLD, emissiveIntensity: 0 });
   const body = b.mesh(statueMaterial);
-  statue.add(flowers.mesh(), body);
+  const ring = ringFlowers.mesh();
+  statue.add(flowers.mesh(), ring, body);
   const altarSpots = ALTAR.spots.map((dx) => new THREE.Vector3(PLAZA.x + dx, PLAZA.rise, PLAZA.z - ALTAR.ahead));
   scene.add(statue);
   freeze(statue);
@@ -589,7 +590,7 @@ export function createBlessing(scene) {
     statueAt: { x: PLAZA.x, z: PLAZA.z },
     altar: altarSpots[1],
     onPlaza: inside,
-    ownsStatue: (object) => object === body,
+    ownsStatue: (object) => object === body || object === ring,
     active,
     member,
     testing: (id, minutes) => member(id, minutes) && testing.has(id),
