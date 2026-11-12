@@ -181,7 +181,7 @@ export class Town {
   }
 
   restBlocked(point) {
-    return Object.values(this.queues).some((queue) => queue.distanceTo(point) <= NO_REST_RADIUS);
+    return Object.values(this.queues).some((queue) => queue.distanceTo(point, queue.busyLength()) <= NO_REST_RADIUS);
   }
 
   companion(member, radius) {
@@ -409,7 +409,7 @@ export class Town {
     else this.teacher.vanish();
     for (const worker of this.shiftWorkers) worker.vanish();
     for (const member of this.members) {
-      if (ctx.night) {
+      if (member.wantsSleep(ctx)) {
         member.settleNight();
         continue;
       }
@@ -532,6 +532,10 @@ export class Town {
           if (member.state === 'away' || member.state === 'inn' || member.keepsNight) continue;
           if (member === this.teacher && (member.state === 'teaching' || member.onDuty(ctx))) {
             if (!member.onDuty(ctx)) member.stopTeaching();
+            continue;
+          }
+          if (member !== this.teacher && !member.wantsSleep(ctx)) {
+            if (member.state === 'seated' && member.task === 'class') member.rise(() => member.think(), between(0.2, 2));
             continue;
           }
           if (member.state === 'seated') member.rise(() => member.goHome(), between(0.2, 2));

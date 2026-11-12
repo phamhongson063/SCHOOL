@@ -9,10 +9,10 @@ const RIPPLE = { period: 1.1, grow: 1.4, opacity: 0.75 };
 function flat(geometry, opacity) {
   const mesh = new THREE.Mesh(
     geometry,
-    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity, depthWrite: false, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }),
   );
   mesh.rotation.x = -Math.PI / 2;
-  mesh.renderOrder = 2;
+  mesh.renderOrder = 5;
   return mesh;
 }
 

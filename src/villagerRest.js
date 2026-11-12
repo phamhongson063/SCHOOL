@@ -3,7 +3,7 @@ import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSIN
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
-import { activityOf, moodOf } from './stamina.js';
+import { activityOf, energyRate, homeActivity, moodOf, nextShift } from './stamina.js';
 import { REST_TIME } from './walk.js';
 import { inStudyRoom } from './rooms.js';
 import { economy } from './economy.js';
@@ -105,8 +105,12 @@ export class RestBehavior {
     this.think();
   }
 
+  homeSleep() {
+    return homeActivity(this.town.estate.houseOf(this.id));
+  }
+
   activityNow(ctx) {
-    if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
+    if (this.state === 'away') return ctx.night ? this.homeSleep() : 'idle';
     if (this.state === 'inn') return this.lodge?.id ?? 'inn';
     if (this.state === 'resting') return this.lyingDown ? (inStudyRoom(this.position) ? 'studyRest' : 'rest') : 'idle';
     if (this.state === 'seated' && this.studying && (this.town.context.phase.kind === 'period' || this.task === 'selfstudy' || this.task === 'exam')) return 'study';
@@ -118,7 +122,7 @@ export class RestBehavior {
     const activity = this.activityNow(ctx);
     const stay = this.state === 'inn' ? activity : null;
     const blessed = this.town.blessing?.blessed(this.id, this.position, ctx.minutes) ?? false;
-    this.purse.liveEnergy(ctx.minutes, activity, stay ?? 'sleep', stay ?? 'idle', blessed ? BLESSING.recovery : 1);
+    this.purse.liveEnergy(ctx.minutes, activity, stay ?? this.homeSleep(), stay ?? 'idle', blessed ? BLESSING.recovery : 1);
     this.blessingQuiz(blessed);
     this.tired = this.purse.energy <= 0;
     if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
@@ -252,6 +256,38 @@ export class RestBehavior {
     this.setVisible(true);
     this.wait(between(0.6, 1.5));
     this.say('Khoẻ re rồi!', 1.8);
+  }
+
+  needsSleep(ctx) {
+    if (!ctx.night) return false;
+    const energy = this.purse.energy;
+    if (energy < ENERGY.low) return true;
+    const left = Math.max(0, nextShift(ctx.minutes) - ctx.minutes) / 60;
+    const awake = Math.min(VILLAGER.nightAwakeHours, left);
+    const morning = energy - ENERGY.drain.walk * ENERGY.nightFactor * awake - energyRate(this.homeSleep(), true) * (left - awake);
+    return Math.min(ENERGY.max, morning) < VILLAGER.morningEnergy;
+  }
+
+  nightTask() {
+    const deck = this.seated ? this.studyDeckWanted() : null;
+    if (deck && this.town.studySeats.nearestFree(this.position, this, (seat) => seat.deck === deck)) return 'study';
+    if (this.canFish()) return 'fish';
+    if (this.canHunt()) return 'hunt';
+    return null;
+  }
+
+  wantsSleep(ctx) {
+    if (!ctx.night) return false;
+    if (this.needsSleep(ctx)) return true;
+    return !this.nightTask() && !this.town.farm.jobFor(this, this.seedChoice());
+  }
+
+  nightWork() {
+    const task = this.nightTask();
+    if (task === 'study') return this.goSelfStudy();
+    if (task === 'fish' && this.goFish()) return;
+    if (task === 'hunt' && this.goHunt()) return;
+    this.goHome();
   }
 
   goNight() {

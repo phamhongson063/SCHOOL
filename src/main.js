@@ -68,7 +68,7 @@ import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
 import { certify } from './certify.js';
 import { DECKS } from './studyDecks.js';
-import { activityOf, moodOf } from './stamina.js';
+import { activityOf, homeActivity, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createRanking } from './ranking.js';
@@ -1398,7 +1398,7 @@ function drainEnergy() {
   const asleep = purse.sleeping;
   const lodging = asleep && purse.lodging;
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
-  const resting = lodging || 'sleep';
+  const resting = lodging || homeActivity(estate.houseOf(PLAYER));
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : inStudyRoom(player.position) ? 'studyRest' : 'rest';
   const studying = !!player.seat?.study;
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;

@@ -74,7 +74,7 @@ export class WorkBehavior {
     const session = this.hunting;
     const ctx = this.town.context;
     const wildlife = this.town.wildlife;
-    if (!session || ctx.night || this.shouldAttend(ctx) || !wildlife.reachable(session.prey, this.position) || !this.purse.spendEnergy(HUNTING.energy)) {
+    if (!session || this.needsSleep(ctx) || this.shouldAttend(ctx) || !wildlife.reachable(session.prey, this.position) || !this.purse.spendEnergy(HUNTING.energy)) {
       this.endHunt();
       return;
     }
@@ -132,7 +132,7 @@ export class WorkBehavior {
   castLine() {
     const session = this.fishing;
     const ctx = this.town.context;
-    if (!session || session.casts <= 0 || ctx.night || this.shouldAttend(ctx) || !this.town.river.hasFish(session.spot) || !this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
+    if (!session || session.casts <= 0 || this.needsSleep(ctx) || this.shouldAttend(ctx) || !this.town.river.hasFish(session.spot) || !this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
       this.endFishing();
       return;
     }

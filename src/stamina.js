@@ -8,8 +8,13 @@ export function isNight(minutes) {
   return m >= ROUTINE.home || m < ROUTINE.wake;
 }
 
+const HOME = 'home:';
+
+export const homeActivity = (house) => (house && ENERGY.homePerHour[house.size] ? HOME + house.size : 'sleep');
+
 export function energyRate(activity, night) {
   if (activity === 'sleep') return -ENERGY.sleepPerHour;
+  if (activity.startsWith(HOME)) return -ENERGY.homePerHour[activity.slice(HOME.length)];
   if (activity === 'rest') return -ENERGY.restPerHour;
   if (activity === 'studyRest') return -ENERGY.studyRestPerHour;
   if (activity === 'shelter') return -ENERGY.shelterPerHour;

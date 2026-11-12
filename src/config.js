@@ -111,7 +111,7 @@ export const HUNTING = {
   villagerSkill: { student: 0.45, farmer: 0.55 },
 };
 
-export const HOUSE_PRICES = { small: 350000, medium: 600000, large: 1000000 };
+export const HOUSE_PRICES = { small: 700000, medium: 1200000, large: 2000000 };
 
 export const VILLAGER = {
   sellWhen: 6,
@@ -124,6 +124,8 @@ export const VILLAGER = {
   leaseCycles: 3,
   renewBefore: 0.5,
   lodgeNights: 3,
+  nightAwakeHours: 1,
+  morningEnergy: 60,
 };
 
 export const ENERGY = {
@@ -131,10 +133,11 @@ export const ENERGY = {
   costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 1, fish: 2 },
   drain: { seated: 2, idle: 2, walk: 4, study: 6, run: 8 },
   nightFactor: 2,
-  sleepPerHour: 15,
-  restPerHour: 20,
-  studyRestPerHour: 25,
-  shelterPerHour: 25,
+  sleepPerHour: 10,
+  homePerHour: { small: 40, medium: 48, large: 56 },
+  restPerHour: 10,
+  studyRestPerHour: 15,
+  shelterPerHour: 15,
   tiredSpeed: 0.5,
   low: 20,
 };

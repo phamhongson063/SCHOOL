@@ -228,7 +228,7 @@ export class Villager {
     const ctx = this.town.context;
     this.lookAt = null;
     this.task = null;
-    if (ctx.night) return this.wantsVendor() ? this.goVendor() : this.goHome();
+    if (this.wantsSleep(ctx)) return this.wantsVendor() ? this.goVendor() : this.goHome();
     if (this.wantsInn()) return this.goInn();
     if (this.wantsVendor()) return this.goVendor();
     if (this.wantsFood(ctx)) return this.goEat();
@@ -243,7 +243,7 @@ export class Villager {
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
     if (this.purse.energy < ENERGY.costs.clear) return this.wait(between(2, 4), () => this.goFarm(() => this.goRest()));
-    return this.goFarm();
+    return ctx.night ? this.goFarm(() => this.nightWork()) : this.goFarm();
   }
 
   wait(seconds, then = null) {

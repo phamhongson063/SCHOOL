@@ -117,10 +117,10 @@ export class SchoolBehavior {
   }
 
   wantsSelfStudy(ctx) {
-    if (!this.seated || ctx.night || this.now < this.studyRestAt) return false;
+    if (!this.seated || this.now < this.studyRestAt) return false;
     const deck = this.studyDeckWanted();
     if (!deck || Math.random() >= SELF_STUDY.chance * this.diligence) return false;
-    if (this.wantsInternal(deck)) return true;
+    if (!ctx.night && this.wantsInternal(deck)) return true;
     return !!this.town.studySeats.nearestFree(this.position, this, (seat) => seat.deck === deck);
   }
 
@@ -138,7 +138,7 @@ export class SchoolBehavior {
   goSelfStudy() {
     const seats = this.town.studySeats;
     const deck = this.studyDeckWanted();
-    if (deck && this.wantsInternal(deck)) {
+    if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;
     }
@@ -279,7 +279,7 @@ export class SchoolBehavior {
   selfStudyUpdate(t) {
     const ctx = this.town.context;
     const done = this.learnTick(t);
-    if (t < this.studyUntil && !ctx.night && !done) return;
+    if (t < this.studyUntil && !this.needsSleep(ctx) && !done) return;
     this.studyRestAt = t + SELF_STUDY.cooldown;
     const deck = this.seatRef?.deck;
     if (done && !ctx.night && deck && this.wantsInternal(deck)) {

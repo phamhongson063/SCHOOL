@@ -34,18 +34,26 @@ export class ServiceQueue {
     return Math.hypot(tail.x - position.x, tail.z - position.z) <= JOIN_RADIUS;
   }
 
-  distanceTo(point) {
+  distanceTo(point, span = Infinity) {
     let best = Infinity;
-    for (let i = 0; i < this.line.length - 1; i++) {
+    let left = span;
+    for (let i = 0; i < this.line.length - 1 && left > 0; i++) {
       const a = this.line[i];
       const b = this.line[i + 1];
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const length2 = dx * dx + dz * dz;
-      const t = length2 > 1e-9 ? Math.min(1, Math.max(0, ((point.x - a.x) * dx + (point.z - a.z) * dz) / length2)) : 0;
+      const length = Math.sqrt(length2);
+      const end = length > 1e-6 ? Math.min(1, left / length) : 0;
+      const t = length2 > 1e-9 ? Math.min(end, Math.max(0, ((point.x - a.x) * dx + (point.z - a.z) * dz) / length2)) : 0;
       best = Math.min(best, Math.hypot(point.x - (a.x + dx * t), point.z - (a.z + dz * t)));
+      left -= length;
     }
     return best;
+  }
+
+  busyLength() {
+    return QUEUE_GAP + (this.members.length + 1) * this.step;
   }
 
   slot(index) {
