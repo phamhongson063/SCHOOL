@@ -104,7 +104,7 @@ function question(entry, entries, kind, choices) {
     const byMeaning = kind === 'meaning';
     const answer = byMeaning ? entry.meaning : entry.reading;
     const others = byMeaning
-      ? shuffle([...new Set(entries.filter((other) => other.deck === 'n2').map((other) => other.meaning))].filter((meaning) => meaning !== answer))
+      ? shuffle([...new Set(entries.filter((other) => other.deck === 'n2' && other.word !== entry.word).map((other) => other.meaning))].filter((meaning) => meaning !== answer))
       : shuffle([...entry.distractors]);
     return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : others.length) };
   }

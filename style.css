@@ -363,15 +363,9 @@ body {
   top: 0;
   left: 0;
   z-index: var(--z-float);
-  color: var(--cream);
-  font: 800 18px/1 var(--font-ui);
+  color: #fff;
+  font: 400 18px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
-  text-shadow:
-    -1.5px -1.5px 0 var(--ink),
-    1.5px -1.5px 0 var(--ink),
-    -1.5px 1.5px 0 var(--ink),
-    1.5px 1.5px 0 var(--ink),
-    0 2px 5px var(--shadow-strong);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -1631,16 +1625,10 @@ dialog.paper::backdrop {
   align-items: center;
   gap: 6px;
   height: 44px;
-  color: var(--amber);
-  font: 700 16px/1 var(--font-ui);
+  color: #fff;
+  font: 400 16px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  text-shadow:
-    -1px -1px 0 var(--ink),
-    1px -1px 0 var(--ink),
-    -1px 1px 0 var(--ink),
-    1px 1px 0 var(--ink),
-    0 1px 4px var(--shadow-strong);
 }
 
 .wallet-gold {
@@ -2067,7 +2055,7 @@ dialog.paper.kanji {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .kanji-options button {
@@ -2118,16 +2106,6 @@ dialog.paper.kanji {
   color: var(--lacquer);
 }
 
-.kanji-track {
-  position: static;
-  display: block;
-  margin-bottom: 10px;
-  background: #5a3519;
-}
-
-.kanji-track .pay-bar {
-  background: #d2452f;
-}
 
 .kanji-result {
   min-height: 2.8em;
@@ -2148,10 +2126,6 @@ dialog.paper.kanji {
 }
 
 .kanji.brief .kanji-options {
-  margin-bottom: 14px;
-}
-
-.kanji.brief .kanji-track {
   margin-bottom: 0;
 }
 
@@ -2179,6 +2153,19 @@ dialog.paper.phrase-quiz {
     repeating-linear-gradient(177deg, rgba(255, 220, 160, 0.08) 0 2px, transparent 2px 7px),
     linear-gradient(180deg, #9a6638 0%, #7a4a26 45%, #5a3519 100%);
   box-shadow: 0 2px 0 #3a2212;
+}
+
+.kanji-track,
+.phrase-track {
+  position: static;
+  display: block;
+  margin: -10px -18px 12px;
+  border-radius: 0;
+}
+
+.kanji-track .pay-bar,
+.phrase-track .pay-bar {
+  background: #d2452f;
 }
 
 .quiz-head .sched-x {
@@ -2281,7 +2268,7 @@ dialog.paper.phrase-quiz {
 .phrase-options {
   display: grid;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .phrase-options button {
@@ -2333,16 +2320,6 @@ dialog.paper.phrase-quiz {
   color: var(--lacquer);
 }
 
-.phrase-track {
-  position: static;
-  display: block;
-  margin-bottom: 8px;
-  background: #5a3519;
-}
-
-.phrase-track .pay-bar {
-  background: #d2452f;
-}
 
 .phrase-result {
   min-height: 2.6em;
@@ -2362,7 +2339,7 @@ dialog.paper.phrase-quiz {
   font-weight: 700;
 }
 
-.phrase-quiz.brief .phrase-track {
+.phrase-quiz.brief .phrase-options {
   margin-bottom: 0;
 }
 
@@ -4217,9 +4194,8 @@ dialog.paper.phrase-quiz.closing::backdrop {
   border: 0;
   background: transparent;
   box-shadow: none;
-  color: #fffaf0;
-  font: 800 17px/1.2 var(--font-ui);
-  text-shadow: 0 0 2px var(--ink), 0 1px 3px rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font: 400 17px/1.2 var(--font-ui);
 }
 
 .speech.plain::after {
