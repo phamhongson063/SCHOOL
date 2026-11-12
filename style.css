@@ -3151,6 +3151,11 @@ dialog.paper.phrase-quiz {
   display: none;
 }
 
+.loader.blocked .loader-track,
+.loader.blocked .loader-dots {
+  display: none;
+}
+
 .loader.loaded .loader-start {
   display: inline-block;
   animation: loader-enter 0.55s ease both;
