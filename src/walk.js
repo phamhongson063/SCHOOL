@@ -117,6 +117,9 @@ export class PlayerController {
     this.onClick = null;
     this.onTarget = null;
     this.avoid = null;
+    this.blockers = null;
+    this.destination = null;
+    this.replanned = false;
     this.resting = false;
     this.rest = 0;
     this.restTime = 0;
@@ -431,10 +434,12 @@ export class PlayerController {
     if (this.enabled) this.updateCamera(dt);
   }
 
-  goTo(point) {
+  goTo(point, replanned = false) {
     this.working = false;
-    const path = this.nav?.findPath(this.position, point);
+    const path = this.nav?.findPath(this.position, point, this.blockers?.());
     if (!path || !path.length) return false;
+    this.destination = point;
+    this.replanned = replanned;
     this.path = path;
     this.pathIndex = 0;
     this.bestDistance = Infinity;
@@ -480,6 +485,7 @@ export class PlayerController {
         this.stuckTime = 0;
       } else {
         this.stuckTime += dt;
+        if (this.stuckTime > STUCK_SKIP && !this.replanned && this.goTo(this.destination, true)) return null;
         if (Math.abs(turn) >= 0.2) {
           if (this.stuckTime > STUCK_STOP) {
             this.clearPath();

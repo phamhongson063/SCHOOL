@@ -11,6 +11,7 @@ import { Guard, Peddler, Teacher } from './staff.js';
 import { SQUEEZE, squeezePast } from './squeeze.js';
 
 const MOVING_SPEED = 0.1;
+const bodyBox = new THREE.Box3();
 
 export class Town {
   constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null, stepSound = null }) {
@@ -274,6 +275,19 @@ export class Town {
       return this.player.collides(probe);
     };
     return this.steerAround(position, Math.atan2(dirX, dirZ), remaining, null, { range: PLAYER_AVOID_RANGE, gain: 1.2, includePlayer: false, blocked });
+  }
+
+  restingBlockers() {
+    const boxes = [];
+    for (const member of this.all) {
+      if (!member.visible || !(member.restBlend > 0)) continue;
+      const p = member.position;
+      boxes.push({ minX: p.x - SPACING, minZ: p.z - SPACING, maxX: p.x + SPACING, maxZ: p.z + SPACING });
+      if (!member.near) continue;
+      bodyBox.setFromObject(member.walker.group);
+      boxes.push({ minX: bodyBox.min.x, minZ: bodyBox.min.z, maxX: bodyBox.max.x, maxZ: bodyBox.max.z });
+    }
+    return boxes;
   }
 
   separate(player, dt) {

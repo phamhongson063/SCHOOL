@@ -93,6 +93,9 @@ export class NavGrid {
     this.seen = new Uint32Array(total);
     this.closed = new Uint32Array(total);
     this.searchId = 0;
+    this.marks = new Uint32Array(total);
+    this.markId = 0;
+    this.marking = 0;
     this.heap = new MinHeap();
     this.bake(bounds);
   }
@@ -118,7 +121,25 @@ export class NavGrid {
   }
 
   walkable(n) {
-    return n >= 0 && !Number.isNaN(this.heights[n]);
+    return n >= 0 && !Number.isNaN(this.heights[n]) && (this.marking === 0 || this.marks[n] !== this.marking);
+  }
+
+  markBlockers(boxes) {
+    if (++this.markId >= 0xfffffff0) {
+      this.marks.fill(0);
+      this.markId = 1;
+    }
+    const { cell } = this;
+    for (const box of boxes) {
+      const i0 = Math.max(0, Math.floor((box.minX - this.x0) / cell));
+      const j0 = Math.max(0, Math.floor((box.minZ - this.z0) / cell));
+      const i1 = Math.min(this.w - 1, Math.floor((box.maxX - this.x0) / cell));
+      const j1 = Math.min(this.d - 1, Math.floor((box.maxZ - this.z0) / cell));
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) this.marks[j * this.w + i] = this.markId;
+      }
+    }
+    this.marking = this.markId;
   }
 
   canStep(a, b) {
@@ -297,7 +318,17 @@ export class NavGrid {
     return out;
   }
 
-  findPath(from, to) {
+  findPath(from, to, blockers = null) {
+    if (blockers?.length) {
+      this.markBlockers(blockers);
+      const path = this.route(from, to);
+      this.marking = 0;
+      if (path) return path;
+    }
+    return this.route(from, to);
+  }
+
+  route(from, to) {
     const start = this.nearest(from.x, from.z, 4);
     if (start < 0) return null;
     const comp = this.components[start];

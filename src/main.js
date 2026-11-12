@@ -608,6 +608,7 @@ town = new Town({
 });
 
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
+player.blockers = () => town.restingBlockers();
 town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const blessingDialog = createBlessingDialog({
