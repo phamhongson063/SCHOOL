@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { studentFurniture, lantern, textBoard } from './props.js';
-import { tileRoofMeshes, groundDecal, roundedRectGeometry, roundedRectShape, earthMaterial, GROUND_LAYER } from './scenery.js';
+import { tileRoofMeshes, roundedRectShape } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { brickMaterial, keeperNPC } from './village.js';
@@ -37,8 +37,7 @@ const STONE_LANTERNS = [
   [4.3, -2.7],
 ];
 const COURT = { x0: -5.1, z0: -3.3, x1: 5.1, z1: 0.2 };
-const COURT_EARTH_PAD = 0.35;
-const COURT_BRICK_TOP = 0.04;
+const COURT_BRICK_TOP = 0.06;
 const STEP_TOP = 0.09;
 const COUPLETS = [
   [['Học', 'Hải', 'Vô', 'Biên'], -3.28],
@@ -186,11 +185,6 @@ function porch(b, obstacles) {
   b.add(shapes.box(span + 0.5, 0.24, 0.22), WOOD_DARK, { p: [(COLUMNS[0] + COLUMNS[COLUMNS.length - 1]) / 2, beamY, PORCH_Z] });
 }
 
-function courtEarth() {
-  const pad = COURT_EARTH_PAD;
-  return groundDecal(roundedRectGeometry(COURT.x0 - pad, COURT.z0 - pad, COURT.x1 + pad, COURT.z1, 0.5 + pad), earthMaterial(), GROUND_LAYER.earth);
-}
-
 function courtBricks() {
   const geometry = new THREE.ExtrudeGeometry(roundedRectShape(COURT.x0, COURT.z0, COURT.x1, COURT.z1, 0.5), { depth: COURT_BRICK_TOP, bevelEnabled: false, curveSegments: 6 });
   geometry.rotateX(-Math.PI / 2);
@@ -288,7 +282,7 @@ export function createStudyHall(scene, hall) {
   const group = new THREE.Group();
   group.position.set(hall.x, 0, hall.front);
   group.rotation.y = hall.turn;
-  group.add(courtEarth(), courtBricks());
+  group.add(courtBricks());
   const paperMaterial = toonMaterial({ vertexColors: true, muted: true, emissive: LAMP_EMISSIVE, emissiveIntensity: 0 });
   group.add(b.mesh(), walls.mesh(plasterMaterial()), lampPaper.mesh(paperMaterial));
   boards(group, hall);

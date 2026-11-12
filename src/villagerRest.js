@@ -270,7 +270,7 @@ export class RestBehavior {
 
   nightTask() {
     const deck = this.seated ? this.studyDeckWanted() : null;
-    if (deck && this.town.studySeats.nearestFree(this.position, this, (seat) => seat.deck === deck)) return 'study';
+    if (this.studySeatFor(deck)) return 'study';
     if (this.canFish()) return 'fish';
     if (this.canHunt()) return 'hunt';
     return null;

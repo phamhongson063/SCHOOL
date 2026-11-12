@@ -2,12 +2,12 @@ import { DECKS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
 import { japanese } from './ruby.js';
 import { CERTIFY } from './config.js';
-import { coins } from './format.js';
+import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
-const MODES = { learn: { icon: '📘', name: 'Học hôm nay' }, review: { icon: '🔀', name: 'Ôn chứng chỉ' } };
+const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -32,9 +32,7 @@ function el(tag, className, text) {
   return node;
 }
 
-const timeText = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-
-export function createStudy({ purse, music = null, exams, onQualified = null }) {
+export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -52,16 +50,16 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   const meaning = document.getElementById('studyMeaning');
   const note = document.getElementById('studyNote');
   const title = panel.querySelector('.study-title');
-  const count = document.getElementById('studyCount');
   const bar = document.getElementById('studyBar');
   const prev = document.getElementById('studyPrev');
   const next = document.getElementById('studyNext');
-  const forgot = document.getElementById('studyForgot');
   const remembered = document.getElementById('studyRemembered');
   const example = document.getElementById('studyExample');
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
   const dim = document.getElementById('studyDim');
+  const timer = document.getElementById('studyTimer');
+  const timerFill = timer.firstElementChild;
   let deckId = 'n2';
   let deck = DECKS.n2;
   let mode = null;
@@ -72,12 +70,14 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   let seated = false;
   let studying = false;
   let dimmed = false;
+  let paid = new Set();
+  let sitSeconds = 0;
+  let sitWords = 0;
 
   showFurigana(loadFurigana());
   showTranslation(false);
 
   function showChip(name) {
-    modeChip.textContent = MODES[name].icon;
     modeChip.setAttribute('aria-label', MODES[name].name);
     modeChip.hidden = false;
   }
@@ -108,9 +108,29 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     reviewPick.disabled = certified === 0;
   }
 
+  function pay(name) {
+    if (paid.has(name)) return true;
+    const { fee } = MODES[name];
+    if (!purse.spend(fee)) {
+      showNotice(notEnough(fee));
+      return false;
+    }
+    economy.income('teacher', fee);
+    paid.add(name);
+    showNotice(null);
+    return true;
+  }
+
+  function endSit() {
+    if (!seated) return;
+    seated = false;
+    onSitOver?.();
+  }
+
   function stopMode() {
     mode = null;
     current = null;
+    timer.hidden = true;
     music?.stop();
   }
 
@@ -193,16 +213,22 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   function setCovered(covered) {
     body.classList.toggle('covered', covered);
     meaning.textContent = covered ? '?' : unitOf(current).meaning;
-    forgot.hidden = covered;
     remembered.hidden = covered;
   }
 
   const waitLeft = () => Math.max(0, CERTIFY.viewSeconds - shown);
 
   function paintLearnCount() {
-    const left = waitLeft();
-    count.textContent = left > 0 ? `⏳ ${timeText(left)}` : '';
-    remembered.disabled = left > 0;
+    timerFill.style.transform = `scaleX(${Math.min(1, shown / CERTIFY.viewSeconds)})`;
+    remembered.disabled = waitLeft() > 0;
+  }
+
+  function restartTimer() {
+    timer.hidden = false;
+    timerFill.style.transition = 'none';
+    paintLearnCount();
+    void timerFill.offsetWidth;
+    timerFill.style.transition = '';
   }
 
   function paintLearnProgress() {
@@ -210,6 +236,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     const total = learning.length * CERTIFY.remember;
     const done = learning.reduce((sum, item) => sum + Math.min(item.count, CERTIFY.remember), 0);
     bar.style.transform = `scaleX(${total ? done / total : 1})`;
+    modeChip.textContent = `${learning.findIndex((item) => item.key === current) + 1}/${learning.length}`;
   }
 
   function nextLearn() {
@@ -224,7 +251,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     fill(key);
     showTranslation(false);
     setCovered(true);
-    paintLearnCount();
+    restartTimer();
     paintLearnProgress();
   }
 
@@ -235,6 +262,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
       .map((item) => item.key);
 
   function beginLearn() {
+    if (!pay('learn')) return;
     if (!certify.learnLeft(PLAYER, deckId).length) {
       browse(learnedToday(), 'learn');
       return;
@@ -253,17 +281,19 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
 
   function renderReview() {
     fill(order[pos]);
-    count.textContent = `${pos + 1}/${order.length}`;
+    modeChip.textContent = `${pos + 1}/${order.length}`;
     bar.style.transform = `scaleX(${(pos + 1) / order.length})`;
   }
 
   function beginReview() {
+    if (!pay('review')) return;
     browse(shuffle(certify.certified(PLAYER, deckId)), 'review');
   }
 
   function browse(keys, chip) {
     if (!keys.length) return;
     mode = 'review';
+    timer.hidden = true;
     music?.start();
     showTranslation(false);
     setStudying(true);
@@ -273,7 +303,6 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     start.hidden = true;
     body.hidden = false;
     body.classList.remove('covered');
-    forgot.hidden = true;
     remembered.hidden = true;
     remembered.disabled = false;
     order = keys;
@@ -287,12 +316,14 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     renderReview();
   }
 
-  function answer(knew) {
-    if (mode !== 'learn' || !current) return;
-    if (knew) {
-      if (waitLeft() > 0) return;
-      certify.remember(PLAYER, deckId, current);
-    } else certify.forget(PLAYER, deckId, current);
+  function answer() {
+    if (mode !== 'learn' || !current || waitLeft() > 0) return;
+    certify.remember(PLAYER, deckId, current);
+    sitWords += 1;
+    if (sitWords >= CERTIFY.sitWords) {
+      endSit();
+      return;
+    }
     nextLearn();
   }
 
@@ -338,7 +369,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   }
 
   function refreshFocus() {
-    const on = focused();
+    const on = panel.classList.contains('show');
     if (!on) dimmed = false;
     dim.classList.toggle('on', on);
     panel.classList.toggle('focus', on);
@@ -356,6 +387,12 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     panel.setAttribute('aria-label', deck.label);
     reopen.textContent = `📜 ${deck.label}`;
   }
+
+  setInterval(() => {
+    if (!seated || document.visibilityState !== 'visible') return;
+    sitSeconds += 1;
+    if (sitSeconds >= CERTIFY.sitSeconds) endSit();
+  }, 1000);
 
   setInterval(() => {
     if (mode !== 'learn' || !current || !panel.classList.contains('show') || document.visibilityState !== 'visible') return;
@@ -395,8 +432,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   translateBtn.addEventListener('click', () => showTranslation(!panel.classList.contains('show-vi')));
   prev.addEventListener('click', () => go(-1));
   next.addEventListener('click', () => go(1));
-  forgot.addEventListener('click', () => answer(false));
-  remembered.addEventListener('click', () => answer(true));
+  remembered.addEventListener('click', answer);
   document.getElementById('studyClose').addEventListener('click', () => setVisible(false));
   reopen.addEventListener('click', () => setVisible(true));
 
@@ -414,6 +450,9 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     open(id = 'n2') {
       useDeck(id);
       seated = true;
+      paid = new Set();
+      sitSeconds = 0;
+      sitWords = 0;
       showNotice(null);
       showStart();
       setVisible(true);

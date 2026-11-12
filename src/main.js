@@ -774,6 +774,13 @@ const study = createStudy({
       tag: qualifyTag(deck),
     });
   },
+  onSitOver() {
+    const seat = player.seat;
+    if (!seat?.study) return;
+    playerSeats.rest(seat, 'player', clock.elapsedTime + CERTIFY.seatRest);
+    player.standUp();
+    sayPlayer(`Hết lượt ngồi. Sang ghế khác hoặc đợi ${Math.round(CERTIFY.seatRest / 60)} phút.`, 3);
+  },
 });
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
@@ -1095,6 +1102,11 @@ function sceneClick(clientX, clientY, run) {
   }
   const seat = playerSeats.at(hit.point);
   if (seat && playerSeats.canTake(seat, 'player')) {
+    const rest = playerSeats.restLeft(seat, 'player', clock.elapsedTime);
+    if (rest > 0 && player.seat !== seat) {
+      sayPlayer(`Ghế này phải đợi ${Math.ceil(rest / 60)} phút nữa.`, 2.4);
+      return false;
+    }
     player.requestSeat(seat, run);
     return true;
   }

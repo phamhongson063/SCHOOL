@@ -1000,6 +1000,14 @@ dialog.paper::backdrop {
   transform: translate(-50%, -50%) rotate(-45deg);
 }
 
+.sched-min::before {
+  transform: translate(-50%, 2px);
+}
+
+.sched-min::after {
+  display: none;
+}
+
 .sched-x:hover {
   filter: brightness(1.12);
 }
@@ -2636,6 +2644,17 @@ dialog.paper.phrase-quiz {
   }
 }
 
+.study-card:has(.study-body[hidden]) {
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, calc(-50% + 20px)) scale(0.92);
+  transform-origin: 50% 50%;
+}
+
+.study-card.show:has(.study-body[hidden]) {
+  transform: translate(-50%, -50%) scale(1);
+}
+
 .study-dim {
   position: fixed;
   inset: 0;
@@ -2656,27 +2675,48 @@ dialog.paper.phrase-quiz {
 }
 .study-chip {
   flex: none;
-  padding: 0 4px;
-  border: none;
-  background: none;
-  font-size: 24px;
-  line-height: 1;
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid rgba(251, 231, 176, 0.35);
+  border-radius: 12px;
+  background: rgba(30, 14, 4, 0.3);
+  color: #fbe7b0;
+  font: 700 14px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
-.study-chip-left {
-  margin-left: 2px;
-  font-size: 14px;
-  font-weight: 700;
-  vertical-align: middle;
-}
-
 .study-card .sched-head {
+  position: relative;
   padding: 6px 10px 6px 16px;
 }
 
 .study-title {
   white-space: nowrap;
+}
+
+.study-timer {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(58, 34, 18, 0.25);
+  overflow: hidden;
+}
+
+.study-timer[hidden] {
+  display: none;
+}
+
+.study-timer span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #7ed957);
+  box-shadow: 0 0 6px rgba(126, 217, 87, 0.7);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1s linear;
 }
 
 .study-start {
@@ -2775,6 +2815,17 @@ dialog.paper.phrase-quiz {
 .study-head {
   position: relative;
   margin-top: auto;
+  padding: 0 44px;
+}
+
+.study-head .remembered {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+  transform: translateY(-50%);
 }
 
 .study-word {
@@ -2887,17 +2938,9 @@ dialog.paper.phrase-quiz {
   background: #f2e3bd;
 }
 
-.study-step.forgot {
-  border-color: var(--lacquer);
-  color: var(--lacquer);
-}
-
-.study-step.forgot:hover {
-  background: rgba(138, 29, 20, 0.12);
-}
-
 .study-step.remembered {
   border-color: #1f5534;
+  background: #e3f1dc;
   color: #1f5534;
 }
 
@@ -3022,16 +3065,6 @@ dialog.paper.phrase-quiz {
 
 .study-body.covered .study-meaning {
   color: var(--tan);
-}
-
-.study-count {
-  min-height: 1.4em;
-  text-align: center;
-  color: var(--wood);
-  font-size: 13px;
-  line-height: 1.4;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .loader {

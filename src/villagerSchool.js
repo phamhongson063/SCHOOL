@@ -116,12 +116,18 @@ export class SchoolBehavior {
     return DECK_IDS.find((deck) => certify.learnLeft(this.id, deck).length > 0 || this.canTakeInternal(deck)) ?? null;
   }
 
+  studySeatFor(deck) {
+    if (!deck || this.purse.money < CERTIFY.learnFee) return null;
+    const seats = this.town.studySeats;
+    return seats.nearestFree(this.position, this, (seat) => seat.deck === deck && seats.restLeft(seat, this, this.now) <= 0);
+  }
+
   wantsSelfStudy(ctx) {
     if (!this.seated || this.now < this.studyRestAt) return false;
     const deck = this.studyDeckWanted();
     if (!deck || Math.random() >= SELF_STUDY.chance * this.diligence) return false;
     if (!ctx.night && this.wantsInternal(deck)) return true;
-    return !!this.town.studySeats.nearestFree(this.position, this, (seat) => seat.deck === deck);
+    return !!this.studySeatFor(deck);
   }
 
   wantsInternal(deck) {
@@ -142,7 +148,7 @@ export class SchoolBehavior {
       this.goInternal(deck);
       return;
     }
-    const seat = deck ? seats.nearestFree(this.position, this, (seat) => seat.deck === deck) : null;
+    const seat = this.studySeatFor(deck);
     this.cancel();
     if (!seat) {
       this.quitSelfStudy();
@@ -208,7 +214,10 @@ export class SchoolBehavior {
     this.studyMark = t;
     const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
     if (Math.random() < FORGET * (1 - this.diligence)) certify.forget(this.id, deck, key);
-    else certify.remember(this.id, deck, key);
+    else {
+      certify.remember(this.id, deck, key);
+      this.sitWords += 1;
+    }
     return false;
   }
 
@@ -279,13 +288,20 @@ export class SchoolBehavior {
   selfStudyUpdate(t) {
     const ctx = this.town.context;
     const done = this.learnTick(t);
-    if (t < this.studyUntil && !this.needsSleep(ctx) && !done) return;
-    this.studyRestAt = t + SELF_STUDY.cooldown;
+    const sitOver = t >= this.studyUntil || this.sitWords >= CERTIFY.sitWords;
+    if (!sitOver && !this.needsSleep(ctx) && !done) return;
     const deck = this.seatRef?.deck;
+    if (sitOver) this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
     if (done && !ctx.night && deck && this.wantsInternal(deck)) {
+      this.studyRestAt = t + SELF_STUDY.cooldown;
       this.rise(() => this.goInternal(deck), between(0.3, 1.5));
       return;
     }
+    if (sitOver && !done && !this.needsSleep(ctx) && Math.random() < this.diligence) {
+      this.rise(() => this.goSelfStudy(), between(0.3, 1.5));
+      return;
+    }
+    this.studyRestAt = t + SELF_STUDY.cooldown;
     this.rise(() => {
       this.task = null;
       this.think();
@@ -300,11 +316,18 @@ export class SchoolBehavior {
     this.velocity = 0;
     this.state = 'seated';
     if (this.seatRef.study) {
-      this.task = 'selfstudy';
       this.recess = false;
+      if (!this.purse.spend(CERTIFY.learnFee)) {
+        this.task = null;
+        this.rise(() => this.think(), between(0.3, 1.5));
+        return;
+      }
+      economy.income('teacher', CERTIFY.learnFee, this.id);
+      this.task = 'selfstudy';
       this.studying = true;
-      this.studyUntil = this.now + between(...SELF_STUDY.stay);
+      this.studyUntil = this.now + CERTIFY.sitSeconds;
       this.studyMark = this.now;
+      this.sitWords = 0;
       return;
     }
     if (this.task === 'exam') {

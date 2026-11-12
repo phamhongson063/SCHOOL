@@ -55,6 +55,14 @@ export class Seats {
     return displaced;
   }
 
+  rest(seat, who, until) {
+    (seat.rested ??= new Map()).set(who, until);
+  }
+
+  restLeft(seat, who, now) {
+    return Math.max(0, (seat.rested?.get(who) ?? 0) - now);
+  }
+
   vacate(seat, who) {
     if (seat && seat.occupant === who) seat.occupant = null;
   }

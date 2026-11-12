@@ -207,7 +207,8 @@
           <button id="studyFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
           <button id="studyTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
         </div>
-        <button id="studyClose" class="sched-x" type="button" aria-label="Đóng">×</button>
+        <button id="studyClose" class="sched-x sched-min" type="button" aria-label="Thu nhỏ" title="Thu nhỏ">−</button>
+        <div id="studyTimer" class="study-timer" hidden><span></span></div>
       </header>
       <div id="studyStart" class="study-start">
         <p id="studyStatus" class="study-status"></p>
@@ -219,6 +220,7 @@
       <div id="studyBody" class="study-body" hidden>
         <div class="study-scroll">
           <div class="study-head">
+            <button id="studyRemembered" class="study-step remembered" type="button" aria-label="Nhớ" hidden>✓</button>
             <p id="studyReading" class="study-reading" lang="ja"></p>
             <p id="studyWord" class="study-word" lang="ja"></p>
             <span id="studyHanViet" class="study-hanviet" role="tooltip"></span>
@@ -229,12 +231,9 @@
         </div>
         <div class="study-nav">
           <button id="studyPrev" class="study-step" type="button" aria-label="Từ trước">‹</button>
-          <button id="studyForgot" class="study-step forgot" type="button" aria-label="Quên" hidden>✗</button>
           <div class="study-meter">
             <div class="study-progress"><span id="studyBar"></span></div>
-            <span id="studyCount" class="study-count"></span>
           </div>
-          <button id="studyRemembered" class="study-step remembered" type="button" aria-label="Nhớ" hidden>✓</button>
           <button id="studyNext" class="study-step" type="button" aria-label="Từ sau">›</button>
         </div>
       </div>

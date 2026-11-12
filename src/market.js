@@ -66,7 +66,7 @@ export const shopHours = () => hoursText(SHOP);
 export const fishShopOpen = (minutes) => isOpenAt(FISH_SHOP, minutes);
 export const fishShopHours = () => hoursText(FISH_SHOP);
 
-const reserveOf = (villager) => (villager.seated ? (CERTIFY.internalFee + CERTIFY.examFee) * VILLAGER.studyReserve : 0);
+const reserveOf = (villager) => (villager.seated ? (CERTIFY.learnFee + CERTIFY.internalFee + CERTIFY.examFee) * VILLAGER.studyReserve : 0);
 
 function wantsBait(villager) {
   const purse = villager.purse;
