@@ -16,6 +16,7 @@ import { StepSound } from './stepSound.js';
 import { Music } from './music.js';
 import { Ambience } from './ambience.js';
 import { StudyMusic } from './studyMusic.js';
+import { createTargetMarker } from './targetMarker.js';
 import { createUiSounds } from './uiSound.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
@@ -188,7 +189,7 @@ function updateSoundscape(focus) {
   if (!blessed) blessingTrack = null;
   else blessingTrack ??= blessingTracks[Math.floor(Math.random() * blessingTracks.length)];
   for (const track of blessingTracks) track.set(track === blessingTrack);
-  fieldMusic.set(FIELD_REGIONS.has(soundRegion) && !blessed);
+  fieldMusic.set(FIELD_REGIONS.has(soundRegion) && !studyMusic.playing && !blessed);
   villageMusic.set(village && !shore && !studyMusic.playing && !blessed);
 }
 const player = new PlayerController({
@@ -547,17 +548,11 @@ document.addEventListener('visibilitychange', () => {
 });
 player.setEnabled(true);
 
-const marker = new THREE.Mesh(
-  new THREE.RingGeometry(0.2, 0.32, 4, 1),
-  new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9, depthWrite: false }),
-);
-marker.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
-marker.visible = false;
-scene.add(marker);
+const marker = createTargetMarker(scene);
 let tripPending = false;
 player.onTarget = (point) => {
-  marker.visible = !!point;
-  if (point) marker.position.set(point.x, point.y + 0.03, point.z);
+  if (point) marker.show(point);
+  else marker.hide();
   playerBubble.setTrip(tripPending && !!point);
   tripPending = false;
 };
@@ -1484,7 +1479,7 @@ renderer.setAnimationLoop((time) => {
     orbit.update();
     clampMapView();
   }
-  if (marker.visible) marker.scale.setScalar(1 + Math.sin(t * 6) * 0.15);
+  marker.update(t);
   if (!study.dimmed) renderer.render(scene, camera);
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });
