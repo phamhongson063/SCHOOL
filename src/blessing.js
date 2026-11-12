@@ -588,6 +588,7 @@ export function createBlessing(scene) {
     official,
     statueAt: { x: PLAZA.x, z: PLAZA.z },
     altar: altarSpots[1],
+    onPlaza: (position) => position.x >= PLAZA.x0 && position.x <= PLAZA.x1 && position.z >= PLAZA.z0 && position.z <= PLAZA.z1,
     ownsStatue: (object) => object === body,
     active,
     member,

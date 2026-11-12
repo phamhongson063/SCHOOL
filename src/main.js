@@ -967,7 +967,8 @@ function sceneClick(clientX, clientY, run) {
   }
   if (blessing.ownsStatue(hit.object)) {
     leaveLine();
-    goDo(blessingAltar, { stand: blessing.altar, x: blessing.statueAt.x, z: blessing.statueAt.z }, 'altar');
+    if (blessing.onPlaza(player.position)) blessingDialog.openStatue(PLAYER);
+    else goDo(blessingAltar, { stand: blessing.altar, x: blessing.statueAt.x, z: blessing.statueAt.z }, 'altar');
     return true;
   }
   if (blessing.official.owns(hit.object)) {
