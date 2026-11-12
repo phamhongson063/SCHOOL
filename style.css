@@ -364,7 +364,7 @@ body {
   left: 0;
   z-index: var(--z-float);
   color: #fff;
-  font: 400 18px/1 var(--font-ui);
+  font: 600 15px/1 "Baloo 2", var(--font-ui);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
   user-select: none;
