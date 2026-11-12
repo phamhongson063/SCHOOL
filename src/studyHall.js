@@ -111,8 +111,8 @@ function facade(b) {
   const right = width / 2;
   const side = (width - door) / 2;
   b.add(shapes.box(width + 0.12, PLINTH, T + 0.12), STONE, { p: [0, PLINTH / 2, depth - T / 2] });
-  for (const wx of [left + T / 2, right - T / 2]) b.add(shapes.box(T + 0.12, PLINTH, depth + 0.12), STONE, { p: [wx, PLINTH / 2, depth / 2] });
-  for (const s of [-1, 1]) b.add(shapes.box(side, PLINTH, T + 0.12), STONE, { p: [s * (door / 2 + side / 2), PLINTH / 2, T / 2] });
+  for (const wx of [left + T / 2, right - T / 2]) b.add(shapes.box(T + 0.12, PLINTH, depth - 2 * T - 0.12), STONE, { p: [wx, PLINTH / 2, depth / 2] });
+  for (const s of [-1, 1]) b.add(shapes.box(side + 0.06, PLINTH, T + 0.12), STONE, { p: [s * (door / 2 + (side + 0.06) / 2), PLINTH / 2, T / 2] });
   for (const cx of [left + 0.12, right - 0.12]) {
     for (const cz of [0.12, depth - 0.12]) b.add(shapes.box(0.34, height, 0.34), WOOD_DARK, { p: [cx, height / 2, cz] });
   }

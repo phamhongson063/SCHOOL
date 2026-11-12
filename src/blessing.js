@@ -576,7 +576,7 @@ export function createBlessing(scene) {
   };
   let clock = 0;
   const active = (minutes) => strengthAt(minutes) > 0;
-  const inside = (position) => Math.hypot(position.x - PLAZA.x, position.z - PLAZA.z) <= BLESSING.radius;
+  const inside = (position) => position.x >= PLAZA.x0 && position.x <= PLAZA.x1 && position.z >= PLAZA.z0 && position.z <= PLAZA.z1;
   const member = (id, minutes) => {
     const session = sessionAt(minutes);
     return !!session && members.get(id) === session;
@@ -588,7 +588,7 @@ export function createBlessing(scene) {
     official,
     statueAt: { x: PLAZA.x, z: PLAZA.z },
     altar: altarSpots[1],
-    onPlaza: (position) => position.x >= PLAZA.x0 && position.x <= PLAZA.x1 && position.z >= PLAZA.z0 && position.z <= PLAZA.z1,
+    onPlaza: inside,
     ownsStatue: (object) => object === body,
     active,
     member,

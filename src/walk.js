@@ -17,10 +17,11 @@ const GRAVITY = 30;
 const JUMP_SPEED = 9;
 export const WALK_SPEED = MOVE.walk;
 export const RUN_SPEED = MOVE.run;
-const WORK_SIDE = 1.75;
+const WORK_TURN_STEP = 0.1;
+const WORK_TURN_MAX = 0.6;
 const STUCK_SKIP = 0.7;
 const STUCK_STOP = 2.5;
-const WORK_PITCH = 0.28;
+const MAX_REPLANS = 2;
 const WORK_DROP = 0.5;
 const WORK_DISTANCE = 6.6;
 const TARGET_LIFT = 0.3;
@@ -119,7 +120,7 @@ export class PlayerController {
     this.avoid = null;
     this.blockers = null;
     this.destination = null;
-    this.replanned = false;
+    this.replans = 0;
     this.resting = false;
     this.rest = 0;
     this.restTime = 0;
@@ -357,8 +358,7 @@ export class PlayerController {
     else this.completeFacing();
   }
 
-  targetHidden(target) {
-    const camera = this.camera;
+  targetHidden(target, camera = this.camera) {
     const p = this.position;
     const point = new THREE.Vector3(target.x, (target.y ?? p.y) + TARGET_LIFT, target.z);
     const screen = point.clone().project(camera);
@@ -371,25 +371,39 @@ export class PlayerController {
     return gap < BODY_RADIUS * BODY_RADIUS && onRay.distanceTo(camera.position) < reach;
   }
 
+  clearYaw(target) {
+    const probe = (this.probeCamera ??= this.camera.clone());
+    const p = this.position;
+    const pivot = new THREE.Vector3(p.x, p.y + this.pivotHeight, p.z);
+    const pitch = this.viewPitch;
+    for (let turn = WORK_TURN_STEP; turn <= WORK_TURN_MAX + 1e-6; turn += WORK_TURN_STEP) {
+      for (const sign of [1, -1]) {
+        const yaw = this.yaw + sign * turn;
+        probe.copy(this.camera);
+        probe.position.set(pivot.x + Math.sin(yaw) * Math.cos(pitch) * this.cameraDistance, pivot.y + Math.sin(pitch) * this.cameraDistance, pivot.z + Math.cos(yaw) * Math.cos(pitch) * this.cameraDistance);
+        probe.lookAt(pivot);
+        probe.updateMatrixWorld();
+        if (!this.targetHidden(target, probe)) return yaw;
+      }
+    }
+    return this.yaw;
+  }
+
   faceTarget(target, { work = false, then = null } = {}) {
-    if (work && !this.targetHidden(target)) {
-      this.cameraGoal = null;
-      then?.();
-      return;
-    }
-    let yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
     if (work) {
-      const left = Math.atan2(Math.sin(yaw + WORK_SIDE - this.yaw), Math.cos(yaw + WORK_SIDE - this.yaw));
-      const right = Math.atan2(Math.sin(yaw - WORK_SIDE - this.yaw), Math.cos(yaw - WORK_SIDE - this.yaw));
-      yaw += Math.abs(left) < Math.abs(right) ? WORK_SIDE : -WORK_SIDE;
-    }
-    if (work) {
+      if (!this.targetHidden(target)) {
+        this.cameraGoal = null;
+        then?.();
+        return;
+      }
       this.workSpot.set((target.x + this.position.x) / 2, (target.z + this.position.z) / 2);
       this.working = true;
+      this.cameraGoal = { yaw: this.clearYaw(target), pitch: this.pitch, then };
+      return;
     }
+    const yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
     const diff = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
-    const pitch = work ? WORK_PITCH : 0.22;
-    this.cameraGoal = { yaw: this.yaw + diff, pitch, then };
+    this.cameraGoal = { yaw: this.yaw + diff, pitch: 0.22, then };
   }
 
   completeFacing() {
@@ -439,7 +453,7 @@ export class PlayerController {
     const path = this.nav?.findPath(this.position, point, this.blockers?.());
     if (!path || !path.length) return false;
     this.destination = point;
-    this.replanned = replanned;
+    this.replans = replanned ? this.replans + 1 : 0;
     this.path = path;
     this.pathIndex = 0;
     this.bestDistance = Infinity;
@@ -485,14 +499,15 @@ export class PlayerController {
         this.stuckTime = 0;
       } else {
         this.stuckTime += dt;
-        if (this.stuckTime > STUCK_SKIP && !this.replanned && this.goTo(this.destination, true)) return null;
+        if (this.stuckTime > STUCK_SKIP && this.replans < MAX_REPLANS && this.goTo(this.destination, true)) return null;
         if (Math.abs(turn) >= 0.2) {
           if (this.stuckTime > STUCK_STOP) {
             this.clearPath();
             return null;
           }
         } else if (this.stuckTime > STUCK_SKIP) {
-          this.advanceWaypoint();
+          if (last) this.advanceWaypoint();
+          else this.clearPath();
           return null;
         }
       }

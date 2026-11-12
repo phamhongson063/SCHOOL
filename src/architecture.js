@@ -49,7 +49,7 @@ const PAL = {
 const css = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 
-const shared = { plaster: null, roof: null, lantern: null, glass: null };
+const shared = { plaster: null, roof: null, lantern: null, glass: null, interior: null, screens: [] };
 let glowLevel = 0;
 
 function wrapDraw(size, draw) {
@@ -176,6 +176,8 @@ function roofMaterial() {
 function applyGlow() {
   if (shared.lantern) shared.lantern.emissiveIntensity = glowLevel * 1.1;
   if (shared.glass) shared.glass.emissiveIntensity = glowLevel * 0.85;
+  if (shared.interior) shared.interior.emissiveIntensity = glowLevel * 0.6;
+  for (const screen of shared.screens) screen.emissiveIntensity = glowLevel * screen.userData.glow;
 }
 
 function lanternMaterial() {
@@ -191,6 +193,18 @@ function lanternMaterial() {
     applyGlow();
   }
   return shared.lantern;
+}
+
+function interiorMaterial() {
+  if (!shared.interior) {
+    const material = toonMaterial({ vertexColors: true, emissive: 0xffffff, emissiveIntensity: 0 });
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor;');
+    };
+    shared.interior = material;
+    applyGlow();
+  }
+  return shared.interior;
 }
 
 function glassMaterial() {
@@ -227,6 +241,7 @@ function createKit(seed) {
     tiles: new Batch(),
     lamps: new Batch(),
     panes: new Batch(),
+    interior: new Batch(),
     signs: [],
     lights: [],
     obstacles: [],
@@ -244,6 +259,7 @@ function assemble(kit) {
   add(kit.lamps, lanternMaterial(), false);
   for (const sign of kit.signs) group.add(sign);
   add(kit.panes, glassMaterial(), false);
+  add(kit.interior, interiorMaterial(), false);
   group.userData.lights = kit.lights;
   return group;
 }
@@ -891,6 +907,429 @@ export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}
 
   block(kit, -W / 2, -D, W / 2, 0.1, 3.2);
   return { group: assemble(kit), obstacles: kit.obstacles, door: { x: 0, z: 0.85 }, plaque: { x: 0, y: PLAQUE_Y, z: 0.1 } };
+}
+
+const MART = {
+  wall: 0xf1ece4,
+  navy: 0x24346a,
+  navyDark: 0x1a2550,
+  frame: 0x2b2b35,
+  concrete: 0xc9c4bc,
+  stripe: [0x2d4fa0, 0xf4f1ea],
+  strip: 0xf4f8ff,
+  bulb: 0xfff1c8,
+  floor: 0xe9e1d2,
+  ceiling: 0xf7f1e6,
+  room: 0xf3e3c6,
+  wainscot: 0xc9a77c,
+  rail: 0xa8835a,
+  shelf: 0xf1ede5,
+  shelfEdge: 0xdcd6ca,
+  ink: '#22346c',
+  cream: '#fff6e0',
+  chalk: '#ebe7dc',
+};
+const MART_GOODS = [0xe8453c, 0xf2b632, 0x3fa7d6, 0x59b36b, 0xf07c2a, 0xd94f8a, 0xf6f6f2, 0x2f6db5, 0x8bc34a];
+const MART_PRODUCTS = MART_GOODS.map(css);
+const MART_LEAVES = [0x4f9a3f, 0x5fae48, 0x3f8636, 0x6cbf52];
+const rbox = (w, h, d, r = 0.04) => shapes.rounded(w, h, d, r);
+
+function paintedPanel(kit, w, h, paint, { glow = 0, p = [0, 0, 0], r = [0, 0, 0] } = {}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * SIGN_PX);
+  canvas.height = Math.round(h * SIGN_PX);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const draw = (ctx) => paint(ctx, canvas.width, canvas.height);
+  keepCanvas(texture, draw);
+  const redraw = () => {
+    draw(canvas.getContext('2d'));
+    texture.needsUpdate = true;
+  };
+  redraw();
+  document.fonts?.load(`700 64px ${LATIN_FONT}`).then(redraw, () => {});
+  const material = toonMaterial(glow ? { map: texture, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: 0 } : { map: texture });
+  if (glow) {
+    material.userData.glow = glow;
+    shared.screens.push(material);
+    applyGlow();
+  }
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
+  mesh.position.set(...p);
+  mesh.rotation.set(...r);
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  kit.signs.push(mesh);
+  return mesh;
+}
+
+function drawCart(ctx, cx, cy, size, color) {
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const x = cx - size * 0.5;
+  const y = cy - size * 0.42;
+  const at = (fx, fy) => [x + size * fx, y + size * fy];
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = size * 0.085;
+  ctx.beginPath();
+  ctx.moveTo(...at(-0.06, 0));
+  ctx.lineTo(...at(0.12, 0));
+  ctx.lineTo(...at(0.26, 0.62));
+  ctx.lineTo(...at(0.9, 0.62));
+  ctx.lineTo(...at(1, 0.2));
+  ctx.lineTo(...at(0.16, 0.2));
+  ctx.moveTo(...at(0.26, 0.62));
+  ctx.lineTo(...at(0.31, 0.74));
+  ctx.lineTo(...at(0.92, 0.74));
+  ctx.stroke();
+  ctx.lineWidth = size * 0.045;
+  ctx.beginPath();
+  for (let k = 1; k <= 3; k++) {
+    ctx.moveTo(...at(lerp(0.16, 1, k / 4), 0.2));
+    ctx.lineTo(...at(lerp(0.26, 0.9, k / 4), 0.62));
+  }
+  ctx.moveTo(...at(0.21, 0.41));
+  ctx.lineTo(...at(0.95, 0.41));
+  ctx.stroke();
+  for (const fx of [0.38, 0.84]) {
+    ctx.beginPath();
+    ctx.arc(...at(fx, 0.86), size * 0.075, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function roundedPanel(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function paintMartSign(ctx, w, h) {
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#2c4182');
+  bg.addColorStop(1, '#1c2b5c');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(214,224,250,0.85)';
+  ctx.lineWidth = h * 0.04;
+  roundedPanel(ctx, h * 0.09, h * 0.09, w - h * 0.18, h - h * 0.18, h * 0.12);
+  ctx.stroke();
+  drawCart(ctx, h * 0.95, h * 0.5, h * 0.62, MART.cream);
+  const left = h * 1.6;
+  const room = w - left - h * 0.35;
+  let size = h * 0.56;
+  ctx.font = `800 ${size}px ${LATIN_FONT}`;
+  const width = ctx.measureText('SIÊU THỊ').width;
+  if (width > room) size *= room / width;
+  ctx.font = `800 ${size}px ${LATIN_FONT}`;
+  ctx.fillStyle = MART.cream;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(255,236,190,0.6)';
+  ctx.shadowBlur = h * 0.08;
+  ctx.fillText('SIÊU THỊ', left + room / 2, h * 0.54);
+  ctx.shadowBlur = 0;
+}
+
+function paintBlade(ctx, w, h) {
+  ctx.fillStyle = MART.ink;
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = MART.cream;
+  ctx.lineWidth = w * 0.05;
+  roundedPanel(ctx, w * 0.09, w * 0.09, w - w * 0.18, h - w * 0.18, w * 0.1);
+  ctx.stroke();
+  drawCart(ctx, w * 0.5, h * 0.5, w * 0.6, MART.cream);
+}
+
+function paintChalkboard(ctx, w, h) {
+  ctx.fillStyle = '#2c2a28';
+  ctx.fillRect(0, 0, w, h);
+  drawCart(ctx, w * 0.5, h * 0.36, w * 0.5, MART.chalk);
+  ctx.strokeStyle = MART.chalk;
+  ctx.lineWidth = w * 0.03;
+  ctx.lineCap = 'round';
+  for (const [y, len] of [[0.66, 0.5], [0.78, 0.36]]) {
+    ctx.beginPath();
+    ctx.moveTo(w * 0.25, h * y);
+    ctx.lineTo(w * (0.25 + len), h * y);
+    ctx.stroke();
+  }
+}
+
+function paintBackWall(ctx, w, h) {
+  const rand = makeRandom(71);
+  const wall = ctx.createLinearGradient(0, 0, 0, h);
+  wall.addColorStop(0, '#fbe9c6');
+  wall.addColorStop(1, '#efcf98');
+  ctx.fillStyle = wall;
+  ctx.fillRect(0, 0, w, h);
+  const top = h * 0.16;
+  const bottom = h * 0.94;
+  ctx.fillStyle = '#f6f3ec';
+  ctx.fillRect(w * 0.02, top, w * 0.96, bottom - top);
+  for (const row of [0.34, 0.5, 0.66, 0.82, 0.94]) {
+    ctx.fillStyle = '#d4ccbd';
+    ctx.fillRect(w * 0.02, h * row, w * 0.96, h * 0.014);
+    if (row > 0.9) continue;
+    let x = w * 0.03;
+    while (x < w * 0.96) {
+      const bw = w * (0.012 + rand() * 0.016);
+      const bh = h * (0.07 + rand() * 0.06);
+      ctx.fillStyle = MART_PRODUCTS[Math.floor(rand() * MART_PRODUCTS.length)];
+      ctx.fillRect(x, h * row - bh, bw, bh);
+      x += bw + w * 0.004;
+    }
+  }
+  for (const fx of [0.2, 0.5, 0.8]) {
+    const glow = ctx.createRadialGradient(w * fx, h * 0.1, 0, w * fx, h * 0.1, w * 0.18);
+    glow.addColorStop(0, 'rgba(255,244,214,0.8)');
+    glow.addColorStop(1, 'rgba(255,244,214,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h * 0.6);
+  }
+}
+
+function martShrub(kit, x, y, z, size) {
+  const rand = kit.rand;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + rand();
+    const r = size * (0.45 + rand() * 0.25);
+    kit.body.add(shapes.sphere(r, 10, 8), pick(rand, MART_LEAVES), {
+      p: [x + Math.cos(a) * size * 0.55, y + rand() * size * 0.35, z + Math.sin(a) * size * 0.3],
+    });
+  }
+  kit.body.add(shapes.sphere(size * 0.6, 10, 8), pick(rand, MART_LEAVES), { p: [x, y + size * 0.35, z] });
+}
+
+function martAwning(kit, x0, x1, top, bottom, depth, z0) {
+  const b = kit.body;
+  const count = Math.max(6, Math.round((x1 - x0) / 0.42));
+  const step = (x1 - x0) / count;
+  const segments = 6;
+  const profile = (t) => [z0 + depth * Math.sin((t * Math.PI) / 2), top - (top - bottom) * (1 - Math.cos((t * Math.PI) / 2))];
+  for (let k = 0; k < segments; k++) {
+    const [za, ya] = profile(k / segments);
+    const [zb, yb] = profile((k + 1) / segments);
+    const len = Math.hypot(zb - za, yb - ya) + 0.015;
+    const angle = Math.atan2(ya - yb, zb - za);
+    for (let i = 0; i < count; i++) {
+      b.add(shapes.box(step + 0.002, 0.04, len), MART.stripe[i % 2], { p: [x0 + step * (i + 0.5), (ya + yb) / 2, (za + zb) / 2], r: [angle, 0, 0] });
+    }
+  }
+  const front = z0 + depth;
+  for (let i = 0; i < count; i++) {
+    const x = x0 + step * (i + 0.5);
+    b.add(shapes.box(step + 0.002, 0.18, 0.04), MART.stripe[i % 2], { p: [x, bottom - 0.09, front] });
+    b.add(shapes.cylinder(step / 2, step / 2, 0.03, 14), MART.stripe[i % 2], { p: [x, bottom - 0.18, front], r: [Math.PI / 2, 0, 0] });
+  }
+  const shape = new THREE.Shape();
+  shape.moveTo(z0, bottom - 0.18);
+  for (let k = 0; k <= segments; k++) shape.lineTo(...profile(k / segments));
+  shape.lineTo(front, bottom - 0.18);
+  shape.closePath();
+  for (const x of [x0, x1]) {
+    const cap = new THREE.ExtrudeGeometry(shape, { depth: 0.03, bevelEnabled: false });
+    cap.rotateY(-Math.PI / 2);
+    cap.translate(x + 0.015, 0, 0);
+    b.add(cap, MART.stripe[1]);
+  }
+}
+
+function martPlanter(kit, x, z) {
+  const b = kit.body;
+  b.add(rbox(1.3, 0.5, 0.55, 0.07), MART.concrete, { p: [x, 0.25, z] });
+  b.add(rbox(1.38, 0.07, 0.63, 0.03), shade(MART.concrete, 1.08), { p: [x, 0.51, z] });
+  b.add(shapes.box(1.2, 0.02, 0.45), PAL.soil, { p: [x, 0.54, z] });
+  for (const dx of [-0.36, 0.02, 0.38]) martShrub(kit, x + dx, 0.66, z, 0.3);
+  block(kit, x - 0.69, z - 0.32, x + 0.69, z + 0.32, 1);
+}
+
+function martChalkboard(kit, x, z) {
+  const b = kit.body;
+  const tilt = 0.22;
+  for (const side of [1, -1]) {
+    b.group([x, 0.43, z + side * 0.09], [-side * tilt, 0, 0], () => b.add(rbox(0.62, 0.88, 0.04, 0.018), 0x6b4a2c));
+  }
+  paintedPanel(kit, 0.52, 0.76, paintChalkboard, { p: [x, 0.436, z + 0.115], r: [-tilt, 0, 0] });
+  block(kit, x - 0.33, z - 0.3, x + 0.33, z + 0.3, 1);
+}
+
+function martStreetLamp(kit, x, z) {
+  const b = kit.body;
+  const dark = 0x2a2420;
+  const pole = 3.7;
+  b.add(shapes.lathe([[0.001, 0], [0.26, 0], [0.24, 0.12], [0.16, 0.2], [0.12, 0.42], [0.1, 0.5], [0.001, 0.5]], 14), dark, { p: [x, 0, z] });
+  b.add(shapes.cylinder(0.065, 0.085, pole - 0.5, 12), dark, { p: [x, 0.5 + (pole - 0.5) / 2, z] });
+  for (const y of [1.3, pole - 0.08]) b.add(shapes.torus(0.09, 0.03, 14), dark, { p: [x, y, z], r: [Math.PI / 2, 0, 0] });
+  const headY = pole + 0.3;
+  b.add(shapes.cylinder(0.14, 0.2, 0.08, 8), dark, { p: [x, pole + 0.04, z] });
+  kit.lamps.add(shapes.cylinder(0.18, 0.13, 0.42, 8), 0xffe2a0, { p: [x, headY, z] });
+  b.add(shapes.cylinder(0.22, 0.22, 0.05, 8), dark, { p: [x, headY + 0.23, z] });
+  b.add(shapes.cone(0.27, 0.24, 8), dark, { p: [x, headY + 0.37, z] });
+  b.add(shapes.sphere(0.05, 8, 6), dark, { p: [x, headY + 0.52, z] });
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + Math.PI / 8;
+    b.limb([x + Math.cos(a) * 0.17, headY - 0.21, z + Math.sin(a) * 0.17], [x + Math.cos(a) * 0.2, headY + 0.21, z + Math.sin(a) * 0.2], 0.012, dark, { capsule: false, seg: 4 });
+  }
+  kit.lights.push({ position: new THREE.Vector3(x, headY, z), tint: 0xffd28a });
+  const armY = 3.25;
+  b.limb([x, armY, z], [x + 0.86, armY, z], 0.025, dark, { capsule: true, seg: 6 });
+  b.add(shapes.torus(0.16, 0.014, 16, Math.PI), dark, { p: [x + 0.17, armY - 0.17, z], r: [0, 0, Math.PI / 2] });
+  for (const dx of [0.29, 0.77]) b.limb([x + dx, armY, z], [x + dx, armY - 0.12, z], 0.01, dark, { capsule: false, seg: 3 });
+  b.add(rbox(0.62, 0.92, 0.06, 0.03), MART.navyDark, { p: [x + 0.53, armY - 0.6, z] });
+  paintedPanel(kit, 0.56, 0.86, paintBlade, { glow: 0.8, p: [x + 0.53, armY - 0.6, z + 0.035] });
+  block(kit, x - 0.27, z - 0.27, x + 0.27, z + 0.27, 3.6);
+}
+
+function martGondola(kit, cx, z, width) {
+  const p = kit.interior;
+  const rand = kit.rand;
+  const top = 1.45;
+  p.add(rbox(width, 0.14, 0.62, 0.04), MART.shelfEdge, { p: [cx, 0.19, z] });
+  p.add(shapes.box(width - 0.06, top - 0.26, 0.05), MART.shelf, { p: [cx, (top + 0.26) / 2, z] });
+  for (const side of [-1, 1]) p.add(rbox(0.05, top - 0.12, 0.62, 0.02), MART.shelfEdge, { p: [cx + (side * width) / 2, 0.12 + (top - 0.12) / 2, z] });
+  for (const y of [0.6, 1.02, top]) p.add(rbox(width, 0.04, 0.6, 0.015), MART.shelf, { p: [cx, y, z] });
+  for (const y of [0.26, 0.62, 1.04]) {
+    let x = cx - width / 2 + 0.06;
+    while (x < cx + width / 2 - 0.12) {
+      const w = 0.07 + rand() * 0.07;
+      const h = 0.12 + rand() * 0.18;
+      p.add(shapes.box(w, h, 0.22), pick(rand, MART_GOODS), { p: [x + w / 2, y + h / 2, z + 0.17] });
+      x += w + 0.02;
+    }
+  }
+}
+
+function martInterior(kit, { inner, open, front, back, ceiling }) {
+  const p = kit.interior;
+  const b = kit.body;
+  const depth = front - back;
+  p.add(shapes.box(2 * inner, 0.02, depth), MART.floor, { p: [0, 0.13, (front + back) / 2] });
+  p.add(shapes.box(2 * inner, 0.05, depth), MART.ceiling, { p: [0, ceiling, (front + back) / 2] });
+  p.add(shapes.box(2 * inner, 0.3, 0.05), MART.ceiling, { p: [0, ceiling - 0.15, front] });
+  const wallH = ceiling - 0.14;
+  const midZ = (front + back) / 2;
+  const sideW = inner - open;
+  for (const side of [-1, 1]) {
+    p.add(shapes.box(0.02, wallH, depth), MART.room, { p: [side * (inner - 0.01), 0.14 + wallH / 2, midZ] });
+    p.add(shapes.box(0.03, 0.9, depth), MART.wainscot, { p: [side * (inner - 0.025), 0.59, midZ] });
+    p.add(rbox(0.05, 0.05, depth, 0.02), MART.rail, { p: [side * (inner - 0.03), 1.05, midZ] });
+    p.add(shapes.box(sideW, wallH, 0.02), MART.room, { p: [side * (open + sideW / 2), 0.14 + wallH / 2, front - 0.01] });
+  }
+  paintedPanel(kit, 2 * inner, ceiling - 0.14, paintBackWall, { glow: 0.75, p: [0, 0.14 + (ceiling - 0.14) / 2, back + 0.02] });
+  const aisle = 0.7;
+  const shelfW = inner - aisle - 0.9;
+  for (const [i, z] of [-2.2, -3.6, -5.0, -6.4, -7.7].entries()) {
+    const shift = i % 2 ? 0.25 : 0;
+    for (const side of [-1, 1]) martGondola(kit, side * (aisle + shelfW / 2 + shift), z, shelfW - 0.3 * (i % 2));
+  }
+  const counterX = inner - 0.9;
+  p.add(rbox(1.0, 0.92, 0.5, 0.05), 0xd9d4ca, { p: [counterX, 0.58, -1.05] });
+  p.add(rbox(1.08, 0.05, 0.58, 0.02), 0x8a6a4a, { p: [counterX, 1.06, -1.05] });
+  p.add(rbox(0.32, 0.22, 0.26, 0.03), MART.frame, { p: [counterX - 0.15, 1.2, -1.1] });
+  const lampXs = [-0.75, -0.25, 0.25, 0.75].map((f) => f * inner);
+  for (const z of [-1.5, -4.8]) {
+    for (const x of lampXs) {
+      b.limb([x, ceiling, z], [x, ceiling - 0.42, z], 0.008, MART.frame, { capsule: false, seg: 3 });
+      b.add(shapes.cone(0.17, 0.15, 14), 0x30343c, { p: [x, ceiling - 0.48, z] });
+      kit.lamps.add(shapes.sphere(0.06, 10, 8), MART.bulb, { p: [x, ceiling - 0.57, z] });
+    }
+  }
+}
+
+export function createMiniMart({ seed = 1 } = {}) {
+  const kit = createKit(seed);
+  const b = kit.body;
+  const W = 11.4;
+  const D = 9;
+  const H = 4.3;
+  const T = 0.25;
+  const P = 0.75;
+  const G = 2.9;
+  const RECESS = 0.4;
+  const half = W / 2;
+  const open = half - P;
+  const face = 0.1;
+  const wall = MART.wall;
+
+  b.add(shapes.box(W - 0.1, 0.12, D - 0.1), PAL.stone, { p: [0, 0.06, -D / 2] });
+  b.add(rbox(W - 2 * T, H, T, 0.06), wall, { p: [0, H / 2, -D + T / 2] });
+  b.add(rbox(W - 2 * T + 0.04, 0.3, T + 0.06, 0.06), MART.navyDark, { p: [0, 0.15, -D + T / 2] });
+  for (const side of [-1, 1]) {
+    const pillarX = side * (open + (P - T) / 2);
+    b.add(rbox(T, H, D + face, 0.08), wall, { p: [side * (half - T / 2), H / 2, (face - D) / 2] });
+    b.add(rbox(T + 0.06, 0.3, D + face + 0.04, 0.06), MART.navyDark, { p: [side * (half - T / 2), 0.15, (face - D) / 2] });
+    b.add(rbox(P - T, H, T + face, 0.05), wall, { p: [pillarX, H / 2, (face - T) / 2] });
+    b.add(rbox(P - T + 0.02, 0.32, T + face + 0.06, 0.05), MART.navyDark, { p: [pillarX, 0.16, (face - T) / 2 + 0.02] });
+    b.add(shapes.box(0.06, G, RECESS - T), wall, { p: [side * (open + 0.03), G / 2, -(RECESS + T) / 2] });
+    b.add(rbox(0.16, H + 0.1, 0.16, 0.06), MART.navy, { p: [side * half, (H + 0.1) / 2, face - 0.04] });
+  }
+  b.add(rbox(2 * open, H - G, T + face, 0.05), wall, { p: [0, (G + H) / 2, (face - T) / 2] });
+  b.add(shapes.box(2 * open, 0.05, RECESS + face), shade(wall, 0.9), { p: [0, G - 0.025, (face - RECESS) / 2] });
+
+  b.add(shapes.box(W, 0.16, D), MART.navyDark, { p: [0, H + 0.08, -D / 2] });
+  b.add(rbox(W + 0.28, 0.3, 0.36, 0.07), MART.navy, { p: [0, H + 0.1, face] });
+  b.add(rbox(W + 0.38, 0.07, 0.44, 0.03), MART.navyDark, { p: [0, H + 0.27, face] });
+  for (const side of [-1, 1]) {
+    b.add(rbox(0.32, 0.3, D + 0.1, 0.07), MART.navy, { p: [side * (half + 0.03), H + 0.1, -D / 2 + 0.05] });
+    b.add(rbox(0.42, 0.07, D + 0.16, 0.03), MART.navyDark, { p: [side * (half + 0.03), H + 0.27, -D / 2 + 0.05] });
+  }
+  b.add(rbox(2 * open + 0.14, 0.13, 0.2, 0.05), MART.navy, { p: [0, G + 0.08, face + 0.03] });
+  b.add(rbox(0.95, 0.6, 0.75, 0.1), wall, { p: [0, H + 0.48, -1.3] });
+  b.add(rbox(1.1, 0.08, 0.9, 0.035), MART.navy, { p: [0, H + 0.82, -1.3] });
+  b.add(shapes.sphere(0.2, 12, 8), wall, { p: [0, H + 0.86, -1.3], s: [1, 0.6, 1] });
+
+  const signY = (G + H) / 2 + 0.06;
+  b.add(rbox(4.76, 1.0, 0.16, 0.07), MART.navyDark, { p: [0, signY, face + 0.08] });
+  paintedPanel(kit, 4.6, 0.86, paintMartSign, { glow: 0.9, p: [0, signY, face + 0.165] });
+  for (const x of [-1.7, 0, 1.7]) {
+    b.limb([x, H - 0.05, face], [x, H + 0.12, face + 0.42], 0.02, MART.frame, { capsule: false, seg: 4 });
+    b.add(shapes.cone(0.13, 0.16, 14), MART.frame, { p: [x, H + 0.08, face + 0.46], r: [0.45, 0, 0] });
+    kit.lamps.add(shapes.sphere(0.055, 10, 8), MART.bulb, { p: [x, H, face + 0.43] });
+  }
+  for (const side of [-1, 1]) {
+    for (const y of [signY + 0.16, signY - 0.12]) kit.lamps.add(rbox(1.05, 0.08, 0.05, 0.025), MART.strip, { p: [side * (half - 0.66), y, face + 0.03] });
+  }
+  for (let i = 0; i < 6; i++) kit.lamps.add(rbox(0.42, 0.06, 0.05, 0.02), MART.strip, { p: [half - P / 2, 1.15 + i * 0.24, face + 0.03] });
+
+  martAwning(kit, -open - 0.12, open + 0.12, G, G - 0.42, 0.95, face);
+
+  const glass = -RECESS;
+  martInterior(kit, { inner: half - T, open, front: glass - 0.05, back: -D + T, ceiling: G + 0.3 });
+  b.add(rbox(2 * open, 0.13, RECESS + face + 0.3, 0.04), PAL.stone, { p: [0, 0.065, (glass + face + 0.3) / 2] });
+  b.add(rbox(2 * open, 0.1, 0.1, 0.03), MART.frame, { p: [0, G - 0.05, glass] });
+  b.add(rbox(1.56, 0.07, 0.1, 0.03), MART.frame, { p: [0, 2.2, glass] });
+  b.add(rbox(2 * open, 0.1, 0.12, 0.03), MART.frame, { p: [0, 0.17, glass] });
+  const posts = [-0.78, 0, 0.78];
+  const bays = Math.max(1, Math.round((open - 0.78) / 0.85));
+  for (const side of [-1, 1]) {
+    for (let k = 1; k <= bays; k++) posts.push(side * (k === bays ? open - 0.05 : 0.78 + ((open - 0.78) * k) / bays));
+  }
+  for (const x of posts) {
+    const door = Math.abs(x) < 0.8;
+    b.add(rbox(door ? 0.1 : 0.08, G - 0.12, 0.1, 0.03), MART.frame, { p: [x, 0.12 + (G - 0.12) / 2, glass] });
+  }
+  for (const side of [-1, 1]) {
+    b.add(rbox(open - 0.78, 0.26, 0.08, 0.03), MART.frame, { p: [(side * (open + 0.78)) / 2, 0.3, glass] });
+    b.add(rbox(0.035, 0.55, 0.05, 0.015), 0xc8ccd4, { p: [side * 0.1, 1.15, glass + 0.07] });
+  }
+  b.add(rbox(1.6, 0.025, 0.7, 0.012), 0x3a3a3c, { p: [0, 0.013, face + 0.45] });
+
+  for (const side of [-1, 1]) martPlanter(kit, side * 2.4, face + 0.32);
+  martChalkboard(kit, -half + 0.65, 1.9);
+  martStreetLamp(kit, -half - 0.75, 1.35);
+
+  block(kit, -half, -D, half, face, H + 0.3);
+  return { group: assemble(kit), obstacles: kit.obstacles, door: { x: 0, z: 0.85 } };
 }
 
 const PRODUCE = {

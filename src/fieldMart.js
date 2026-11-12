@@ -1,22 +1,19 @@
 import * as THREE from 'three';
 import { freeze } from './toon.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
-import { createShophouse } from './architecture.js';
-import { paving, plaqueBoard } from './village.js';
+import { createMiniMart } from './architecture.js';
+import { paving } from './village.js';
 import { ROAD } from './road.js';
 
-const SPOT = { x: -86, front: 29.4, width: 6, depth: 7, seed: 331 };
-const BOUNDS = { x0: SPOT.x - 5, z0: SPOT.front - SPOT.depth - 1, x1: SPOT.x + 5, z1: ROAD.z0 };
+const SPOT = { x: -88.5, front: 29.4, half: 5.7, depth: 9, seed: 331 };
+const BOUNDS = { x0: SPOT.x - SPOT.half - 2, z0: SPOT.front - SPOT.depth - 1, x1: SPOT.x + SPOT.half + 1.5, z1: ROAD.z0 };
 
 export function createFieldMart(options) {
-  const house = createShophouse({ seed: SPOT.seed, width: SPOT.width, depth: SPOT.depth, stories: 1 });
-  const sign = plaqueBoard(['SIÊU THỊ'], { bg: 0x1f4a6e, fg: '#fff3c4', border: 0xf2c14e });
-  sign.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
-  house.group.add(sign.mesh);
+  const house = createMiniMart({ seed: SPOT.seed });
   house.group.position.set(SPOT.x, 0, SPOT.front);
 
   const group = new THREE.Group();
-  group.add(groundDecal(roundedRectGeometry(SPOT.x - 3.2, SPOT.front - 0.2, SPOT.x + 3.2, ROAD.z0 + 0.2, 0.4), paving(), GROUND_LAYER.mark + 1, 0.014));
+  group.add(groundDecal(roundedRectGeometry(SPOT.x - SPOT.half - 1.3, SPOT.front - 0.2, SPOT.x + SPOT.half + 0.4, ROAD.z0 + 0.2, 0.4), paving(), GROUND_LAYER.mark + 1, 0.03));
   group.add(house.group);
   freeze(group);
 
@@ -43,7 +40,7 @@ export function createFieldMart(options) {
         return { id: 'visit', hint: 'hand' };
       },
       topOf(target) {
-        return new THREE.Vector3(target.x, 3.8, target.z);
+        return new THREE.Vector3(target.x, 5.2, target.z);
       },
       act() {
         if (!options.isMartOpen()) return `Siêu thị đóng cửa rồi, mở ${options.martHours()} nhé!`;

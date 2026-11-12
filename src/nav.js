@@ -296,7 +296,7 @@ export class NavGrid {
       const x = a.x + dx * t;
       const z = a.z + dz * t;
       const n = this.cellIndex(x, z);
-      if (!this.walkable(n) || !this.bodyClear(x, z)) return false;
+      if (!this.walkable(n) || !this.bodyClear(x, z) || this.blocked?.({ x, y: this.heights[n], z })) return false;
       if (n !== prev && this.walkable(prev) && !this.canStep(prev, n)) return false;
       prev = n;
     }

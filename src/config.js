@@ -248,7 +248,6 @@ export const BLESSING = {
     [6 * 60, 8 * 60],
     [19 * 60, 21 * 60],
   ],
-  radius: 20,
   recovery: 2,
   quizSeconds: 3,
   quizCloseMs: 500,
