@@ -17,6 +17,7 @@ import { Music } from './music.js';
 import { Ambience } from './ambience.js';
 import { StudyMusic } from './studyMusic.js';
 import { createTargetMarker } from './targetMarker.js';
+import { createBroadcast } from './broadcast.js';
 import { createUiSounds } from './uiSound.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
@@ -1248,6 +1249,17 @@ function dropBlessingMail() {
   blessingMailKey = null;
 }
 
+const broadcast = createBroadcast();
+document.querySelector('.loader-start')?.addEventListener('click', () => setTimeout(() => broadcast.show('Sự kiện chúc phúc đã bắt đầu! Hãy tới quảng trường chúc phúc để nhận chúc phúc.'), 7000), { once: true });
+let blessingAnnounced;
+function announceBlessing() {
+  const session = blessing.session(context.minutes);
+  if (blessingAnnounced === undefined) blessingAnnounced = session;
+  if (!session || session === blessingAnnounced) return;
+  blessingAnnounced = session;
+  broadcast.show('Sự kiện chúc phúc đã bắt đầu! Hãy tới quảng trường chúc phúc để nhận chúc phúc.');
+}
+
 function remindBlessing() {
   const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
   if (blessingMailKey && next?.key !== blessingMailKey && blessing.session(context.minutes) !== blessingMailKey) dropBlessingMail();
@@ -1456,6 +1468,7 @@ renderer.setAnimationLoop((time) => {
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
   remindBlessing();
+  announceBlessing();
   summon.update(dt, context);
   catchFireflies(t, dt);
   updateLamp(t);

@@ -4319,9 +4319,9 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 .rank-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto minmax(38px, auto);
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(28px, auto);
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   padding: 8px 12px;
   border: 1px solid #e8d8b4;
   border-radius: 10px;
@@ -4348,8 +4348,15 @@ dialog.paper.phrase-quiz.closing::backdrop {
 }
 
 .rank-worth {
+  justify-self: end;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.rank-worth .gold-icon {
+  height: 0.84em;
+  margin-right: 0;
+  vertical-align: -0.1em;
 }
 
 .rank-worth.debt {
@@ -4377,8 +4384,8 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 @media (max-width: 600px) {
   .rank-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto minmax(32px, auto);
-    gap: 6px;
+    grid-template-columns: 30px minmax(0, 1fr) auto minmax(26px, auto);
+    gap: 4px;
     padding: 6px 8px;
     font-size: 14px;
   }
@@ -4500,4 +4507,89 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 .regen-coin {
   width: 1.45em;
+}
+
+.broadcast {
+  position: fixed;
+  inset: auto;
+  top: calc(env(safe-area-inset-top, 0px) - 4px);
+  left: 50%;
+  z-index: 1000;
+  width: min(748px, calc(100vw + 4px));
+  margin: 0;
+  padding: 14px;
+  border: 0;
+  background: none;
+  overflow: visible;
+  color: #ffe9a8;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.broadcast-frame {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 16px 0 6px;
+  border: 1.5px solid rgba(242, 193, 78, 0.95);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(64, 22, 12, 0.95), rgba(26, 9, 5, 0.95));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 18px rgba(255, 190, 80, 0.5),
+    inset 0 1px 0 rgba(255, 230, 170, 0.25);
+  will-change: clip-path;
+}
+
+
+
+.broadcast-badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid #f2c14e;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #e0503a, var(--lacquer));
+  font-size: 15px;
+  line-height: 1;
+}
+
+.broadcast-track {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.broadcast-text {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  margin-top: -11px;
+  white-space: nowrap;
+  font: 800 16px/22px var(--font-ui);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px #000, 0 0 8px rgba(255, 190, 80, 0.6);
+  will-change: transform;
+}
+
+@media (max-width: 600px) {
+  .broadcast-frame {
+    height: 36px;
+  }
+
+  .broadcast-badge {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .broadcast-text {
+    font-size: 14px;
+  }
 }
