@@ -1250,7 +1250,6 @@ function dropBlessingMail() {
 }
 
 const broadcast = createBroadcast();
-document.querySelector('.loader-start')?.addEventListener('click', () => setTimeout(() => broadcast.show('Sự kiện chúc phúc đã bắt đầu! Hãy tới quảng trường chúc phúc để nhận chúc phúc.'), 7000), { once: true });
 let blessingAnnounced;
 function announceBlessing() {
   const session = blessing.session(context.minutes);
