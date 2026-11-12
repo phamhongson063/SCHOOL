@@ -1,3 +1,5 @@
+import { prepareCloud } from './cloud.js';
+
 const LOCK = 'truong-lang-xua.game';
 const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');
@@ -12,7 +14,7 @@ function startGame() {
     loader.classList.remove('blocked');
     label.textContent = idleLabel;
   }
-  import('./main.js');
+  prepareCloud().then(() => import('./main.js'));
   return holdWhileOpen();
 }
 
@@ -32,7 +34,7 @@ addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload();
 });
 
-if (!navigator.locks) import('./main.js');
+if (!navigator.locks) prepareCloud().then(() => import('./main.js'));
 else {
   navigator.locks.request(LOCK, { ifAvailable: true }, (lock) => {
     if (lock) return startGame();

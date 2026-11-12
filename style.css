@@ -2104,6 +2104,60 @@ dialog.paper.wide {
   display: block;
 }
 
+.google-btn svg {
+  stroke: none;
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  background: rgba(201, 150, 47, 0.1);
+}
+
+.account-who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.account-name {
+  color: var(--bark);
+  font: 700 15px/1.2 var(--font-ui);
+}
+
+.account-email {
+  overflow: hidden;
+  color: var(--wood);
+  font: 13px/1.3 var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-info .sched-ghost {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font: 700 14px/1.2 var(--font-ui);
+  cursor: pointer;
+}
+
+.account-info .sched-ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.elsewhere-text {
+  margin: 4px 0 16px;
+  color: var(--bark);
+  font-size: 16px;
+  text-align: center;
+}
+
 .reset-confirm {
   padding: 12px;
   border: 2px dashed var(--lacquer);
