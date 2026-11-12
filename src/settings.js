@@ -1,7 +1,7 @@
 import { closable } from './dialog.js';
 import { musicEnabled, setMusicEnabled } from './audio.js';
 import { gameKeys } from './saveKeys.js';
-import { account, cloudEnabled, preloadCloud, signIn, signOut } from './cloud.js';
+import { account, cloudEnabled, signOut } from './cloud.js';
 
 export function wipeGame() {
   try {
@@ -18,7 +18,6 @@ export function createSettings({ onReset }) {
   const cancel = document.getElementById('resetCancel');
   const music = document.getElementById('musicBtn');
   const accountGroup = document.getElementById('accountGroup');
-  const signInBtn = document.getElementById('signInBtn');
   const accountInfo = document.getElementById('accountInfo');
   const accountName = accountInfo.querySelector('.account-name');
   const accountEmail = accountInfo.querySelector('.account-email');
@@ -27,23 +26,14 @@ export function createSettings({ onReset }) {
   accountGroup.hidden = !cloudEnabled;
   const paintAccount = () => {
     const user = account();
-    signInBtn.hidden = Boolean(user);
-    accountInfo.hidden = !user;
     accountName.textContent = user?.name ?? '';
     accountEmail.textContent = user?.email ?? '';
   };
-  signInBtn.addEventListener('click', () => {
-    signInBtn.disabled = true;
-    signIn().catch(() => (signInBtn.disabled = false));
-  });
   signOutBtn.addEventListener('click', () => {
     signOutBtn.disabled = true;
     signOut()
       .catch(() => {})
-      .finally(() => {
-        signOutBtn.disabled = false;
-        paintAccount();
-      });
+      .finally(() => location.reload());
   });
 
   const paintMusic = () => music.setAttribute('aria-checked', String(musicEnabled()));
@@ -61,7 +51,6 @@ export function createSettings({ onReset }) {
   button.addEventListener('click', () => {
     showConfirm(false);
     paintAccount();
-    preloadCloud();
     dialog.showModal();
   });
   button.addEventListener('pointerup', () => button.blur());

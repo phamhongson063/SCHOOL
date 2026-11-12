@@ -1,20 +1,56 @@
-import { prepareCloud } from './cloud.js';
+import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
 
 const LOCK = 'truong-lang-xua.game';
 const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');
 const idleLabel = label?.textContent;
+const login = loader?.querySelector('.loader-login');
 const waiting = new AbortController();
 let releaseLock = () => {};
 
 const holdWhileOpen = () => new Promise((resolve) => (releaseLock = resolve));
+
+function askSignIn(message) {
+  loader.classList.add('login');
+  label.textContent = message ?? '';
+  return new Promise((resolve) => {
+    login.onclick = () => {
+      login.disabled = true;
+      signIn()
+        .then(resolve, () => {})
+        .finally(() => (login.disabled = false));
+    };
+  }).finally(() => {
+    login.onclick = null;
+    loader.classList.remove('login');
+    label.textContent = idleLabel;
+  });
+}
+
+async function enter() {
+  if (!cloudEnabled || !loader) return;
+  let message;
+  for (;;) {
+    try {
+      if (await signedIn()) return await connect();
+    } catch (error) {
+      if (error?.code !== 'permission-denied') message = 'Không kết nối được';
+      else {
+        await signOut().catch(() => {});
+        message = 'Tài khoản không được phép';
+      }
+    }
+    await askSignIn(message);
+    message = undefined;
+  }
+}
 
 function startGame() {
   if (loader?.classList.contains('blocked')) {
     loader.classList.remove('blocked');
     label.textContent = idleLabel;
   }
-  prepareCloud().then(() => import('./main.js'));
+  enter().then(() => import('./main.js'));
   return holdWhileOpen();
 }
 
@@ -34,7 +70,7 @@ addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload();
 });
 
-if (!navigator.locks) prepareCloud().then(() => import('./main.js'));
+if (!navigator.locks) enter().then(() => import('./main.js'));
 else {
   navigator.locks.request(LOCK, { ifAvailable: true }, (lock) => {
     if (lock) return startGame();

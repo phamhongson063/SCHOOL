@@ -2104,10 +2104,6 @@ dialog.paper.wide {
   display: block;
 }
 
-.google-btn svg {
-  stroke: none;
-}
-
 .account-info {
   display: flex;
   align-items: center;
@@ -3314,6 +3310,41 @@ dialog.paper.phrase-quiz {
 .loader.blocked .loader-track,
 .loader.blocked .loader-dots {
   display: none;
+}
+
+.loader.login .loader-track,
+.loader.login .loader-dots {
+  display: none;
+}
+
+.loader-login {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 10px 26px;
+  border: 2px solid var(--gold);
+  border-radius: 99px;
+  background: linear-gradient(180deg, #fff7e6 0%, #f3dcb2 100%);
+  color: #5a3a22;
+  font: 700 16px/1.2 var(--font-ui);
+  box-shadow: 0 4px 18px rgba(90, 58, 34, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+}
+
+.loader-login svg {
+  width: 20px;
+  height: 20px;
+}
+
+.loader-login:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.loader.login .loader-login {
+  display: inline-flex;
+  animation: loader-enter 0.55s ease both;
 }
 
 .loader.loaded .loader-start {

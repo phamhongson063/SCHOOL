@@ -4,13 +4,11 @@ import { haltStores } from './persist.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
-const BOOT_TIMEOUT = 12000;
 
 export const cloudEnabled = Boolean(firebaseConfig.apiKey);
 
 let sdk = null;
 let sync = null;
-let bootExpired = false;
 
 const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -42,10 +40,6 @@ function loadSdk() {
   return sdk;
 }
 
-export function preloadCloud() {
-  if (cloudEnabled) loadSdk().catch(() => {});
-}
-
 function snapshot() {
   const data = {};
   for (const key of gameKeys().sort()) data[key] = localStorage.getItem(key);
@@ -58,22 +52,19 @@ function restore(text) {
   for (const [key, value] of Object.entries(data)) if (isGameKey(key) && typeof value === 'string') localStorage.setItem(key, value);
 }
 
-export async function prepareCloud() {
-  const saved = account();
-  if (!cloudEnabled || !saved) return;
-  const expire = new Promise((resolve) => setTimeout(resolve, BOOT_TIMEOUT));
-  await Promise.race([connect(saved).catch(() => {}), expire]);
-  bootExpired = true;
+export async function signedIn() {
+  const { session } = await loadSdk();
+  return Boolean(session.currentUser);
 }
 
-async function connect(saved) {
+export async function connect() {
   const { store, session, db } = await loadSdk();
   const user = session.currentUser;
-  if (!user) return saveAccount(null);
+  const saved = account();
   const ref = store.doc(db, 'saves', user.uid);
   const id = newId();
   const local = snapshot();
-  const continuing = saved.uid === user.uid && Boolean(saved.rev);
+  const continuing = saved?.uid === user.uid && Boolean(saved?.rev);
   const result = await store.runTransaction(db, async (tx) => {
     const found = await tx.get(ref);
     const cloud = found.exists() ? found.data() : null;
@@ -85,7 +76,6 @@ async function connect(saved) {
     tx.set(ref, { data: local, rev, session: id, savedAt: store.serverTimestamp() });
     return { rev, data: local };
   });
-  if (bootExpired) return;
   if (result.data !== local) restore(result.data);
   saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: result.rev });
   startSync(store, ref, id, result.data);
@@ -158,16 +148,9 @@ function takenOver() {
 }
 
 export async function signIn() {
-  const { auth, store, session, db } = await loadSdk();
-  const { user } = await auth.signInWithPopup(session, new auth.GoogleAuthProvider());
-  try {
-    await store.getDoc(store.doc(db, 'saves', user.uid));
-  } catch (error) {
-    await auth.signOut(session).catch(() => {});
-    throw error;
-  }
-  saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '' });
-  location.reload();
+  const { auth, session } = await loadSdk();
+  if (session.currentUser) return;
+  await auth.signInWithPopup(session, new auth.GoogleAuthProvider());
 }
 
 export async function signOut() {
