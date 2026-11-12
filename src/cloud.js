@@ -1,4 +1,4 @@
-import { firebaseConfig } from './firebaseConfig.js';
+import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
 import { ACCOUNT_KEY, gameKeys, isGameKey } from './saveKeys.js';
 import { haltStores } from './persist.js';
 
@@ -27,11 +27,27 @@ function saveAccount(value) {
   } catch {}
 }
 
+const AUTH_HOSTS = /^https:\/\/(identitytoolkit|securetoken)\.googleapis\.com\//;
+
+function allowAuthReferrer() {
+  if (self.fetch.authReferrer) return;
+  const nativeFetch = self.fetch.bind(self);
+  const patched = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url ?? String(input);
+    if (init?.referrerPolicy === 'no-referrer' && AUTH_HOSTS.test(url)) init = { ...init, referrerPolicy: 'strict-origin-when-cross-origin' };
+    return nativeFetch(input, init);
+  };
+  patched.authReferrer = true;
+  self.fetch = patched;
+}
+
 function loadSdk() {
   if (sdk) return sdk;
+  allowAuthReferrer();
   sdk = (async () => {
-    const [app, auth, store] = await Promise.all(['app', 'auth', 'firestore'].map((name) => import(`${SDK}firebase-${name}.js`)));
+    const [app, auth, store, check] = await Promise.all(['app', 'auth', 'firestore', 'app-check'].map((name) => import(`${SDK}firebase-${name}.js`)));
     const instance = app.initializeApp(firebaseConfig);
+    if (appCheckKey) check.initializeAppCheck(instance, { provider: new check.ReCaptchaEnterpriseProvider(appCheckKey), isTokenAutoRefreshEnabled: true });
     const session = auth.getAuth(instance);
     await session.authStateReady();
     return { auth, store, session, db: store.getFirestore(instance) };

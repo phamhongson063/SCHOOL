@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function allowedPlayer(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email == 'phamhongson063@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function validSave(save) {
+      return save.keys().hasOnly(['data', 'rev', 'session', 'savedAt'])
+        && save.keys().hasAll(['data', 'rev', 'session', 'savedAt'])
+        && save.data is string
+        && save.data.size() < 500000
+        && save.rev is string
+        && save.rev.size() < 64
+        && save.session is string
+        && save.session.size() < 64
+        && save.savedAt is timestamp;
+    }
+
+    function freshTimestamp() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['savedAt'])
+        || request.resource.data.savedAt == request.time;
+    }
+
+    match /saves/{uid} {
+      allow get: if allowedPlayer(uid);
+      allow create: if allowedPlayer(uid)
+        && validSave(request.resource.data)
+        && request.resource.data.savedAt == request.time;
+      allow update: if allowedPlayer(uid)
+        && validSave(request.resource.data)
+        && freshTimestamp();
+    }
+  }
+}

@@ -4,3 +4,5 @@ export const firebaseConfig = {
   projectId: 'langsch-cefb4',
   appId: '1:742588833079:web:3bf5904fcdebd594ca0eb2',
 };
+
+export const appCheckKey = '6Le_vBwuAAAAAJFBSqpSxtU34K2yF3vzHpf5UURB';
