@@ -1,6 +1,7 @@
 import { clockText, dateText, gameNow } from './clock.js';
 import { setRich } from './goldArt.js';
 import { coins } from './format.js';
+import { writeGameItem } from './seal.js';
 
 const KEY = 'truong-lang-xua.mail';
 const TABS = [
@@ -106,7 +107,7 @@ export function createMailbox({ onTravel, onClaim = null }) {
   function save() {
     const kept = [...mails.values()].filter((mail) => mail.keep).sort((a, b) => a.order - b.order);
     try {
-      localStorage.setItem(KEY, JSON.stringify(kept.map(({ id, order: rank, keep, ...mail }) => mail)));
+      writeGameItem(KEY, JSON.stringify(kept.map(({ id, order: rank, keep, ...mail }) => mail)));
     } catch {}
   }
 

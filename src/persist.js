@@ -1,3 +1,5 @@
+import { writeGameItem } from './seal.js';
+
 const stores = [];
 
 export function createStore(key, read) {
@@ -8,7 +10,7 @@ export function createStore(key, read) {
     pending = false;
     if (halted) return;
     try {
-      localStorage.setItem(key, JSON.stringify(read()));
+      writeGameItem(key, JSON.stringify(read()));
     } catch {}
   }
 

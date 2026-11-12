@@ -2,6 +2,7 @@ import { CROPS } from './crops.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 import { createStore } from './persist.js';
+import { removeGameItem } from './seal.js';
 
 const KEY = 'truong-lang-xua.ledger';
 const FULL_MARGIN = 0.5;
@@ -127,8 +128,8 @@ function migrate() {
     }
   }
   try {
-    localStorage.removeItem(LEGACY_PLAYER);
-    localStorage.removeItem(LEGACY_FARMERS);
+    removeGameItem(LEGACY_PLAYER);
+    removeGameItem(LEGACY_FARMERS);
   } catch {}
   return accounts;
 }

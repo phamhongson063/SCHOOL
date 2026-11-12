@@ -5,6 +5,7 @@ import { isOpenAt, hoursText } from './clock.js';
 import { closable } from './dialog.js';
 import { economy } from './economy.js';
 import { stallCard, paintStallArt } from './stallCard.js';
+import { writeGameItem } from './seal.js';
 
 const KEY = 'truong-lang-xua.estate';
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
@@ -29,7 +30,7 @@ export function createEstate({ houses }) {
     const owners = {};
     for (const house of list) if (house.owner) owners[house.id] = house.owner;
     try {
-      localStorage.setItem(KEY, JSON.stringify(owners));
+      writeGameItem(KEY, JSON.stringify(owners));
     } catch {}
     for (const listener of listeners) listener();
   }

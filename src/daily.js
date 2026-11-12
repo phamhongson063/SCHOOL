@@ -1,3 +1,5 @@
+import { writeGameItem } from './seal.js';
+
 export function dailyMark(key) {
   let marked = null;
   try {
@@ -8,7 +10,7 @@ export function dailyMark(key) {
     mark(day) {
       marked = String(day);
       try {
-        localStorage.setItem(key, marked);
+        writeGameItem(key, marked);
       } catch {}
     },
   };

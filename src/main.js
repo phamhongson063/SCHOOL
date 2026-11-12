@@ -84,6 +84,7 @@ import { createHoverTip } from './hoverTip.js';
 import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
 import { coins } from './format.js';
 import { haltStores } from './persist.js';
+import { writeGameItem, removeGameItem } from './seal.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -550,7 +551,7 @@ function savePlace() {
   if (placeLocked) return;
   const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
   try {
-    localStorage.setItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
+    writeGameItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
   } catch {}
 }
 let placeSavedAt = 0;
@@ -1349,8 +1350,8 @@ function loadTally() {
 let blessingTally = loadTally();
 function saveTally() {
   try {
-    if (blessingTally) localStorage.setItem(TALLY_KEY, JSON.stringify(blessingTally));
-    else localStorage.removeItem(TALLY_KEY);
+    if (blessingTally) writeGameItem(TALLY_KEY, JSON.stringify(blessingTally));
+    else removeGameItem(TALLY_KEY);
   } catch {}
 }
 function openTally(session) {

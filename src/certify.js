@@ -17,22 +17,27 @@ function shuffle(list) {
 
 const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null });
 
-function cleanDeck(raw) {
+function cleanDeck(raw, id) {
   const deck = blankDeck();
   if (!raw || typeof raw !== 'object') return deck;
-  const keys = (list) => (Array.isArray(list) ? list.filter((key) => typeof key === 'string') : []);
-  const map = (value) => (value && typeof value === 'object' ? { ...value } : {});
-  deck.day = Number.isFinite(raw.day) ? raw.day : null;
-  deck.cursor = Number.isInteger(raw.cursor) && raw.cursor >= 0 ? raw.cursor : 0;
-  deck.batch = keys(raw.batch);
+  const cards = DECKS[id].cards;
+  const known = new Set(cards.map((card) => card.key));
+  const latest = today() + 1;
+  const pastDay = (value) => Number.isInteger(value) && value <= latest;
+  const keys = (list) => (Array.isArray(list) ? [...new Set(list.filter((key) => known.has(key)))] : []);
+  const days = (value) => Object.fromEntries(Object.entries(value && typeof value === 'object' ? value : {}).filter(([key, day]) => known.has(key) && pastDay(day)));
+  const tallies = (value) => Object.fromEntries(Object.entries(value && typeof value === 'object' ? value : {}).filter(([key, count]) => known.has(key) && Number.isInteger(count) && count >= 0));
+  deck.day = pastDay(raw.day) ? raw.day : null;
+  deck.cursor = Number.isInteger(raw.cursor) && raw.cursor >= 0 ? Math.min(raw.cursor, cards.length) : 0;
+  deck.certified = days(raw.certified);
+  deck.weak = Object.fromEntries(Object.entries(days(raw.weak)).filter(([key]) => deck.certified[key] !== undefined));
+  deck.batch = keys(raw.batch).filter((key) => deck.certified[key] === undefined);
   deck.carry = keys(raw.carry).filter((key) => deck.batch.includes(key));
-  deck.queue = keys(raw.queue);
-  deck.certified = map(raw.certified);
-  deck.weak = map(raw.weak);
-  deck.counts = map(raw.counts);
+  deck.queue = keys(raw.queue).filter((key) => deck.certified[key] === undefined && !deck.batch.includes(key));
+  deck.counts = tallies(raw.counts);
   deck.viewed = keys(raw.viewed);
-  deck.qualified = Number.isFinite(raw.qualified) ? raw.qualified : null;
-  deck.examDay = Number.isFinite(raw.examDay) ? raw.examDay : null;
+  deck.qualified = pastDay(raw.qualified) ? raw.qualified : null;
+  deck.examDay = pastDay(raw.examDay) ? raw.examDay : null;
   return deck;
 }
 
@@ -54,7 +59,7 @@ function load() {
       const actors = {};
       for (const [id, decks] of Object.entries(saved)) {
         actors[id] = {};
-        for (const deck of DECK_IDS) actors[id][deck] = restoreSkipped(cleanDeck(decks?.[deck]), deck);
+        for (const deck of DECK_IDS) actors[id][deck] = restoreSkipped(cleanDeck(decks?.[deck], deck), deck);
       }
       return actors;
     }

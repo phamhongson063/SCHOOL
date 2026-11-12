@@ -12,6 +12,7 @@ import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
+import { writeGameItem, removeGameItem } from './seal.js';
 
 const STORAGE_KEY = 'truong-lang-xua.farm.v2';
 const LEASE_KEY = 'truong-lang-xua.farmLeases';
@@ -126,7 +127,7 @@ class Leases {
 
   save() {
     try {
-      localStorage.setItem(LEASE_KEY, JSON.stringify(this.beds));
+      writeGameItem(LEASE_KEY, JSON.stringify(this.beds));
     } catch {}
   }
 
@@ -244,7 +245,7 @@ class FarmState {
 
   load() {
     try {
-      localStorage.removeItem(LEGACY_KEY);
+      removeGameItem(LEGACY_KEY);
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
       if (!saved || !Array.isArray(saved.spots) || saved.spots.length > this.spots.length) return false;
       const now = gameNow();
@@ -274,7 +275,7 @@ class FarmState {
 
   save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ spots: this.spots }));
+      writeGameItem(STORAGE_KEY, JSON.stringify({ spots: this.spots }));
     } catch {}
   }
 

@@ -1,6 +1,7 @@
 import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
 import { ACCOUNT_KEY, gameKeys, isGameKey } from './saveKeys.js';
 import { haltStores } from './persist.js';
+import { auditSeal, dropTampered } from './seal.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
@@ -79,8 +80,10 @@ export async function connect() {
   const saved = account();
   const ref = store.doc(db, 'saves', user.uid);
   const id = newId();
+  const tampered = auditSeal();
+  if (tampered.length) dropTampered(tampered);
   const local = snapshot();
-  const continuing = saved?.uid === user.uid && Boolean(saved?.rev);
+  const continuing = !tampered.length && saved?.uid === user.uid && Boolean(saved?.rev);
   const result = await store.runTransaction(db, async (tx) => {
     const found = await tx.get(ref);
     const cloud = found.exists() ? found.data() : null;
@@ -92,7 +95,11 @@ export async function connect() {
     tx.set(ref, { data: local, rev, session: id, savedAt: store.serverTimestamp() });
     return { rev, data: local };
   });
-  if (result.data !== local) restore(result.data);
+  if (result.data !== local) {
+    restore(result.data);
+    const broken = auditSeal();
+    if (broken.length) dropTampered(broken);
+  }
   saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: result.rev });
   startSync(store, ref, id, result.data);
 }
@@ -130,6 +137,7 @@ function upload() {
 }
 
 async function push(state) {
+  if (auditSeal().length) return;
   const data = snapshot();
   if (data === state.uploaded) return;
   const { store, db } = await loadSdk();

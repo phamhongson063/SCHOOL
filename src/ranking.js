@@ -4,6 +4,7 @@ import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
 import { closable } from './dialog.js';
 import { setRich } from './goldArt.js';
+import { writeGameItem } from './seal.js';
 
 const KEY = 'truong-lang-xua.ranking';
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -56,7 +57,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
     });
     board = { slot, at, rows };
     try {
-      localStorage.setItem(KEY, JSON.stringify(board));
+      writeGameItem(KEY, JSON.stringify(board));
     } catch {}
   }
 

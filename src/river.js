@@ -5,6 +5,7 @@ import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from '.
 import { FISH, FISHING, WORLD } from './config.js';
 import { gameNow, minuteOfDay } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { writeGameItem } from './seal.js';
 
 const KEY = 'truong-lang-xua.river';
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
@@ -382,7 +383,7 @@ export function createRiver() {
     const zones = {};
     for (const spot of spots) if (spot.fish > 0) zones[spot.id] = [spot.fish, spot.until];
     try {
-      localStorage.setItem(KEY, JSON.stringify({ zones, pending }));
+      writeGameItem(KEY, JSON.stringify({ zones, pending }));
     } catch {}
   };
 
