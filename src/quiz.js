@@ -1,6 +1,6 @@
 import { QUIZ } from './config.js';
 
-export function createQuiz({ quiz, onPass = null, onVillagers = null } = {}) {
+export function createQuiz({ quiz, onPass = null, onEmpty = null, onVillagers = null } = {}) {
   let left = QUIZ.seconds;
   let villagersLeft = QUIZ.seconds;
   let asking = false;
@@ -9,9 +9,14 @@ export function createQuiz({ quiz, onPass = null, onVillagers = null } = {}) {
     asking = true;
     let passed = false;
     while (!passed) {
-      ({ correct: passed } = await quiz.ask({ icon: '📖' }));
+      const result = await quiz.ask({ icon: '📖' });
+      if (result.empty) {
+        onEmpty?.();
+        break;
+      }
+      passed = result.correct;
     }
-    onPass?.();
+    if (passed) onPass?.();
     asking = false;
     left = QUIZ.seconds;
   }

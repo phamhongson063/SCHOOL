@@ -10,7 +10,8 @@ import { createClearing } from './clearing.js';
 import { createAngler } from './angler.js';
 import { between } from './random.js';
 import { ITEMS } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, ENERGY, MOVE } from './config.js';
+import { MONEY, ROUTINE, SCHOOL, VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
+import { certify } from './certify.js';
 import { leaveRoom } from './lodging.js';
 import { amount } from './format.js';
 import { iconTag } from './itemArt.js';
@@ -163,6 +164,12 @@ export class Villager {
     return false;
   }
 
+  luckyIntellect() {
+    if (Math.random() >= CERTIFY.dropChance || !certify.pool(this.id).length) return;
+    this.purse.addIntellect(1);
+    this.say('💡', 1.6);
+  }
+
   say(text, seconds = 1.8) {
     if (this.state === 'seated') this.seatBubble?.show(text, seconds, this.now);
     else this.bubble.show(text, seconds, this.now);
@@ -227,6 +234,7 @@ export class Villager {
     if (this.wantsFood(ctx)) return this.goEat();
     if (ctx.martOpen && this.wantsMart()) return this.goMart();
     if (this.shouldAttend(ctx)) return this.goToClass();
+    if (this.examDeckWanted(ctx)) return this.goExam();
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
     if (this.wantsBlessing(ctx)) return this.goBlessing();
@@ -559,9 +567,10 @@ export class Villager {
     const s = this.seated;
     if (this.payAt !== null && t >= this.payAt) this.pay();
     if (this.task === 'selfstudy') this.selfStudyUpdate(t);
+    if (this.task === 'exam') this.examUpdate(t);
     this.seatBubble.update(t);
     const phase = this.town.context.phase;
-    const learning = this.studying && (phase.kind === 'period' || this.task === 'selfstudy');
+    const learning = this.studying && (phase.kind === 'period' || this.task === 'selfstudy' || this.task === 'exam');
     this.studyIcon.visible = learning;
     if (!this.near) return;
     if (learning && this.writing) {
@@ -701,7 +710,7 @@ export class Villager {
     w.group.scale.setScalar(this.pop > 0 ? 1 + Math.sin((1 - this.pop / 0.25) * Math.PI) * 0.08 : 1);
     w.face.update(t, this.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
     this.shadow.place(pos.x, pos.y, pos.z, hop);
-    if (g.step && this.roaming) this.town.footprints?.step(pos.x, pos.y, pos.z, this.facing, g.step.side);
+    if (g.step && this.roaming) this.town.dust?.step(pos.x, pos.y, pos.z, this.facing, this.velocity > (this.walkSpeed + this.runSpeed) / 2);
     if (g.step) this.town.stepSound?.play(this.velocity > (this.walkSpeed + this.runSpeed) / 2, pos.x, pos.y, pos.z, true);
   }
 }

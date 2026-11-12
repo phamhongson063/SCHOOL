@@ -1,7 +1,12 @@
-import { clockText, gameNow } from './clock.js';
+import { clockText, dateText, gameNow } from './clock.js';
 import { setRich } from './goldArt.js';
+import { coins } from './format.js';
 
-const TABS = [{ key: 'system', icon: '🔔', label: 'Hệ thống', empty: 'Chưa có thư.' }];
+const KEY = 'truong-lang-xua.mail';
+const TABS = [
+  { key: 'system', icon: '🔔', label: 'Hệ thống', empty: 'Chưa có thư.' },
+  { key: 'cert', icon: '🎓', label: 'Chứng chỉ', empty: 'Chưa có kết quả khảo thí.' },
+];
 const KINDS = {
   ripe: { icon: '🧺', body: (crops) => `${crops} đã chín, ra thu hoạch thôi!` },
   water: { icon: '💧', body: (crops) => `${crops} đang khát nước, tưới ngay nhé!` },
@@ -31,7 +36,7 @@ function mailRow(mail) {
   icon.textContent = kind.icon;
   const time = document.createElement('span');
   time.className = 'mail-time';
-  time.textContent = clockText(mail.at);
+  time.textContent = mail.tab === 'cert' ? `${dateText(mail.at)} ${clockText(mail.at)}` : clockText(mail.at);
   const side = document.createElement('div');
   side.className = 'mail-side';
   side.append(icon, time);
@@ -53,11 +58,31 @@ function mailRow(mail) {
     if (last) last.append(' ', place);
     else main.append(place);
   }
+  if (mail.attach) {
+    const gifts = [];
+    if (mail.attach.money) gifts.push(coins(mail.attach.money));
+    if (mail.attach.intellect) gifts.push(`${mail.attach.intellect} 💡`);
+    const claim = document.createElement('button');
+    claim.type = 'button';
+    claim.className = 'mail-claim';
+    claim.disabled = !!mail.claimed;
+    setRich(claim, mail.claimed ? `Đã nhận ${gifts.join(' · ')}` : `Nhận ${gifts.join(' · ')}`);
+    main.append(claim);
+  }
   row.append(side, main);
   return row;
 }
 
-export function createMailbox({ onTravel }) {
+function loadSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+    return Array.isArray(saved) ? saved.filter((mail) => mail && Array.isArray(mail.lines) && Number.isFinite(mail.at)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function createMailbox({ onTravel, onClaim = null }) {
   const button = document.getElementById('mailBtn');
   const dot = document.getElementById('mailDot');
   const panel = document.getElementById('mailPanel');
@@ -71,26 +96,67 @@ export function createMailbox({ onTravel }) {
   const owners = new Map();
   const skipped = new Set();
   let order = 0;
-  const tab = TABS[0];
+  let tab = TABS[0];
 
-  const tabNode = document.createElement('button');
-  tabNode.type = 'button';
-  tabNode.className = 'bag-tab';
-  tabNode.setAttribute('role', 'tab');
-  tabNode.id = `mailTab-${tab.key}`;
-  tabNode.setAttribute('aria-controls', 'mailList');
-  tabNode.setAttribute('aria-selected', 'true');
-  tabNode.setAttribute('aria-label', tab.label);
-  tabNode.title = tab.label;
-  tabNode.textContent = tab.icon;
-  tabBar.append(tabNode);
-  list.setAttribute('aria-labelledby', tabNode.id);
-  category.textContent = ` · ${tab.label}`;
+  for (const saved of loadSaved()) {
+    const id = order++;
+    mails.set(id, { ...saved, id, order: id, keep: true, tab: TABS.some((item) => item.key === saved.tab) ? saved.tab : 'system' });
+  }
+
+  function save() {
+    const kept = [...mails.values()].filter((mail) => mail.keep).sort((a, b) => a.order - b.order);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(kept.map(({ id, order: rank, keep, ...mail }) => mail)));
+    } catch {}
+  }
+
+  const tabNodes = TABS.map((item) => {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'bag-tab mail-tab';
+    node.setAttribute('role', 'tab');
+    node.id = `mailTab-${item.key}`;
+    node.setAttribute('aria-controls', 'mailList');
+    node.setAttribute('aria-label', item.label);
+    node.title = item.label;
+    node.textContent = item.icon;
+    node.addEventListener('click', () => {
+      tab = item;
+      paintTabs();
+      render();
+    });
+    tabBar.append(node);
+    return node;
+  });
+
+  function paintTabs() {
+    TABS.forEach((item, i) => {
+      const node = tabNodes[i];
+      node.setAttribute('aria-selected', String(item === tab));
+      node.classList.toggle('unread', [...mails.values()].some((mail) => (mail.tab ?? 'system') === item.key && !mail.read));
+    });
+    list.setAttribute('aria-labelledby', `mailTab-${tab.key}`);
+    category.textContent = ` · ${tab.label}`;
+  }
+  paintTabs();
 
   const isOpen = () => !panel.hidden;
 
+  function prune() {
+    const now = gameNow();
+    let removed = false;
+    for (const [id, mail] of mails) {
+      if (mail.expires && mail.expires <= now) {
+        mails.delete(id);
+        removed = true;
+      }
+    }
+    if (removed) save();
+    return removed;
+  }
+
   function render() {
-    const sorted = [...mails.values()].sort((a, b) => b.order - a.order);
+    const sorted = [...mails.values()].filter((mail) => (mail.tab ?? 'system') === tab.key).sort((a, b) => b.order - a.order);
     if (!sorted.length) {
       const empty = document.createElement('p');
       empty.className = 'mail-empty';
@@ -105,6 +171,7 @@ export function createMailbox({ onTravel }) {
 
   function refresh() {
     dot.hidden = ![...mails.values()].some((mail) => !mail.read);
+    paintTabs();
     if (isOpen()) render();
   }
 
@@ -112,12 +179,17 @@ export function createMailbox({ onTravel }) {
     const mail = mails.get(id);
     if (!mail || mail.read) return;
     mail.read = true;
+    if (mail.keep) save();
     refresh();
   }
 
   function setOpen(open) {
     if (open && !bagPanel.hidden) document.getElementById('bagClose').click();
-    if (open) render();
+    if (open) {
+      prune();
+      paintTabs();
+      render();
+    }
     panel.hidden = !open;
     veil.hidden = !open;
     document.body.classList.toggle('mail-open', open);
@@ -139,15 +211,32 @@ export function createMailbox({ onTravel }) {
     return id;
   }
 
-  function notify({ icon, lines, place, point }) {
+  function notify({ icon, lines, place = null, point = null, tab: where = 'system', keep = false, expires = null, attach = null, tag = null }) {
     const id = order;
-    mails.set(id, { id, icon, lines, place, point, at: gameNow(), order: order++, read: false });
+    mails.set(id, { id, icon, lines, place, point, tab: where, keep, expires, attach, claimed: false, tag, at: gameNow(), order: order++, read: false });
+    if (keep) save();
     refresh();
     return id;
   }
 
   function remove(id) {
-    if (mails.delete(id)) refresh();
+    const mail = mails.get(id);
+    if (!mail) return;
+    mails.delete(id);
+    if (mail.keep) save();
+    refresh();
+  }
+
+  function removeTag(tag) {
+    for (const [id, mail] of mails) if (mail.tag === tag) remove(id);
+  }
+
+  function hasTag(tag) {
+    return [...mails.values()].some((mail) => mail.tag === tag);
+  }
+
+  function tick() {
+    if (prune()) refresh();
   }
 
   function sync(chores) {
@@ -190,6 +279,13 @@ export function createMailbox({ onTravel }) {
     const id = Number(row.dataset.id);
     const mail = mails.get(id);
     markRead(id);
+    if (mail?.attach && !mail.claimed && event.target.closest('.mail-claim')) {
+      mail.claimed = true;
+      onClaim?.(mail.attach);
+      if (mail.keep) save();
+      refresh();
+      return;
+    }
     if (!mail || !event.target.closest('.mail-place')) return;
     setOpen(false);
     onTravel(mail.point);
@@ -204,5 +300,5 @@ export function createMailbox({ onTravel }) {
     if (event.key === 'Escape' && isOpen()) setOpen(false);
   });
 
-  return { sync, notify, remove };
+  return { sync, notify, remove, removeTag, hasTag, tick };
 }

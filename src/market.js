@@ -1,7 +1,7 @@
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId, gameId, snackId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, SCHOOL, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
-import { isOpenAt, hoursText } from './clock.js';
+import { CROP_ECONOMY, SHOP, CERTIFY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
+import { isOpenAt, hoursText, durationText, DAY_MINUTES } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { iconTag } from './itemArt.js';
 import { closable } from './dialog.js';
@@ -66,7 +66,7 @@ export const shopHours = () => hoursText(SHOP);
 export const fishShopOpen = (minutes) => isOpenAt(FISH_SHOP, minutes);
 export const fishShopHours = () => hoursText(FISH_SHOP);
 
-const reserveOf = (villager) => (villager.kind === 'student' ? SCHOOL.tuition * VILLAGER.tuitionReserve : 0);
+const reserveOf = (villager) => (villager.seated ? (CERTIFY.internalFee + CERTIFY.examFee) * VILLAGER.studyReserve : 0);
 
 function wantsBait(villager) {
   const purse = villager.purse;
@@ -270,7 +270,7 @@ export function createShopUI({ market, purse }) {
     buyItems: () => [
       ...Object.keys(CROPS)
         .sort((a, b) => growDays(a) - growDays(b))
-        .map((crop) => [seedId(crop), `thu sau ${growDays(crop)} ngày`]),
+        .map((crop) => [seedId(crop), `thu sau ${durationText(growDays(crop) * DAY_MINUTES)}`]),
       ['fertilizer', 'bù lại 1 lần lỡ tưới'],
     ],
   });

@@ -2,23 +2,36 @@ import { N2_VOCAB } from './vocabN2.js';
 import { LESSONS } from './lessons.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
+const MARKS = /\[([^\]]+)\]/g;
 
-function splitMeaning(text) {
+export const plainText = (text) => text.replace(/\{[^}]+\}/g, '');
+
+function gist(text) {
   const match = text.match(GIST);
-  return match ? { meaning: match[1], note: text.slice(match[0].length) } : { meaning: text, note: '' };
+  return match ? match[1] : text;
+}
+
+function clozeOf(lines) {
+  const marks = lines.flatMap((line) => [...line[1].matchAll(MARKS)].map((match) => match[1]));
+  if (!marks.length) return null;
+  const answer = marks[0];
+  return { answer, all: marks.every((mark) => plainText(mark) === plainText(answer)) };
 }
 
 export const DECKS = {
   n2: {
     title: 'N2',
     label: 'Từ vựng N2',
-    unit: 'từ mới',
+    level: '単語 N2',
+    unit: 'từ',
     cards: N2_VOCAB.map((entry) => ({
-      key: entry.word,
+      key: `n2:${entry.no}`,
+      deck: 'n2',
       word: entry.word,
       reading: entry.reading,
       hanViet: entry.hanViet,
       meaning: entry.meaning,
+      distractors: entry.distractors ?? [],
       note: '',
       examples: [{ title: '', lines: [['', entry.example, entry.exampleVi]] }],
     })),
@@ -26,15 +39,28 @@ export const DECKS = {
   sugu1: {
     title: 'すぐに使える①',
     label: 'すぐに使える①',
-    unit: 'mẫu câu',
-    cards: LESSONS.map((lesson) => ({
-      key: `sugu1:${lesson.no}`,
-      word: lesson.phrase,
-      reading: '',
-      hanViet: '',
-      meaning: splitMeaning(lesson.meaning).meaning,
-      note: '',
-      examples: lesson.examples,
-    })),
+    level: 'すぐに使える①',
+    unit: 'câu ví dụ',
+    cards: LESSONS.flatMap((lesson) =>
+      lesson.examples.map((example, i) => ({
+        key: `sugu1:${lesson.no}:${i + 1}`,
+        deck: 'sugu1',
+        word: lesson.phrase,
+        reading: '',
+        hanViet: '',
+        meaning: gist(lesson.meaning),
+        note: '',
+        examples: [example],
+        cloze: clozeOf(example.lines),
+      })),
+    ),
   },
 };
+
+export const DECK_IDS = Object.keys(DECKS);
+
+const UNITS = new Map(DECK_IDS.flatMap((id) => DECKS[id].cards.map((card) => [card.key, card])));
+
+export const unitOf = (key) => UNITS.get(key) ?? null;
+
+export const deckOf = (key) => UNITS.get(key)?.deck ?? null;

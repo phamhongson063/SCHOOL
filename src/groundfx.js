@@ -11,30 +11,6 @@ function canvasTexture(width, height, paint) {
   return keepCanvas(texture, (ctx) => paint(ctx, width, height));
 }
 
-function footTexture() {
-  return canvasTexture(64, 128, (ctx) => {
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(34, 70, 17, 30, 0.08, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(31, 108, 13, 15, 0, 0, Math.PI * 2);
-    ctx.fill();
-    const toes = [
-      [20, 30, 7],
-      [30, 25, 6],
-      [39, 25, 5.5],
-      [47, 29, 5],
-      [53, 36, 4.5],
-    ];
-    for (const [x, y, r] of toes) {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-}
-
 function blobTexture() {
   return canvasTexture(64, 64, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
@@ -46,81 +22,119 @@ function blobTexture() {
   });
 }
 
-export class Footprints {
-  constructor(scene, { max = 400, life = 7 } = {}) {
+const DUST_COLOR = new THREE.Color(0xd9c7a3);
+
+const dustVertex = /* glsl */ `
+  attribute float alpha;
+  attribute float size;
+  uniform float scale;
+  varying float vAlpha;
+  void main() {
+    vAlpha = alpha;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * scale / max(0.1, -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const dustFragment = /* glsl */ `
+  uniform vec3 color;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float a = smoothstep(1.0, 0.2, d) * vAlpha;
+    if (a < 0.01) discard;
+    gl_FragColor = vec4(color, a);
+  }
+`;
+
+export class Dust {
+  constructor(scene, { max = 96 } = {}) {
     this.max = max;
-    this.life = life;
     this.cursor = 0;
-    this.now = 0;
-    this.born = new Float32Array(max).fill(-1e9);
-    this.dummy = new THREE.Object3D();
-
-    const geometry = new THREE.PlaneGeometry(0.1, 0.18);
-    geometry.rotateX(-Math.PI / 2);
-    this.fade = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
-    this.fade.setUsage(THREE.DynamicDrawUsage);
-    geometry.setAttribute('aFade', this.fade);
-
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x4a3322,
-      map: footTexture(),
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
-    });
-    material.onBeforeCompile = (shader) => {
-      shader.vertexShader = `attribute float aFade;\nvarying float vFade;\n${shader.vertexShader}`.replace(
-        '#include <begin_vertex>',
-        '#include <begin_vertex>\nvFade = aFade;',
-      );
-      shader.fragmentShader = `varying float vFade;\n${shader.fragmentShader}`.replace(
-        '#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.a *= vFade;',
-      );
+    this.alive = 0;
+    this.last = null;
+    this.puffs = Array.from({ length: max }, () => ({ age: 0, life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 0 }));
+    this.positions = new Float32Array(max * 3);
+    this.alphas = new Float32Array(max);
+    this.sizes = new Float32Array(max);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('alpha', new THREE.BufferAttribute(this.alphas, 1).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('size', new THREE.BufferAttribute(this.sizes, 1).setUsage(THREE.DynamicDrawUsage));
+    this.geometry = geometry;
+    const uniforms = { color: { value: DUST_COLOR }, scale: { value: 1 } };
+    const material = new THREE.ShaderMaterial({ uniforms, vertexShader: dustVertex, fragmentShader: dustFragment, transparent: true, depthWrite: false });
+    this.points = new THREE.Points(geometry, material);
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 3;
+    this.points.raycast = () => {};
+    this.points.visible = false;
+    const buffer = new THREE.Vector2();
+    this.points.onBeforeRender = (renderer, _scene, camera) => {
+      renderer.getDrawingBufferSize(buffer);
+      uniforms.scale.value = buffer.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
     };
-
-    this.mesh = new THREE.InstancedMesh(geometry, material, max);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = 2;
-    this.mesh.raycast = () => {};
-    this.dummy.scale.setScalar(0);
-    this.dummy.updateMatrix();
-    for (let i = 0; i < max; i++) this.mesh.setMatrixAt(i, this.dummy.matrix);
-    scene.add(this.mesh);
+    scene.add(this.points);
   }
 
-  step(x, y, z, facing, side) {
+  puff(x, y, z, fx, fz, strong) {
+    const p = this.puffs[this.cursor];
+    this.cursor = (this.cursor + 1) % this.max;
+    if (p.age >= p.life) this.alive += 1;
+    const side = (Math.random() - 0.5) * 0.5;
+    const back = 0.2 + Math.random() * 0.25 + (strong ? 0.25 : 0);
+    p.age = 0;
+    p.life = 0.55 + Math.random() * 0.35;
+    p.x = x - fx * 0.18 + fz * side * 0.2;
+    p.y = y + 0.06;
+    p.z = z - fz * 0.18 - fx * side * 0.2;
+    p.vx = -fx * back + fz * side;
+    p.vy = 0.25 + Math.random() * 0.2;
+    p.vz = -fz * back - fx * side;
+    p.size = (strong ? 0.34 : 0.26) * (0.85 + Math.random() * 0.3);
+  }
+
+  step(x, y, z, facing, strong = false) {
     const fx = Math.sin(facing);
     const fz = Math.cos(facing);
-    const rx = Math.cos(facing);
-    const rz = -Math.sin(facing);
-    const i = this.cursor;
-    this.cursor = (i + 1) % this.max;
-    this.dummy.position.set(x + rx * side * 0.075 + fx * 0.16, y + 0.015, z + rz * side * 0.075 + fz * 0.16);
-    this.dummy.rotation.set(0, facing + Math.PI, 0);
-    this.dummy.scale.set(side, 1, 1);
-    this.dummy.updateMatrix();
-    this.mesh.setMatrixAt(i, this.dummy.matrix);
-    this.mesh.instanceMatrix.needsUpdate = true;
-    this.born[i] = this.now;
+    this.puff(x, y, z, fx, fz, strong);
+    if (strong) this.puff(x, y, z, fx, fz, strong);
+    this.points.visible = true;
   }
 
   update(now) {
-    this.now = now;
-    const array = this.fade.array;
-    let changed = false;
+    const dt = this.last === null ? 0 : Math.min(0.1, Math.max(0, now - this.last));
+    this.last = now;
+    if (!this.alive) return;
+    let alive = 0;
     for (let i = 0; i < this.max; i++) {
-      const age = now - this.born[i];
-      const value = age < 0 || age > this.life ? 0 : Math.min(1, (this.life - age) / (this.life * 0.5)) * 0.5;
-      if (array[i] === value) continue;
-      array[i] = value;
-      changed = true;
+      const p = this.puffs[i];
+      if (p.age >= p.life) {
+        this.alphas[i] = 0;
+        continue;
+      }
+      p.age += dt;
+      const drag = Math.exp(-3 * dt);
+      p.vx *= drag;
+      p.vz *= drag;
+      p.vy *= Math.exp(-1.5 * dt);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+      const k = Math.min(1, p.age / p.life);
+      this.positions[i * 3] = p.x;
+      this.positions[i * 3 + 1] = p.y;
+      this.positions[i * 3 + 2] = p.z;
+      this.alphas[i] = k >= 1 ? 0 : 0.42 * Math.min(1, k * 6) * (1 - k);
+      this.sizes[i] = p.size * (1 + k * 1.6);
+      if (k < 1) alive += 1;
     }
-    if (changed) this.fade.needsUpdate = true;
+    this.alive = alive;
+    this.points.visible = alive > 0;
+    this.geometry.attributes.position.needsUpdate = true;
+    this.geometry.attributes.alpha.needsUpdate = true;
+    this.geometry.attributes.size.needsUpdate = true;
   }
 }
 

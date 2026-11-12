@@ -1,50 +1,18 @@
-import { TIME_SCALE, START } from './config.js';
+import { TIME_ZONE_MINUTES } from './config.js';
 
-const KEY = 'truong-lang-xua.clock';
 export const DAY_MINUTES = 1440;
 
-function startMinutes() {
-  return START.day * DAY_MINUTES + START.minute;
-}
-
-function load() {
-  const now = Date.now();
-  let origin = null;
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && Number.isFinite(saved.real) && Number.isFinite(saved.game) && Number.isFinite(saved.scale)) origin = saved;
-  } catch {}
-  if (origin && origin.scale !== TIME_SCALE) {
-    const game = origin.game + ((now - origin.real) / 60000) * origin.scale;
-    origin = { real: now, game, scale: TIME_SCALE };
-    save(origin);
-  }
-  if (!origin) {
-    origin = { real: now, game: startMinutes(), scale: TIME_SCALE };
-    save(origin);
-  }
-  return origin;
-}
-
-function save(origin) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(origin));
-  } catch {}
-}
-
-const origin = load();
-
 export function gameNow(real = Date.now()) {
-  return origin.game + ((real - origin.real) / 60000) * TIME_SCALE;
+  return real / 60000 + TIME_ZONE_MINUTES;
 }
 
 export const dayOf = (minutes) => Math.floor(minutes / DAY_MINUTES);
 
 export const minuteOfDay = (minutes) => ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
 
-export const realSeconds = (gameMinutes) => (gameMinutes * 60) / TIME_SCALE;
+export const realSeconds = (gameMinutes) => gameMinutes * 60;
 
-export const gameMinutesOf = (realSecondsSpan) => (realSecondsSpan * TIME_SCALE) / 60;
+export const gameMinutesOf = (realSecondsSpan) => realSecondsSpan / 60;
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -56,6 +24,11 @@ export function clockText(minutes) {
 export function isOpenAt(hours, minutes) {
   const t = minuteOfDay(minutes);
   return hours.open < hours.close ? t >= hours.open && t < hours.close : t >= hours.open || t < hours.close;
+}
+
+export function dateText(minutes) {
+  const date = new Date(Math.floor(minutes) * 60000);
+  return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}`;
 }
 
 export const hoursText = (hours) => `${clockText(hours.open)}–${clockText(hours.close)}`;

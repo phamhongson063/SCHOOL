@@ -61,13 +61,13 @@ export function layDown(avatar, position, facing, k, t) {
 }
 
 export class PlayerController {
-  constructor({ camera, domElement, world, obstacles, avatar, footprints = null, stepSound = null, shadow = null }) {
+  constructor({ camera, domElement, world, obstacles, avatar, dust = null, stepSound = null, shadow = null }) {
     this.camera = camera;
     this.dom = domElement;
     this.world = world;
     this.obstacles = obstacles;
     this.obstacleGrid = new ObstacleGrid(obstacles);
-    this.footprints = footprints;
+    this.dust = dust;
     this.stepSound = stepSound;
     this.shadow = shadow;
     this.surfaceAt = null;
@@ -578,7 +578,7 @@ export class PlayerController {
     const ground = this.onGround ? p.y : this.nav?.heightAt(p.x, p.z) ?? p.y;
     this.shadow?.place(p.x, ground, p.z, Math.max(0, p.y - ground));
     if (g.step && this.onGround) {
-      this.footprints?.step(p.x, p.y, p.z, this.facing, g.step.side);
+      this.dust?.step(p.x, p.y, p.z, this.facing, speed > (WALK_SPEED + RUN_SPEED) / 2);
       this.stepSound?.play(speed > (WALK_SPEED + RUN_SPEED) / 2, p.x, p.y, p.z);
     }
   }

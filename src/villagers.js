@@ -14,7 +14,7 @@ const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], footprints = null, stepSound = null }) {
+  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], dust = null, stepSound = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
@@ -44,7 +44,7 @@ export class Town {
         berth.facing = Math.atan2(berth.float.x - berth.stand.x, berth.float.z - berth.stand.z);
       }
     }
-    this.footprints = footprints;
+    this.dust = dust;
     this.stepSound = stepSound;
     this.context = null;
     this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
@@ -525,8 +525,8 @@ export class Town {
         for (const member of this.all) {
           if (member.state === 'inn') member.lodgeNight = true;
           if (member.state === 'away' || member.state === 'inn' || member.keepsNight) continue;
-          if (member === this.teacher && member.state === 'teaching') {
-            member.stopTeaching();
+          if (member === this.teacher && (member.state === 'teaching' || member.onDuty(ctx))) {
+            if (!member.onDuty(ctx)) member.stopTeaching();
             continue;
           }
           if (member.state === 'seated') member.rise(() => member.goHome(), between(0.2, 2));

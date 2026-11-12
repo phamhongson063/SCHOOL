@@ -122,12 +122,6 @@
         </span>
         <span id="vitalsText" class="stat-value"></span>
       </div>
-      <div class="stat-row stat-intellect" title="Trí lực">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 6.2C9.8 4.6 6.6 4 3 4.3v13.4c3.6-.3 6.8.3 9 1.9 2.2-1.6 5.4-2.2 9-1.9V4.3c-3.6-.3-6.8.3-9 1.9z" /><path class="stat-spine" d="M12 6.2v13.4" /></svg>
-        </span>
-        <span id="intellectText" class="stat-value"></span>
-      </div>
     </div>
   </div>
   <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
@@ -194,26 +188,6 @@
       <div id="mailList" class="mail-list" role="tabpanel"></div>
     </div>
   </section>
-  <section id="lesson" class="lesson" aria-hidden="true" aria-label="Bài học">
-    <button id="lessonClose" class="lesson-close" type="button" aria-label="Đóng bài học">×</button>
-    <div class="lesson-head">
-      <h2 class="lesson-phrase" lang="ja"></h2>
-    </div>
-    <div class="lesson-tools">
-      <span class="lesson-hint-wrap">
-        <button id="lessonHint" class="lesson-hint" type="button" aria-label="Xem nghĩa" aria-describedby="lessonMeaning">?</button>
-        <span id="lessonMeaning" class="lesson-tooltip" role="tooltip"></span>
-      </span>
-      <button id="lessonFurigana" class="lesson-hint lesson-furigana" type="button" aria-pressed="true">F</button>
-      <button id="lessonTranslate" class="lesson-hint lesson-translate" type="button" aria-pressed="false">T</button>
-    </div>
-    <p class="lesson-romaji"></p>
-    <div class="lesson-example">
-      <p class="lesson-situation"></p>
-      <div class="lesson-lines" lang="ja"></div>
-    </div>
-  </section>
-  <button id="lessonOpen" type="button" hidden>📜 Bài học</button>
   <div id="studyDim" class="study-dim" aria-hidden="true"></div>
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
     <div class="paper-body">
@@ -227,12 +201,13 @@
         <button id="studyClose" class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
       <div id="studyStart" class="study-start">
-        <button class="study-pick" type="button" data-mode="random"><span aria-hidden="true">🔀</span>Ngẫu nhiên</button>
-        <button class="study-pick" type="button" data-mode="smart"><span aria-hidden="true">🧠</span>Thông minh</button>
-      </div>
-      <div id="studyPacks" class="study-packs" hidden>
-        <div id="studyPackList" class="study-pack-list"></div>
-        <p id="studyPackNote" class="study-pack-note" hidden></p>
+        <p id="studyStatus" class="study-status"></p>
+        <div class="study-picks">
+          <button class="study-pick" type="button" data-mode="learn"><span aria-hidden="true">📘</span>Học hôm nay<small id="studyLearnInfo"></small></button>
+          <button class="study-pick" type="button" data-mode="review"><span aria-hidden="true">🔀</span>Ôn chứng chỉ<small id="studyReviewInfo"></small></button>
+          <button class="study-pick" type="button" data-mode="internal"><span aria-hidden="true">📝</span>Thi nội bộ<small id="studyInternalInfo"></small></button>
+        </div>
+        <p id="studyNotice" class="study-pack-note" hidden></p>
       </div>
       <div id="studyBody" class="study-body" hidden>
         <div class="study-scroll">
@@ -270,7 +245,7 @@
   <div id="picker" class="picker" role="dialog" hidden>
     <div class="picker-options"></div>
   </div>
-  <button id="phasePill" type="button" title="Thời khoá biểu">
+  <button id="phasePill" type="button" title="Học tập">
     <span id="phaseClock"></span>
   </button>
   <div id="coords" class="coords" aria-hidden="true"><b>X</b><span id="coordsX"></span><b>Y</b><span id="coordsY"></span></div>
@@ -287,46 +262,17 @@
       </svg>
     </button>
   </div>
-  <div id="payPopup" class="pay-popup" role="alertdialog" aria-labelledby="payText" hidden>
-    <p id="payText"></p>
-    <p id="payNote" class="pay-note"></p>
-    <div class="pay-row">
-      <button id="payBtn" type="button">Đóng tiền</button>
-    </div>
-  </div>
   <dialog id="scheduleDialog" class="paper" aria-labelledby="scheduleTitle">
-    <form id="scheduleForm">
+    <div class="paper-body">
       <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">📜</span>
-        <h2 id="scheduleTitle">Thời khoá biểu</h2>
+        <span class="sched-badge emoji" aria-hidden="true">🎓</span>
+        <h2 id="scheduleTitle">Học tập</h2>
         <button id="scheduleClose" class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
       <p class="sched-clock" id="scheduleClock"></p>
       <ol class="sched-list" id="scheduleList"></ol>
       <p class="sched-status" id="scheduleHint"></p>
-      <h3 class="sched-section">Chế độ học</h3>
-      <div class="mode-switch" role="radiogroup" aria-label="Chế độ học">
-        <button class="mode-option" type="button" role="radio" data-mode="random" aria-checked="true">
-          <span class="mode-icon" aria-hidden="true">🎲</span>
-          <strong>Ngẫu nhiên</strong>
-          <small>Mỗi tiết một ví dụ bất kỳ</small>
-        </button>
-        <button class="mode-option" type="button" role="radio" data-mode="choose" aria-checked="false">
-          <span class="mode-icon" aria-hidden="true">📚</span>
-          <strong>Chọn bài</strong>
-          <small>Học theo bài đã chọn</small>
-        </button>
-      </div>
-      <div class="lesson-choice" id="lessonChoice" hidden>
-        <label class="sched-label" for="lessonSelect">Bài học</label>
-        <select id="lessonSelect" class="lesson-select"></select>
-      </div>
-      <div class="sched-actions">
-        <span class="spacer"></span>
-        <button id="cancelBtn" class="sched-ghost" type="button">Huỷ</button>
-        <button class="sched-primary" type="submit">Lưu</button>
-      </div>
-    </form>
+    </div>
   </dialog>
   <dialog id="shopDialog" class="paper wide bank stall" aria-labelledby="shopTitle">
     <div class="paper-body">
@@ -395,45 +341,17 @@
       </div>
     </div>
   </dialog>
-  <dialog id="teacherDialog" class="paper" aria-labelledby="teacherTitle">
-    <form id="prepayForm" class="paper-body">
-      <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">📖</span>
-        <h2 id="teacherTitle">Đóng trước học phí</h2>
-        <button class="sched-x" type="button" aria-label="Đóng">×</button>
-      </header>
-      <p id="prepayNote" class="paper-note"></p>
-      <div class="sched-row">
-        <label class="sched-label" for="prepayCount"><span aria-hidden="true">📚</span>Số tiết</label>
-        <div class="stepper">
-          <button class="step" type="button" data-dir="-1" aria-label="Bớt một tiết">−</button>
-          <input id="prepayCount" type="number" inputmode="numeric" min="1" max="30" step="1" required />
-          <button class="step" type="button" data-dir="1" aria-label="Thêm một tiết">+</button>
-        </div>
-        <span id="prepayTotal" class="sched-unit"></span>
-      </div>
-      <p id="prepayCurrent" class="sched-status"></p>
-      <div class="sched-actions">
-        <span class="spacer"></span>
-        <button class="sched-ghost" type="button">Để sau</button>
-        <button class="sched-primary" type="submit">Đóng tiền</button>
-      </div>
-    </form>
-  </dialog>
-  <dialog id="summonDialog" class="paper" aria-labelledby="summonTitle">
+  <dialog id="examDialog" class="paper" aria-labelledby="examTitle">
     <div class="paper-body">
       <header class="sched-head">
-        <span class="sched-badge emoji" aria-hidden="true">📜</span>
-        <h2 id="summonTitle">Triệu hồi</h2>
+        <span class="sched-badge emoji" aria-hidden="true">🎓</span>
+        <h2 id="examTitle">Trường khảo thí</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
       </header>
-      <p id="summonText" class="paper-note">Bạn bị triệu hồi vào lớp học!</p>
-      <div class="sched-actions">
-        <span class="spacer"></span>
-        <button id="summonOk" class="sched-primary" type="button">OK</button>
-      </div>
+      <p id="examNote" class="paper-note"></p>
+      <div id="examList" class="exam-list"></div>
     </div>
   </dialog>
-  <div id="summonVeil" class="summon-veil" aria-hidden="true"></div>
   <dialog id="blessingDialog" class="paper" aria-labelledby="blessingTitle">
     <div class="paper-body">
       <header class="sched-head">
@@ -494,10 +412,9 @@
         </button>
       </div>
       <h3 class="sched-section">Dữ liệu game</h3>
-      <p class="paper-note">Chơi lại từ đầu sẽ xoá toàn bộ tiền bạc, hạt giống, nông sản, ruộng, nhà cửa của bạn và của tất cả NPC. Thời gian quay về Ngày 1 lúc 06:00. Cài đặt bài học (furigana, bản dịch, chế độ học) được giữ nguyên.</p>
       <button id="resetBtn" class="danger-btn" type="button">🔄 Chơi lại từ đầu</button>
       <div id="resetConfirm" class="reset-confirm" hidden>
-        <p><strong>Chắc chắn chơi lại từ đầu?</strong> Thao tác này không hoàn tác được.</p>
+        <p><strong>Xoá toàn bộ dữ liệu?</strong></p>
         <div class="sched-actions">
           <span class="spacer"></span>
           <button id="resetCancel" class="sched-ghost" type="button">Huỷ</button>

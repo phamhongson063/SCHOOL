@@ -230,6 +230,38 @@ export function createRegen({ scene, camera, purse }) {
     pops.append(el);
   }
 
+  function flyToBag(center) {
+    screen.set(center.x, center.y + HEAD_LIFT, center.z).project(camera);
+    if (screen.z > 1) return;
+    const bag = document.getElementById('bagBtn');
+    const target = bag.getBoundingClientRect();
+    const x0 = ((screen.x + 1) / 2) * window.innerWidth;
+    const y0 = ((1 - screen.y) / 2) * window.innerHeight;
+    const dx = target.left + target.width / 2 - x0;
+    const dy = target.top + target.height / 2 - y0;
+    const el = document.createElement('span');
+    el.className = 'intellect-fly';
+    el.textContent = '💡';
+    el.style.left = `${x0}px`;
+    el.style.top = `${y0}px`;
+    pops.append(el);
+    const motion = el.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0.4)', opacity: 0 },
+        { transform: 'translate(-50%, -90%) scale(1.6)', opacity: 1, offset: 0.25 },
+        { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${dy * 0.45 - 90}px)) scale(1.15)`, opacity: 1, offset: 0.6 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.45)`, opacity: 0.3 },
+      ],
+      { duration: 1400, easing: 'cubic-bezier(0.45, 0, 0.25, 1)', fill: 'forwards' },
+    );
+    motion.onfinish = () => {
+      el.remove();
+      bag.classList.remove('bag-glint');
+      void bag.offsetWidth;
+      bag.classList.add('bag-glint');
+    };
+  }
+
   function showHud(on) {
     if (on === shownOn) return;
     shownOn = on;
@@ -243,6 +275,15 @@ export function createRegen({ scene, camera, purse }) {
       icon.className = 'regen-coin';
       icon.innerHTML = BANK_ART.silver;
       floatUp([`+${gained}`, icon], center, HEAD_LIFT);
+    },
+    intellect(gained, center) {
+      flash = 1;
+      spawnDebt += MOTES;
+      const bulb = document.createElement('span');
+      bulb.className = 'regen-bulb';
+      bulb.textContent = '💡';
+      floatUp([`+${gained}`, bulb], center, HEAD_LIFT);
+      flyToBag(center);
     },
     update(dt, t, center, amount, resting, minutes) {
       if (!resting || amount < 1) mark = null;

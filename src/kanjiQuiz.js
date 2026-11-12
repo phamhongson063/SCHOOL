@@ -1,56 +1,18 @@
 import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
-import { recall } from './recall.js';
 import { japanese } from './ruby.js';
+import { DECKS, unitOf, plainText as plain } from './studyDecks.js';
 
 const RECENT = 40;
 const AUTO_CLOSE_MS = 3000;
 const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
 const LETTERS = ['A', 'B', 'C', 'D'];
-const MARK = /\[([^\]]+)\]/;
-const MARKS = /\[[^\]]+\]/g;
-const plain = (text) => text.replace(/\{[^}]+\}/g, '');
+const MARKS = /\[([^\]]+)\]/g;
 
-let bank = null;
-
-function n2Bank() {
-  return import('./vocabN2.js').then(
-    (module) =>
-      module.N2_VOCAB.filter((entry) => entry.distractors?.length).map((entry) => ({
-        key: entry.word,
-        deck: 'n2',
-        word: entry.word,
-        reading: entry.reading,
-        distractors: entry.distractors,
-        meaning: entry.meaning,
-        level: '単語 N2',
-      })),
-    () => [],
-  );
-}
-
-function phraseBank() {
-  return import('./studyDecks.js').then(
-    ({ DECKS }) =>
-      DECKS.sugu1.cards.map((card) => ({
-        key: card.key,
-        deck: 'sugu1',
-        word: card.word,
-        meaning: card.meaning,
-        level: DECKS.sugu1.title,
-        clozes: card.examples
-          .filter((example) => example.lines.reduce((sum, line) => sum + (line[1].match(MARKS)?.length ?? 0), 0) === 1)
-          .map((example) => ({ lines: example.lines, answer: example.lines.map((line) => line[1].match(MARK)?.[1]).find(Boolean) })),
-      })),
-    () => [],
-  );
-}
-
-function loadBank() {
-  bank ??= Promise.all([n2Bank(), phraseBank()]).then((decks) => decks.flat());
-  return bank;
-}
+const ALL_KEYS = Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.key));
+const CLOZE_ANSWERS = DECKS.sugu1.cards.filter((card) => card.cloze).map((card) => card.cloze.answer);
+const N2_MEANINGS = [...new Set(DECKS.n2.cards.map((card) => card.meaning))];
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -75,8 +37,9 @@ function view(prefix, textId, iconId) {
   };
 }
 
-function clozeLines(lines) {
-  let blank = null;
+function clozeLines(lines, cloze) {
+  const blanks = [];
+  let blanked = false;
   const nodes = lines.map(([speaker, text]) => {
     const line = document.createElement('p');
     line.className = 'phrase-line';
@@ -86,46 +49,47 @@ function clozeLines(lines) {
       line.append(who);
     }
     const words = document.createElement('span');
-    const match = text.match(MARK);
-    if (!match) words.append(japanese(text));
-    else {
-      blank = document.createElement('span');
-      blank.className = 'phrase-blank';
-      words.append(japanese(text.slice(0, match.index)), blank, japanese(text.slice(match.index + match[0].length)));
+    let from = 0;
+    for (const match of text.matchAll(MARKS)) {
+      words.append(japanese(text.slice(from, match.index)));
+      if (cloze.all || !blanked) {
+        const blank = document.createElement('span');
+        blank.className = 'phrase-blank';
+        words.append(blank);
+        blanks.push(blank);
+        blanked = true;
+      } else words.append(japanese(match[1]));
+      from = match.index + match[0].length;
     }
+    words.append(japanese(text.slice(from)));
     line.append(words);
     return line;
   });
-  return { nodes, blank };
+  return { nodes, blanks };
 }
 
-function question(entry, entries, kind, choices) {
+function question(entry, kind, choices) {
   if (entry.deck === 'n2') {
-    const byMeaning = kind === 'meaning';
+    const byMeaning = kind === 'meaning' || !entry.distractors.length;
     const answer = byMeaning ? entry.meaning : entry.reading;
-    const others = byMeaning
-      ? shuffle([...new Set(entries.filter((other) => other.deck === 'n2' && other.word !== entry.word).map((other) => other.meaning))].filter((meaning) => meaning !== answer))
-      : shuffle([...entry.distractors]);
-    return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : others.length) };
+    const others = byMeaning ? shuffle(N2_MEANINGS.filter((meaning) => meaning !== answer)) : shuffle([...entry.distractors]);
+    return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : byMeaning ? 3 : others.length) };
   }
   const count = (choices || PHRASE_QUIZ.choices) - 1;
-  const rest = entries.filter((other) => other.deck === entry.deck && other.key !== entry.key);
-  if (!entry.clozes.length || Math.random() < 0.5) {
-    const others = shuffle([...new Set(rest.map((other) => other.meaning))].filter((meaning) => meaning !== entry.meaning));
-    return { kind: 'meaning', answer: entry.meaning, wrong: others.slice(0, count) };
-  }
-  const cloze = entry.clozes[Math.floor(Math.random() * entry.clozes.length)];
-  const seen = new Set([plain(cloze.answer)]);
-  const forms = shuffle(rest.flatMap((other) => other.clozes.map((item) => item.answer))).filter((form) => !seen.has(plain(form)) && seen.add(plain(form)));
-  const ending = plain(cloze.answer).at(-1);
+  const answer = entry.cloze.answer;
+  const seen = new Set([plain(answer)]);
+  const forms = shuffle([...CLOZE_ANSWERS]).filter((form) => !seen.has(plain(form)) && seen.add(plain(form)));
+  const ending = plain(answer).at(-1);
   const wrong = [...forms.filter((form) => plain(form).at(-1) === ending), ...forms.filter((form) => plain(form).at(-1) !== ending)].slice(0, count);
-  return { kind: 'cloze', answer: cloze.answer, wrong, lines: cloze.lines };
+  return { kind: 'cloze', answer, wrong, lines: entry.examples[0].lines, cloze: entry.cloze };
 }
 
 function quizSeconds(kind, phrase) {
   if (!phrase) return FISHING.quizSeconds;
   return kind === 'cloze' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
 }
+
+const levelOf = (entry) => DECKS[entry.deck].level;
 
 export function createKanjiQuiz() {
   const views = { kanji: view('kanji', 'Word', 'Fish'), phrase: view('phrase', 'Text', 'Icon') };
@@ -147,13 +111,13 @@ export function createKanjiQuiz() {
     done();
   }
 
-  function pick(entries) {
-    const fresh = entries.filter((entry) => !recent.includes(entry.key));
-    const pool = fresh.length ? fresh : entries;
-    const entry = pool[Math.floor(Math.random() * pool.length)];
-    recent.push(entry.key);
-    while (recent.length > Math.min(RECENT, entries.length - 1)) recent.shift();
-    return entry;
+  function pick(keys) {
+    const fresh = keys.filter((key) => !recent.includes(key));
+    const pool = fresh.length ? fresh : keys;
+    const key = pool[Math.floor(Math.random() * pool.length)];
+    recent.push(key);
+    while (recent.length > Math.min(RECENT, keys.length - 1)) recent.shift();
+    return unitOf(key);
   }
 
   function settle(correct, chosen) {
@@ -173,13 +137,12 @@ export function createKanjiQuiz() {
     ui.result.className = `${ui.prefix}-result ${correct ? 'right' : 'wrong'}`;
     const shown = plain(current.entry.word);
     ui.result.textContent = current.entry.reading ? `${shown}（${current.entry.reading}）: ${current.entry.meaning}` : `${shown}: ${current.entry.meaning}`;
-    if (current.blank) {
+    for (const blank of current.blanks) {
       const mark = document.createElement('mark');
       mark.append(japanese(current.answer));
-      current.blank.replaceChildren(mark);
-      current.blank.classList.add('filled');
+      blank.replaceChildren(mark);
+      blank.classList.add('filled');
     }
-    recall.record(current.entry.key, correct);
     current.onAnswer?.(correct);
     if (!current.brief) ui.close.hidden = false;
     const delay = current.closeAfter ?? (current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null);
@@ -217,17 +180,17 @@ export function createKanjiQuiz() {
   function showPrompt(ui, entry, asked) {
     if (ui === views.kanji) {
       ui.text.textContent = entry.word;
-      return null;
+      return [];
     }
     if (asked.kind !== 'cloze') {
       ui.text.className = 'phrase-text single';
       ui.text.replaceChildren(japanese(entry.word));
-      return null;
+      return [];
     }
-    const cloze = clozeLines(asked.lines);
+    const cloze = clozeLines(asked.lines, asked.cloze);
     ui.text.className = 'phrase-text dialogue';
     ui.text.replaceChildren(...cloze.nodes);
-    return cloze.blank;
+    return cloze.blanks;
   }
 
   function optionButton(ui, asked, value, letter) {
@@ -252,30 +215,29 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false } = {}) {
-      const entries = await loadBank();
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null } = {}) {
       endClosing();
-      if (!entries.length) return { correct: true, entry: null };
-      const entry = pick(entries);
-      const asked = question(entry, entries, kind, choices);
+      const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
+      if (!entry) return { correct: false, entry: null, empty: true };
+      const asked = question(entry, kind, choices);
       const phrase = entry.deck !== 'n2';
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {
-        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blank: null };
+        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blanks: [] };
         ui.close.hidden = true;
         ui.dialog.classList.toggle('brief', brief);
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         ui.icon.className = 'quiz-icon hooked';
-        pending.blank = showPrompt(ui, entry, asked);
-        ui.level.textContent = entry.level;
+        pending.blanks = showPrompt(ui, entry, asked);
+        ui.level.textContent = level ?? levelOf(entry);
         ui.result.textContent = '';
         ui.result.className = `${ui.prefix}-result`;
         ui.options.classList.toggle('lettered', lettered);
         ui.options.classList.toggle('meanings', asked.kind === 'meaning');
         ui.options.replaceChildren(...shuffle([asked.answer, ...asked.wrong]).map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
         const started = performance.now();
-        const total = quizSeconds(asked.kind, phrase) * 1000;
+        const total = (seconds ?? quizSeconds(asked.kind, phrase)) * 1000;
         ui.bar.style.transform = 'scaleX(1)';
         pending.tick = setInterval(() => {
           const left = Math.max(0, 1 - (performance.now() - started) / total);

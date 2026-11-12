@@ -1,10 +1,18 @@
 import { between } from './random.js';
-import { ROUTINE, SCHOOL } from './config.js';
+import { ROUTINE, SCHOOL, CERTIFY } from './config.js';
+import { certify } from './certify.js';
+import { DECK_IDS } from './studyDecks.js';
+import { examOpen } from './examHall.js';
 import { BACK, BROKE, CLASS_FULL, LATE, PAID, PLAY, SELF_STUDY, TAKEN, pick } from './villagerData.js';
 import { economy } from './economy.js';
 import { CX, HOUSE } from './school.js';
 
 const CLASS_DOOR = { x: CX, z: HOUSE.front - 1.5 };
+const INTERNAL_TRIES = 3;
+const FORGET = 0.15;
+
+const answerSkill = (member) => Math.min(0.99, 0.9 + 0.09 * member.diligence);
+const simulate = (member, keys) => keys.map((key) => ({ key, correct: Math.random() < answerSkill(member) }));
 
 export class SchoolBehavior {
   classSession(ctx) {
@@ -90,15 +98,34 @@ export class SchoolBehavior {
     this.state = 'sitting';
   }
 
+  internalTriesLeft(deck) {
+    const day = this.town.context.day;
+    if (this.internalDay !== day) {
+      this.internalDay = day;
+      this.internalTries = {};
+    }
+    return INTERNAL_TRIES - (this.internalTries[deck] ?? 0);
+  }
+
+  canTakeInternal(deck) {
+    return certify.internalReady(this.id, deck) && this.purse.money >= CERTIFY.internalFee && this.internalTriesLeft(deck) > 0;
+  }
+
+  studyDeckWanted() {
+    return DECK_IDS.find((deck) => certify.learnLeft(this.id, deck).length > 0 || this.canTakeInternal(deck)) ?? null;
+  }
+
   wantsSelfStudy(ctx) {
-    if (!this.seated || ctx.night || ctx.phase.kind === 'period' || this.now < this.studyRestAt) return false;
-    if (Math.random() >= SELF_STUDY.chance * this.diligence) return false;
-    return !!this.town.studySeats.nearestFree(this.position, this);
+    if (!this.seated || ctx.night || this.now < this.studyRestAt) return false;
+    const deck = this.studyDeckWanted();
+    if (!deck || Math.random() >= SELF_STUDY.chance * this.diligence) return false;
+    return !!this.town.studySeats.nearestFree(this.position, this, (seat) => seat.deck === deck);
   }
 
   goSelfStudy() {
     const seats = this.town.studySeats;
-    const seat = seats.nearestFree(this.position, this);
+    const deck = this.studyDeckWanted();
+    const seat = deck ? seats.nearestFree(this.position, this, (seat) => seat.deck === deck) : null;
     this.cancel();
     if (!seat) {
       this.quitSelfStudy();
@@ -133,9 +160,98 @@ export class SchoolBehavior {
     this.wait(between(1, 2));
   }
 
+  takeInternal(deck) {
+    if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return;
+    economy.income('teacher', CERTIFY.internalFee, this.id);
+    this.internalTries[deck] = (this.internalTries[deck] ?? 0) + 1;
+    const { passed } = certify.gradeInternal(this.id, deck, simulate(this, certify.internalQuestions(this.id, deck)));
+    this.say(passed ? '📝✓' : '📝✗', 1.8);
+  }
+
+  learnTick(t) {
+    const deck = this.seatRef?.deck;
+    if (!deck) return false;
+    const left = certify.learnLeft(this.id, deck);
+    if (!left.length) {
+      this.takeInternal(deck);
+      return !this.canTakeInternal(deck);
+    }
+    if (t - this.studyMark < CERTIFY.viewSeconds) return false;
+    this.studyMark = t;
+    const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
+    if (Math.random() < FORGET * (1 - this.diligence)) certify.forget(this.id, deck, key);
+    else certify.remember(this.id, deck, key);
+    return false;
+  }
+
+  examDeckWanted(ctx) {
+    if (!this.seated || ctx.night || !examOpen(ctx.minutes)) return null;
+    if (this.purse.intellect < CERTIFY.examIntellect || this.purse.money < CERTIFY.examFee) return null;
+    return DECK_IDS.find((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck)) ?? null;
+  }
+
+  goExam() {
+    const deck = this.examDeckWanted(this.town.context);
+    const seat = deck ? this.town.spareSeat(this) : null;
+    this.cancel();
+    if (!seat) {
+      this.task = null;
+      this.wait(between(2, 4));
+      return;
+    }
+    this.task = 'exam';
+    this.examDeck = deck;
+    this.town.seats.reserve(seat, this);
+    this.targetSeat = seat;
+    this.travel(seat.spot, {
+      then: () => this.takeSeat(),
+      fail: () => {
+        this.cancel();
+        this.task = null;
+        this.wait(between(1, 2));
+      },
+    });
+  }
+
+  startExam() {
+    const deck = this.examDeck;
+    const purse = this.purse;
+    const ready = deck && certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck);
+    if (!ready || !purse.take('intellect', CERTIFY.examIntellect)) {
+      this.examDeck = null;
+      this.rise(() => this.think(), between(0.5, 2));
+      return;
+    }
+    if (!purse.spend(CERTIFY.examFee)) {
+      purse.add('intellect', CERTIFY.examIntellect);
+      this.examDeck = null;
+      this.rise(() => this.think(), between(0.5, 2));
+      return;
+    }
+    economy.income('teacher', CERTIFY.examFee, this.id);
+    this.examKeys = certify.examQuestions(this.id, deck);
+    this.examUntil = this.now + this.examKeys.length * CERTIFY.seconds[deck] * between(0.4, 0.8);
+    this.studying = true;
+  }
+
+  examUpdate(t) {
+    if (!this.examKeys || t < this.examUntil) return;
+    const deck = this.examDeck;
+    const keys = this.examKeys;
+    this.examDeck = null;
+    this.examKeys = null;
+    const result = certify.gradeExam(this.id, deck, simulate(this, keys));
+    this.say(result.passed ? '🎓' : '📄', 2.4);
+    this.rise(() => {
+      this.task = null;
+      this.think();
+    }, between(0.3, 1.5));
+  }
+
   selfStudyUpdate(t) {
     const ctx = this.town.context;
-    if (t < this.studyUntil && !ctx.night && !this.shouldAttend(ctx)) return;
+    const done = this.learnTick(t);
+    if (t < this.studyUntil && !ctx.night && !done) return;
     this.studyRestAt = t + SELF_STUDY.cooldown;
     this.rise(() => {
       this.task = null;
@@ -155,6 +271,12 @@ export class SchoolBehavior {
       this.recess = false;
       this.studying = true;
       this.studyUntil = this.now + between(...SELF_STUDY.stay);
+      this.studyMark = this.now;
+      return;
+    }
+    if (this.task === 'exam') {
+      this.recess = false;
+      this.startExam();
       return;
     }
     this.task = 'class';

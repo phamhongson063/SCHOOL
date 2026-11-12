@@ -817,6 +817,45 @@ body.mail-open #toolbar {
   color: #9dd0ff;
 }
 
+.mail-claim {
+  display: block;
+  margin-top: 6px;
+  padding: 5px 12px;
+  border: 1.5px solid var(--gold);
+  border-radius: 7px;
+  background: #6b4425;
+  color: var(--cream);
+  font: 700 12.5px/1.3 var(--font-ui);
+  cursor: pointer;
+}
+
+.mail-claim:hover:not(:disabled) {
+  background: #7d5230;
+}
+
+.mail-claim:disabled {
+  border-color: rgba(201, 162, 39, 0.4);
+  background: transparent;
+  color: #a89b7c;
+  cursor: default;
+}
+
+.mail-tab {
+  position: relative;
+}
+
+.mail-tab.unread::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e5483b;
+  box-shadow: 0 0 0 1.5px #1c140e;
+}
+
 .mail-place:focus-visible {
   outline: 2px solid #6cb8ff;
   outline-offset: 2px;
@@ -1753,6 +1792,52 @@ dialog.paper.wide {
   line-height: 1;
 }
 
+.exam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name action'
+    'info action';
+  align-items: center;
+  gap: 2px 12px;
+  padding: 10px 12px;
+  border: 2px solid #d9c49a;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.85);
+  color: var(--bark);
+}
+
+.exam-row strong {
+  grid-area: name;
+  font: 700 15px/1.3 var(--font-ui);
+}
+
+.exam-info {
+  grid-area: info;
+  color: var(--wood);
+  font: 500 13px/1.35 var(--font-ui);
+}
+
+.exam-row button {
+  grid-area: action;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font: 700 14px/1.2 var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.exam-row button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .paper-note {
   margin: 0 0 12px;
   color: var(--wood);
@@ -2454,8 +2539,7 @@ dialog.paper.phrase-quiz {
   flex: none;
 }
 
-.study-card .study-start,
-.study-card .study-packs {
+.study-card .study-start {
   min-height: 0;
   margin: auto 0;
   overflow-y: auto;
@@ -2547,10 +2631,43 @@ dialog.paper.phrase-quiz {
 }
 
 .study-start {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: 4px 0 6px;
+}
+
+.study-status {
+  margin: 0;
+  color: var(--bark);
+  font: 600 14px/1.45 var(--font-ui);
+  text-align: center;
+}
+
+.study-picks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.study-pick small {
+  color: var(--wood);
+  font: 700 13px/1.2 var(--font-ui);
+}
+
+.study-pick:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.study-pick:disabled:hover {
+  border-color: #d9c49a;
+  background: rgba(255, 252, 240, 0.85);
+}
+
+.study-step:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .study-pick {
@@ -2558,7 +2675,7 @@ dialog.paper.phrase-quiz {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 20px 10px;
+  padding: 16px 6px;
   border: 2px solid #d9c49a;
   border-radius: 12px;
   background: rgba(255, 252, 240, 0.85);
@@ -2575,18 +2692,6 @@ dialog.paper.phrase-quiz {
 .study-pick:hover {
   border-color: var(--lacquer);
   background: #fff3df;
-}
-
-.study-pack-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 4px 0 6px;
-}
-
-.study-pick .study-pack-price {
-  color: var(--lacquer);
-  font-size: 14px;
 }
 
 .study-pack-note {
@@ -2822,6 +2927,7 @@ dialog.paper.phrase-quiz {
 
 .study-count {
   min-width: 60px;
+  text-align: center;
   color: var(--wood);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -3393,6 +3499,39 @@ dialog.paper.phrase-quiz {
   margin-left: 3px;
   vertical-align: -0.12em;
   filter: drop-shadow(0 0 2px #5a3a08);
+}
+
+.regen-bulb {
+  margin-left: 3px;
+  font-size: 0.95em;
+  filter: drop-shadow(0 0 6px rgba(255, 230, 120, 0.95));
+}
+
+.intellect-fly {
+  position: absolute;
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(255, 226, 110, 0.95)) drop-shadow(0 0 3px #fff6c8);
+  will-change: transform, opacity;
+}
+
+#bagBtn.bag-glint {
+  animation: bag-glint 0.7s ease-out;
+}
+
+@keyframes bag-glint {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 226, 110, 0.9);
+    transform: scale(1);
+  }
+  40% {
+    box-shadow: 0 0 18px 6px rgba(255, 226, 110, 0.85);
+    transform: scale(1.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 226, 110, 0);
+    transform: scale(1);
+  }
 }
 
 @keyframes regen-pop {

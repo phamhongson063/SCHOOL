@@ -1,5 +1,5 @@
 import { CROPS } from './crops.js';
-import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS } from './config.js';
+import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 import { createStore } from './persist.js';
 
@@ -34,13 +34,15 @@ for (const [id, snack] of Object.entries(SNACKS)) {
 ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' };
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
+ITEMS.intellect = { icon: '💡', name: 'Trí lực', kind: 'gear', unit: 'điểm' };
 
-const GIFTS = ['fishing'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, intellect: 0, sleeping: false, lodging: false });
+const GIFTS = ['fishing', 'intellect'];
+const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
 
 function starter() {
   const account = blank();
   for (const [item, count] of Object.entries(STARTER)) account.items[item] = count;
+  account.items.intellect = CERTIFY.starterIntellect;
   account.gifts = [...GIFTS];
   return account;
 }
@@ -50,6 +52,12 @@ function giftFishing(account) {
   account.gifts.push('fishing');
   account.items.rod = Math.max(1, account.items.rod ?? 0);
   account.items.bait = (account.items.bait ?? 0) + FISHING.baitPerPack;
+}
+
+function giftIntellect(account) {
+  if (account.gifts.includes('intellect')) return;
+  account.gifts.push('intellect');
+  account.items.intellect = (account.items.intellect ?? 0) + CERTIFY.starterIntellect;
 }
 
 function cleanLots(raw, items) {
@@ -78,13 +86,14 @@ function clean(raw) {
   account.credits = Math.max(0, Math.floor(Number(raw.credits) || 0));
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
-  account.intellect = Math.max(0, Math.floor(Number(raw.intellect) || 0));
   account.sleeping = raw.sleeping === true;
   account.lodging = account.sleeping && (raw.lodging === true ? 'inn' : LODGE_ROOMS[raw.lodging] ? raw.lodging : false);
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
   }
+  const legacyIntellect = Math.floor(Number(raw.intellect) || 0);
+  if (legacyIntellect > 0) account.items.intellect = (account.items.intellect ?? 0) + legacyIntellect;
   account.fishLots = cleanLots(raw, account.items);
   return account;
 }
@@ -192,13 +201,11 @@ export class Purse {
   }
 
   get intellect() {
-    return this.data.intellect;
+    return this.count('intellect');
   }
 
   addIntellect(amount) {
-    if (!(amount > 0)) return;
-    this.data.intellect += Math.floor(amount);
-    this.changed({ intellect: amount });
+    this.add('intellect', Math.floor(amount));
   }
 
   get full() {
@@ -313,6 +320,7 @@ export class Ledger {
     for (const [id, account] of Object.entries(raw)) {
       this.accounts[id] = clean(account);
       giftFishing(this.accounts[id]);
+      giftIntellect(this.accounts[id]);
     }
     this.purses = new Map();
     this.store = createStore(KEY, () => this.accounts);

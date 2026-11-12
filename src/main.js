@@ -7,11 +7,10 @@ import { createPlayer, createSeatedPlayer } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
 import { createRooms, inStudyRoom } from './rooms.js';
 import { Seats } from './seats.js';
-import { createLesson } from './lesson.js';
 import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
 import { NavGrid } from './nav.js';
 import { createSky, createClouds } from './sky.js';
-import { Footprints, createBlobShadow } from './groundfx.js';
+import { Dust, createBlobShadow } from './groundfx.js';
 import { StepSound } from './stepSound.js';
 import { Music } from './music.js';
 import { Ambience } from './ambience.js';
@@ -36,13 +35,12 @@ import { createMailbox } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
-import { gameNow, dayOf, minuteOfDay } from './clock.js';
+import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText } from './clock.js';
 import { phaseAt } from './timetable.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
-import { createTuition } from './tuition.js';
 import { Town } from './villagers.js';
 import { createStudyIcon } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
@@ -66,7 +64,10 @@ import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, STUDY_HALLS } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
-import { createSummon } from './summon.js';
+import { createExams } from './exams.js';
+import { createExamHall, examOpen, qualifyTag } from './examHall.js';
+import { certify } from './certify.js';
+import { DECKS } from './studyDecks.js';
 import { activityOf, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
@@ -125,7 +126,7 @@ sun.shadow.normalBias = 0.03;
 const tuning = createRenderTuning({ renderer, scene, camera, sun, frameRate: FRAME_RATE });
 
 const itemImages = loadItemImages();
-await loadingStep(0.4, 'Dựng trường làng');
+await loadingStep(0.4, 'Dựng trường khảo thí');
 const world = new VoxelWorld();
 const layout = buildWorld(world);
 for (const hall of STUDY_HALLS) buildStudyHall(world, hall);
@@ -172,7 +173,7 @@ await loadingStep(0.62, 'Gieo mạ, mở chợ');
 const modelReady = hasModel('player');
 const avatar = modelReady ? createModel('player') : createPlayer();
 scene.add(avatar.group);
-const footprints = new Footprints(scene);
+const dust = new Dust(scene);
 const stepSound = new StepSound();
 const uiSounds = createUiSounds();
 const villageMusic = new Music(['assets/music/village.ogg', 'assets/music/village.m4a']);
@@ -200,7 +201,7 @@ const player = new PlayerController({
   world,
   obstacles: school.obstacles,
   avatar,
-  footprints,
+  dust,
   stepSound,
   shadow: createBlobShadow(scene, 0.34),
 });
@@ -211,7 +212,20 @@ const ledger = new Ledger();
 const purse = ledger.purse(PLAYER);
 if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
 createBag(purse);
-const mailbox = createMailbox({ onTravel: travelTo });
+const mailbox = createMailbox({
+  onTravel: travelTo,
+  onClaim({ money = 0, intellect = 0 }) {
+    if (money > 0) {
+      economy.reward(purse, money);
+      regen.coin(money, player.position);
+    }
+    if (intellect > 0) {
+      purse.addIntellect(intellect);
+      regen.intellect(intellect, player.position);
+    }
+    uiSounds.correct();
+  },
+});
 createVitals(purse);
 paintPortrait(renderer, modelReady ? createModel('player') : createPlayer(), document.getElementById('vitalsPortrait'));
 const market = createMarket();
@@ -260,7 +274,7 @@ createSettings({
 const regions = new RegionManager({ scene, obstacles: school.obstacles });
 regions.add({
   id: 'school',
-  name: 'Trường làng',
+  name: 'Trường khảo thí',
   bounds: { x0: -22, z0: -42, x1: 23, z1: 33 },
   pinned: true,
 });
@@ -501,6 +515,7 @@ function perform(task, cost) {
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
+      if (task.action.id === 'harvest' && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) workQuiz.ask({ icon: '🧺', quick: true });
     } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
   };
@@ -601,7 +616,7 @@ town = new Town({
   bank,
   bankDesk: district.bankDesk,
   atms: atms.list,
-  footprints,
+  dust,
 });
 
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
@@ -613,7 +628,10 @@ const blessingDialog = createBlessingDialog({
   minutes: () => context.minutes,
   onJoin: () => {
     const joined = blessing.join(PLAYER, context.minutes);
-    if (joined) dropBlessingMail();
+    if (joined) {
+      dropBlessingMail();
+      openTally(blessing.session(context.minutes));
+    }
     return joined;
   },
   onStart: () => blessing.startTest(PLAYER, context.minutes),
@@ -654,16 +672,46 @@ context = contextAt(gameNow());
 
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz();
+
+function dropIntellect() {
+  if (Math.random() >= CERTIFY.dropChance) return;
+  purse.addIntellect(1);
+  regen.intellect(1, player.position);
+  uiSounds.correct();
+}
+
+function sideAsk(options, skipEmpty) {
+  return kanjiQuiz.ask({ ...options, keys: certify.pool(PLAYER) }).then((result) => {
+    if (result.empty) return skipEmpty ? { correct: true, entry: null, skipped: true } : result;
+    if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
+    if (result.correct) dropIntellect();
+    return result;
+  });
+}
+
+const sideQuiz = (skipEmpty) => ({
+  get open() {
+    return kanjiQuiz.open;
+  },
+  ask: (options) => sideAsk(options, skipEmpty),
+  cancel: () => kanjiQuiz.cancel(),
+});
+const workQuiz = sideQuiz(true);
+
 const quiz = createQuiz({
-  quiz: kanjiQuiz,
+  quiz: sideQuiz(false),
   onPass: () => {
     purse.earn(QUIZ.reward);
     regen.coin(QUIZ.reward, player.position);
   },
+  onEmpty: () => sayPlayer('📖 Chưa có từ nào để ôn, hãy tới phòng tự học nhé!', 3),
   onVillagers: () => {
     for (const member of town?.all ?? []) {
+      if (!certify.pool(member.id).length) continue;
       const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
-      if (Math.random() < pass) economy.reward(member.purse, QUIZ.reward);
+      if (Math.random() >= pass) continue;
+      economy.reward(member.purse, QUIZ.reward);
+      member.luckyIntellect();
     }
   },
 });
@@ -671,7 +719,7 @@ const fishing = createPlayerFishing({
   river,
   purse,
   angler,
-  quiz: kanjiQuiz,
+  quiz: workQuiz,
   harvest: effects.harvest,
   player,
   say: (text, seconds) => sayPlayer(text, seconds),
@@ -683,7 +731,7 @@ const mountain = createMountain({
   nav: () => player.nav,
   stepSound,
   purse,
-  quiz: kanjiQuiz,
+  quiz: workQuiz,
   player,
   say: (text, seconds) => sayPlayer(text, seconds),
   day: () => context.day,
@@ -704,28 +752,35 @@ function dropSpoiledFish(delay = 0) {
 }
 dropSpoiledFish(1500);
 
-const lesson = createLesson();
 const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
-const study = createStudy({ purse, music: studyMusic });
-const inClass = () => player.posture === 'seated' && !player.seat?.study;
-const learningNow = () => context.phase.kind === 'period' && tuition.studying;
-const tuition = createTuition({
+const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
+const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3) });
+const endOfDay = () => (dayOf(context.minutes) + 1) * DAY_MINUTES;
+const study = createStudy({
   purse,
-  onStudy: () => {
-    sayPlayer('📖 Vào học thôi!', 1.6);
-    if (inClass()) lesson.open();
+  music: studyMusic,
+  exams,
+  onQualified(deck) {
+    mailbox.removeTag(qualifyTag(deck));
+    mailbox.notify({
+      icon: '📝',
+      lines: [`Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay. Hãy tới Trường khảo thí (${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}) gặp quan coi thi để đăng ký.`],
+      place: 'Trường khảo thí',
+      point: TEACHER_STAND,
+      keep: true,
+      expires: endOfDay(),
+      tag: qualifyTag(deck),
+    });
   },
-  onCredit: (left) => sayPlayer(`Trừ 1 tiết đã đóng trước (còn ${left})`, 2.4),
 });
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
   if (player.seat?.study) study.open(player.seat.deck);
-  else if (learningNow()) lesson.open();
 };
 player.onStand = () => {
-  lesson.close();
   study.close();
 };
+
 
 const fireflies = createFireflies({
   scene,
@@ -767,58 +822,18 @@ function catchFireflies(t, dt) {
   const caught = fireflies.update(t, dt, {
     night: context.night,
     player: player.position,
-    catching: mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !summon.active,
+    catching: mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !exams.running,
   });
   if (!caught) return;
   purse.add('firefly', caught);
   sayPlayer(`✨ ${purse.count('firefly')}`, 1.2);
 }
 
-const summon = createSummon({
-  scene,
-  models: () => [avatar.group],
-  ready: () =>
-    mode === 'play' &&
-    player.posture === 'free' &&
-    !player.lying &&
-    !purse.sleeping &&
-    !popupOpen() &&
-    !kanjiQuiz.open &&
-    !quiz.open &&
-    !fishing.active &&
-    !fieldTask &&
-    !effectTask &&
-    !blessing.member(PLAYER, context.minutes),
-  inClass,
-  prepare() {
-    stopWork();
-    leaveLine();
-    player.setEnabled(false);
-    player.shadow?.setVisible(false);
-    return player.position.clone();
-  },
-  teleport() {
-    tuition.waive(context.phase.key);
-    const free = school.seats.filter((seat) => seats.isFreeFor(seat, 'player'));
-    const seat = free.length ? free[Math.floor(Math.random() * free.length)] : null;
-    const spot = (seat ?? school.seats[0]).spot.clone();
-    player.place(spot, 0);
-    player.clearPath();
-    player.shadow?.setVisible(true);
-    player.setEnabled(mode === 'play');
-    return { spot, seat };
-  },
-  settle({ seat }) {
-    if (!seat || player.posture !== 'free' || player.path || !playerSeats.canTake(seat, 'player')) return;
-    if (Math.hypot(seat.spot.x - player.position.x, seat.spot.z - player.position.z) > 0.7) return;
-    player.beginSit(seat);
-  },
-});
-
 const teacherDesk = {
   act() {
-    if (!school.teacherPresent) return 'Thầy về nhà rồi, mai quay lại nhé!';
-    tuition.openTeacher();
+    if (exams.running) return null;
+    if (!examOpen(context.minutes)) return `Trường khảo thí mở cửa ${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}, bạn quay lại sau nhé!`;
+    examHall.open();
     return null;
   },
 };
@@ -1176,18 +1191,7 @@ for (const button of [ui.modeBtn, restBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
-const scheduleBoard = createScheduleBoard({ lesson, purse, sky, context: () => context });
-
-let lastPhaseKey = context.phase.key;
-function onPhaseChange(ctx) {
-  const kind = ctx.phase.kind;
-  if (kind === 'period') {
-    lesson.nextPeriod();
-    return;
-  }
-  lesson.close();
-  if (inClass() && (kind === 'recess' || kind === 'free')) player.standUp();
-}
+const scheduleBoard = createScheduleBoard({ sky, context: () => context });
 
 const BASE_FOV = 55;
 function frameCamera() {
@@ -1279,13 +1283,64 @@ function updateBlessingQuiz(dt) {
     blessingQuizIn = BLESSING.firstQuiz;
     return;
   }
-  if (kanjiQuiz.open || quiz.open || fishing.active || summon.active || popupOpen()) return;
+  if (kanjiQuiz.open || quiz.open || fishing.active || exams.running || popupOpen()) return;
   blessingQuizIn -= dt;
   if (blessingQuizIn > 0) return;
   blessingQuizIn = BLESSING.quizSeconds;
-  kanjiQuiz.ask({ icon: '✨', quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then(({ correct }) => {
-    if (correct) purse.addIntellect(1);
+  const keys = certify.pool(PLAYER);
+  if (!keys.length) return;
+  const session = blessing.session(context.minutes);
+  kanjiQuiz.ask({ keys, icon: '✨', quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then((result) => {
+    if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
+    if (result.correct && session) tallyBlessing(session);
   });
+}
+
+const TALLY_KEY = 'truong-lang-xua.blessingTally';
+function loadTally() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TALLY_KEY) ?? 'null');
+    if (saved && typeof saved.session === 'string' && Number.isFinite(saved.correct)) return saved;
+  } catch {}
+  return null;
+}
+let blessingTally = loadTally();
+function saveTally() {
+  try {
+    if (blessingTally) localStorage.setItem(TALLY_KEY, JSON.stringify(blessingTally));
+    else localStorage.removeItem(TALLY_KEY);
+  } catch {}
+}
+function openTally(session) {
+  if (!session || blessingTally?.session === session) return;
+  settleBlessing();
+  blessingTally = { session, correct: 0 };
+  saveTally();
+}
+function tallyBlessing(session) {
+  openTally(session);
+  blessingTally.correct += 1;
+  saveTally();
+}
+function settleBlessing() {
+  if (!blessingTally) return;
+  const { correct } = blessingTally;
+  blessingTally = null;
+  saveTally();
+  const money = Math.floor(correct / CERTIFY.blessingCoinPer);
+  const intellect = Math.floor(correct / CERTIFY.blessingIntellectPer);
+  const lines = [`Buổi chúc phúc đã kết thúc. Bạn trả lời đúng ${correct} câu.`];
+  if (!money && !intellect) lines.push('Chưa đủ số câu đúng để nhận thưởng, lần sau cố gắng hơn nhé!');
+  mailbox.notify({
+    icon: '✨',
+    lines,
+    keep: true,
+    expires: endOfDay(),
+    attach: money || intellect ? { money, intellect } : null,
+  });
+}
+function updateBlessingRewards() {
+  if (blessingTally && blessing.session(context.minutes) !== blessingTally.session) settleBlessing();
 }
 
 const sleepVeil = document.getElementById('sleepVeil');
@@ -1302,7 +1357,7 @@ function drainEnergy() {
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
   const resting = lodging || 'sleep';
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : inStudyRoom(player.position) ? 'studyRest' : 'rest';
-  const studying = player.seat?.study || (inClass() && learningNow());
+  const studying = !!player.seat?.study;
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
   purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline, blessing.recoveryAt(PLAYER, player.position, context.minutes));
@@ -1360,7 +1415,7 @@ renderer.setAnimationLoop((time) => {
   const watching = scenePopupOpen();
   const popup = !watching && popupOpen();
   if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
-  const reading = lesson.visible || study.visible;
+  const reading = study.visible;
   const resting = reading || idle;
   const still = resting && !town.anyMoving() && !mountain.moving();
   const frameRate = purse.sleeping
@@ -1395,10 +1450,6 @@ renderer.setAnimationLoop((time) => {
     placeSavedAt = t + 3;
     savePlace();
   }
-  if (context.phase.key !== lastPhaseKey) {
-    lastPhaseKey = context.phase.key;
-    onPhaseChange(context);
-  }
   const night = sky.update(context.minutes, camera, mode === 'overview' ? orbit.target : player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
@@ -1415,11 +1466,11 @@ renderer.setAnimationLoop((time) => {
     lastDay = context.day;
     dropSpoiledFish();
   }
-  footprints.update(t);
+  dust.update(t);
   stepSound.listen(camera);
   riverAmbience.update(dt);
-  tuition.update(context, inClass());
-  playerStudyIcon.visible = inClass() && learningNow();
+  playerStudyIcon.visible = !!player.seat?.study && study.focused;
+  mailbox.tick();
   scheduleBoard.refresh();
   refreshRest();
   if (farm.tick()) mailbox.sync(farm.chores(PLAYER, player.position));
@@ -1463,12 +1514,12 @@ renderer.setAnimationLoop((time) => {
   const focus = mode === 'overview' ? orbit.target : player.position;
   regions.update(t, dt, focus);
   updateSoundscape(focus);
-  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !summon.active);
+  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
+  updateBlessingRewards();
   remindBlessing();
   announceBlessing();
-  summon.update(dt, context);
   catchFireflies(t, dt);
   updateLamp(t);
   if (servingVendor) {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { ROUTINE, VENDOR, GUARD, ENERGY, ECONOMY } from './config.js';
+import { ROUTINE, VENDOR, GUARD, ENERGY, ECONOMY, CERTIFY } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { isOpenAt } from './clock.js';
 import { TEACHER_STAND, FLOOR, PACE_SPOTS } from './school.js';
@@ -10,7 +10,7 @@ import { Villager } from './villager.js';
 
 export class Teacher extends Villager {
   onDuty(ctx) {
-    return !ctx.night && ctx.minute >= ROUTINE.teacherArrive && ctx.minute < ROUTINE.teacherLeave;
+    return ctx.minute >= CERTIFY.open && ctx.minute < CERTIFY.close;
   }
 
   think() {
@@ -108,7 +108,7 @@ export class Teacher extends Villager {
   }
 
   greet() {
-    this.say('Chào con! Lên bục gặp thầy để đóng trước tiền học nhé.', 3);
+    this.say('Muốn khảo thí thì tới gặp ta đăng ký nhé!', 3);
   }
 }
 

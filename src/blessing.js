@@ -5,7 +5,7 @@ import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
-import { plazaFloor } from './quarter.js';
+import { plazaFloor, PLAZA_ZONE } from './quarter.js';
 import { keeperNPC } from './village.js';
 
 const STONE = 0xb3ab99;
@@ -323,6 +323,192 @@ function burstSprite(rays, seed) {
 
 const lerp = (a, b, k) => a + (b - a) * k;
 
+const ZONE = { border: 1.6, wall: 1.7, motes: 90, rise: 0.55, px: 24 };
+
+function paintZoneFloor(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  const band = ZONE.border * ZONE.px;
+  for (let i = 0; i < band; i += 2) {
+    const k = 1 - i / band;
+    ctx.strokeStyle = `rgba(255,255,255,${(0.75 * k * k).toFixed(3)})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(i + 1, i + 1, w - 2 * i - 2, h - 2 * i - 2);
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(band * 0.35, band * 0.35, w - band * 0.7, h - band * 0.7);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  const step = ZONE.px * 2.2;
+  const inset = band * 0.35;
+  const diamond = (x, y, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r);
+    ctx.lineTo(x - r, y);
+    ctx.closePath();
+    ctx.fill();
+  };
+  for (let x = inset + step; x < w - inset - step / 2; x += step) {
+    diamond(x, inset, 5);
+    diamond(x, h - inset, 5);
+  }
+  for (let y = inset + step; y < h - inset - step / 2; y += step) {
+    diamond(inset, y, 5);
+    diamond(w - inset, y, 5);
+  }
+  for (const [x, y] of [[inset, inset], [w - inset, inset], [inset, h - inset], [w - inset, h - inset]]) diamond(x, y, 12);
+}
+
+function paintZoneWall(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  const rand = makeRandom(911);
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * w;
+    const width = 2 + rand() * 6;
+    const top = h * (0.15 + rand() * 0.5);
+    const g = ctx.createLinearGradient(0, h, 0, top);
+    g.addColorStop(0, `rgba(255,255,255,${(0.35 + rand() * 0.4).toFixed(2)})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, top, width, h - top);
+  }
+  const base = ctx.createLinearGradient(0, h, 0, 0);
+  base.addColorStop(0, 'rgba(255,255,255,0.55)');
+  base.addColorStop(0.35, 'rgba(255,255,255,0.12)');
+  base.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, w, h);
+}
+
+const zoneMoteVertex = /* glsl */ `
+  attribute float alpha;
+  attribute float size;
+  uniform float scale;
+  varying float vAlpha;
+  void main() {
+    vAlpha = alpha;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * scale / max(0.1, -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const zoneMoteFragment = /* glsl */ `
+  uniform vec3 color;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float a = smoothstep(1.0, 0.0, d);
+    a = a * a * vAlpha;
+    gl_FragColor = vec4(color * a, a);
+  }
+`;
+
+function createZoneGlow() {
+  const { x0, x1, z0, z1, y } = PLAZA_ZONE;
+  const width = x1 - x0;
+  const depth = z1 - z0;
+  const group = new THREE.Group();
+  group.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
+  group.visible = false;
+
+  const floorMaterial = glowMaterial(canvasTexture(Math.round(width * ZONE.px), Math.round(depth * ZONE.px), paintZoneFloor), { opacity: 0, color: AURA_GOLD });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.06;
+  floor.renderOrder = 2;
+  floor.raycast = () => {};
+  group.add(floor);
+
+  const walls = [];
+  for (const [length, x, z, turn] of [
+    [width, 0, -depth / 2, 0],
+    [width, 0, depth / 2, Math.PI],
+    [depth, -width / 2, 0, Math.PI / 2],
+    [depth, width / 2, 0, -Math.PI / 2],
+  ]) {
+    const map = canvasTexture(256, 128, paintZoneWall);
+    map.wrapS = THREE.RepeatWrapping;
+    map.repeat.set(length / 6, 1);
+    const material = glowMaterial(map, { opacity: 0, color: AURA_GOLD, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(length, ZONE.wall), material);
+    wall.position.set(x, ZONE.wall / 2, z);
+    wall.rotation.y = turn;
+    wall.renderOrder = 3;
+    wall.raycast = () => {};
+    walls.push(wall);
+    group.add(wall);
+  }
+
+  const perimeter = 2 * (width + depth);
+  const positions = new Float32Array(ZONE.motes * 3);
+  const alphas = new Float32Array(ZONE.motes);
+  const sizes = new Float32Array(ZONE.motes);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1).setUsage(THREE.DynamicDrawUsage));
+  const uniforms = { color: { value: new THREE.Color(AURA_GOLD) }, scale: { value: 1 } };
+  const points = new THREE.Points(
+    geometry,
+    new THREE.ShaderMaterial({ uniforms, vertexShader: zoneMoteVertex, fragmentShader: zoneMoteFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+  );
+  points.frustumCulled = false;
+  points.renderOrder = 4;
+  points.raycast = () => {};
+  const buffer = new THREE.Vector2();
+  points.onBeforeRender = (renderer, _scene, camera) => {
+    renderer.getDrawingBufferSize(buffer);
+    uniforms.scale.value = buffer.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  };
+  group.add(points);
+
+  const pointOnEdge = (t) => {
+    let d = (((t % 1) + 1) % 1) * perimeter;
+    if (d < width) return [-width / 2 + d, -depth / 2];
+    d -= width;
+    if (d < depth) return [width / 2, -depth / 2 + d];
+    d -= depth;
+    if (d < width) return [width / 2 - d, depth / 2];
+    d -= width;
+    return [-width / 2, depth / 2 - d];
+  };
+  const motes = Array.from({ length: ZONE.motes }, (_, i) => ({ t: i / ZONE.motes, age: Math.random(), life: 2 + Math.random() * 2, size: 0.12 + Math.random() * 0.12 }));
+
+  let clock = 0;
+  return {
+    group,
+    update(dt, visible, k) {
+      group.visible = visible && k > 0.01;
+      if (!group.visible) return;
+      clock += dt;
+      const pulse = 0.8 + 0.2 * Math.sin(clock * 1.6);
+      floorMaterial.opacity = 0.55 * k * pulse;
+      for (const wall of walls) {
+        wall.material.opacity = 0.35 * k * (0.85 + 0.15 * Math.sin(clock * 2.1));
+        wall.material.map.offset.x = (wall.material.map.offset.x + dt * 0.04) % 1;
+      }
+      motes.forEach((mote, i) => {
+        mote.age += dt / mote.life;
+        if (mote.age >= 1) {
+          mote.age -= 1;
+          mote.t = Math.random();
+        }
+        const [mx, mz] = pointOnEdge(mote.t);
+        positions[i * 3] = mx;
+        positions[i * 3 + 1] = 0.1 + mote.age * ZONE.wall * 1.2;
+        positions[i * 3 + 2] = mz;
+        alphas[i] = Math.sin(Math.PI * mote.age) * k;
+        sizes[i] = mote.size * (1 - 0.4 * mote.age);
+      });
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.alpha.needsUpdate = true;
+      geometry.attributes.size.needsUpdate = true;
+    },
+  };
+}
+
 function createAura(statueMaterial) {
   const group = new THREE.Group();
   const gold = new THREE.Color(AURA_GOLD);
@@ -561,6 +747,8 @@ export function createBlessing(scene) {
   const toward = new THREE.Vector3();
 
   const official = createOfficial(scene);
+  const zone = createZoneGlow();
+  scene.add(zone.group);
 
   const box = (x, z, hx, hz, maxY) => ({ minX: PLAZA.x + x - hx, maxX: PLAZA.x + x + hx, minZ: PLAZA.z + z - hz, maxZ: PLAZA.z + z + hz, minY: 0, maxY });
   const obstacles = [
@@ -647,6 +835,7 @@ export function createBlessing(scene) {
       toward.subVectors(camera.position, aura.group.position).setY(0);
       if (toward.lengthSq() > 1e-6) toward.normalize();
       aura.update(dt, near, strengthAt(minutes), { toward, night });
+      zone.update(dt, near, strengthAt(minutes));
     },
   };
   return api;

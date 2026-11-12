@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { between } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { FISHING, ENERGY, HUNTING } from './config.js';
+import { FISHING, ENERGY, HUNTING, CERTIFY } from './config.js';
 import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
@@ -84,6 +84,7 @@ export class WorkBehavior {
     if (Math.random() < skill) {
       const item = wildlife.capture(prey);
       this.purse.add(item, 1);
+      this.luckyIntellect();
       if (Math.random() < 0.7) this.say(`${pick(BAGGED)} ${iconTag(ITEMS[item])}`, 1.8);
     } else {
       wildlife.scare(prey, this.position);
@@ -167,6 +168,7 @@ export class WorkBehavior {
     if (Math.random() < skill && this.town.river.take(session.spot)) {
       const fish = this.town.river.rollFish(ctx.minutes);
       this.purse.catchFish(fishId(fish), ctx.day);
+      this.luckyIntellect();
       const float = session.berth.float;
       this.effects.harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });
       if (Math.random() < 0.6) this.say(`${pick(CAUGHT)} ${iconTag(ITEMS[fishId(fish)])}`, 1.8);
@@ -298,6 +300,7 @@ export class WorkBehavior {
       farm.release(job.index, this.id);
       this.job = null;
       if (reply && (job.action === 'harvest' || Math.random() < 0.25)) this.say(reply);
+      if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && Math.random() < (FISHING.villagerSkill[this.kind] ?? 0.5)) this.luckyIntellect();
       this.wait(0.8 + Math.random() * 1.6);
     };
     if (!effect) {

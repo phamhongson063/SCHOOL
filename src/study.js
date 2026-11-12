@@ -1,15 +1,15 @@
-import { DECKS } from './studyDecks.js';
-import { recall, MASTERED_BOX } from './recall.js';
+import { DECKS, unitOf } from './studyDecks.js';
+import { certify } from './certify.js';
 import { japanese } from './ruby.js';
-import { STUDY } from './config.js';
+import { CERTIFY } from './config.js';
 import { coins } from './format.js';
 import { economy } from './economy.js';
 import { setRich } from './goldArt.js';
-import { gameNow } from './clock.js';
+import { PLAYER } from './inventory.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
-const MODES = { random: { icon: '🔀', name: 'Ngẫu nhiên' }, smart: { icon: '🧠', name: 'Thông minh' } };
-const NO_MONEY = 'Xin lỗi, bạn không đủ tiền mua gói này.';
+const MODES = { learn: { icon: '📘', name: 'Học hôm nay' }, review: { icon: '🔀', name: 'Ôn chứng chỉ' } };
+const NO_MONEY = 'Xin lỗi, bạn không đủ tiền thi nội bộ.';
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -34,26 +34,20 @@ function el(tag, className, text) {
   return node;
 }
 
-function packButton(offer, unit) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'study-pick';
-  const size = document.createElement('span');
-  size.textContent = offer.words;
-  const price = document.createElement('span');
-  price.className = 'study-pack-price';
-  setRich(price, coins(offer.price));
-  button.append(size, unit, price);
-  return button;
-}
+const timeText = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
-export function createStudy({ purse, music = null }) {
+export function createStudy({ purse, music = null, exams, onQualified = null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
-  const packs = document.getElementById('studyPacks');
-  const packList = document.getElementById('studyPackList');
-  const packNote = document.getElementById('studyPackNote');
+  const status = document.getElementById('studyStatus');
+  const learnInfo = document.getElementById('studyLearnInfo');
+  const reviewInfo = document.getElementById('studyReviewInfo');
+  const internalInfo = document.getElementById('studyInternalInfo');
+  const notice = document.getElementById('studyNotice');
+  const learnPick = start.querySelector('[data-mode="learn"]');
+  const reviewPick = start.querySelector('[data-mode="review"]');
+  const internalPick = start.querySelector('[data-mode="internal"]');
   const body = document.getElementById('studyBody');
   const modeChip = document.getElementById('studyMode');
   const word = document.getElementById('studyWord');
@@ -72,64 +66,68 @@ export function createStudy({ purse, music = null }) {
   const exampleVi = document.getElementById('studyExampleVi');
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
-  let deck = null;
-  let cards = [];
-  let keys = [];
-  let total = 0;
+  const dim = document.getElementById('studyDim');
+  let deckId = 'n2';
+  let deck = DECKS.n2;
+  let mode = null;
+  let current = null;
   let order = [];
   let pos = 0;
-  let current = -1;
-  let pack = null;
-  let packCard = false;
+  let shown = 0;
   let seated = false;
   let studying = false;
   let dimmed = false;
-  const dim = document.getElementById('studyDim');
 
-  recall.seed(DECKS.n2.cards.map((card) => card.key));
   showFurigana(loadFurigana());
   showTranslation(false);
 
-  function endPack() {
-    if (!pack) return;
-    const refund = Math.floor(((pack.left * pack.price) / pack.words) * STUDY.refund);
-    pack = null;
-    music?.stop();
-    if (refund <= 0) return;
-    economy.refund('teacher', refund);
-    purse.earn(refund);
-  }
-
-  function showChip(mode) {
-    modeChip.textContent = MODES[mode].icon;
-    modeChip.setAttribute('aria-label', MODES[mode].name);
+  function showChip(name) {
+    modeChip.textContent = MODES[name].icon;
+    modeChip.setAttribute('aria-label', MODES[name].name);
     modeChip.hidden = false;
   }
 
-  function showPackLeft() {
-    const left = document.createElement('span');
-    left.className = 'study-chip-left';
-    left.textContent = pack.left;
-    modeChip.replaceChildren(MODES.smart.icon, left);
+  function showNotice(text) {
+    notice.textContent = text ?? '';
+    notice.hidden = !text;
+  }
+
+  function statusText() {
+    const left = certify.learnLeft(PLAYER, deckId).length;
+    if (certify.finished(PLAYER, deckId)) return 'Bạn đã học hết bộ này.';
+    if (certify.examTaken(PLAYER, deckId)) return 'Hôm nay bạn đã khảo thí lớp này. Mai quay lại học tiếp nhé.';
+    if (left) return `Hôm nay còn ${left} ${deck.unit} cần học.`;
+    if (certify.needsInternal(PLAYER, deckId)) return 'Đã học xong. Hãy thi nội bộ để đủ điều kiện khảo thí.';
+    return 'Bạn đã đủ điều kiện khảo thí. Hãy tới Trường khảo thí đăng ký nhé.';
+  }
+
+  function paintStart() {
+    const batch = certify.batch(PLAYER, deckId);
+    const learning = batch.filter((item) => !item.ready);
+    const done = learning.filter((item) => item.count >= CERTIFY.remember).length;
+    const certified = certify.certifiedCount(PLAYER, deckId);
+    status.textContent = statusText();
+    learnInfo.textContent = learning.length ? `${done}/${learning.length}` : '—';
+    reviewInfo.textContent = `🎓 ${certified}`;
+    setRich(internalInfo, coins(CERTIFY.internalFee));
+    learnPick.disabled = certify.learnLeft(PLAYER, deckId).length === 0;
+    reviewPick.disabled = certified === 0;
+    internalPick.disabled = !certify.internalReady(PLAYER, deckId) || exams.running;
+  }
+
+  function stopMode() {
+    mode = null;
+    current = null;
+    music?.stop();
   }
 
   function showStart() {
-    endPack();
-    music?.stop();
+    stopMode();
     setStudying(false);
     start.hidden = false;
-    packs.hidden = true;
     body.hidden = true;
     modeChip.hidden = true;
-  }
-
-  function showPacks() {
-    setStudying(true);
-    showChip('smart');
-    start.hidden = true;
-    packs.hidden = false;
-    packNote.hidden = true;
-    body.hidden = true;
+    paintStart();
   }
 
   function fitWord() {
@@ -161,16 +159,16 @@ export function createStudy({ purse, music = null }) {
     exampleVi.replaceChildren(...lines.filter((line) => line[2]).map(([speaker, , vi]) => el('span', 'study-line', `${speaker}: ${vi}`)));
   }
 
-  function fill(index) {
-    current = index;
-    const card = cards[index];
+  function fill(key) {
+    current = key;
+    const card = unitOf(key);
     word.replaceChildren(japanese(card.word));
     fitWord();
     reading.textContent = card.reading;
     hanViet.textContent = card.hanViet;
     meaning.textContent = card.meaning;
     note.textContent = card.note;
-    showExample(card.examples[Math.floor(Math.random() * card.examples.length)]);
+    showExample(card.examples[0]);
   }
 
   function showFurigana(on) {
@@ -189,102 +187,73 @@ export function createStudy({ purse, music = null }) {
     translateBtn.setAttribute('aria-label', label);
   }
 
-  function showProgress(done) {
-    count.textContent = `${done}/${total}`;
-    bar.style.transform = `scaleX(${done / total})`;
-  }
-
   function setCovered(covered) {
     body.classList.toggle('covered', covered);
-    meaning.textContent = covered ? '?' : cards[current].meaning;
+    meaning.textContent = covered ? '?' : unitOf(current).meaning;
     forgot.hidden = covered;
     remembered.hidden = covered;
   }
 
-  function mostOverdue(now) {
-    let overdue = -1;
-    for (let i = 0; i < total; i++) {
-      if (i === current) continue;
-      const due = recall.due(keys[i]);
-      if (due !== null && due <= now && (overdue < 0 || due < recall.due(keys[overdue]))) overdue = i;
-    }
-    return overdue;
+  const waitLeft = () => Math.max(0, CERTIFY.viewSeconds - shown);
+
+  function paintLearnCount() {
+    const done = certify.count(PLAYER, deckId, current);
+    const left = waitLeft();
+    count.textContent = left > 0 ? `${done}/${CERTIFY.remember} · ⏳ ${timeText(left)}` : `${done}/${CERTIFY.remember}`;
+    remembered.disabled = left > 0;
   }
 
-  function weakest() {
-    let best = -1;
-    for (let i = 0; i < total; i++) {
-      if (i === current && total > 1) continue;
-      if (best < 0) {
-        best = i;
-        continue;
-      }
-      const box = recall.box(keys[i]);
-      const bestBox = recall.box(keys[best]);
-      if (box < bestBox || (box === bestBox && recall.due(keys[i]) < recall.due(keys[best]))) best = i;
-    }
-    return best;
+  function paintLearnProgress() {
+    const learning = certify.batch(PLAYER, deckId).filter((item) => !item.ready);
+    const total = learning.length * CERTIFY.remember;
+    const done = learning.reduce((sum, item) => sum + Math.min(item.count, CERTIFY.remember), 0);
+    bar.style.transform = `scaleX(${total ? done / total : 1})`;
   }
 
-  function newWord() {
-    const unseen = keys.findIndex((key, i) => i !== current && recall.due(key) === null);
-    return unseen >= 0 ? unseen : weakest();
-  }
-
-  function pickSmart() {
-    const review = mostOverdue(gameNow());
-    if (review >= 0) {
-      packCard = false;
-      return review;
-    }
-    if (pack.left <= 0) return -1;
-    packCard = true;
-    return newWord();
-  }
-
-  function renderRandom() {
-    fill(order[pos]);
-    showProgress(pos + 1);
-  }
-
-  function renderSmart() {
-    const index = pickSmart();
-    if (index < 0) {
-      pack = null;
-      music?.stop();
-      showPacks();
+  function nextLearn() {
+    const left = certify.learnLeft(PLAYER, deckId);
+    if (!left.length) {
+      showStart();
       return;
     }
-    fill(index);
-    showPackLeft();
-    setCovered(true);
-    showProgress(keys.filter((key) => recall.box(key) >= MASTERED_BOX).length);
-  }
-
-  function buy(offer) {
-    if (!purse.spend(offer.price)) {
-      packNote.textContent = NO_MONEY;
-      packNote.hidden = false;
-      return;
-    }
-    economy.income('teacher', offer.price);
-    pack = { ...offer, left: offer.words };
-    music?.start();
+    const at = left.indexOf(current);
+    const key = at >= 0 && left.length > 1 ? left[(at + 1) % left.length] : at >= 0 ? current : left[0];
+    shown = 0;
+    fill(key);
     showTranslation(false);
-    current = -1;
+    setCovered(true);
+    paintLearnCount();
+    paintLearnProgress();
+  }
+
+  function beginLearn() {
+    if (!certify.learnLeft(PLAYER, deckId).length) return;
+    mode = 'learn';
+    music?.start();
+    setStudying(true);
+    showChip('learn');
+    current = null;
     prev.hidden = true;
     next.hidden = true;
-    packs.hidden = true;
+    start.hidden = true;
     body.hidden = false;
-    renderSmart();
+    nextLearn();
   }
 
-  function beginRandom() {
+  function renderReview() {
+    fill(order[pos]);
+    count.textContent = `${pos + 1}/${order.length}`;
+    bar.style.transform = `scaleX(${(pos + 1) / order.length})`;
+  }
+
+  function beginReview() {
+    const keys = certify.certified(PLAYER, deckId);
+    if (!keys.length) return;
+    mode = 'review';
     music?.start();
     showTranslation(false);
     setStudying(true);
-    showChip('random');
-    current = -1;
+    showChip('review');
     prev.hidden = false;
     next.hidden = false;
     start.hidden = true;
@@ -292,22 +261,50 @@ export function createStudy({ purse, music = null }) {
     body.classList.remove('covered');
     forgot.hidden = true;
     remembered.hidden = true;
-    order = shuffle(cards.map((_, i) => i));
+    remembered.disabled = false;
+    order = shuffle(keys);
     pos = 0;
-    renderRandom();
+    renderReview();
   }
 
   function go(step) {
-    pos = (pos + step + total) % total;
+    pos = (pos + step + order.length) % order.length;
     showTranslation(false);
-    renderRandom();
+    renderReview();
   }
 
   function answer(knew) {
-    recall.record(keys[current], knew);
-    if (packCard) pack.left -= 1;
-    showTranslation(false);
-    renderSmart();
+    if (mode !== 'learn' || !current) return;
+    if (knew) {
+      if (waitLeft() > 0) return;
+      certify.remember(PLAYER, deckId, current);
+    } else certify.forget(PLAYER, deckId, current);
+    nextLearn();
+  }
+
+  async function beginInternal() {
+    if (!certify.internalReady(PLAYER, deckId) || exams.running) return;
+    if (!purse.spend(CERTIFY.internalFee)) {
+      showNotice(NO_MONEY);
+      return;
+    }
+    economy.income('teacher', CERTIFY.internalFee);
+    showNotice(null);
+    const id = deckId;
+    internalPick.disabled = true;
+    const results = await exams.run({ title: 'Thi nội bộ', deck: id, keys: certify.internalQuestions(PLAYER, id), icon: '📝' });
+    const graded = certify.gradeInternal(PLAYER, id, results);
+    const right = results.filter((result) => result.correct).length;
+    if (graded.passed) {
+      showNotice(`Đậu thi nội bộ (${right}/${results.length})! Bạn đã đủ điều kiện khảo thí hôm nay.`);
+      onQualified?.(id);
+    } else {
+      const parts = [`Chưa đậu thi nội bộ (${right}/${results.length}).`];
+      if (graded.failed.length) parts.push(`${graded.failed.length} ${DECKS[id].unit} mới cần học lại.`);
+      if (graded.revoked.length) parts.push(`${graded.revoked.length} ${DECKS[id].unit} bị thu hồi chứng chỉ.`);
+      showNotice(parts.join(' '));
+    }
+    if (deckId === id && !start.hidden) paintStart();
   }
 
   function setVisible(visible) {
@@ -334,31 +331,33 @@ export function createStudy({ purse, music = null }) {
   }
 
   function useDeck(id) {
-    if (deck === DECKS[id]) return;
+    deckId = id;
     deck = DECKS[id];
-    cards = deck.cards;
-    keys = cards.map((card) => card.key);
-    total = cards.length;
-    current = -1;
     title.textContent = deck.title;
     panel.setAttribute('aria-label', deck.label);
     reopen.textContent = `📜 ${deck.label}`;
-    packList.replaceChildren(
-      ...STUDY.packs.map((offer) => {
-        const button = packButton(offer, deck.unit);
-        button.addEventListener('click', () => buy(offer));
-        return button;
-      }),
-    );
   }
+
+  setInterval(() => {
+    if (mode !== 'learn' || !current || !panel.classList.contains('show') || document.visibilityState !== 'visible') return;
+    if (waitLeft() <= 0) return;
+    shown += 1;
+    if (waitLeft() <= 0) certify.viewed(PLAYER, deckId, current);
+    paintLearnCount();
+  }, 1000);
+
+  certify.onChange((actor) => {
+    if (actor === PLAYER && !start.hidden && panel.classList.contains('show')) paintStart();
+  });
 
   addEventListener('resize', fitWord);
   dim.addEventListener('transitionend', (event) => {
     if (event.propertyName === 'opacity') dimmed = dim.classList.contains('on');
   });
   useDeck('n2');
-  start.querySelector('[data-mode="random"]').addEventListener('click', beginRandom);
-  start.querySelector('[data-mode="smart"]').addEventListener('click', showPacks);
+  learnPick.addEventListener('click', beginLearn);
+  reviewPick.addEventListener('click', beginReview);
+  internalPick.addEventListener('click', beginInternal);
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {
     if (body.classList.contains('covered') && !event.target.closest('button')) setCovered(false);
@@ -391,13 +390,13 @@ export function createStudy({ purse, music = null }) {
     open(id = 'n2') {
       useDeck(id);
       seated = true;
+      showNotice(null);
       showStart();
       setVisible(true);
     },
     close() {
       seated = false;
-      endPack();
-      music?.stop();
+      stopMode();
       setStudying(false);
       setVisible(false);
     },

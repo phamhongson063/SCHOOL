@@ -1,5 +1,6 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, CERTIFY } from './config.js';
+import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
 import { activityOf, moodOf } from './stamina.js';
@@ -106,7 +107,7 @@ export class RestBehavior {
     if (this.state === 'away') return ctx.night ? 'sleep' : 'idle';
     if (this.state === 'inn') return this.lodge?.id ?? 'inn';
     if (this.state === 'resting') return this.lyingDown ? (inStudyRoom(this.position) ? 'studyRest' : 'rest') : 'idle';
-    if (this.state === 'seated' && this.studying && (this.town.context.phase.kind === 'period' || this.task === 'selfstudy')) return 'study';
+    if (this.state === 'seated' && this.studying && (this.town.context.phase.kind === 'period' || this.task === 'selfstudy' || this.task === 'exam')) return 'study';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
   }
@@ -124,14 +125,25 @@ export class RestBehavior {
     this.seatBubble?.setMood(mood);
   }
 
+  settleBlessing() {
+    const tally = this.blessingTally;
+    if (!tally || this.town.blessing?.session(this.town.context.minutes) === tally.session) return;
+    this.blessingTally = null;
+    const money = Math.floor(tally.correct / CERTIFY.blessingCoinPer);
+    const intellect = Math.floor(tally.correct / CERTIFY.blessingIntellectPer);
+    if (money > 0) economy.reward(this.purse, money);
+    if (intellect > 0) this.purse.addIntellect(intellect);
+  }
+
   blessingQuiz(blessed) {
+    this.settleBlessing();
     if (!blessed || !this.town.blessing.testing(this.id, this.town.context.minutes)) {
       this.blessingAsk = null;
       return;
     }
     const ask = (this.blessingAsk ??= { at: this.now + BLESSING.firstQuiz, answerAt: null });
     if (ask.answerAt === null) {
-      if (this.now < ask.at) return;
+      if (this.now < ask.at || !certify.pool(this.id).length) return;
       const thinking = between(...FISHING.villagerAnswer);
       ask.answerAt = this.now + thinking;
       this.say('🤔', thinking);
@@ -141,8 +153,10 @@ export class RestBehavior {
     ask.answerAt = null;
     ask.at = this.now + BLESSING.quizSeconds;
     if (Math.random() >= (FISHING.villagerSkill[this.kind] ?? 0.5)) return;
-    this.purse.addIntellect(1);
-    this.say('💡', 1.2);
+    const session = this.town.blessing.session(this.town.context.minutes);
+    if (this.blessingTally?.session !== session) this.blessingTally = { session, correct: 0 };
+    this.blessingTally.correct += 1;
+    this.say('✓', 1.2);
   }
 
   wantsFood(ctx) {

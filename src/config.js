@@ -1,6 +1,4 @@
-export const TIME_SCALE = 20;
-
-export const START = { day: 1, minute: 6 * 60 };
+export const TIME_ZONE_MINUTES = 9 * 60;
 
 export const WORLD = { x0: -150, x1: 200 };
 
@@ -9,8 +7,6 @@ export const DAYLIGHT = { sunrise: 5 * 60 + 30, sunset: 18 * 60 };
 export const ROUTINE = {
   wake: 5 * 60 + 30,
   home: 21 * 60,
-  teacherArrive: 6 * 60 + 15,
-  teacherLeave: 21 * 60,
   schoolLead: 50,
 };
 
@@ -21,7 +17,7 @@ export const SCHOOL = {
   morning: 7 * 60 + 30,
   afternoon: 13 * 60 + 30,
   evening: 19 * 60,
-  plans: [{ morning: 2, afternoon: 2, evening: 1 }],
+  plans: [{ morning: 0, afternoon: 0, evening: 0 }],
   alertBefore: 10,
   tuition: 1,
   maxPrepaid: 30,
@@ -34,15 +30,15 @@ export const FISH_SHOP = { open: 5 * 60, close: 19 * 60 };
 
 export const CHIEF = { open: 6 * 60, close: 20 * 60 };
 
-export const CROP_TIME_FACTOR = 0.05;
+export const CROP_TIME_FACTOR = 0.00625;
 
 export const CROP_ECONOMY = {
   waterSpinach: { days: 20, seed: 1, price: 3 },
   bokChoy: { days: 30, seed: 1, price: 4 },
   tomato: { days: 75, seed: 2, price: 2 },
-  corn: { days: 70, seed: 1, price: 3 },
-  watermelon: { days: 65, seed: 2, price: 18 },
-  sweetPotato: { days: 100, seed: 1, price: 3 },
+  corn: { days: 70, seed: 2, price: 6 },
+  watermelon: { days: 65, seed: 2, price: 11 },
+  sweetPotato: { days: 100, seed: 2, price: 5 },
 };
 
 export const growDays = (crop) => (CROP_ECONOMY[crop]?.days ?? 30) * CROP_TIME_FACTOR;
@@ -53,9 +49,9 @@ export const FARMING = {
   minVigor: 0.25,
   villagerPlots: 10,
   leases: [
-    { days: 3, price: 9 },
-    { days: 7, price: 18 },
-    { days: 15, price: 33 },
+    { days: 3, price: 27 },
+    { days: 7, price: 54 },
+    { days: 15, price: 99 },
   ],
   spentMinutes: 6 * 60,
 };
@@ -76,8 +72,8 @@ export const FISHING = {
   baitPerPack: 5,
   zones: 5,
   zoneFish: [4, 8],
-  zoneRespawn: [180, 360],
-  zoneLife: [240, 480],
+  zoneRespawn: [9, 18],
+  zoneLife: [12, 24],
   biteSeconds: 3,
   villagerAnswer: [2, 6],
   quizSeconds: 20,
@@ -123,7 +119,7 @@ export const VILLAGER = {
   houseReserve: 30,
   sitWithoutPaying: 0.3,
   restUntil: 10,
-  tuitionReserve: 4,
+  studyReserve: 2,
   leaseReserve: 20,
   leaseCycles: 3,
   renewBefore: 0.5,
@@ -133,12 +129,12 @@ export const VILLAGER = {
 export const ENERGY = {
   max: 100,
   costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 1, fish: 2 },
-  drain: { seated: 0.5, idle: 0.5, walk: 1, study: 3, run: 2 },
+  drain: { seated: 2, idle: 2, walk: 4, study: 6, run: 8 },
   nightFactor: 2,
-  sleepPerHour: 8,
-  restPerHour: 4,
-  studyRestPerHour: 6,
-  shelterPerHour: 6,
+  sleepPerHour: 15,
+  restPerHour: 20,
+  studyRestPerHour: 25,
+  shelterPerHour: 25,
   tiredSpeed: 0.5,
   low: 20,
 };
@@ -146,10 +142,10 @@ export const ENERGY = {
 export const MOVE = { walk: 2, run: 3 };
 
 export const LODGES = {
-  inn: { price: 25, perHour: 14, comfort: 0.6 },
-  cheap: { price: 20, perHour: 10, comfort: 0.2 },
-  cozy: { price: 30, perHour: 18, comfort: 0.7 },
-  grand: { price: 45, perHour: 26, comfort: 1 },
+  inn: { price: 25, perHour: 28, comfort: 0.6 },
+  cheap: { price: 20, perHour: 20, comfort: 0.2 },
+  cozy: { price: 30, perHour: 36, comfort: 0.7 },
+  grand: { price: 45, perHour: 52, comfort: 1 },
 };
 
 export const LODGE_ROOMS = {
@@ -173,13 +169,23 @@ export const FOODS = {
   comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55 },
 };
 
-export const STUDY = {
-  packs: [
-    { words: 3, price: 6 },
-    { words: 5, price: 9 },
-    { words: 8, price: 12 },
-  ],
-  refund: 0.5,
+export const CERTIFY = {
+  batch: 5,
+  remember: 4,
+  viewSeconds: 5 * 60,
+  internalFee: 3,
+  examFee: 10,
+  examIntellect: 20,
+  starterIntellect: 20,
+  examMinutes: 15,
+  pass: 0.9,
+  seconds: { n2: 30, sugu1: 60 },
+  open: 5 * 60,
+  close: 22 * 60,
+  dropChance: 0.05,
+  harvestQuiz: 0.1,
+  blessingCoinPer: 10,
+  blessingIntellectPer: 5,
 };
 
 export const MART = { open: 6 * 60, close: 22 * 60, house: 'd1', reserve: 80, chance: 0.15, stock: 2 };
@@ -217,8 +223,6 @@ export const GUARD = {
 
 export const PRAYER = { energy: 10 };
 
-export const SUMMON = { minLeft: 40, grace: 90 };
-
 export const FIREFLY = {
   count: 40,
   catchRadius: 0.9,
@@ -244,17 +248,14 @@ export const ECONOMY = {
 export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
 
 export const BLESSING = {
-  windows: [
-    [6 * 60, 8 * 60],
-    [19 * 60, 21 * 60],
-  ],
+  windows: Array.from({ length: 8 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
   recovery: 2,
   quizSeconds: 3,
   quizCloseMs: 500,
-  remindBefore: 30,
+  remindBefore: 10,
   firstQuiz: 3,
   villagerChance: 0.35,
-  villagerStay: [20, 40],
+  villagerStay: [5 * 60, 15 * 60],
 };
 
 export const RANKING = {
@@ -297,7 +298,7 @@ export const ATM = {
   minWithdraw: 10,
   detour: 40,
   spots: [
-    { id: 'school', name: 'Trường làng', x: 6.6, z: 30.2 },
+    { id: 'school', name: 'Trường khảo thí', x: 6.6, z: 30.2 },
     { id: 'market', name: 'Phố cổ', x: 49.3, z: 30.2 },
     { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: -82, z: 30.3 },
   ],

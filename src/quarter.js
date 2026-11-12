@@ -61,6 +61,8 @@ function frame(side, x, front) {
   return { toWorld, box, turn: north ? 0 : Math.PI };
 }
 
+export const PLAZA_ZONE = { x0: RING_OUT.x0, x1: RING_OUT.x1, z0: FORECOURT.z1, z1: RING_OUT.z1, y: PLAZA.rise };
+
 const onStep = (x, z) => z >= FORECOURT.z1 - PLAZA_STEPS.depth && z < FORECOURT.z1 && PLAZA_STEPS.xs.some((sx) => Math.abs(x - sx) <= PLAZA_STEPS.width / 2);
 
 export function plazaFloor(x, z) {

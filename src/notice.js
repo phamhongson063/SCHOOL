@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Batch, freeze, labelBox, shapes, toonMaterial } from './toon.js';
-import { scheduleFor, sessionLabel } from './timetable.js';
-import { clockText } from './clock.js';
+import { CERTIFY } from './config.js';
+import { dateText, hoursText, DAY_MINUTES } from './clock.js';
 import { keepCanvas } from './canvasRestore.js';
 
 export const NOTICE = { x: -5.6, z: 31.4 };
@@ -12,10 +12,7 @@ const HEIGHT = 1.45;
 const PX = 300;
 const FONT = '"BIZ UDPGothic", system-ui, -apple-system, "Segoe UI", sans-serif';
 
-const LABELS = { rest: 'Nghỉ tại chỗ', recess: 'Ra chơi' };
-
 function paint(ctx, w, h, day) {
-  const schedule = scheduleFor(day);
   ctx.fillStyle = '#f4e7c4';
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = 'rgba(140,100,40,0.08)';
@@ -27,32 +24,24 @@ function paint(ctx, w, h, day) {
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#8a1d14';
   ctx.font = `700 46px ${FONT}`;
-  ctx.fillText('THỜI KHOÁ BIỂU', w / 2, 58);
+  ctx.fillText('TRƯỜNG KHẢO THÍ', w / 2, 62);
   ctx.fillStyle = '#4a2e18';
   ctx.font = `600 30px ${FONT}`;
-  ctx.fillText(`Ngày ${day} · ${sessionLabel(schedule.plan)}`, w / 2, 102);
-  const rows = schedule.segments;
-  const top = 140;
-  const lineH = Math.min(34, (h - top - 30) / Math.max(1, rows.length + (schedule.plan.afternoon ? 1 : 0) + (schedule.plan.evening ? 1 : 0)));
-  ctx.font = `600 ${Math.round(lineH * 0.78)}px ${FONT}`;
-  let y = top;
-  let lastStart = 0;
-  for (const seg of rows) {
-    if (seg.start - lastStart > 60 && lastStart) {
-      ctx.fillStyle = '#8a6a3a';
-      ctx.textAlign = 'center';
-      ctx.fillText(seg.start >= 18 * 60 ? '— Nghỉ tối —' : '— Nghỉ trưa —', w / 2, y + lineH / 2);
-      y += lineH;
-    }
-    lastStart = seg.end;
-    const label = seg.kind === 'period' ? `Tiết ${seg.period}` : LABELS[seg.kind];
-    ctx.fillStyle = seg.kind === 'period' ? '#2b1c12' : '#2e6e46';
+  ctx.fillText(`Ngày ${dateText(day * DAY_MINUTES)}`, w / 2, 110);
+  const rows = [
+    ['Mở cửa', hoursText({ open: CERTIFY.open, close: CERTIFY.close })],
+    ['Lệ phí', `${CERTIFY.examFee} đồng + ${CERTIFY.examIntellect} trí lực`],
+    ['Đậu', `≥ ${Math.round(CERTIFY.pass * 100)}%`],
+  ];
+  ctx.font = `600 28px ${FONT}`;
+  rows.forEach(([label, value], i) => {
+    const y = 175 + i * 52;
+    ctx.fillStyle = '#2b1c12';
     ctx.textAlign = 'left';
-    ctx.fillText(label, 60, y + lineH / 2);
+    ctx.fillText(label, 50, y);
     ctx.textAlign = 'right';
-    ctx.fillText(`${clockText(seg.start)} – ${clockText(seg.end)}`, w - 60, y + lineH / 2);
-    y += lineH;
-  }
+    ctx.fillText(value, w - 50, y);
+  });
 }
 
 export function createNoticeBoard(scene) {

@@ -4,9 +4,7 @@ export function createVitals(purse) {
   const root = document.getElementById('vitals');
   const bar = document.getElementById('energyBar');
   const text = document.getElementById('vitalsText');
-  const intellect = document.getElementById('intellectText');
   let shown = null;
-  let shownIntellect = null;
 
   function render() {
     const energy = Math.floor(purse.energy);
@@ -17,16 +15,12 @@ export function createVitals(purse) {
       root.classList.toggle('low', energy < ENERGY.low);
       text.textContent = `${energy}/${ENERGY.max}`;
     }
-    if (purse.intellect !== shownIntellect) {
-      shownIntellect = purse.intellect;
-      intellect.textContent = String(purse.intellect);
-    }
-    root.setAttribute('aria-label', `Năng lượng ${energy}/${ENERGY.max}, trí lực ${purse.intellect}`);
+    root.setAttribute('aria-label', `Năng lượng ${energy}/${ENERGY.max}`);
   }
 
   render();
   purse.onChange((detail) => {
-    if ('energy' in detail || 'intellect' in detail) render();
+    if ('energy' in detail) render();
   });
   return { render };
 }
