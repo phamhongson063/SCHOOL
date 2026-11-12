@@ -151,7 +151,7 @@ class Leases {
     const lease = this.holder(bed, now);
     if (lease && lease.owner !== actor) return null;
     if (!purse.spend(offer.price)) return false;
-    economy.collect(offer.price);
+    economy.collect(offer.price, actor);
     this.beds[bed] = { owner: actor, until: (lease?.until ?? now) + offer.days * DAY_MINUTES };
     this.save();
     return this.beds[bed];

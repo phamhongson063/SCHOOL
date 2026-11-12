@@ -1,11 +1,12 @@
 import { ECONOMY, VILLAGER } from './config.js';
-import { dayOf } from './clock.js';
+import { dayOf, gameMinutesOf, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 
 const KEY = 'truong-lang-xua.economy';
 const FUND = 'fund';
 const CHECK_MS = 5000;
+const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
 
 export const SHOPKEEPERS = [
   { id: 'keeper', name: 'Bà chủ tạp hoá' },
@@ -23,10 +24,13 @@ function load() {
         day: Number.isFinite(saved.day) ? saved.day : null,
         owed: saved.owed && typeof saved.owed === 'object' ? saved.owed : {},
         seeded: saved.seeded === true,
+        seen: Number.isFinite(saved.seen) ? saved.seen : null,
+        observed: Number.isFinite(saved.observed) ? saved.observed : 0,
+        flows: saved.flows && typeof saved.flows === 'object' ? saved.flows : {},
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {} };
 }
 
 let ctx = null;
@@ -49,6 +53,66 @@ function workers() {
   return [...ctx.staff(), ...SHOPKEEPERS];
 }
 
+function flowOf(id) {
+  if (!id || id === PLAYER || id === FUND || workers().some((worker) => worker.id === id)) return null;
+  state.flows[id] ??= { earn: 0, tax: 0, spent: 0, to: {} };
+  return state.flows[id];
+}
+
+function trackSpend(payer, total, shares) {
+  const flow = flowOf(payer);
+  if (!flow) return;
+  flow.spent += total;
+  for (const [recipient, amount] of Object.entries(shares)) flow.to[recipient] = (flow.to[recipient] ?? 0) + amount;
+}
+
+function trackEarn(payee, net, tax = 0) {
+  const flow = flowOf(payee);
+  if (!flow) return;
+  flow.earn += net;
+  flow.tax += tax;
+}
+
+function observe(minutes) {
+  state.observed += minutes;
+  const window = ECONOMY.offline.sampleDays * DAY_MINUTES;
+  if (state.observed <= window) return;
+  const keep = window / state.observed;
+  state.observed = window;
+  for (const flow of Object.values(state.flows)) {
+    flow.earn *= keep;
+    flow.tax *= keep;
+    flow.spent *= keep;
+    for (const recipient of Object.keys(flow.to)) flow.to[recipient] *= keep;
+  }
+}
+
+function replay(minutes) {
+  if (state.observed < ECONOMY.offline.minSample) return;
+  const scale = Math.min(minutes, ECONOMY.catchUpDays * DAY_MINUTES) / state.observed;
+  const people = new Set(ctx.people());
+  for (const [id, flow] of Object.entries(state.flows)) {
+    if (!people.has(id) || !flowOf(id)) continue;
+    pay(id, flow.earn * scale);
+    pay(FUND, flow.tax * scale);
+    const want = flow.spent * scale;
+    const purse = ctx.ledger.purse(id);
+    const paid = Math.min(Math.floor(want), purse.money);
+    if (!(paid > 0) || !purse.spend(paid)) continue;
+    const share = (paid / want) * scale;
+    for (const [recipient, amount] of Object.entries(flow.to)) pay(recipient, amount * share);
+  }
+}
+
+function watch(t) {
+  const gap = state.seen === null ? 0 : t - state.seen;
+  state.seen = t;
+  if (gap > 0) {
+    if (gap <= ONLINE_GAP && !document.hidden) observe(gap);
+    else replay(gap);
+  }
+  store.save();
+}
 
 function payWages() {
   const fund = ctx.ledger.purse(FUND);
@@ -102,14 +166,13 @@ function settleDay() {
 }
 
 function update() {
-  const today = dayOf(ctx.now());
+  const t = ctx.now();
+  const today = dayOf(t);
   if (state.day === null) state.day = today;
   const from = Math.max(state.day, today - ECONOMY.catchUpDays);
   for (let day = from; day < today; day++) settleDay();
-  if (state.day !== today) {
-    state.day = today;
-    store.save();
-  }
+  state.day = today;
+  watch(t);
 }
 
 export const economy = {
@@ -123,23 +186,32 @@ export const economy = {
     update();
     setInterval(update, CHECK_MS);
   },
-  income(seller, price) {
+  income(seller, price, payer = null) {
     if (!ctx || !(price > 0)) return;
-    pay(seller, price * (ECONOMY.keep[seller] ?? 0));
-    pay(FUND, price * ECONOMY.vat);
+    const keep = price * (ECONOMY.keep[seller] ?? 0);
+    const tax = price * ECONOMY.vat;
+    pay(seller, keep);
+    pay(FUND, tax);
+    trackSpend(payer, price, { [seller]: keep, [FUND]: tax });
     store.save();
   },
-  collect(value) {
+  collect(value, payer = null, spent = value) {
     if (!ctx || !(value > 0)) return;
     pay(FUND, value);
+    trackSpend(payer, spent, { [FUND]: value });
     store.save();
   },
-  withhold(gross) {
+  withhold(gross, payee = null) {
     if (!ctx || !(gross > 0)) return gross;
     const tax = gross * ECONOMY.vat;
     pay(FUND, tax);
+    trackEarn(payee, gross - tax, tax);
     store.save();
     return gross - tax;
+  },
+  reward(purse, amount) {
+    purse.earn(amount);
+    if (ctx) trackEarn(purse.id, amount);
   },
   payOut(value, purse) {
     if (!ctx || !(value > 0)) return false;

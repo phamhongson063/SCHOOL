@@ -665,7 +665,7 @@ const quiz = createQuiz({
   onVillagers: () => {
     for (const member of town?.all ?? []) {
       const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
-      if (Math.random() < pass) member.purse.earn(QUIZ.reward);
+      if (Math.random() < pass) economy.reward(member.purse, QUIZ.reward);
     }
   },
 });

@@ -79,7 +79,7 @@ export function createMarket() {
     const amount = Math.min(have, count);
     if (amount <= 0 || !SELLABLE.has(ITEMS[item]?.kind)) return 0;
     if (!purse.take(item, amount)) return 0;
-    const earned = Math.floor(economy.withhold(amount * priceOf(item)));
+    const earned = Math.floor(economy.withhold(amount * priceOf(item), purse.id));
     purse.earn(earned);
     return earned;
   }
@@ -95,7 +95,7 @@ export function createMarket() {
   function buy(purse, item, count) {
     const price = priceOf(item);
     if (!(count > 0) || !price || !purse.spend(price * count)) return false;
-    economy.income(sellerOf(item), price * count);
+    economy.income(sellerOf(item), price * count, purse.id);
     purse.add(item, count * packSize(item));
     return true;
   }

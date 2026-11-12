@@ -206,7 +206,7 @@ export class SchoolBehavior {
     const purse = this.purse;
     const credit = purse.useCredit();
     if (credit || purse.spend(SCHOOL.tuition)) {
-      if (!credit) economy.income('teacher', SCHOOL.tuition);
+      if (!credit) economy.income('teacher', SCHOOL.tuition, purse.id);
       this.studying = true;
       if (Math.random() < 0.35) this.say(pick(PAID), 1.6);
       return;

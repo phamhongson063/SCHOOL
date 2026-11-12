@@ -159,7 +159,7 @@ export class RestBehavior {
     const options = [];
     for (const spot of this.town.lodgeSpots) {
       const lodge = roomTier(spot.id);
-      if (lodge.price > money || !isFree(spot.id, this)) continue;
+      if (lodge.price * VILLAGER.lodgeNights > money || !isFree(spot.id, this)) continue;
       const taste = 1 - Math.abs(this.comfort - lodge.comfort);
       const budget = Math.min(3, money / lodge.price);
       const near = 1 / (1 + Math.hypot(spot.stand.x - this.position.x, spot.stand.z - this.position.z) / 40);
@@ -211,7 +211,7 @@ export class RestBehavior {
       else this.wait(between(1.5, 3));
       return;
     }
-    economy.collect(rent * ECONOMY.vat);
+    economy.collect(rent * ECONOMY.vat, this.id, rent);
     this.cancel();
     book(spot.id, this);
     this.task = 'inn';
@@ -291,7 +291,7 @@ export class RestBehavior {
     const eaten = [];
     for (const food of Object.values(foods).sort((a, b) => b.energy - a.energy)) {
       while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
-        economy.income(seller, food.price);
+        economy.income(seller, food.price, this.id);
         purse.addEnergy(food.energy);
         eaten.push(food.icon);
       }

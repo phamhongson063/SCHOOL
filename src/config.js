@@ -127,6 +127,7 @@ export const VILLAGER = {
   leaseReserve: 20,
   leaseCycles: 3,
   renewBefore: 0.5,
+  lodgeNights: 3,
 };
 
 export const ENERGY = {
@@ -229,14 +230,15 @@ export const FIREFLY = {
 export const ECONOMY = {
   vat: 0.1,
   keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3, grocer: 0.3 },
-  wages: { guard: 35, teacher: 30, chief: 40 },
-  fundSeed: 20000,
+  wages: { guard: 12, teacher: 10, chief: 15 },
+  fundSeed: 5000,
   living: 12,
   pollTax: 2,
   houseTax: 0.0001,
   buyback: 0.8,
   thrift: 0.6,
   catchUpDays: 7,
+  offline: { sampleDays: 3, minSample: 120 },
 };
 
 export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
