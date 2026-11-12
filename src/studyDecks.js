@@ -18,14 +18,43 @@ function clozeOf(lines) {
   return { answer, all: marks.every((mark) => plainText(mark) === plainText(answer)) };
 }
 
+const KANJI = /[㐀-鿿々〆]/;
+
+function n2Keys(entries) {
+  const seen = new Map();
+  return entries.map((entry) => {
+    const count = seen.get(entry.no) ?? 0;
+    seen.set(entry.no, count + 1);
+    return `n2:${entry.no}${count ? String.fromCharCode(97 + count) : ''}`;
+  });
+}
+
+function linkSiblings(cards, entries) {
+  const groups = new Map();
+  entries.forEach((entry, i) => groups.set(entry.no, [...(groups.get(entry.no) ?? []), cards[i]]));
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    for (const card of group) {
+      const others = group.filter((other) => other !== card);
+      card.siblingMeanings = others.map((other) => other.meaning);
+      card.kanjiChoices = KANJI.test(card.word)
+        ? others.filter((other) => other.reading === card.reading && other.meaning !== card.meaning && other.word !== card.word).map((other) => other.word)
+        : [];
+    }
+  }
+  return cards;
+}
+
+const N2_KEYS = n2Keys(N2_VOCAB);
+
 export const DECKS = {
   n2: {
     title: 'N2',
     label: 'Từ vựng N2',
     level: '単語 N2',
     unit: 'từ',
-    cards: N2_VOCAB.map((entry) => ({
-      key: `n2:${entry.no}`,
+    cards: linkSiblings(N2_VOCAB.map((entry, i) => ({
+      key: N2_KEYS[i],
       deck: 'n2',
       word: entry.word,
       reading: entry.reading,
@@ -33,8 +62,15 @@ export const DECKS = {
       meaning: entry.meaning,
       distractors: entry.distractors ?? [],
       note: '',
-      examples: [{ title: '', lines: [['', entry.example, entry.exampleVi]] }],
-    })),
+      examples: [
+        [entry.example, entry.exampleVi],
+        [entry.example2, entry.example2Vi],
+      ]
+        .filter(([text]) => text)
+        .map(([text, vi]) => ({ title: '', lines: [['', text, vi]] })),
+      siblingMeanings: [],
+      kanjiChoices: [],
+    })), N2_VOCAB),
   },
   sugu1: {
     title: 'すぐに使える①',

@@ -139,10 +139,14 @@ function takenOver() {
   if (!sync) return;
   stopSync();
   haltStores();
+  saveAccount(null);
+  const signedOut = loadSdk()
+    .then(({ auth, session }) => auth.signOut(session))
+    .catch(() => {});
   const dialog = document.getElementById('elsewhereDialog');
   if (!dialog) return;
   dialog.addEventListener('cancel', (event) => event.preventDefault());
-  document.getElementById('elsewhereBtn')?.addEventListener('click', () => location.reload(), { once: true });
+  document.getElementById('elsewhereBtn')?.addEventListener('click', () => signedOut.then(() => location.reload()), { once: true });
   for (const open of document.querySelectorAll('dialog[open]')) open.close();
   dialog.showModal();
 }

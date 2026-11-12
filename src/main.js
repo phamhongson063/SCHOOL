@@ -616,6 +616,7 @@ town = new Town({
   bank,
   bankDesk: district.bankDesk,
   atms: atms.list,
+  classrooms: studyHalls.map((hall, i) => ({ deck: STUDY_HALLS[i].deck, teacher: hall.teacher })),
   dust,
 });
 
@@ -829,14 +830,47 @@ function catchFireflies(t, dt) {
   sayPlayer(`✨ ${purse.count('firefly')}`, 1.2);
 }
 
+const PLAYER_ATTEND = 2.5;
+const listeners = new Set();
+
+function attendPlayer(npc, busy = null) {
+  npc.attend(player, busy ? null : PLAYER_ATTEND);
+  if (busy) listeners.add({ npc, busy });
+}
+
+function updateListeners() {
+  for (const entry of listeners) {
+    if (entry.busy()) continue;
+    entry.npc.release(player);
+    listeners.delete(entry);
+  }
+}
+
 const teacherDesk = {
   act() {
     if (exams.running) return null;
-    if (!examOpen(context.minutes)) return `Trường khảo thí mở cửa ${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}, bạn quay lại sau nhé!`;
+    if (!examOpen(context.minutes)) {
+      attendPlayer(school.teacherAttention);
+      return `Trường khảo thí mở cửa ${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}, bạn quay lại sau nhé!`;
+    }
     examHall.open();
+    attendPlayer(school.teacherAttention, () => examHall.isOpen || exams.running);
     return null;
   },
 };
+const examSitting = {
+  get isOpen() {
+    return exams.running;
+  },
+};
+
+function serveInternal(deck, teacher) {
+  teacher.attend(player);
+  study.takeInternal(deck).then((line) => {
+    if (line) teacher.say(line, clock.elapsedTime);
+    teacher.attend(player, PLAYER_ATTEND);
+  });
+}
 const noticeSpot = {
   act() {
     scheduleBoard.open();
@@ -855,6 +889,7 @@ const blessingAltar = {
 const blessingDesk = {
   act() {
     blessingDialog.open(PLAYER);
+    attendPlayer(blessing.official, () => blessingDialog.isOpen);
     return null;
   },
 };
@@ -950,7 +985,7 @@ function goDo(region, target, id) {
 }
 
 function clickTargets() {
-  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.map((hall) => hall.group), ...blessing.clickables, inn.group];
+  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.flatMap((hall) => [hall.group, hall.teacher.group]), ...blessing.clickables, inn.group];
 }
 
 function sceneClick(clientX, clientY, run) {
@@ -976,6 +1011,13 @@ function sceneClick(clientX, clientY, run) {
   if (school.isTeacher(hit.object)) {
     leaveLine();
     goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    return true;
+  }
+  const classroom = studyHalls.findIndex((hall) => hall.teacher.owns(hit.object));
+  if (classroom >= 0) {
+    const { deck } = STUDY_HALLS[classroom];
+    const { teacher } = studyHalls[classroom];
+    joinLine(`teacher:${deck}`, () => serveInternal(deck, teacher), examSitting);
     return true;
   }
   if (blessing.ownsStatue(hit.object)) {
@@ -1494,8 +1536,9 @@ renderer.setAnimationLoop((time) => {
   }
   district.update(t, context, camera);
   updateLine();
+  updateListeners();
   school.update(t, context.phase.kind === 'period');
-  for (const hall of studyHalls) hall.update(t);
+  for (const hall of studyHalls) hall.update(t, camera);
   inn.update(t);
   village.update(t, context, camera);
   streetLamps.update(t);

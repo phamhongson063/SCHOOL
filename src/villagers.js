@@ -14,7 +14,7 @@ const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], dust = null, stepSound = null }) {
+  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
@@ -37,6 +37,11 @@ export class Town {
     if (bank && bankDesk) this.queues.bank = new ServiceQueue(bankDesk.line, bankDesk.look);
     this.atms = bank ? atms : [];
     for (const atm of this.atms) this.queues[`atm:${atm.id}`] = new ServiceQueue(atm.line, atm.look);
+    this.classTeachers = {};
+    for (const { deck, teacher } of classrooms) {
+      this.queues[`teacher:${deck}`] = new ServiceQueue(teacher.line, teacher.at);
+      this.classTeachers[deck] = teacher;
+    }
     for (const queue of Object.values(this.queues)) queue.snap = (point) => this.walkable(point);
     for (const spot of river.spots) {
       for (const berth of spot.berths) {

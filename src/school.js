@@ -5,6 +5,7 @@ import { freeze } from './toon.js';
 import { createTeacher } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { createAttention } from './attention.js';
 import {
   studentFurniture,
   teacherPlatform,
@@ -224,6 +225,7 @@ export function populate(scene) {
   const teacher = hasModel('scholar-ink') ? createModel('scholar-ink', { seated: true }) : createTeacher();
   teacher.group.position.set(0, 0.62, -0.34);
   area.add(teacher.group);
+  const teacherAttention = createAttention(teacher.group, { range: 5 });
   root.add(area);
   block(CX - 1.55, TEACHER_Z - 1.2, CX + 1.55, TEACHER_Z + 1.2);
 
@@ -340,6 +342,7 @@ export function populate(scene) {
     obstacles,
     seats,
     teacher,
+    teacherAttention,
     teacherHead: new THREE.Vector3(CX, FLOOR + 1.45, TEACHER_Z - 0.34),
     get teacherPresent() {
       return teacherPresent;
@@ -364,6 +367,7 @@ export function populate(scene) {
     },
     update(t, teaching = true) {
       lanternGlow.update(t, night);
+      teacherAttention.update(t);
       if (!teacher.group.visible) return;
       teacher.head.rotation.y = Math.sin(t * 0.45) * 0.5;
       teacher.head.rotation.x = 0.08 + Math.sin(t * 0.9) * 0.04;

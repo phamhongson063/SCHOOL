@@ -213,28 +213,27 @@
         <p id="studyStatus" class="study-status"></p>
         <div class="study-picks">
           <button class="study-pick" type="button" data-mode="learn"><span aria-hidden="true">📘</span>Học hôm nay<small id="studyLearnInfo"></small></button>
-          <button class="study-pick" type="button" data-mode="review"><span aria-hidden="true">🔀</span>Ôn chứng chỉ<small id="studyReviewInfo"></small></button>
-          <button class="study-pick" type="button" data-mode="internal"><span aria-hidden="true">📝</span>Thi nội bộ<small id="studyInternalInfo"></small></button>
-        </div>
+          <button class="study-pick" type="button" data-mode="review"><span aria-hidden="true">🔀</span>Ôn chứng chỉ<small id="studyReviewInfo"></small></button>        </div>
         <p id="studyNotice" class="study-pack-note" hidden></p>
       </div>
       <div id="studyBody" class="study-body" hidden>
         <div class="study-scroll">
-          <p id="studyReading" class="study-reading" lang="ja"></p>
-          <p id="studyWord" class="study-word" lang="ja"></p>
-          <p id="studyHanViet" class="study-hanviet"></p>
+          <div class="study-head">
+            <p id="studyReading" class="study-reading" lang="ja"></p>
+            <p id="studyWord" class="study-word" lang="ja"></p>
+            <span id="studyHanViet" class="study-hanviet" role="tooltip"></span>
+          </div>
           <p id="studyMeaning" class="study-meaning"></p>
           <p id="studyNote" class="study-note"></p>
-          <div class="study-example">
-            <p id="studyExample" class="study-example-ja" lang="ja"></p>
-            <p id="studyExampleVi" class="study-example-vi"></p>
-          </div>
+          <div id="studyExample" class="study-example"></div>
         </div>
-        <div class="study-progress"><span id="studyBar"></span></div>
         <div class="study-nav">
           <button id="studyPrev" class="study-step" type="button" aria-label="Từ trước">‹</button>
           <button id="studyForgot" class="study-step forgot" type="button" aria-label="Quên" hidden>✗</button>
-          <span id="studyCount" class="study-count"></span>
+          <div class="study-meter">
+            <div class="study-progress"><span id="studyBar"></span></div>
+            <span id="studyCount" class="study-count"></span>
+          </div>
           <button id="studyRemembered" class="study-step remembered" type="button" aria-label="Nhớ" hidden>✓</button>
           <button id="studyNext" class="study-step" type="button" aria-label="Từ sau">›</button>
         </div>
@@ -444,10 +443,10 @@
   </dialog>
   <dialog id="elsewhereDialog" class="paper" aria-labelledby="elsewhereTitle">
     <div class="paper-body">
-      <p id="elsewhereTitle" class="elsewhere-text"><strong>Game đang mở trên thiết bị khác</strong></p>
+      <p id="elsewhereTitle" class="elsewhere-text"><strong>Tài khoản đã đăng nhập trên thiết bị khác</strong></p>
       <div class="sched-actions">
         <span class="spacer"></span>
-        <button id="elsewhereBtn" class="sched-primary" type="button">Chơi trên máy này</button>
+        <button id="elsewhereBtn" class="sched-primary" type="button">Đăng nhập lại</button>
       </div>
     </div>
   </dialog>

@@ -9,6 +9,7 @@ import { inStudyRoom } from './rooms.js';
 import { economy } from './economy.js';
 
 const VENDOR_TRIES = 2;
+const OFFICIAL_ATTEND = 3;
 
 export class RestBehavior {
   wantsBlessing(ctx) {
@@ -31,6 +32,7 @@ export class RestBehavior {
       then: () => {
         if (!blessing.join(this.id, this.town.context.minutes)) return this.think();
         this.lookAt = blessing.official.at;
+        blessing.official.attend(this, OFFICIAL_ATTEND);
         this.wait(between(1.5, 2.5), () => this.startBlessingTest());
       },
       fail: () => this.think(),

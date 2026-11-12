@@ -171,7 +171,7 @@ export const FOODS = {
 
 export const CERTIFY = {
   batch: 5,
-  remember: 4,
+  remember: 1,
   viewSeconds: 5 * 60,
   internalFee: 3,
   examFee: 10,

@@ -9,6 +9,7 @@ const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
 const LETTERS = ['A', 'B', 'C', 'D'];
 const MARKS = /\[([^\]]+)\]/g;
+const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
 
 const ALL_KEYS = Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.key));
 const CLOZE_ANSWERS = DECKS.sugu1.cards.filter((card) => card.cloze).map((card) => card.cloze.answer);
@@ -68,11 +69,39 @@ function clozeLines(lines, cloze) {
   return { nodes, blanks };
 }
 
+function pickLine(text) {
+  const line = document.createElement('p');
+  line.className = 'phrase-line';
+  const words = document.createElement('span');
+  const blanks = [];
+  let from = 0;
+  for (const match of text.matchAll(MARKS)) {
+    words.append(japanese(text.slice(from, match.index)));
+    const blank = document.createElement('span');
+    blank.className = 'phrase-blank';
+    blank.lang = 'ja';
+    blank.textContent = match[1].replace(RUBY, '$1');
+    blank.dataset.fill = match[1];
+    words.append(blank);
+    blanks.push(blank);
+    from = match.index + match[0].length;
+  }
+  words.append(japanese(text.slice(from)));
+  line.append(words);
+  return { nodes: [line], blanks };
+}
+
+function kanjiPick(entry) {
+  const example = entry.examples[Math.floor(Math.random() * entry.examples.length)];
+  return { kind: 'pick', answer: entry.word, wrong: shuffle([...entry.kanjiChoices]), text: example.lines[0][1] };
+}
+
 function question(entry, kind, choices) {
   if (entry.deck === 'n2') {
+    if (kind !== 'meaning' && entry.kanjiChoices.length && entry.examples.length) return kanjiPick(entry);
     const byMeaning = kind === 'meaning' || !entry.distractors.length;
     const answer = byMeaning ? entry.meaning : entry.reading;
-    const others = byMeaning ? shuffle(N2_MEANINGS.filter((meaning) => meaning !== answer)) : shuffle([...entry.distractors]);
+    const others = byMeaning ? shuffle(N2_MEANINGS.filter((meaning) => meaning !== answer && !entry.siblingMeanings.includes(meaning))) : shuffle([...entry.distractors]);
     return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : byMeaning ? 3 : others.length) };
   }
   const count = (choices || PHRASE_QUIZ.choices) - 1;
@@ -86,7 +115,7 @@ function question(entry, kind, choices) {
 
 function quizSeconds(kind, phrase) {
   if (!phrase) return FISHING.quizSeconds;
-  return kind === 'cloze' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
+  return kind === 'cloze' || kind === 'pick' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
 }
 
 const levelOf = (entry) => DECKS[entry.deck].level;
@@ -139,7 +168,7 @@ export function createKanjiQuiz() {
     ui.result.textContent = current.entry.reading ? `${shown}（${current.entry.reading}）: ${current.entry.meaning}` : `${shown}: ${current.entry.meaning}`;
     for (const blank of current.blanks) {
       const mark = document.createElement('mark');
-      mark.append(japanese(current.answer));
+      mark.append(japanese(blank.dataset.fill ?? current.answer));
       blank.replaceChildren(mark);
       blank.classList.add('filled');
     }
@@ -182,6 +211,12 @@ export function createKanjiQuiz() {
       ui.text.textContent = entry.word;
       return [];
     }
+    if (asked.kind === 'pick') {
+      const sentence = pickLine(asked.text);
+      ui.text.className = 'phrase-text dialogue';
+      ui.text.replaceChildren(...sentence.nodes);
+      return sentence.blanks;
+    }
     if (asked.kind !== 'cloze') {
       ui.text.className = 'phrase-text single';
       ui.text.replaceChildren(japanese(entry.word));
@@ -220,7 +255,7 @@ export function createKanjiQuiz() {
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
       const asked = question(entry, kind, choices);
-      const phrase = entry.deck !== 'n2';
+      const phrase = entry.deck !== 'n2' || asked.kind === 'pick';
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {

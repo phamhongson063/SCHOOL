@@ -36,6 +36,17 @@ function cleanDeck(raw) {
   return deck;
 }
 
+function restoreSkipped(state, deck) {
+  const cards = DECKS[deck].cards;
+  const end = Math.min(state.cursor, cards.length);
+  for (let i = 0; i < end; i++) {
+    const { key } = cards[i];
+    if (state.certified[key] || state.batch.includes(key) || state.queue.includes(key)) continue;
+    state.queue.push(key);
+  }
+  return state;
+}
+
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
@@ -43,7 +54,7 @@ function load() {
       const actors = {};
       for (const [id, decks] of Object.entries(saved)) {
         actors[id] = {};
-        for (const deck of DECK_IDS) actors[id][deck] = cleanDeck(decks?.[deck]);
+        for (const deck of DECK_IDS) actors[id][deck] = restoreSkipped(cleanDeck(decks?.[deck]), deck);
       }
       return actors;
     }
@@ -125,9 +136,6 @@ export const certify = {
   learnLeft(actor, deck) {
     const state = deckState(actor, deck);
     return learnKeys(state).filter((key) => (state.counts[key] ?? 0) < CERTIFY.remember);
-  },
-  count(actor, deck, key) {
-    return deckState(actor, deck).counts[key] ?? 0;
   },
   remember(actor, deck, key) {
     const state = deckState(actor, deck);

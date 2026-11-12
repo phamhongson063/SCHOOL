@@ -7,6 +7,7 @@ import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
 import { plazaFloor, PLAZA_ZONE } from './quarter.js';
 import { keeperNPC } from './village.js';
+import { createAttention } from './attention.js';
 
 const STONE = 0xb3ab99;
 const STONE_DARK = 0x8a8273;
@@ -694,6 +695,7 @@ function createOfficial(scene) {
   npc.walker.group.position.copy(at);
   npc.walker.group.rotation.y = OFFICIAL.facing;
   scene.add(npc.walker.group);
+  const attention = createAttention(npc.walker.group);
   const ahead = { x: Math.sin(OFFICIAL.facing), z: Math.cos(OFFICIAL.facing) };
   const side = { x: ahead.z, z: -ahead.x };
   const spots = OFFICIAL.spots.map((offset) => new THREE.Vector3(at.x + ahead.x * OFFICIAL.reach + side.x * offset, PLAZA.rise, at.z + ahead.z * OFFICIAL.reach + side.z * offset));
@@ -702,11 +704,14 @@ function createOfficial(scene) {
     at,
     stand: spots[1],
     spots,
+    attend: attention.attend,
+    release: attention.release,
     owns(object) {
       for (let node = object; node; node = node.parent) if (node === npc.walker.group) return true;
       return false;
     },
     update(t, camera) {
+      attention.update(t);
       const near = camera.position.distanceTo(at) < OFFICIAL_DISTANCE;
       npc.walker.group.visible = near;
       if (!near) return;

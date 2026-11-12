@@ -5,7 +5,8 @@ import { studentFurniture, lantern, textBoard } from './props.js';
 import { tileRoofMeshes, groundDecal, roundedRectGeometry, roundedRectShape, earthMaterial, GROUND_LAYER } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { brickMaterial } from './village.js';
+import { brickMaterial, keeperNPC } from './village.js';
+import { createAttention } from './attention.js';
 
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
 export const STUDY_HALLS = [
@@ -18,7 +19,7 @@ const WOOD = 0x5e3a24;
 const WOOD_DARK = 0x4a2c1e;
 const STONE = 0xb3ab99;
 const FLOOR_TILE = 0x9c624a;
-const DESK_ROWS = [2.6, 4.8, 7, 9.2];
+const DESK_ROWS = [3, 6.2];
 const ROOF = { overhang: 0.9, porch: 2, ridge: 3.6, lift: 0.1, rise: 3.4 };
 const ROOF_GAP = 0.08;
 const LACQUER = 0x8a1d14;
@@ -44,6 +45,48 @@ const COUPLETS = [
   [['Ôn', 'Cố', 'Tri', 'Tân'], 3.28],
 ];
 const DESK_OFFSET = 3.2;
+const TEACHER = { z: HALL_SIZE.depth - 1.3, reach: 1.5, model: 'granny', distance: 45, lineEnd: 1, attendRange: 4.5 };
+const TEACHER_LOOK = { shirt: 0x3a4a6a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'bui', hairColor: 0xd8d4cc, iris: 0x3a2214 };
+
+function createTeacher(scene, hall, frame) {
+  const npc = keeperNPC(TEACHER_LOOK, TEACHER.model);
+  const spot = frame.point(0, TEACHER.z);
+  const stand = frame.point(0, TEACHER.z - TEACHER.reach);
+  const at = new THREE.Vector3(spot.x, 0.03, spot.z);
+  const group = npc.walker.group;
+  group.position.copy(at);
+  group.rotation.y = Math.PI + hall.turn;
+  scene.add(group);
+  const attention = createAttention(group, { range: TEACHER.attendRange });
+
+  return {
+    group,
+    at,
+    stand: new THREE.Vector3(stand.x, 0, stand.z),
+    line: [frame.point(0, TEACHER.z - TEACHER.reach + 0.6), frame.point(0, TEACHER.lineEnd)],
+    attend: attention.attend,
+    release: attention.release,
+    obstacle: frame.box({ minX: -0.3, maxX: 0.3, minZ: TEACHER.z - 0.3, maxZ: TEACHER.z + 0.3, minY: 0, maxY: 1.7 }),
+    owns(object) {
+      for (let node = object; node; node = node.parent) if (node === npc.walker.group) return true;
+      return false;
+    },
+    say(text, now) {
+      npc.bubble.show(text, Math.min(5, 1.6 + text.length * 0.04), now);
+    },
+    update(t, camera) {
+      attention.update(t);
+      const near = camera.position.distanceTo(at) < TEACHER.distance;
+      npc.walker.group.visible = near;
+      if (!near) return;
+      npc.bubble.update(t);
+      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
+      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
+      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+      npc.walker.pose?.();
+    },
+  };
+}
 
 function hallFrame(hall) {
   const s = hall.turn ? -1 : 1;
@@ -315,18 +358,22 @@ export function createStudyHall(scene, hall) {
 
   scene.add(group);
   freeze(group);
+  const teacher = createTeacher(scene, hall, frame);
+  obstacles.push(teacher.obstacle);
   return {
     group,
     seats,
     obstacles,
+    teacher,
     setNight(k) {
       for (const material of glows) material.emissiveIntensity = 1 + k * 5;
       paperMaterial.emissiveIntensity = k * LAMP_NIGHT_GLOW;
       roomLight.intensity = k * 25;
       night = k;
     },
-    update(t) {
+    update(t, camera) {
       lanternGlow.update(t, night);
+      teacher.update(t, camera);
     },
   };
 }

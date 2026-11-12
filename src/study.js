@@ -4,12 +4,10 @@ import { japanese } from './ruby.js';
 import { CERTIFY } from './config.js';
 import { coins } from './format.js';
 import { economy } from './economy.js';
-import { setRich } from './goldArt.js';
 import { PLAYER } from './inventory.js';
 
 const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
 const MODES = { learn: { icon: '📘', name: 'Học hôm nay' }, review: { icon: '🔀', name: 'Ôn chứng chỉ' } };
-const NO_MONEY = 'Xin lỗi, bạn không đủ tiền thi nội bộ.';
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -43,11 +41,9 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   const status = document.getElementById('studyStatus');
   const learnInfo = document.getElementById('studyLearnInfo');
   const reviewInfo = document.getElementById('studyReviewInfo');
-  const internalInfo = document.getElementById('studyInternalInfo');
   const notice = document.getElementById('studyNotice');
   const learnPick = start.querySelector('[data-mode="learn"]');
   const reviewPick = start.querySelector('[data-mode="review"]');
-  const internalPick = start.querySelector('[data-mode="internal"]');
   const body = document.getElementById('studyBody');
   const modeChip = document.getElementById('studyMode');
   const word = document.getElementById('studyWord');
@@ -63,7 +59,6 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   const forgot = document.getElementById('studyForgot');
   const remembered = document.getElementById('studyRemembered');
   const example = document.getElementById('studyExample');
-  const exampleVi = document.getElementById('studyExampleVi');
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
   const dim = document.getElementById('studyDim');
@@ -97,7 +92,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     if (certify.finished(PLAYER, deckId)) return 'Bạn đã học hết bộ này.';
     if (certify.examTaken(PLAYER, deckId)) return 'Hôm nay bạn đã khảo thí lớp này. Mai quay lại học tiếp nhé.';
     if (left) return `Hôm nay còn ${left} ${deck.unit} cần học.`;
-    if (certify.needsInternal(PLAYER, deckId)) return 'Đã học xong. Hãy thi nội bộ để đủ điều kiện khảo thí.';
+    if (certify.needsInternal(PLAYER, deckId)) return 'Đã học xong. Hãy gặp cô giáo cuối lớp để thi nội bộ.';
     return 'Bạn đã đủ điều kiện khảo thí. Hãy tới Trường khảo thí đăng ký nhé.';
   }
 
@@ -109,10 +104,8 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     status.textContent = statusText();
     learnInfo.textContent = learning.length ? `${done}/${learning.length}` : '—';
     reviewInfo.textContent = `🎓 ${certified}`;
-    setRich(internalInfo, coins(CERTIFY.internalFee));
-    learnPick.disabled = certify.learnLeft(PLAYER, deckId).length === 0;
+    learnPick.disabled = learning.length === 0;
     reviewPick.disabled = certified === 0;
-    internalPick.disabled = !certify.internalReady(PLAYER, deckId) || exams.running;
   }
 
   function stopMode() {
@@ -139,14 +132,17 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     }
   }
 
-  function showExample({ title: situation, lines }) {
+  function exampleNodes({ title: situation, lines }) {
+    const ja = el('p', 'study-example-ja');
+    ja.lang = 'ja';
+    const vi = el('p', 'study-example-vi');
     const [only] = lines;
     if (lines.length === 1 && !only[0]) {
-      example.replaceChildren(japanese(only[1]));
-      exampleVi.textContent = only[2];
-      return;
+      ja.append(japanese(only[1]));
+      vi.textContent = only[2];
+      return [ja, vi];
     }
-    example.replaceChildren(
+    ja.append(
       ...(situation ? [el('span', 'study-situation', situation)] : []),
       ...lines.map(([speaker, text]) => {
         const line = el('span', 'study-line');
@@ -156,7 +152,12 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
         return line;
       }),
     );
-    exampleVi.replaceChildren(...lines.filter((line) => line[2]).map(([speaker, , vi]) => el('span', 'study-line', `${speaker}: ${vi}`)));
+    vi.append(...lines.filter((line) => line[2]).map(([speaker, , text]) => el('span', 'study-line', `${speaker}: ${text}`)));
+    return [ja, vi];
+  }
+
+  function showExamples(examples) {
+    example.replaceChildren(...examples.flatMap(exampleNodes));
   }
 
   function fill(key) {
@@ -166,9 +167,11 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     fitWord();
     reading.textContent = card.reading;
     hanViet.textContent = card.hanViet;
+    hanViet.classList.remove('show');
+    word.classList.toggle('has-hint', Boolean(card.hanViet));
     meaning.textContent = card.meaning;
     note.textContent = card.note;
-    showExample(card.examples[0]);
+    showExamples(card.examples);
   }
 
   function showFurigana(on) {
@@ -197,9 +200,8 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   const waitLeft = () => Math.max(0, CERTIFY.viewSeconds - shown);
 
   function paintLearnCount() {
-    const done = certify.count(PLAYER, deckId, current);
     const left = waitLeft();
-    count.textContent = left > 0 ? `${done}/${CERTIFY.remember} · ⏳ ${timeText(left)}` : `${done}/${CERTIFY.remember}`;
+    count.textContent = left > 0 ? `⏳ ${timeText(left)}` : '';
     remembered.disabled = left > 0;
   }
 
@@ -226,8 +228,17 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     paintLearnProgress();
   }
 
+  const learnedToday = () =>
+    certify
+      .batch(PLAYER, deckId)
+      .filter((item) => !item.ready)
+      .map((item) => item.key);
+
   function beginLearn() {
-    if (!certify.learnLeft(PLAYER, deckId).length) return;
+    if (!certify.learnLeft(PLAYER, deckId).length) {
+      browse(learnedToday(), 'learn');
+      return;
+    }
     mode = 'learn';
     music?.start();
     setStudying(true);
@@ -247,13 +258,16 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   }
 
   function beginReview() {
-    const keys = certify.certified(PLAYER, deckId);
+    browse(shuffle(certify.certified(PLAYER, deckId)), 'review');
+  }
+
+  function browse(keys, chip) {
     if (!keys.length) return;
     mode = 'review';
     music?.start();
     showTranslation(false);
     setStudying(true);
-    showChip('review');
+    showChip(chip);
     prev.hidden = false;
     next.hidden = false;
     start.hidden = true;
@@ -262,7 +276,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     forgot.hidden = true;
     remembered.hidden = true;
     remembered.disabled = false;
-    order = shuffle(keys);
+    order = keys;
     pos = 0;
     renderReview();
   }
@@ -282,29 +296,34 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     nextLearn();
   }
 
-  async function beginInternal() {
-    if (!certify.internalReady(PLAYER, deckId) || exams.running) return;
-    if (!purse.spend(CERTIFY.internalFee)) {
-      showNotice(NO_MONEY);
-      return;
-    }
+  function internalRefusal(id) {
+    const unit = DECKS[id].unit;
+    if (certify.finished(PLAYER, id)) return 'Con học hết bộ này rồi, giỏi lắm!';
+    if (certify.examTaken(PLAYER, id)) return 'Hôm nay con khảo thí rồi, mai quay lại nhé.';
+    if (!certify.needsInternal(PLAYER, id)) return 'Con đủ điều kiện khảo thí hôm nay rồi.';
+    const left = certify.learnLeft(PLAYER, id).length;
+    if (left) return `Con học nốt ${left} ${unit} hôm nay rồi hẵng đến thi nhé.`;
+    return null;
+  }
+
+  async function takeInternal(id) {
+    if (exams.running) return null;
+    const refusal = internalRefusal(id);
+    if (refusal) return refusal;
+    if (!purse.spend(CERTIFY.internalFee)) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
     economy.income('teacher', CERTIFY.internalFee);
-    showNotice(null);
-    const id = deckId;
-    internalPick.disabled = true;
     const results = await exams.run({ title: 'Thi nội bộ', deck: id, keys: certify.internalQuestions(PLAYER, id), icon: '📝' });
     const graded = certify.gradeInternal(PLAYER, id, results);
     const right = results.filter((result) => result.correct).length;
-    if (graded.passed) {
-      showNotice(`Đậu thi nội bộ (${right}/${results.length})! Bạn đã đủ điều kiện khảo thí hôm nay.`);
-      onQualified?.(id);
-    } else {
-      const parts = [`Chưa đậu thi nội bộ (${right}/${results.length}).`];
-      if (graded.failed.length) parts.push(`${graded.failed.length} ${DECKS[id].unit} mới cần học lại.`);
-      if (graded.revoked.length) parts.push(`${graded.revoked.length} ${DECKS[id].unit} bị thu hồi chứng chỉ.`);
-      showNotice(parts.join(' '));
-    }
     if (deckId === id && !start.hidden) paintStart();
+    if (graded.passed) {
+      onQualified?.(id);
+      return `Đậu rồi (${right}/${results.length})! Con đủ điều kiện khảo thí hôm nay.`;
+    }
+    const parts = [`Chưa đậu (${right}/${results.length}).`];
+    if (graded.failed.length) parts.push(`${graded.failed.length} ${DECKS[id].unit} mới cần học lại.`);
+    if (graded.revoked.length) parts.push(`${graded.revoked.length} ${DECKS[id].unit} bị thu hồi chứng chỉ.`);
+    return parts.join(' ');
   }
 
   function setVisible(visible) {
@@ -357,10 +376,14 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
   useDeck('n2');
   learnPick.addEventListener('click', beginLearn);
   reviewPick.addEventListener('click', beginReview);
-  internalPick.addEventListener('click', beginInternal);
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {
-    if (body.classList.contains('covered') && !event.target.closest('button')) setCovered(false);
+    if (body.classList.contains('covered')) {
+      if (!event.target.closest('button')) setCovered(false);
+      return;
+    }
+    const onWord = Boolean(event.target.closest('.study-word')) && Boolean(hanViet.textContent);
+    hanViet.classList.toggle('show', onWord && !hanViet.classList.contains('show'));
   });
   furiganaBtn.addEventListener('click', () => {
     const on = panel.classList.contains('no-furigana');
@@ -387,6 +410,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null }) 
     get dimmed() {
       return dimmed;
     },
+    takeInternal,
     open(id = 'n2') {
       useDeck(id);
       seated = true;
