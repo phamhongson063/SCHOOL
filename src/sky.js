@@ -254,6 +254,10 @@ export function createSky(scene, { renderer }) {
   const moonLightDir = new THREE.Vector3();
   const lightDir = new THREE.Vector3();
   const center = new THREE.Vector3();
+  const snapped = new THREE.Vector3();
+  const lightRight = new THREE.Vector3();
+  const lightUp = new THREE.Vector3();
+  const worldUp = new THREE.Vector3(0, 1, 0);
   const sunTint = new THREE.Color();
   let moonDay = null;
   let phase = 0;
@@ -263,8 +267,18 @@ export function createSky(scene, { renderer }) {
     if (Math.hypot(position.x - center.x, position.z - center.z) >= span * 0.27) {
       center.set(Math.round(position.x / 4) * 4, 0, Math.round(position.z / 4) * 4);
     }
-    light.target.position.copy(center);
-    light.position.copy(center).addScaledVector(lightDir, LIGHT_DISTANCE);
+    snapToShadowTexel(span);
+    light.target.position.copy(snapped);
+    light.position.copy(snapped).addScaledVector(lightDir, LIGHT_DISTANCE);
+  }
+
+  function snapToShadowTexel(span) {
+    const texel = (2 * span) / light.shadow.mapSize.x;
+    lightRight.crossVectors(worldUp, lightDir).normalize();
+    lightUp.crossVectors(lightDir, lightRight);
+    const across = Math.round(center.dot(lightRight) / texel) * texel;
+    const along = Math.round(center.dot(lightUp) / texel) * texel;
+    snapped.copy(lightDir).multiplyScalar(center.dot(lightDir)).addScaledVector(lightRight, across).addScaledVector(lightUp, along);
   }
 
   return {
