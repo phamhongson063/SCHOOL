@@ -2,6 +2,7 @@ import { paintIcon } from './itemArt.js';
 import { setRich } from './goldArt.js';
 
 const MARGIN = 12;
+const MIN_TITLE_SIZE = 11;
 
 export function createPicker() {
   const panel = document.getElementById('picker');
@@ -36,6 +37,15 @@ export function createPicker() {
     return button;
   }
 
+  function fitTitle() {
+    heading.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(heading).fontSize);
+    while (heading.scrollWidth > heading.clientWidth && size > MIN_TITLE_SIZE) {
+      size -= 1;
+      heading.style.fontSize = `${size}px`;
+    }
+  }
+
   function open({ title, options, x, y, menu = false }, pick) {
     panel.setAttribute('aria-label', title);
     panel.classList.toggle('menu', menu);
@@ -44,13 +54,15 @@ export function createPicker() {
     list.replaceChildren(...options.map(option));
     onPick = pick;
     panel.hidden = false;
-    const { width, height } = panel.getBoundingClientRect();
-    const left = Math.min(Math.max(MARGIN, x - width / 2), window.innerWidth - width - MARGIN);
-    const top = Math.min(Math.max(MARGIN, y - height - 18), window.innerHeight - height - MARGIN);
+    if (menu) fitTitle();
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+    const left = menu ? (window.innerWidth - width) / 2 : Math.min(Math.max(MARGIN, x - width / 2), window.innerWidth - width - MARGIN);
+    const top = menu ? (window.innerHeight - height) / 2 : Math.min(Math.max(MARGIN, y - height - 18), window.innerHeight - height - MARGIN);
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;
     panel.style.setProperty('--tail', `${Math.min(width - 18, Math.max(18, x - left))}px`);
-    panel.classList.toggle('tailless', top + height > y - 4);
+    panel.classList.toggle('tailless', menu || top + height > y - 4);
     list.firstElementChild?.focus({ preventScroll: true });
   }
 
