@@ -29,6 +29,20 @@ export function createStore(key, read) {
   return store;
 }
 
+export function createPairStore(worldKey, readWorld, selfKey, readSelf) {
+  const pair = [createStore(worldKey, readWorld), createStore(selfKey, readSelf)];
+  return {
+    save() {
+      for (const store of pair) store.save();
+    },
+    flush() {
+      for (const store of pair) store.flush();
+    },
+  };
+}
+
+export const without = (map, id) => Object.fromEntries(Object.entries(map).filter(([key]) => key !== id));
+
 export function haltStores() {
   for (const store of stores) store.halt();
 }

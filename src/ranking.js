@@ -5,8 +5,9 @@ import { PLAYER } from './inventory.js';
 import { closable } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { writeGameItem } from './seal.js';
+import { worldKey } from './saveKeys.js';
 
-const KEY = 'truong-lang-xua.ranking';
+const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
 const CHECK_MS = 5000;
 

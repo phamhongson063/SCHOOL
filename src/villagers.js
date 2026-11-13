@@ -9,6 +9,7 @@ import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 import { SQUEEZE, squeezePast } from './squeeze.js';
+import { PLAYER } from './inventory.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
@@ -366,7 +367,7 @@ export class Town {
     const rests = [];
     seats.forEach((seat, index) => {
       for (const [who, until] of seat.rested ?? []) {
-        const id = who === 'player' ? who : who?.id;
+        const id = who === 'player' ? PLAYER : who?.id;
         if (id && until > t) rests.push([index, id, Math.round(until - t)]);
       }
     });
@@ -395,7 +396,7 @@ export class Town {
   restoreRests(rests, t) {
     for (const [index, id, left] of rests) {
       const seat = this.studySeats.list[index];
-      const who = id === 'player' ? id : this.members.find((member) => member.id === id);
+      const who = id === PLAYER ? 'player' : this.members.find((member) => member.id === id);
       if (seat && who && left > 0) this.studySeats.rest(seat, who, t + left);
     }
   }

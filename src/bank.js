@@ -4,10 +4,12 @@ import { amount, coins, notEnough } from './format.js';
 import { PLAYER } from './inventory.js';
 import { BANK_ART } from './bankArt.js';
 import { closable } from './dialog.js';
-import { createStore } from './persist.js';
+import { createPairStore, without } from './persist.js';
+import { selfKey, worldKey } from './saveKeys.js';
 import { setRich } from './goldArt.js';
 
-const KEY = 'truong-lang-xua.bank';
+const WORLD_KEY = worldKey('bank');
+const SELF_KEY = selfKey('bank');
 
 export const bankOpen = (minutes) => isOpenAt(BANK, minutes);
 export const bankHours = () => hoursText(BANK);
@@ -39,19 +41,27 @@ function cleanAccount(raw) {
   return account;
 }
 
+function readJSON(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
 function load(minutes) {
   const deposit = BANK.deposit.base;
   const loan = BANK.deposit.base + BANK.loan.spread;
   const state = { day: dayOf(minutes), deposit, loan, prevDeposit: deposit, prevLoan: loan, vault: BANK.capital, seq: 1, accounts: {} };
-  let raw = null;
-  try {
-    raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-  } catch {}
-  if (!raw || typeof raw !== 'object') return state;
-  for (const field of ['day', 'deposit', 'loan', 'prevDeposit', 'prevLoan', 'vault', 'seq']) {
-    if (Number.isFinite(raw[field])) state[field] = raw[field];
+  const raw = readJSON(WORLD_KEY);
+  const mine = readJSON(SELF_KEY);
+  if (raw && typeof raw === 'object') {
+    for (const field of ['day', 'deposit', 'loan', 'prevDeposit', 'prevLoan', 'vault', 'seq']) {
+      if (Number.isFinite(raw[field])) state[field] = raw[field];
+    }
+    for (const [owner, account] of Object.entries(raw.accounts ?? {})) state.accounts[owner] = cleanAccount(account);
   }
-  for (const [owner, account] of Object.entries(raw.accounts ?? {})) state.accounts[owner] = cleanAccount(account);
+  if (mine) state.accounts[PLAYER] = cleanAccount(mine);
   for (const account of Object.values(state.accounts)) {
     for (const item of [...account.terms, ...account.loans]) state.seq = Math.max(state.seq, item.id + 1);
   }
@@ -63,7 +73,7 @@ export function createBank({ ledger, estate, now }) {
   const listeners = [];
   const collectors = [];
   const maturers = [];
-  const store = createStore(KEY, () => state);
+  const store = createPairStore(WORLD_KEY, () => ({ ...state, accounts: without(state.accounts, PLAYER) }), SELF_KEY, () => state.accounts[PLAYER] ?? null);
 
   function changed() {
     store.save();

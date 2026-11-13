@@ -10,6 +10,7 @@ import { createBubble } from './bubble.js';
 import { SHOP, CHIEF, EATERY, FISH_SHOP, LODGE_ROOMS, FLUORESCENT } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
+import { PLAYER } from './inventory.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { keepCanvas } from './canvasRestore.js';
 import { GOLD_IMAGE, GOLD_MARK } from './goldArt.js';
@@ -111,17 +112,17 @@ function richText(ctx, text, x, y, maxWidth, size) {
 }
 
 export function housePlaqueLines(house, nameOf) {
-  const owner = house.owner ? (house.owner === 'player' ? 'Nhà của bạn' : nameOf(house.owner)) : null;
+  const owner = house.owner ? (house.owner === PLAYER ? 'Nhà của bạn' : nameOf(house.owner)) : null;
   return [`Nhà số ${house.id}`, owner ?? `Bán · ${coins(house.price)}`];
 }
 
 export function houseLabel(estate, house, nameOf) {
   if (!house.owner) return `Nhà số ${house.id} · ${estate.sizeName(house)} · bán ${coins(house.price)}`;
-  return `Nhà số ${house.id} · chủ: ${house.owner === 'player' ? 'bạn' : nameOf(house.owner)}`;
+  return `Nhà số ${house.id} · chủ: ${house.owner === PLAYER ? 'bạn' : nameOf(house.owner)}`;
 }
 
 export function visitHouse(options, house) {
-  if (house.owner === 'player') {
+  if (house.owner === PLAYER) {
     if (!options.isNight()) return 'Nhà của mình. Tối về đây ngủ cho lại sức nhé!';
     options.sleep();
     return null;

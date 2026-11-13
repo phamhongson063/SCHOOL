@@ -1,10 +1,13 @@
 import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
-import { ACCOUNT_KEY, gameKeys, isGameKey } from './saveKeys.js';
+import { ACCOUNT_KEY, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 import { haltStores } from './persist.js';
 import { auditSeal, dropTampered } from './seal.js';
+import { splitLegacySave } from './saveSplit.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
+const DOCS = { self: 'saves', world: 'worlds' };
+const REV_FIELD = { self: 'rev', world: 'worldRev' };
 
 export const cloudEnabled = Boolean(firebaseConfig.apiKey);
 
@@ -57,16 +60,37 @@ function loadSdk() {
   return sdk;
 }
 
-function snapshot() {
+function snapshot(scope) {
   const data = {};
-  for (const key of gameKeys().sort()) data[key] = localStorage.getItem(key);
+  for (const key of gameKeys(scope).sort()) data[key] = localStorage.getItem(key);
   return JSON.stringify(data);
 }
 
-function restore(text) {
+function restore(text, scope) {
   const data = JSON.parse(text);
-  for (const key of gameKeys()) localStorage.removeItem(key);
-  for (const [key, value] of Object.entries(data)) if (isGameKey(key) && typeof value === 'string') localStorage.setItem(key, value);
+  for (const key of gameKeys(scope)) localStorage.removeItem(key);
+  for (const [key, value] of Object.entries(data)) if (isGameKey(key) && scopeOf(key) === scope && typeof value === 'string') localStorage.setItem(key, value);
+}
+
+async function claim(store, db, ref, scope, rev, id) {
+  const local = snapshot(scope);
+  const result = await store.runTransaction(db, async (tx) => {
+    const found = await tx.get(ref);
+    const cloud = found.exists() ? found.data() : null;
+    if (cloud && cloud.rev !== rev) {
+      tx.update(ref, { session: id });
+      return { rev: cloud.rev, data: cloud.data };
+    }
+    const next = newId();
+    tx.set(ref, { data: local, rev: next, session: id, savedAt: store.serverTimestamp() });
+    return { rev: next, data: local };
+  });
+  if (result.data !== local) {
+    restore(result.data, scope);
+    const broken = auditSeal();
+    if (broken.length) dropTampered(broken);
+  }
+  return result;
 }
 
 export async function signedIn() {
@@ -78,41 +102,29 @@ export async function connect() {
   const { store, session, db } = await loadSdk();
   const user = session.currentUser;
   const saved = account();
-  const ref = store.doc(db, 'saves', user.uid);
+  const refs = { self: store.doc(db, DOCS.self, user.uid), world: store.doc(db, DOCS.world, user.uid) };
   const id = newId();
   const tampered = auditSeal();
   if (tampered.length) dropTampered(tampered);
-  const local = snapshot();
-  const continuing = !tampered.length && saved?.uid === user.uid && Boolean(saved?.rev);
-  const result = await store.runTransaction(db, async (tx) => {
-    const found = await tx.get(ref);
-    const cloud = found.exists() ? found.data() : null;
-    if (cloud && !(continuing && cloud.rev === saved.rev)) {
-      tx.update(ref, { session: id });
-      return { rev: cloud.rev, data: cloud.data };
-    }
-    const rev = newId();
-    tx.set(ref, { data: local, rev, session: id, savedAt: store.serverTimestamp() });
-    return { rev, data: local };
-  });
-  if (result.data !== local) {
-    restore(result.data);
-    const broken = auditSeal();
-    if (broken.length) dropTampered(broken);
-  }
-  saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: result.rev });
-  startSync(store, ref, id, result.data);
+  splitLegacySave(user.uid);
+  const continuing = !tampered.length && saved?.uid === user.uid;
+  const world = await claim(store, db, refs.world, 'world', continuing ? saved.worldRev : null, id);
+  const mine = await claim(store, db, refs.self, 'self', continuing ? saved.rev : null, id);
+  splitLegacySave(user.uid);
+  saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: mine.rev, worldRev: world.rev });
+  startSync(store, refs, id, { self: mine.data, world: world.data });
+  upload();
 }
 
 function onHidden() {
   if (document.visibilityState === 'hidden') setTimeout(upload);
 }
 
-function startSync(store, ref, id, uploaded) {
-  sync = { ref, id, uploaded, busy: null };
+function startSync(store, refs, id, uploaded) {
+  sync = { refs, id, uploaded, busy: null };
   sync.timer = setInterval(upload, SYNC_EVERY);
   sync.unsubscribe = store.onSnapshot(
-    ref,
+    refs.self,
     (found) => {
       if (found.get('session') !== id) takenOver();
     },
@@ -138,25 +150,28 @@ function upload() {
 
 async function push(state) {
   if (auditSeal().length) return;
-  const data = snapshot();
-  if (data === state.uploaded) return;
+  const data = { self: snapshot('self'), world: snapshot('world') };
+  const changed = Object.keys(DOCS).filter((scope) => data[scope] !== state.uploaded[scope]);
+  if (!changed.length) return;
   const { store, db } = await loadSdk();
-  const rev = newId();
+  const revs = Object.fromEntries(changed.map((scope) => [scope, newId()]));
   let owned = false;
   try {
     owned = await store.runTransaction(db, async (tx) => {
-      const found = await tx.get(state.ref);
+      const found = await tx.get(state.refs.self);
       if (found.get('session') !== state.id) return false;
-      tx.update(state.ref, { data, rev, savedAt: store.serverTimestamp() });
+      for (const scope of changed) tx.update(state.refs[scope], { data: data[scope], rev: revs[scope], savedAt: store.serverTimestamp() });
       return true;
     });
   } catch {
     return;
   }
   if (!owned) return takenOver();
-  state.uploaded = data;
+  for (const scope of changed) state.uploaded[scope] = data[scope];
   const saved = account();
-  if (saved && sync === state) saveAccount({ ...saved, rev });
+  if (!saved || sync !== state) return;
+  for (const scope of changed) saved[REV_FIELD[scope]] = revs[scope];
+  saveAccount(saved);
 }
 
 function takenOver() {

@@ -6,8 +6,9 @@ import { FISH, FISHING, WORLD } from './config.js';
 import { gameNow, minuteOfDay } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { writeGameItem } from './seal.js';
+import { worldKey } from './saveKeys.js';
 
-const KEY = 'truong-lang-xua.river';
+const KEY = worldKey('river');
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
 const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
 const DOCK = { x0: 44.6, x1: 46.4, z0: 68.8, z1: 76.6 };

@@ -34,5 +34,15 @@ service cloud.firestore {
         && validSave(request.resource.data)
         && freshTimestamp();
     }
+
+    match /worlds/{worldId} {
+      allow get: if allowedPlayer(worldId);
+      allow create: if allowedPlayer(worldId)
+        && validSave(request.resource.data)
+        && request.resource.data.savedAt == request.time;
+      allow update: if allowedPlayer(worldId)
+        && validSave(request.resource.data)
+        && freshTimestamp();
+    }
   }
 }

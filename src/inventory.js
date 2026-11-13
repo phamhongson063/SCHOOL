@@ -1,15 +1,17 @@
 import { CROPS } from './crops.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
-import { createStore } from './persist.js';
+import { createPairStore, without } from './persist.js';
 import { removeGameItem } from './seal.js';
+import { playerId, selfKey, worldKey } from './saveKeys.js';
 
-const KEY = 'truong-lang-xua.ledger';
+const WORLD_KEY = worldKey('ledger');
+const SELF_KEY = selfKey('ledger');
 const FULL_MARGIN = 0.5;
 const LEGACY_PLAYER = 'truong-lang-xua.inventory';
 const LEGACY_FARMERS = 'truong-lang-xua.farmers';
 
-export const PLAYER = 'player';
+export const PLAYER = playerId();
 export const seedId = (crop) => `seed:${crop}`;
 
 export const ITEMS = {};
@@ -297,8 +299,9 @@ export class Purse {
 
 export class Ledger {
   constructor() {
-    const saved = readJSON(KEY);
-    const raw = saved && typeof saved === 'object' ? saved : migrate();
+    const world = readJSON(WORLD_KEY);
+    const mine = readJSON(SELF_KEY);
+    const raw = world || mine ? { ...world, ...(mine && { [PLAYER]: mine }) } : migrate();
     this.accounts = {};
     for (const [id, account] of Object.entries(raw)) {
       this.accounts[id] = clean(account);
@@ -306,7 +309,7 @@ export class Ledger {
       giftIntellect(this.accounts[id]);
     }
     this.purses = new Map();
-    this.store = createStore(KEY, () => this.accounts);
+    this.store = createPairStore(WORLD_KEY, () => without(this.accounts, PLAYER), SELF_KEY, () => this.accounts[PLAYER] ?? null);
     this.store.flush();
   }
 

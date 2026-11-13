@@ -13,9 +13,10 @@ import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
 import { writeGameItem, removeGameItem } from './seal.js';
+import { worldKey } from './saveKeys.js';
 
-const STORAGE_KEY = 'truong-lang-xua.farm.v2';
-const LEASE_KEY = 'truong-lang-xua.farmLeases';
+const STORAGE_KEY = worldKey('farm');
+const LEASE_KEY = worldKey('farmLeases');
 const LEGACY_KEY = 'truong-lang-xua.farm';
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;

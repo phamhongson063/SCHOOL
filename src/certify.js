@@ -1,9 +1,12 @@
 import { CERTIFY } from './config.js';
 import { DECKS, DECK_IDS, deckOf } from './studyDecks.js';
-import { createStore } from './persist.js';
+import { createPairStore, without } from './persist.js';
+import { selfKey, worldKey } from './saveKeys.js';
+import { PLAYER } from './inventory.js';
 import { dayOf, gameNow } from './clock.js';
 
-const KEY = 'truong-lang-xua.certify';
+const WORLD_KEY = worldKey('certify');
+const SELF_KEY = selfKey('certify');
 
 const today = () => dayOf(gameNow());
 
@@ -52,23 +55,27 @@ function restoreSkipped(state, deck) {
   return state;
 }
 
-function load() {
+function readJSON(key) {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && typeof saved === 'object') {
-      const actors = {};
-      for (const [id, decks] of Object.entries(saved)) {
-        actors[id] = {};
-        for (const deck of DECK_IDS) actors[id][deck] = restoreSkipped(cleanDeck(decks?.[deck], deck), deck);
-      }
-      return actors;
-    }
-  } catch {}
-  return {};
+    return JSON.parse(localStorage.getItem(key) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+const cleanActor = (decks) => Object.fromEntries(DECK_IDS.map((deck) => [deck, restoreSkipped(cleanDeck(decks?.[deck], deck), deck)]));
+
+function load() {
+  const world = readJSON(WORLD_KEY);
+  const mine = readJSON(SELF_KEY);
+  const actors = {};
+  if (world && typeof world === 'object') for (const [id, decks] of Object.entries(world)) actors[id] = cleanActor(decks);
+  if (mine && typeof mine === 'object') actors[PLAYER] = cleanActor(mine);
+  return actors;
 }
 
 const actors = load();
-const store = createStore(KEY, () => actors);
+const store = createPairStore(WORLD_KEY, () => without(actors, PLAYER), SELF_KEY, () => actors[PLAYER] ?? null);
 const listeners = [];
 
 function changed(actor) {

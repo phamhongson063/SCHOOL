@@ -1,6 +1,8 @@
-import { PREFIX, gameKeys, isGameKey } from './saveKeys.js';
+import { PREFIX, WORLD_PREFIX, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 
 export const SEAL_KEY = PREFIX + 'seal';
+export const WORLD_SEAL_KEY = WORLD_PREFIX + 'seal';
+const SEALS = { self: SEAL_KEY, world: WORLD_SEAL_KEY };
 const SALT = 0x5c3a91e7;
 
 function digest(key, value) {
@@ -17,61 +19,70 @@ function digest(key, value) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
-function readSeal() {
+function readSeal(scope) {
   try {
-    const seal = JSON.parse(localStorage.getItem(SEAL_KEY) ?? 'null');
+    const seal = JSON.parse(localStorage.getItem(SEALS[scope]) ?? 'null');
     return seal && typeof seal === 'object' && !Array.isArray(seal) ? seal : null;
   } catch {
     return null;
   }
 }
 
-function writeSeal(seal) {
+function writeSeal(scope, seal) {
   try {
-    localStorage.setItem(SEAL_KEY, JSON.stringify(seal));
+    localStorage.setItem(SEALS[scope], JSON.stringify(seal));
   } catch {}
 }
 
-const sealedKeys = () => gameKeys().filter((key) => key !== SEAL_KEY);
+const isSealKey = (key) => key === SEAL_KEY || key === WORLD_SEAL_KEY;
+const sealedKeys = (scope) => gameKeys(scope).filter((key) => !isSealKey(key));
 
-function sealAll() {
+function sealAll(scope) {
   const seal = {};
-  for (const key of sealedKeys()) seal[key] = digest(key, localStorage.getItem(key));
+  for (const key of sealedKeys(scope)) seal[key] = digest(key, localStorage.getItem(key));
   return seal;
 }
 
 export function writeGameItem(key, value) {
   localStorage.setItem(key, value);
-  const seal = readSeal() ?? sealAll();
+  const scope = scopeOf(key);
+  const seal = readSeal(scope) ?? sealAll(scope);
   seal[key] = digest(key, value);
-  writeSeal(seal);
+  writeSeal(scope, seal);
 }
 
 export function removeGameItem(key) {
   localStorage.removeItem(key);
-  const seal = readSeal() ?? sealAll();
+  const scope = scopeOf(key);
+  const seal = readSeal(scope) ?? sealAll(scope);
   delete seal[key];
-  writeSeal(seal);
+  writeSeal(scope, seal);
 }
 
-export function auditSeal() {
-  const seal = readSeal();
+function auditScope(scope) {
+  const seal = readSeal(scope);
   if (!seal) {
-    writeSeal(sealAll());
+    writeSeal(scope, sealAll(scope));
     return [];
   }
-  const keys = new Set([...Object.keys(seal).filter(isGameKey), ...sealedKeys()]);
+  const keys = new Set([...Object.keys(seal).filter((key) => isGameKey(key) && scopeOf(key) === scope), ...sealedKeys(scope)]);
   return [...keys].filter((key) => {
     const value = localStorage.getItem(key);
     return seal[key] !== (value === null ? undefined : digest(key, value));
   });
 }
 
+export const auditSeal = () => Object.keys(SEALS).flatMap(auditScope);
+
 export function dropTampered(keys) {
-  const seal = readSeal() ?? {};
-  for (const key of keys) {
-    localStorage.removeItem(key);
-    delete seal[key];
+  for (const scope of Object.keys(SEALS)) {
+    const owned = keys.filter((key) => scopeOf(key) === scope);
+    if (!owned.length) continue;
+    const seal = readSeal(scope) ?? {};
+    for (const key of owned) {
+      localStorage.removeItem(key);
+      delete seal[key];
+    }
+    writeSeal(scope, seal);
   }
-  writeSeal(seal);
 }

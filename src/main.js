@@ -87,6 +87,7 @@ import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
 import { coins } from './format.js';
 import { haltStores } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
+import { worldKey } from './saveKeys.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -337,7 +338,7 @@ regions.add(
   }),
 );
 const PLACE_KEY = 'truong-lang-xua.player';
-const VILLAGERS_KEY = 'truong-lang-xua.villagers';
+const VILLAGERS_KEY = worldKey('villagers');
 function loadPlace() {
   try {
     const saved = JSON.parse(localStorage.getItem(PLACE_KEY) ?? 'null');

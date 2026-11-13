@@ -2,8 +2,9 @@ import { ECONOMY, VILLAGER } from './config.js';
 import { dayOf, gameMinutesOf, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
+import { worldKey } from './saveKeys.js';
 
-const KEY = 'truong-lang-xua.economy';
+const KEY = worldKey('economy');
 const FUND = 'fund';
 const CHECK_MS = 5000;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);

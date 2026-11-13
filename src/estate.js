@@ -6,8 +6,9 @@ import { closable } from './dialog.js';
 import { economy } from './economy.js';
 import { stallCard, paintStallArt } from './stallCard.js';
 import { writeGameItem } from './seal.js';
+import { worldKey } from './saveKeys.js';
 
-const KEY = 'truong-lang-xua.estate';
+const KEY = worldKey('estate');
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
 
 export const chiefOpen = (minutes) => isOpenAt(CHIEF, minutes);
