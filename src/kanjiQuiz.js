@@ -34,6 +34,7 @@ function view(prefix, textId, iconId) {
     bar: node('Bar'),
     result: node('Result'),
     close: node('Close'),
+    clock: node('Clock'),
     icon: node(iconId),
   };
 }
@@ -250,7 +251,7 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, clock = null } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
@@ -266,6 +267,8 @@ export function createKanjiQuiz() {
         ui.icon.className = 'quiz-icon hooked';
         pending.blanks = showPrompt(ui, entry, asked);
         ui.level.textContent = level ?? levelOf(entry);
+        ui.clock.textContent = clock ?? '';
+        ui.clock.hidden = !clock;
         ui.result.textContent = '';
         ui.result.className = `${ui.prefix}-result`;
         ui.options.classList.toggle('lettered', lettered);

@@ -266,7 +266,7 @@ export const ECONOMY = {
 export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
 
 export const BLESSING = {
-  windows: Array.from({ length: 8 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
+  windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
   recovery: 2,
   quizSeconds: 3,
   quizCloseMs: 500,
