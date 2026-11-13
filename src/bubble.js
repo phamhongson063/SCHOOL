@@ -68,16 +68,59 @@ export function updateBubbles(camera, now) {
   for (const bubble of active) bubble.place(camera, now);
 }
 
+const SIX = 'M6.8 0.6C6 0.2 5.1 0 4.2 0 1.6 0 0 2.8 0 7.5 0 11.8 1.6 14 4 14 6.4 14 8 12.2 8 9.6 8 7.1 6.4 5.4 4.1 5.4 2.2 5.4 0.7 6.6 0.1 8.3';
+const DIGITS = [
+  'M4 0C1.2 0 0 3 0 7s1.2 7 4 7 4-3 4-7-1.2-7-4-7Z',
+  'M1.5 3.2 5 0V14',
+  'M0.5 3.5C1 1 2.5 0 4 0c2.2 0 3.5 1.5 3.5 3.5 0 2-1.5 3.5-3.5 5.5L0.5 14H8',
+  'M0.8 1.5C1.8 0.5 2.8 0 4 0c2 0 3.5 1.2 3.5 3.3S6 6.6 3.6 6.6C6.2 6.6 8 8 8 10.2 8 12.6 6.2 14 4 14 2.5 14 1.2 13.4 0.3 12.3',
+  'M6 14V0L0 9.5H8',
+  'M7.5 0H1.5L0.8 6.3C1.7 5.6 2.8 5.3 3.9 5.3 6.3 5.3 8 7 8 9.6 8 12.3 6.2 14 3.8 14 2.3 14 1 13.4 0.2 12.4',
+  SIX,
+  'M0 0H8L3 14',
+  'M4 6.4C2 6.4 0.7 5.2 0.7 3.3 0.7 1.4 2.1 0 4 0s3.3 1.4 3.3 3.3c0 1.9-1.3 3.1-3.3 3.1Zm0 0C1.7 6.4 0 7.9 0 10.1 0 12.4 1.7 14 4 14s4-1.6 4-3.9c0-2.2-1.7-3.7-4-3.7Z',
+  SIX,
+];
+const DIGIT_W = 8;
+const DIGIT_H = 14;
+const DIGIT_GAP = 3;
+
+function digitPaths(number) {
+  const digits = String(number).split('').map(Number);
+  const scale = digits.length > 1 ? 0.78 : 1;
+  const width = digits.length * DIGIT_W + (digits.length - 1) * DIGIT_GAP;
+  const left = 16 - (width * scale) / 2;
+  const top = 16 - (DIGIT_H * scale) / 2;
+  return digits
+    .map((digit, i) => {
+      const flip = digit === 9 ? ` rotate(180 ${DIGIT_W / 2} ${DIGIT_H / 2})` : '';
+      return `<path transform="translate(${left} ${top}) scale(${scale}) translate(${i * (DIGIT_W + DIGIT_GAP)} 0)${flip}" d="${DIGITS[digit]}"/>`;
+    })
+    .join('');
+}
+
+function seatBadge(turn) {
+  return `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff6d8" stroke="#c9962f" stroke-width="2.2"/><g fill="none" stroke="#6b4a12" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${digitPaths(turn)}</g></svg>`;
+}
+
+function makeBadge(html = '') {
+  const el = document.createElement('div');
+  el.className = 'mood';
+  el.innerHTML = html;
+  return { el, on: false };
+}
+
 export function createBubble() {
   const anchor = new THREE.Object3D();
   const element = document.createElement('div');
   element.className = 'speech';
-  const badge = document.createElement('div');
-  badge.className = 'mood';
-  const tripBadge = document.createElement('div');
-  tripBadge.className = 'mood';
-  tripBadge.innerHTML = TRIP;
+  const moodBadge = makeBadge();
+  const turnBadge = makeBadge();
+  const tripBadge = makeBadge(TRIP);
+  const badges = [moodBadge, turnBadge, tripBadge];
+  const anyBadge = () => badges.some((badge) => badge.on);
   let mood = null;
+  let turn = null;
   let trip = false;
   let bubbleHeight = 0;
   let until = 0;
@@ -101,8 +144,7 @@ export function createBubble() {
       }
       visible &&= !hiddenBehind;
       element.hidden = !visible || !shown;
-      badge.hidden = !visible || !mood;
-      tripBadge.hidden = !visible || !trip;
+      for (const badge of badges) badge.el.hidden = !visible || !badge.on;
       if (!visible) return;
       const x = Math.round(((screen.x + 1) / 2) * window.innerWidth);
       const y = Math.round(((1 - screen.y) / 2) * window.innerHeight - TAIL);
@@ -112,7 +154,8 @@ export function createBubble() {
         element.style.zIndex = depth;
         bubbleHeight ||= element.offsetHeight;
       }
-      if (!mood && !trip) return;
+      const lit = badges.filter((badge) => badge.on);
+      if (!lit.length) return;
       let badgeX = x;
       let badgeY = y - bubbleHeight - MOOD_GAP;
       if (!shown) {
@@ -120,51 +163,51 @@ export function createBubble() {
         badgeX = Math.round(((low.x + 1) / 2) * window.innerWidth);
         badgeY = Math.round(((1 - low.y) / 2) * window.innerHeight);
       }
-      const spread = mood && trip ? BADGE_STEP / 2 : 0;
-      if (mood) {
-        badge.style.transform = `translate(${badgeX - spread}px, ${badgeY}px) translate(-50%, -100%)`;
-        badge.style.zIndex = depth;
-      }
-      if (trip) {
-        tripBadge.style.transform = `translate(${badgeX + spread}px, ${badgeY}px) translate(-50%, -100%)`;
-        tripBadge.style.zIndex = depth;
-      }
+      lit.forEach((badge, i) => {
+        const offset = (i - (lit.length - 1) / 2) * BADGE_STEP;
+        badge.el.style.transform = `translate(${badgeX + offset}px, ${badgeY}px) translate(-50%, -100%)`;
+        badge.el.style.zIndex = depth;
+      });
     },
   };
 
   function hide() {
     shown = false;
     element.remove();
-    if (!mood && !trip) active.delete(record);
+    if (!anyBadge()) active.delete(record);
+  }
+
+  function toggle(badge, on) {
+    badge.on = on;
+    if (!on) {
+      badge.el.remove();
+      if (!shown && !anyBadge()) active.delete(record);
+      return;
+    }
+    badge.el.hidden = true;
+    if (!badge.el.isConnected) speechLayer().append(badge.el);
+    checkAt = 0;
+    active.add(record);
   }
 
   function setMood(next) {
     if (next === mood) return;
     mood = next;
-    if (!mood) {
-      badge.remove();
-      if (!shown && !trip) active.delete(record);
-      return;
-    }
-    badge.innerHTML = MOODS[mood];
-    badge.hidden = true;
-    if (!badge.isConnected) speechLayer().append(badge);
-    checkAt = 0;
-    active.add(record);
+    if (mood) moodBadge.el.innerHTML = MOODS[mood];
+    toggle(moodBadge, !!mood);
+  }
+
+  function setTurn(next) {
+    if (next === turn) return;
+    turn = next;
+    if (turn !== null) turnBadge.el.innerHTML = seatBadge(turn);
+    toggle(turnBadge, turn !== null);
   }
 
   function setTrip(next) {
     if (next === trip) return;
     trip = next;
-    if (!trip) {
-      tripBadge.remove();
-      if (!shown && !mood) active.delete(record);
-      return;
-    }
-    tripBadge.hidden = true;
-    speechLayer().append(tripBadge);
-    checkAt = 0;
-    active.add(record);
+    toggle(tripBadge, trip);
   }
 
   return {
@@ -186,6 +229,7 @@ export function createBubble() {
     },
     hide,
     setMood,
+    setTurn,
     setTrip,
     update(now) {
       if (shown && now > until) hide();

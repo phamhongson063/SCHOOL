@@ -17,7 +17,7 @@ import { amount } from './format.js';
 import { iconTag } from './itemArt.js';
 import { layDown, restEase } from './walk.js';
 import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
-import { createStudyIcon, turnBadgeMaterial } from './studyIcon.js';
+import { createStudyIcon } from './studyIcon.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 import { RestBehavior } from './villagerRest.js';
 import { SchoolBehavior } from './villagerSchool.js';
@@ -25,7 +25,6 @@ import { WorkBehavior } from './villagerWork.js';
 import { ErrandBehavior } from './villagerErrands.js';
 import { MindBehavior } from './villagerMind.js';
 
-const TURN_LIFT = 1.9;
 
 export class Villager {
   constructor(profile, town) {
@@ -76,7 +75,6 @@ export class Villager {
       this.seated.group.add(this.seatBubble.sprite);
     }
     this.fx = null;
-    this.turnIcon = null;
 
     const adult = this.kind !== 'student';
     this.walkSpeed = MOVE.walk;
@@ -541,16 +539,7 @@ export class Villager {
   }
 
   showTurn(turn) {
-    if (!this.turnIcon) {
-      if (!turn) return;
-      this.turnIcon = new THREE.Sprite(turnBadgeMaterial(turn));
-      this.turnIcon.scale.setScalar(0.42);
-      this.turnIcon.renderOrder = 6;
-      this.turnIcon.position.set(0, TURN_LIFT, 0);
-      this.walker.group.add(this.turnIcon);
-    }
-    this.turnIcon.visible = turn > 0;
-    if (turn) this.turnIcon.material = turnBadgeMaterial(turn);
+    this.bubble.setTurn(turn > 0 ? turn : null);
   }
 
   update(t, dt) {

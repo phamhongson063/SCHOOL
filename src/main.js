@@ -43,7 +43,7 @@ import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, s
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
 import { createAwaySim } from './villagerAway.js';
-import { createStudyIcon, badgeMaterial, turnBadgeMaterial } from './studyIcon.js';
+import { createStudyIcon } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter, plazaFloor } from './quarter.js';
@@ -606,13 +606,8 @@ const seatedAvatar = modelReady ? createModel('player', { seated: true }) : crea
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
 seatedAvatar.group.add(playerStudyIcon);
-const bookMaterial = badgeMaterial('🪑');
-const playerBookIcon = new THREE.Sprite(bookMaterial);
-playerBookIcon.scale.setScalar(0.42);
-playerBookIcon.renderOrder = 6;
-playerBookIcon.visible = false;
-playerBookIcon.position.set(0, modelReady ? 2.05 : 1.8, 0);
-avatar.group.add(playerBookIcon);
+let bookIconOn = false;
+let bookTurn = 0;
 scene.add(seatedAvatar.group);
 player.attachSeating({
   seats: playerSeats,
@@ -999,7 +994,7 @@ function endBooking() {
   seatWait.leave('player');
   if (booking.seat && player.seat !== booking.seat) studySeats.unreserve(booking.seat, 'player');
   booking = null;
-  playerBookIcon.visible = false;
+  bookIconOn = false;
 }
 
 function takeBookedSeat(seat) {
@@ -1025,15 +1020,14 @@ function bookSeat(deck, teacher) {
     return;
   }
   booking = { deck, target: spot.clone(), seat: null, retries: 0, settled: false };
-  playerBookIcon.visible = true;
+  bookIconOn = true;
   player.requestMove(booking.target, false);
   seatWait.update(clock.elapsedTime);
 }
 
 function updateBookIcon() {
-  if (!playerBookIcon.visible) return;
-  const turn = seatWait.turnOf('player');
-  playerBookIcon.material = turn ? turnBadgeMaterial(turn) : bookMaterial;
+  bookTurn = bookIconOn ? seatWait.turnOf('player') || bookTurn || 1 : 0;
+  playerBubble.setTurn(bookTurn || null);
 }
 
 function updateBooking() {
@@ -1043,7 +1037,7 @@ function updateBooking() {
   if (b.seat) {
     if (player.seat === b.seat) {
       booking = null;
-      playerBookIcon.visible = false;
+      bookIconOn = false;
     } else if (player.pendingSeat !== b.seat) endBooking();
     return;
   }

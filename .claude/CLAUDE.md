@@ -11,3 +11,6 @@
   - Lý do: sau này làm thế giới chung, luật phải chạy được trên máy chủ (Node) mà không cần tách lại.
 - **Nghiêm cấm viền cam/vàng bên trong popup**: không dùng `outline` (hay `box-shadow inset`, `border` lồng, pseudo-element) để vẽ khung màu cam/vàng (`--gold`, `--amber`...) thụt vào bên trong popup, dialog, panel. Khung popup chỉ giữ viền gỗ ngoài cùng.
   - Lý do: user rất ghét kiểu viền này; trước đây nó nằm trong style chung `dialog.paper` nên popup nào cũng dính.
+- **Icon trên đầu nhân vật không được chồng lên nhau**: mọi icon trạng thái trên đầu (đói, lượt đặt ghế, chuyến đi...) của người chơi và dân làng phải xếp thành một hàng ngang, cách đều nhau, cả hàng canh giữa trên đầu nhân vật.
+  - Thêm icon mới thì đưa vào hàng badge của `bubble.js` (giống `setMood`, `setTurn`, `setTrip`), không gắn sprite 3D riêng ở giữa đầu.
+  - Lý do: trước đây badge lượt đặt ghế là sprite 3D riêng nên đè lên icon chén cơm.

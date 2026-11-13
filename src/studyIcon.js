@@ -32,17 +32,6 @@ function paintBadge(ctx, size, emoji) {
   ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
 }
 
-const turnMaterials = new Map();
-
-export function turnBadgeMaterial(turn) {
-  let material = turnMaterials.get(turn);
-  if (!material) {
-    material = badgeMaterial(String(turn));
-    turnMaterials.set(turn, material);
-  }
-  return material;
-}
-
 let studyMaterial = null;
 
 export function createStudyIcon() {
