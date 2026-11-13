@@ -2159,6 +2159,10 @@ dialog.paper.wide {
   cursor: default;
 }
 
+#updateDialog {
+  outline: none;
+}
+
 .elsewhere-text {
   margin: 4px 0 16px;
   color: var(--bark);

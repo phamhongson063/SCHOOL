@@ -54,7 +54,7 @@ import { book, leaveRoom } from './lodging.js';
 import { MOUNTAIN, terrainHeight, terrainFloor, navSurface, nearShelter } from './terrain.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
-import { watchUpdates } from './updates.js';
+import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
 import { createAngler } from './angler.js';
@@ -1577,7 +1577,7 @@ renderer.setAnimationLoop((time) => {
   const focus = mode === 'overview' ? orbit.target : player.position;
   regions.update(t, dt, focus);
   updateSoundscape(focus);
-  quiz.update(dt, hasEntered() && regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
+  quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
   updateBlessingRewards();

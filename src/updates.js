@@ -5,6 +5,10 @@ const CHECK_EVERY = 5 * 60 * 1000;
 const VERSION_PATTERN = /VERSION\s*=\s*'([^']+)'/;
 const VERSION_URL = new URL('./version.js', import.meta.url);
 
+let offered = false;
+
+export const updateOffered = () => offered;
+
 async function latestVersion() {
   const url = new URL(VERSION_URL);
   url.searchParams.set('t', Date.now());
@@ -16,8 +20,6 @@ async function latestVersion() {
 export function watchUpdates() {
   const dialog = document.getElementById('updateDialog');
   const confirm = document.getElementById('updateBtn');
-  const later = document.getElementById('updateLater');
-  let offered = false;
 
   const check = async () => {
     if (offered || document.visibilityState !== 'visible') return;
@@ -29,14 +31,10 @@ export function watchUpdates() {
 
   confirm.addEventListener('click', () => {
     confirm.disabled = true;
-    later.disabled = true;
     confirm.textContent = 'Đang tải bản mới...';
     refreshFiles().finally(() => location.reload());
   });
-  later.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('cancel', (event) => {
-    if (confirm.disabled) event.preventDefault();
-  });
+  dialog.addEventListener('cancel', (event) => event.preventDefault());
 
   check();
   setInterval(check, CHECK_EVERY);
