@@ -2046,6 +2046,10 @@ dialog.paper.wide {
   margin-bottom: 16px;
 }
 
+.refresh-btn {
+  margin-bottom: 10px;
+}
+
 .paper-btn {
   display: flex;
   align-items: center;

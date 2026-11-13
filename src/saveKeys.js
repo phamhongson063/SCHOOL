@@ -1,7 +1,7 @@
 export const PREFIX = 'truong-lang-xua.';
 export const ACCOUNT_KEY = PREFIX + 'account';
 
-const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key), ACCOUNT_KEY]);
+const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'studyFurigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key), ACCOUNT_KEY]);
 
 export const isGameKey = (key) => Boolean(key?.startsWith(PREFIX)) && !DEVICE_KEYS.has(key);
 

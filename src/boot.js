@@ -1,6 +1,7 @@
 import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
 
 const LOCK = 'truong-lang-xua.game';
+performance.setResourceTimingBufferSize?.(1000);
 const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');
 const idleLabel = label?.textContent;

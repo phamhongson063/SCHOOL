@@ -1,4 +1,4 @@
-import { PREFIX, gameKeys } from './saveKeys.js';
+import { PREFIX, gameKeys, isGameKey } from './saveKeys.js';
 
 export const SEAL_KEY = PREFIX + 'seal';
 const SALT = 0x5c3a91e7;
@@ -60,7 +60,7 @@ export function auditSeal() {
     writeSeal(sealAll());
     return [];
   }
-  const keys = new Set([...Object.keys(seal), ...sealedKeys()]);
+  const keys = new Set([...Object.keys(seal).filter(isGameKey), ...sealedKeys()]);
   return [...keys].filter((key) => {
     const value = localStorage.getItem(key);
     return seal[key] !== (value === null ? undefined : digest(key, value));

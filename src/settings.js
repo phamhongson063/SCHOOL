@@ -9,6 +9,21 @@ export function wipeGame() {
   } catch {}
 }
 
+const CODE_FILE = /\.(js|css|html)$/;
+
+function codeFiles() {
+  const urls = new Set([location.href.split('#')[0]]);
+  for (const entry of performance.getEntriesByType('resource')) {
+    const url = new URL(entry.name);
+    if (url.origin === location.origin && CODE_FILE.test(url.pathname)) urls.add(entry.name);
+  }
+  return [...urls];
+}
+
+async function refreshFiles() {
+  await Promise.allSettled(codeFiles().map((url) => fetch(url, { cache: 'reload' }).then((response) => response.arrayBuffer())));
+}
+
 export function createSettings({ onReset }) {
   const button = document.getElementById('settingsBtn');
   const dialog = document.getElementById('settingsDialog');
@@ -22,6 +37,8 @@ export function createSettings({ onReset }) {
   const accountName = accountInfo.querySelector('.account-name');
   const accountEmail = accountInfo.querySelector('.account-email');
   const signOutBtn = document.getElementById('signOutBtn');
+  const refresh = document.getElementById('refreshBtn');
+  const refreshLabel = refresh.querySelector('.refresh-label');
 
   accountGroup.hidden = !cloudEnabled;
   const paintAccount = () => {
@@ -54,6 +71,11 @@ export function createSettings({ onReset }) {
     dialog.showModal();
   });
   button.addEventListener('pointerup', () => button.blur());
+  refresh.addEventListener('click', () => {
+    refresh.disabled = true;
+    refreshLabel.textContent = 'Đang tải bản mới...';
+    refreshFiles().finally(() => location.reload());
+  });
   reset.addEventListener('click', () => showConfirm(true));
   cancel.addEventListener('click', () => showConfirm(false));
   confirm.addEventListener('click', () => {
