@@ -1,5 +1,5 @@
 import { ARENA } from './config.js';
-import { roundName } from './arena.js';
+import { comboOf, enraged, roundName } from './arena.js';
 import { skillOf } from './arenaReplay.js';
 import { ISLAND, stageOf } from './arenaIsland.js';
 import { END_REASONS } from './arenaBoard.js';
@@ -14,7 +14,10 @@ const STRIKE_MS = 1900;
 const END_MS = 2200;
 const CHOICE_MS = 20000;
 const SHOT = { back: 8.5, rise: 2.2, aim: -0.6 };
+const SET_MS = 1800;
 const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];
+const KANJI_WORDS = DECKS.n2.cards.map((card) => plainText(card.word)).filter((word) => /[㐀-鿿]/.test(word));
+const TIER_TAGS = { easy: '', normal: '', hard: ' · ⚡ Câu khó' };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -26,13 +29,21 @@ function shuffle(list) {
   return list;
 }
 
-function buildQuestion(key) {
+function kanjiQuestion(card) {
+  const answer = plainText(card.word);
+  const near = KANJI_WORDS.filter((word) => word !== answer && word.length === answer.length);
+  const wrong = [...new Set([...(card.kanjiChoices ?? []).map(plainText), ...shuffle([...near])])].filter((word) => word !== answer).slice(0, LETTERS.length - 1);
+  return { word: card.reading, hint: card.meaning, kind: 'kanji', answer, options: shuffle([answer, ...wrong]) };
+}
+
+function buildQuestion(key, tier) {
   const card = unitOf(key);
+  if (tier === 'hard' && card.reading && card.kanjiChoices?.length) return kanjiQuestion(card);
   const reading = !!card.reading && (card.distractors?.length ?? 0) >= LETTERS.length - 1 && Math.random() < 0.5;
   const answer = reading ? card.reading : card.meaning;
   const pool = reading ? card.distractors : MEANINGS.filter((meaning) => meaning !== card.meaning && !(card.siblingMeanings ?? []).includes(meaning));
   const options = shuffle([answer, ...shuffle([...pool]).slice(0, LETTERS.length - 1)]);
-  return { word: plainText(card.word).replace(/[[\]]/g, ''), reading, answer, options };
+  return { word: plainText(card.word).replace(/[[\]]/g, ''), hint: '', kind: reading ? 'reading' : 'meaning', answer, options };
 }
 
 function cardView(root) {
@@ -62,6 +73,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
   const clock = dialog.querySelector('.duel-clock');
   const bar = dialog.querySelector('.duel-bar');
   const word = dialog.querySelector('.duel-word');
+  const hint = dialog.querySelector('.duel-hint');
   const options = dialog.querySelector('.duel-options');
   const log = dialog.querySelector('.duel-log');
   dialog.addEventListener('cancel', (event) => event.preventDefault());
@@ -83,9 +95,15 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     view.fill.classList.toggle('mid', share <= 0.5 && share > 0.25);
     view.fill.classList.toggle('low', share <= 0.25);
     view.hp.textContent = `${Math.max(0, hp)}/${ARENA.hp}`;
+    view.root.classList.toggle('rage', enraged(hp));
+  }
+
+  function setSets(view, won, need) {
+    view.name.textContent = need > 1 ? `${label(view.id)} ${'●'.repeat(won)}${'○'.repeat(need - won)}` : label(view.id);
   }
 
   function setFighter(view, id, hp) {
+    view.id = id;
     view.name.textContent = label(id);
     const face = portraitOf(id);
     if (face) view.face.setAttribute('src', face);
@@ -156,7 +174,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
       button.type = 'button';
       button.className = 'duel-option';
       button.disabled = true;
-      button.lang = quiz.reading ? 'ja' : 'vi';
+      button.lang = quiz.kind === 'meaning' ? 'vi' : 'ja';
       const letter = document.createElement('span');
       letter.className = 'duel-letter';
       letter.textContent = LETTERS[i];
@@ -212,12 +230,16 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     });
   }
 
-  async function playTurn(asked, size, matchKey) {
-    const quiz = buildQuestion(asked.key);
+  async function playTurn(asked, size, matchKey, match) {
+    const quiz = buildQuestion(asked.key, asked.tier);
     const foeId = asked.opponent;
-    turnLabel.textContent = `${roundName(size)} · Lượt ${asked.turn}`;
-    kind.textContent = quiz.reading ? 'Cách đọc?' : 'Nghĩa là gì?';
+    const sides = { me: asked.side, foe: asked.side === 'a' ? 'b' : 'a' };
+    setSets(cards.me, asked.sets[sides.me], asked.need);
+    setSets(cards.foe, asked.sets[sides.foe], asked.need);
+    turnLabel.textContent = `${roundName(size)}${asked.need > 1 ? ` · Hiệp ${asked.set}` : ''} · Lượt ${asked.turn}`;
+    kind.textContent = `${quiz.kind === 'kanji' ? 'Chữ Hán nào?' : quiz.kind === 'reading' ? 'Cách đọc?' : 'Nghĩa là gì?'}${TIER_TAGS[asked.tier] ?? ''}`;
     word.textContent = quiz.word;
+    hint.textContent = quiz.hint;
     log.textContent = '';
     cards.me.state.textContent = '';
     cards.foe.state.textContent = 'Đang đọc đề…';
@@ -255,21 +277,35 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     const turn = arena.play(PLAYER, { correct, seconds: choice.seconds }, now());
     if (!turn) return null;
     onTurn?.();
-    const sides = { me: asked.side, foe: asked.side === 'a' ? 'b' : 'a' };
-    const shouts = [];
+    const index = match.turns.length - 1;
     for (const [who, side] of Object.entries(sides)) {
       const move = turn[side];
-      const target = who === 'me' ? 'foe' : 'me';
-      cards[who].state.textContent = move.correct ? `✓ ${move.seconds.toFixed(1)}s` : '✗';
-      if (!move.correct) continue;
-      const skill = skillOf(`${matchKey}:${asked.turn - 1}:${side}`);
-      shouts.push(`${label(who === 'me' ? PLAYER : foeId)} ${skill.icon} ${skill.name}`);
-      hit(cards[target], move.damage);
+      cards[who].state.textContent = !move.correct ? '✗' : move.blocked ? `🛡 ${move.seconds.toFixed(1)}s` : `✓ ${move.seconds.toFixed(1)}s`;
     }
-    log.textContent = shouts.length ? shouts.join(' · ') : 'Cả hai đều trượt!';
+    const striker = Object.keys(sides).find((who) => sides[who] === turn.striker);
+    if (striker) {
+      const move = turn[turn.striker];
+      const target = striker === 'me' ? 'foe' : 'me';
+      const skill = skillOf(`${matchKey}:${index}:${turn.striker}`);
+      const parts = [`${label(striker === 'me' ? PLAYER : foeId)} ${skill.icon} ${skill.name}`];
+      if (move.combo >= 2) parts.push(`Liên kích ×${comboOf(move.combo).toFixed(1)}`);
+      if (move.rage) parts.push('🔥 Bạo nộ');
+      if (turn[sides[target]].blocked) parts.push(`${label(target === 'me' ? PLAYER : foeId)} 🛡 đỡ một nửa`);
+      log.textContent = parts.join(' · ');
+      hit(cards[target], move.damage);
+    } else log.textContent = turn.a.correct ? 'Hai bên ngang tốc, đòn triệt tiêu!' : 'Cả hai đều trượt!';
     setHp(cards.me, turn.hp[sides.me]);
     setHp(cards.foe, turn.hp[sides.foe]);
     await wait(STRIKE_MS);
+    if (turn.setWinner && !match.winner) {
+      const sets = match.sets;
+      setSets(cards.me, sets[sides.me], asked.need);
+      setSets(cards.foe, sets[sides.foe], asked.need);
+      await shout(`Hiệp ${turn.set}: ${turn.setWinner === sides.me ? 'Bạn' : label(foeId)} thắng`, SET_MS);
+      setHp(cards.me, ARENA.hp);
+      setHp(cards.foe, ARENA.hp);
+      await shout(`Hiệp ${turn.set + 1}`, SET_MS);
+    }
     return turn;
   }
 
@@ -306,12 +342,13 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
         kind.textContent = '';
         clock.textContent = '';
         word.textContent = '';
+        hint.textContent = '';
         log.textContent = `${label(match[foe])} đã sẵn sàng`;
         options.replaceChildren();
         setOpen(true);
         for (const text of COUNTDOWN) await shout(text);
         for (let asked = arena.question(PLAYER, now()); asked; asked = arena.question(PLAYER, now())) {
-          if (!(await playTurn(asked, size, matchKey))) break;
+          if (!(await playTurn(asked, size, matchKey, match))) break;
         }
         if (match.winner) await ending(match, match.winner === PLAYER);
       } finally {

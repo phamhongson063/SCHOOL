@@ -58,18 +58,22 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
     const turn = match.turns[turnIndex];
     const lines = { a: [], b: [] };
     for (const side of SIDES) {
-      const rival = other(side);
       const move = turn[side];
-      if (!move.correct) {
-        lines[side].push('✗');
-        continue;
-      }
-      const skill = skillOf(`${key}:${turnIndex}:${side}`);
-      fx.cast(fighterSpot(size, index, side), fighterSpot(size, index, rival), skill.color, move.damage >= ARENA.hit * CRITICAL ? 1.6 : 1);
+      if (!move.correct) lines[side].push('✗');
+      else if (move.blocked) lines[side].push('🛡');
+    }
+    const striker = turn.striker;
+    if (striker) {
+      const move = turn[striker];
+      const rival = other(striker);
+      const skill = skillOf(`${key}:${turnIndex}:${striker}`);
+      fx.cast(fighterSpot(size, index, striker), fighterSpot(size, index, rival), skill.color, move.damage >= ARENA.hit * CRITICAL ? 1.6 : 1);
       lines[rival].push(`-${move.damage}`);
+      if (move.combo >= 2) lines[striker].push(`×${move.combo}`);
+      if (move.rage) lines[striker].push('🔥');
     }
     for (const side of SIDES) if (lines[side].length) sayOf(match[side], lines[side].join(' '));
-    if (turn.a.correct || turn.b.correct) onHit?.(stageOf(size, index));
+    if (striker) onHit?.(stageOf(size, index));
   }
 
   function noteOf(key, match, turnIndex, side, state) {
@@ -80,8 +84,9 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
     if (!answered) return '…';
     if (!move.correct) return `✗ ${move.seconds.toFixed(1)}s`;
     if (turnIndex >= state.resolved) return `✓ ${move.seconds.toFixed(1)}s`;
+    if (turn.striker !== side) return '🛡 Đỡ đòn';
     const skill = skillOf(`${key}:${turnIndex}:${side}`);
-    return `${skill.icon} ${skill.name} −${move.damage}`;
+    return `${skill.icon} ${skill.name} −${move.damage}${move.combo >= 2 ? ` ×${move.combo}` : ''}`;
   }
 
   function render(focus, now) {
@@ -98,8 +103,10 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
       setText(view.hp, `${hp}`);
       setText(view.note, state.index >= 0 ? noteOf(key, match, state.index, side, state) : '');
     }
-    const turn = state.live ? match.turns.length + (match.pending ? 1 : 0) : state.index + 1;
-    setText(round, `${roundName(size)} · Lượt ${Math.max(1, turn)}`);
+    const shown = match.turns[Math.max(0, state.index)];
+    const set = state.live ? match.set ?? 1 : shown?.set ?? 1;
+    const inSet = state.live ? match.turns.filter((item) => (item.set ?? 1) === set).length + (match.pending ? 1 : 0) : match.turns.slice(0, state.index + 1).filter((item) => (item.set ?? 1) === set).length;
+    setText(round, `${roundName(size)}${(match.need ?? 1) > 1 ? ` · Hiệp ${set}` : ''} · Lượt ${Math.max(1, inSet)}`);
     setText(word, state.live ? wordOf(match.pending ?? match.turns.at(-1)?.key) : wordOf(match.turns[state.index]?.key));
   }
 

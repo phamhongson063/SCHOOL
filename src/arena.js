@@ -9,9 +9,10 @@ import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf } from './clock.js';
 
 const KEY = worldKey('arena');
+const DATA_VERSION = 2;
 const PHASES = ['open', 'running', 'done'];
 const SIDES = ['a', 'b'];
-const LIVE_MINUTES = (ARENA.turns * (ARENA.read + ARENA.seconds)) / 60 + ARENA.grace;
+const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
 
 const other = (side) => (side === 'a' ? 'b' : 'a');
 const isHuman = (id) => id === PLAYER;
@@ -89,7 +90,7 @@ function validEvent(raw) {
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && typeof saved === 'object') {
+    if (saved && typeof saved === 'object' && saved.version === DATA_VERSION) {
       return {
         event: validEvent(saved.event) ? saved.event : null,
         champions: Array.isArray(saved.champions) ? saved.champions.filter((item) => Number.isFinite(item?.at) && typeof item?.id === 'string').slice(0, ARENA.champions) : [],
@@ -99,7 +100,7 @@ function load() {
   return { event: null, champions: [] };
 }
 
-export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds) + ARENA.pause;
+export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds) + ARENA.pause + (turn.setWinner ? ARENA.setPause : 0);
 
 export const matchMinutes = (match) => match.turns.reduce((sum, turn) => sum + turnSeconds(turn), 0) / 60;
 
@@ -113,82 +114,136 @@ export function nextAt(event) {
   return Math.max(...round.map(endOf)) + ARENA.breather / 60;
 }
 
-export function damageOf({ correct, seconds }) {
+export function damageOf({ correct, seconds }, limit = ARENA.seconds) {
   if (!correct) return 0;
-  const left = Math.max(0, 1 - seconds / ARENA.seconds);
+  const left = Math.max(0, 1 - seconds / limit);
   return Math.round(ARENA.hit * (1 + ARENA.speed * left));
 }
 
-function cleanAnswer(raw) {
+export const comboOf = (streak) => 1 + ARENA.combo.step * Math.min(Math.max(0, streak - 1), ARENA.combo.max);
+
+export const enraged = (hp) => hp > 0 && hp <= ARENA.hp * ARENA.rage.below;
+
+function cleanAnswer(raw, limit) {
   const seconds = Number(raw?.seconds);
-  return { correct: raw?.correct === true, seconds: Number.isFinite(seconds) ? Math.max(0, Math.min(ARENA.seconds, seconds)) : ARENA.seconds };
+  return { correct: raw?.correct === true, seconds: Number.isFinite(seconds) ? Math.max(0, Math.min(limit, seconds)) : limit };
 }
 
-function newMatch(a, b) {
-  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, asked: [], pending: null, rival: null, turns: [], reason: null, endAt: null };
+function newMatch(a, b, need = 1) {
+  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, streak: { a: 0, b: 0 }, set: 1, sets: { a: 0, b: 0 }, need, asked: [], pending: null, rival: null, tier: null, turns: [], reason: null, endAt: null };
 }
 
-function pickKey(match, deck) {
-  const pool = [...new Set([...certify.certified(match.a, deck), ...certify.certified(match.b, deck)])];
+const setTurns = (match) => match.turns.filter((turn) => (turn.set ?? 1) === (match.set ?? 1)).length;
+
+export function tierOf(match) {
+  const played = setTurns(match);
+  if (played < ARENA.tiers.easy) return 'easy';
+  return played >= ARENA.tiers.hard ? 'hard' : 'normal';
+}
+
+export const limitOf = (tier) => (tier === 'hard' ? ARENA.hardSeconds : ARENA.seconds);
+
+function pickKey(match, deck, tier = 'normal') {
+  const mine = new Set(certify.certified(match.a, deck));
+  const theirs = new Set(certify.certified(match.b, deck));
+  const pool = [...new Set([...mine, ...theirs])];
   if (!pool.length) return null;
   const asked = new Set(match.asked);
-  const fresh = pool.filter((key) => !asked.has(key));
-  const keys = fresh.length ? fresh : pool;
-  return keys[Math.floor(Math.random() * keys.length)];
+  const weak = (key) => certify.familiarity(match.a, key) === 'weak' || certify.familiarity(match.b, key) === 'weak';
+  const preferred = tier === 'easy' ? pool.filter((key) => mine.has(key) && theirs.has(key)) : tier === 'hard' ? pool.filter((key) => mine.has(key) !== theirs.has(key) || weak(key)) : pool;
+  for (const list of [preferred.filter((key) => !asked.has(key)), pool.filter((key) => !asked.has(key)), pool]) {
+    if (list.length) return list[Math.floor(Math.random() * list.length)];
+  }
+  return null;
 }
 
-function decide(match, reason) {
+function sideAhead(match) {
   const { hp, time } = match;
+  if (hp.a !== hp.b) return hp.a > hp.b ? 'a' : 'b';
+  if (time.a !== time.b) return time.a < time.b ? 'a' : 'b';
+  return Math.random() < 0.5 ? 'a' : 'b';
+}
+
+function settle(match, side, reason) {
   match.reason = reason;
-  let side;
-  if (hp.a !== hp.b) side = hp.a > hp.b ? 'a' : 'b';
-  else if (time.a !== time.b) side = time.a < time.b ? 'a' : 'b';
-  else side = Math.random() < 0.5 ? 'a' : 'b';
   match.winner = match[side];
   match.live = false;
   match.pending = null;
   match.rival = null;
+  match.tier = null;
+}
+
+function decide(match, reason) {
+  const sets = match.sets ?? { a: 0, b: 0 };
+  settle(match, sets.a !== sets.b ? (sets.a > sets.b ? 'a' : 'b') : sideAhead(match), reason);
 }
 
 function forfeit(match, id, at) {
   const side = sideOf(match, id);
   match.forfeit = id;
-  match.reason = 'forfeit';
   match.endAt = at;
-  match.winner = match[other(side)];
-  match.live = false;
-  match.pending = null;
-  match.rival = null;
+  settle(match, other(side), 'forfeit');
 }
 
-function resolveTurn(match, key, answers) {
-  const turn = { key };
-  for (const side of SIDES) {
-    const answer = cleanAnswer(answers[side]);
-    turn[side] = { ...answer, damage: damageOf(answer) };
+function endSet(match, turn, reason) {
+  const side = sideAhead(match);
+  match.sets ??= { a: 0, b: 0 };
+  match.sets[side] += 1;
+  turn.setWinner = side;
+  if (match.sets[side] >= (match.need ?? 1)) {
+    settle(match, side, reason);
+    return;
   }
+  match.set = (match.set ?? 1) + 1;
+  match.hp = { a: ARENA.hp, b: ARENA.hp };
+  match.streak = { a: 0, b: 0 };
+}
+
+function resolveTurn(match, key, answers, tier = 'normal') {
+  const limit = limitOf(tier);
+  const turn = { key, tier, limit, set: match.set ?? 1 };
+  match.streak ??= { a: 0, b: 0 };
+  const moves = {};
   for (const side of SIDES) {
-    match.hp[other(side)] = Math.max(0, match.hp[other(side)] - turn[side].damage);
-    match.time[side] += turn[side].seconds;
+    moves[side] = cleanAnswer(answers[side], limit);
+    match.streak[side] = moves[side].correct ? match.streak[side] + 1 : 0;
+    match.time[side] += moves[side].seconds;
   }
+  const right = SIDES.filter((side) => moves[side].correct);
+  let striker = right.length === 1 ? right[0] : null;
+  if (right.length === 2 && moves.a.seconds !== moves.b.seconds) striker = moves.a.seconds < moves.b.seconds ? 'a' : 'b';
+  turn.striker = striker;
+  for (const side of SIDES) {
+    const move = moves[side];
+    const strikes = side === striker;
+    const rage = strikes && enraged(match.hp[side]);
+    const combo = move.correct ? match.streak[side] : 0;
+    const guarded = strikes && moves[other(side)].correct;
+    const damage = strikes ? Math.round(damageOf(move, limit) * comboOf(combo) * (rage ? ARENA.rage.boost : 1) * (guarded ? ARENA.guard : 1)) : 0;
+    turn[side] = { ...move, damage, combo, rage, blocked: move.correct && !strikes };
+  }
+  if (striker) match.hp[other(striker)] = Math.max(0, match.hp[other(striker)] - turn[striker].damage);
   match.asked.push(key);
   match.pending = null;
   match.rival = null;
+  match.tier = null;
   match.turns.push(turn);
   turn.hp = { ...match.hp };
-  if (match.hp.a <= 0 || match.hp.b <= 0) decide(match, 'ko');
-  else if (match.turns.length >= ARENA.turns) decide(match, 'turns');
+  if (match.hp.a <= 0 || match.hp.b <= 0) endSet(match, turn, 'ko');
+  else if (setTurns(match) >= ARENA.turns) endSet(match, turn, 'turns');
   return turn;
 }
 
 function simulate(match, deck) {
   while (!match.winner) {
-    const key = pickKey(match, deck);
+    const tier = tierOf(match);
+    const key = pickKey(match, deck, tier);
     if (!key) {
       decide(match, 'empty');
       break;
     }
-    resolveTurn(match, key, { a: absorption.respond(match.a, key, ARENA.seconds), b: absorption.respond(match.b, key, ARENA.seconds) });
+    const limit = limitOf(tier);
+    resolveTurn(match, key, { a: absorption.respond(match.a, key, limit), b: absorption.respond(match.b, key, limit) }, tier);
   }
 }
 
@@ -196,12 +251,14 @@ function draw(event) {
   const entrants = shuffle([...event.entrants]);
   const size = 2 ** Math.ceil(Math.log2(Math.max(2, entrants.length)));
   const pairs = size / 2;
-  event.rounds = [Array.from({ length: pairs }, (_, i) => newMatch(entrants[i], entrants[pairs + i] ?? null))];
+  const need = pairs === 1 ? Math.ceil(ARENA.finalSets / 2) : 1;
+  event.rounds = [Array.from({ length: pairs }, (_, i) => newMatch(entrants[i], entrants[pairs + i] ?? null, need))];
   event.round = -1;
 }
 
 function nextPairs(round) {
-  return Array.from({ length: round.length / 2 }, (_, i) => newMatch(round[2 * i].winner, round[2 * i + 1].winner));
+  const need = round.length === 2 ? Math.ceil(ARENA.finalSets / 2) : 1;
+  return Array.from({ length: round.length / 2 }, (_, i) => newMatch(round[2 * i].winner, round[2 * i + 1].winner, need));
 }
 
 function startRound(event, at, present) {
@@ -229,7 +286,7 @@ function startRound(event, at, present) {
 
 export function createArena({ ledger, roster = () => [] }) {
   const state = load();
-  const store = createStore(KEY, () => state);
+  const store = createStore(KEY, () => ({ version: DATA_VERSION, ...state }));
   const finished = [];
 
   function eventOf(at) {
@@ -383,18 +440,34 @@ export function createArena({ ledger, roster = () => [] }) {
       const side = sideOf(match, id);
       const rival = other(side);
       if (!match.pending) {
-        match.pending = pickKey(match, state.event.deck);
+        const tier = tierOf(match);
+        match.pending = pickKey(match, state.event.deck, tier);
         if (!match.pending) {
           decide(match, 'empty');
           match.endAt = now;
           store.save();
           return null;
         }
-        match.rival = absorption.respond(match[rival], match.pending, ARENA.seconds);
+        match.tier = tier;
+        match.rival = absorption.respond(match[rival], match.pending, limitOf(tier));
         store.save();
       }
-      match.rival ??= absorption.respond(match[rival], match.pending, ARENA.seconds);
-      return { key: match.pending, seconds: ARENA.seconds, hp: { ...match.hp }, side, opponent: match[rival], turn: match.turns.length + 1, rival: { ...match.rival } };
+      match.tier ??= tierOf(match);
+      const limit = limitOf(match.tier);
+      match.rival ??= absorption.respond(match[rival], match.pending, limit);
+      return {
+        key: match.pending,
+        seconds: limit,
+        tier: match.tier,
+        hp: { ...match.hp },
+        side,
+        opponent: match[rival],
+        turn: setTurns(match) + 1,
+        set: match.set ?? 1,
+        sets: { ...(match.sets ?? { a: 0, b: 0 }) },
+        need: match.need ?? 1,
+        rival: { ...match.rival },
+      };
     },
     play(id, answer, now) {
       const match = liveMatch(id);
@@ -402,7 +475,8 @@ export function createArena({ ledger, roster = () => [] }) {
       const side = sideOf(match, id);
       const rival = other(side);
       const key = match.pending;
-      const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? absorption.respond(match[rival], key, ARENA.seconds) });
+      const tier = match.tier ?? tierOf(match);
+      const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? absorption.respond(match[rival], key, limitOf(tier)) }, tier);
       if (match.winner) match.endAt = now;
       store.save();
       return turn;

@@ -42,6 +42,7 @@ export function replayState(match, now) {
   let hp = { a: ARENA.hp, b: ARENA.hp };
   for (let i = 0; i < match.turns.length; i++) {
     const turn = match.turns[i];
+    if (i > 0 && (turn.set ?? 1) !== (match.turns[i - 1].set ?? 1)) hp = { a: ARENA.hp, b: ARENA.hp };
     const span = turnSeconds(turn);
     const hit = hitSeconds(turn);
     if (clock < span) {
