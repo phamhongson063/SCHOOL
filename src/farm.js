@@ -356,9 +356,9 @@ class FarmState {
 
   leaseAction(bed, actor = PLAYER) {
     const lease = this.leases.holder(bed, gameNow());
-    if (!lease) return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions() } };
+    if (!lease) return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions(), menu: true } };
     if (lease.owner !== actor) return { id: 'look', hint: null };
-    return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(true) } };
+    return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(true), menu: true } };
   }
 
   signLease(bed, actor, offer) {
