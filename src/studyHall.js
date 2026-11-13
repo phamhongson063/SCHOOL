@@ -20,6 +20,7 @@ const WOOD_DARK = 0x4a2c1e;
 const STONE = 0xb3ab99;
 const FLOOR_TILE = 0x9c624a;
 const DESK_ROWS = [3, 6.2];
+const INTERNAL_ROW = 9.4;
 const ROOF = { overhang: 0.9, porch: 2, ridge: 3.6, lift: 0.1, rise: 3.4 };
 const ROOF_GAP = 0.08;
 const LACQUER = 0x8a1d14;
@@ -289,39 +290,41 @@ export function createStudyHall(scene, hall) {
   const roof = roofBox();
   group.add(...tileRoofMeshes({ ...roof, ridge: ROOF.ridge, eaveY: height + ROOF.lift, height: ROOF.rise, lift: 0.3, falloff: 1.5 }));
 
-  const seats = [];
-  for (const s of [-1, 1]) {
+  function desk(s, sz, seed) {
     const localFacing = s < 0 ? -Math.PI / 2 : Math.PI / 2;
     const facing = localFacing + hall.turn;
     const dir = { x: Math.sin(facing), z: Math.cos(facing) };
-    for (const [i, sz] of DESK_ROWS.entries()) {
-      const lx = s * DESK_OFFSET;
-      const furniture = new THREE.Group();
-      furniture.position.set(lx, 0.03, sz);
-      furniture.rotation.y = localFacing;
-      furniture.add(studentFurniture(900 + i * 7 + (s < 0 ? 0 : 50)));
-      group.add(furniture);
-      const deskX = lx + Math.sin(localFacing) * 0.45;
-      local.push({ minX: deskX - 0.25, maxX: deskX + 0.25, minZ: sz - 0.5, maxZ: sz + 0.5, minY: 0, maxY: 0.6 });
-      const { x: sx, z: wz } = frame.point(lx, sz);
-      seats.push({
-        index: seats.length,
-        study: true,
-        deck: hall.deck,
-        x: sx,
-        z: wz,
-        facing,
-        sit: new THREE.Vector3(sx, 0.03, wz),
-        spot: new THREE.Vector3(sx - dir.x * 0.8, 0, wz - dir.z * 0.8),
-        look: new THREE.Vector3(sx + dir.x * 1.5, 0.6, wz + dir.z * 1.5),
-        occupant: null,
-        reservedBy: null,
-        place(model) {
-          model.position.set(sx, 0.05, wz);
-          model.rotation.set(0, facing, 0);
-        },
-      });
-    }
+    const lx = s * DESK_OFFSET;
+    const furniture = new THREE.Group();
+    furniture.position.set(lx, 0.03, sz);
+    furniture.rotation.y = localFacing;
+    furniture.add(studentFurniture(seed));
+    group.add(furniture);
+    const deskX = lx + Math.sin(localFacing) * 0.45;
+    local.push({ minX: deskX - 0.25, maxX: deskX + 0.25, minZ: sz - 0.5, maxZ: sz + 0.5, minY: 0, maxY: 0.6 });
+    const { x: sx, z: wz } = frame.point(lx, sz);
+    return {
+      deck: hall.deck,
+      x: sx,
+      z: wz,
+      facing,
+      sit: new THREE.Vector3(sx, 0.03, wz),
+      spot: new THREE.Vector3(sx - dir.x * 0.8, 0, wz - dir.z * 0.8),
+      look: new THREE.Vector3(sx + dir.x * 1.5, 0.6, wz + dir.z * 1.5),
+      occupant: null,
+      reservedBy: null,
+      place(model) {
+        model.position.set(sx, 0.05, wz);
+        model.rotation.set(0, facing, 0);
+      },
+    };
+  }
+
+  const seats = [];
+  const internalSeats = [];
+  for (const s of [-1, 1]) {
+    for (const [i, sz] of DESK_ROWS.entries()) seats.push({ ...desk(s, sz, 900 + i * 7 + (s < 0 ? 0 : 50)), index: seats.length, study: true });
+    internalSeats.push({ ...desk(s, INTERNAL_ROW, 960 + (s < 0 ? 0 : 50)), internal: true });
   }
 
   const obstacles = local.map(frame.box);
@@ -357,6 +360,7 @@ export function createStudyHall(scene, hall) {
   return {
     group,
     seats,
+    internalSeats,
     obstacles,
     teacher,
     setNight(k) {

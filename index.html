@@ -179,7 +179,6 @@
       <h2 id="bagTitle">Túi đồ<span id="bagCategory" class="bag-category"></span></h2>
       <button id="bagClose" class="sched-x bag-close" type="button" aria-label="Đóng">×</button>
     </header>
-    <p id="bagCredits" class="bag-credits" hidden></p>
     <div class="bag-tabs" role="tablist" aria-label="Loại đồ"></div>
     <div class="bag-well">
       <div id="bagSlots" class="bag-slots" role="tabpanel"></div>
@@ -198,6 +197,7 @@
     </div>
   </section>
   <div id="studyDim" class="study-dim" aria-hidden="true"></div>
+  <div id="internalDim" class="study-dim" aria-hidden="true"></div>
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
     <div class="paper-body">
       <header class="sched-head">
@@ -354,6 +354,21 @@
       </header>
       <p id="examNote" class="paper-note"></p>
       <div id="examList" class="exam-list"></div>
+    </div>
+  </dialog>
+  <dialog id="internalDialog" class="paper" aria-labelledby="internalTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">📝</span>
+        <h2 id="internalTitle">Thi nội bộ</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <p id="internalText" class="paper-note"></p>
+      <div class="sched-actions">
+        <span class="spacer"></span>
+        <button id="internalNo" class="sched-ghost" type="button">Huỷ</button>
+        <button id="internalYes" class="sched-primary" type="button">Vào thi</button>
+      </div>
     </div>
   </dialog>
   <dialog id="blessingDialog" class="paper" aria-labelledby="blessingTitle">

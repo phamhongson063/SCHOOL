@@ -331,10 +331,17 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     return null;
   }
 
-  async function takeInternal(id) {
-    if (exams.running) return null;
+  function internalBlocker(id) {
     const refusal = internalRefusal(id);
     if (refusal) return refusal;
+    if (purse.money < CERTIFY.internalFee) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
+    return null;
+  }
+
+  async function takeInternal(id) {
+    if (exams.running) return null;
+    const blocker = internalBlocker(id);
+    if (blocker) return blocker;
     if (!purse.spend(CERTIFY.internalFee)) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
     economy.income('teacher', CERTIFY.internalFee);
     const results = await exams.run({ title: 'Thi nội bộ', deck: id, keys: certify.internalQuestions(PLAYER, id), icon: '📝' });
@@ -440,6 +447,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     get dimmed() {
       return dimmed;
     },
+    internalBlocker,
     takeInternal,
     open(id = 'n2') {
       useDeck(id);

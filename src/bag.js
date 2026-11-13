@@ -60,7 +60,6 @@ export function createBag(purse) {
   const slots = document.getElementById('bagSlots');
   const category = document.getElementById('bagCategory');
   const info = document.getElementById('bagInfo');
-  const credits = document.getElementById('bagCredits');
   const wallet = document.getElementById('walletAmount');
   const walletPill = document.getElementById('wallet');
   document.getElementById('walletGold').innerHTML = GOLD_HTML;
@@ -127,8 +126,6 @@ export function createBag(purse) {
   }
 
   function render() {
-    credits.textContent = purse.credits ? `📖 Đã đóng trước ${purse.credits} tiết` : '';
-    credits.hidden = !purse.credits;
     const tab = currentTab();
     category.textContent = ` · ${tab.label}`;
     for (const { tab: item, node } of tabs) {

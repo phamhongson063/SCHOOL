@@ -240,7 +240,7 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
   }
   closable(dialog);
   purse.onChange((detail) => {
-    if (!dialog.open || 'energy' in detail || 'credits' in detail) return;
+    if (!dialog.open || 'energy' in detail) return;
     render();
   });
 

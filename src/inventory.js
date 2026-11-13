@@ -38,7 +38,7 @@ ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
 ITEMS.intellect = { icon: '💡', name: 'Trí lực', kind: 'gear', unit: 'điểm' };
 
 const GIFTS = ['fishing', 'intellect'];
-const blank = () => ({ money: 0, credits: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
+const blank = () => ({ money: 0, items: {}, fishLots: [], gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
 
 function starter() {
   const account = blank();
@@ -84,7 +84,6 @@ function clean(raw) {
   const account = blank();
   if (!raw || typeof raw !== 'object') return account;
   account.money = Math.max(0, Math.floor(Number(raw.money) || 0));
-  account.credits = Math.max(0, Math.floor(Number(raw.credits) || 0));
   account.energy = Number.isFinite(raw.energy) ? Math.min(ENERGY.max, Math.max(0, raw.energy)) : ENERGY.max;
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
   account.sleeping = raw.sleeping === true;
@@ -146,10 +145,6 @@ export class Purse {
     return this.data.money;
   }
 
-  get credits() {
-    return this.data.credits;
-  }
-
   count(item) {
     return this.data.items[item] ?? 0;
   }
@@ -189,12 +184,6 @@ export class Purse {
     this.data.money -= amount;
     this.changed({ money: -amount });
     return true;
-  }
-
-  addCredits(count) {
-    if (!(count > 0)) return;
-    this.data.credits += Math.floor(count);
-    this.changed({ credits: count });
   }
 
   get energy() {
@@ -294,13 +283,6 @@ export class Purse {
       rest -= used;
     }
     this.data.fishLots = this.data.fishLots.filter((lot) => lot.count > 0);
-  }
-
-  useCredit() {
-    if (this.data.credits <= 0) return false;
-    this.data.credits -= 1;
-    this.changed({ credits: -1 });
-    return true;
   }
 
   changed(detail) {

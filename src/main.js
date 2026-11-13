@@ -36,7 +36,6 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText } from './clock.js';
-import { phaseAt } from './timetable.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
@@ -67,6 +66,7 @@ import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
+import { createInternalDialog } from './internalDialog.js';
 import { certify } from './certify.js';
 import { DECKS } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
@@ -152,6 +152,7 @@ scene.add(streetLamps.group);
 const river = createRiver();
 const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
 const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
+const internalHallSeats = studyHalls.flatMap((hall) => hall.internalSeats);
 const inn = createInn(scene);
 const quarter = createQuarter();
 const blessing = createBlessing(scene);
@@ -591,8 +592,9 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const normal = new THREE.Vector3();
 const seats = new Seats(school.seats);
-const playerSeats = new Seats([...school.seats, ...studyHallSeats]);
+const playerSeats = new Seats([...school.seats, ...studyHallSeats, ...internalHallSeats]);
 const studySeats = new Seats(studyHallSeats);
+const internalSeats = new Seats(internalHallSeats);
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
@@ -610,6 +612,7 @@ town = new Town({
   nav: player.nav,
   seats,
   studySeats,
+  internalSeats,
   school,
   farm: farm.crew,
   ledger,
@@ -668,7 +671,6 @@ function contextAt(minutes) {
     minutes,
     minute,
     day: dayOf(minutes),
-    phase: phaseAt(minutes),
     night: minute >= ROUTINE.home || minute < ROUTINE.wake,
     shopOpen: shopOpen(minutes),
     fishOpen: fishShopOpen(minutes),
@@ -792,6 +794,7 @@ const study = createStudy({
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
   if (player.seat?.study) study.open(player.seat.deck);
+  if (player.seat?.internal) beginInternalExam();
 };
 player.onStand = () => {
   study.close();
@@ -873,18 +876,69 @@ const teacherDesk = {
     return null;
   },
 };
+const internalDialog = createInternalDialog();
 const examSitting = {
   get isOpen() {
-    return exams.running;
+    return internalDialog.isOpen || exams.running;
   },
 };
 
+const internalDim = document.getElementById('internalDim');
+const INTERNAL_DIM_MS = 1200;
+let internalTrip = null;
+
+function internalSeatFor(deck) {
+  return internalSeats.nearestFree(player.position, 'player', (seat) => seat.deck === deck);
+}
+
+function internalReady(deck) {
+  return exams.running || !!study.internalBlocker(deck) || !!internalSeatFor(deck);
+}
+
 function serveInternal(deck, teacher) {
-  teacher.attend(player);
-  study.takeInternal(deck).then((line) => {
-    if (line) teacher.say(line, clock.elapsedTime);
+  const seat = exams.running ? null : internalSeatFor(deck);
+  const blocker = exams.running ? null : study.internalBlocker(deck);
+  if (blocker) teacher.say(blocker, clock.elapsedTime);
+  if (!seat || blocker) {
     teacher.attend(player, PLAYER_ATTEND);
+    return;
+  }
+  teacher.attend(player);
+  internalSeats.reserve(seat, 'player');
+  internalDialog.ask(deck, {
+    onAccept: () => {
+      teacher.attend(player, PLAYER_ATTEND);
+      leaveLine();
+      internalTrip = { deck, teacher, seat, started: false };
+      player.requestSeat(seat);
+    },
+    onCancel: () => {
+      internalSeats.unreserve(seat, 'player');
+      teacher.attend(player, PLAYER_ATTEND);
+    },
   });
+}
+
+function updateInternalTrip() {
+  const trip = internalTrip;
+  if (!trip || trip.started) return;
+  if (player.seat === trip.seat || player.pendingSeat === trip.seat) return;
+  internalSeats.unreserve(trip.seat, 'player');
+  internalTrip = null;
+}
+
+function beginInternalExam() {
+  const trip = internalTrip;
+  if (!trip || trip.started || player.seat !== trip.seat) return;
+  trip.started = true;
+  internalDim.classList.add('on');
+  setTimeout(async () => {
+    const line = player.seat === trip.seat ? await study.takeInternal(trip.deck) : null;
+    internalDim.classList.remove('on');
+    internalTrip = null;
+    if (line) trip.teacher.say(line, clock.elapsedTime);
+    if (player.seat === trip.seat) player.standUp();
+  }, INTERNAL_DIM_MS);
 }
 const noticeSpot = {
   act() {
@@ -935,7 +989,7 @@ function leaveLine() {
   playerLine = null;
 }
 
-function joinLine(kind, open, dialog) {
+function joinLine(kind, open, dialog, ready = null) {
   const queue = town.queues[kind];
   if (playerLine?.queue === queue) {
     if (playerLine.joined) stepInLine();
@@ -943,7 +997,7 @@ function joinLine(kind, open, dialog) {
     return;
   }
   leaveLine();
-  playerLine = { queue, open, dialog, index: -1, joined: false, served: false, retries: 0, retryAt: 0 };
+  playerLine = { queue, open, dialog, ready, index: -1, joined: false, served: false, retries: 0, retryAt: 0 };
   approachLine();
 }
 
@@ -990,6 +1044,7 @@ function updateLine() {
   const look = index === 0 ? line.queue.look : line.queue.slot(index - 1);
   player.faceToward(look.x, look.z);
   if (index > 0) return;
+  if (line.ready && !line.ready()) return;
   line.served = true;
   line.open();
 }
@@ -1032,7 +1087,7 @@ function sceneClick(clientX, clientY, run) {
   if (classroom >= 0) {
     const { deck } = STUDY_HALLS[classroom];
     const { teacher } = studyHalls[classroom];
-    joinLine(`teacher:${deck}`, () => serveInternal(deck, teacher), examSitting);
+    joinLine(`teacher:${deck}`, () => serveInternal(deck, teacher), examSitting, () => internalReady(deck));
     return true;
   }
   if (blessing.ownsStatue(hit.object)) {
@@ -1108,7 +1163,7 @@ function sceneClick(clientX, clientY, run) {
     point.addScaledVector(normal, 0.3);
   }
   const seat = playerSeats.at(hit.point);
-  if (seat && playerSeats.canTake(seat, 'player')) {
+  if (seat && !seat.internal && playerSeats.canTake(seat, 'player')) {
     const rest = playerSeats.restLeft(seat, 'player', clock.elapsedTime);
     if (rest > 0 && player.seat !== seat) {
       sayPlayer(`Ghế này phải đợi ${Math.ceil(rest / 60)} phút nữa.`, 2.4);
@@ -1556,8 +1611,9 @@ renderer.setAnimationLoop((time) => {
   }
   district.update(t, context, camera);
   updateLine();
+  updateInternalTrip();
   updateListeners();
-  school.update(t, context.phase.kind === 'period');
+  school.update(t);
   for (const hall of studyHalls) hall.update(t, camera);
   inn.update(t);
   village.update(t, context, camera);

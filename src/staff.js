@@ -3,8 +3,8 @@ import { between } from './random.js';
 import { ROUTINE, VENDOR, GUARD, ENERGY, ECONOMY, CERTIFY } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { isOpenAt } from './clock.js';
-import { TEACHER_STAND, FLOOR, PACE_SPOTS } from './school.js';
-import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PACE, PEDDLER_CALLS, PEDDLER_DAY_CALLS, pick } from './villagerData.js';
+import { TEACHER_STAND, FLOOR } from './school.js';
+import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PEDDLER_CALLS, PEDDLER_DAY_CALLS, pick } from './villagerData.js';
 import { PAGODA, SHELTERS } from './terrain.js';
 import { Villager } from './villager.js';
 
@@ -23,20 +23,6 @@ export class Teacher extends Villager {
     this.travel(TEACHER_STAND, { then: () => this.beginTeaching(), fail: () => this.beginTeaching() });
   }
 
-  watchedStudent() {
-    let best = null;
-    let bestD = PACE.watch;
-    for (const seat of this.town.seats.list) {
-      if (!seat.occupant) continue;
-      const d = Math.hypot(seat.x - this.position.x, seat.z - this.position.z);
-      if (d < bestD) {
-        bestD = d;
-        best = seat.sit;
-      }
-    }
-    return best;
-  }
-
   beginTeaching() {
     this.task = 'teach';
     this.route = null;
@@ -44,48 +30,13 @@ export class Teacher extends Villager {
     this.position.set(TEACHER_STAND.x, FLOOR, TEACHER_STAND.z);
     this.setVisible(false);
     this.state = 'teaching';
-    this.paceAt = this.now + between(...PACE.every);
     this.town.school.setTeacherPresent(true);
   }
 
-  teachingUpdate(t) {
-    const ctx = this.town.context;
-    if (ctx.phase.kind !== 'period' && this.canEat(ctx)) {
-      this.leaveDesk();
-      this.think();
-      return;
-    }
-    if (t < this.paceAt) return;
-    this.paceAt = t + between(...PACE.every);
-    if (this.town.context.phase.kind !== 'period' || Math.random() >= PACE.chance) return;
-    this.town.school.setTeacherSeated(false);
-    this.facing = 0;
-    this.setVisible(true);
-    this.pop = 0.25;
-    this.state = 'idle';
-    this.task = 'pace';
-    const [lo, hi] = PACE.stops;
-    this.paceStops = lo + Math.floor(Math.random() * (hi - lo + 1));
-    this.paceNext();
-  }
-
-  paceNext() {
-    const ctx = this.town.context;
-    if (!this.onDuty(ctx) || ctx.phase.kind !== 'period' || this.paceStops <= 0) {
-      this.think();
-      return;
-    }
-    this.paceStops -= 1;
-    const spot = pick(PACE_SPOTS);
-    this.lookAt = null;
-    this.travel(new THREE.Vector3(spot.x, FLOOR, spot.z), {
-      speed: this.walkSpeed,
-      then: () => {
-        this.lookAt = this.watchedStudent();
-        this.wait(between(...PACE.pause), () => this.paceNext());
-      },
-      fail: () => this.think(),
-    });
+  teachingUpdate() {
+    if (!this.canEat(this.town.context)) return;
+    this.leaveDesk();
+    this.think();
   }
 
   goHome() {

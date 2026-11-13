@@ -19,7 +19,6 @@ export const BED_SCATTER = 1.8;
 export const BED_GAP = 1.9;
 export const BED_REACH = 7;
 export const SELF_STUDY = { cooldown: 20 * 60 };
-export const CLASSROOM = { x: 0.5, z: HOUSE.back + 9 };
 export const PATHS_PER_FRAME = 2;
 export const STUCK_TIME = 1.2;
 export const VISIBLE_DISTANCE = 40;
@@ -48,12 +47,6 @@ export const STREET = [
   ...DISTRICT_STREETS,
 ];
 
-export const CHAT = ['Chào cậu!', 'Hôm nay học gì thế?', 'Ha ha!', 'Chơi ô ăn quan không?', 'Thầy nghiêm quá!', 'Tớ thuộc bài rồi!', 'Đói bụng quá...', 'Đi bắt dế không?', 'Hì hì', 'Ừ!', 'Thật á?', 'Chiều đi thả diều nhé!'];
-export const PLAY = ['Đuổi bắt nè!', 'Bắt được rồi!', 'Hí hí!', 'Chạy mau!', 'Không bắt được đâu!'];
-export const BACK = ['Sắp vào học rồi!', 'Về chỗ thôi!', 'Trống rồi kìa!', 'Chờ tớ với!'];
-export const LATE = ['Muộn mất rồi!', 'Chạy nhanh lên!', 'Chờ tớ với!'];
-export const CLASS_FULL = ['Hết chỗ rồi, về làm việc thôi!', 'Lớp đông quá, buổi sau học vậy.'];
-export const TAKEN = ['Ơ, có người ngồi rồi!', 'Tớ ngồi chỗ khác vậy.', 'Chỗ tớ bị chiếm mất rồi!'];
 export const FIELD = ['Nắng quá!', 'Mùa này được giá đó!', 'Ráng làm cho xong luống này.', 'Rau năm nay tốt ghê!', 'Nghỉ tay chút đã.'];
 export const TEND = ['Rau lên đều quá!', 'Mai mốt là thu được rồi.', 'Đất còn ẩm, khỏi tưới.', 'Lá xanh mướt ghê!', 'Coi chừng sâu nghen...'];
 export const GOSSIP = ['Hôm nay trời đẹp ghê!', 'Nghe nói giá dưa lên rồi.', 'Mùa này mưa nắng thất thường quá.', 'Chiều nay ra đình chơi không?', 'Ăn cơm chưa?', 'Nhà Lý trưởng mới sơn lại cổng đó.', 'Rau muống nhà tui sắp cắt được rồi!'];
@@ -67,8 +60,6 @@ export const CAUGHT = ['Dính rồi!', 'Con này to ghê!', 'Hên quá!'];
 export const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này khó quá...'];
 export const BAGGED = ['Bắt được rồi!', 'Hên ghê!', 'Đem ra chợ bán thôi!'];
 export const MISSED = ['Chạy mất rồi...', 'Nhanh quá!', 'Hụt mất!'];
-export const BROKE = ['Hết tiền đóng học rồi...', 'Đi làm ruộng kiếm tiền đã!', 'Mai em đi học sau.'];
-export const PAID = ['Em nộp học phí ạ!', 'Thưa thầy, tiền học ạ.', 'Dạ nộp tiền ạ!'];
 
 const STUDENT_MODELS = { na: 'farmgirl', bong: 'farmgirl-blue', mit: 'aodai', su: 'aodai-blue', hen: 'vendor-indigo', ti: 'schoolboy', teo: 'schoolboy-blue' };
 
@@ -147,10 +138,8 @@ const KHANS = [0x3a3430, 0x8a3a2a, 0x4a6a9a];
 const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 
 export const pick = (list) => list[Math.floor(Math.random() * list.length)];
-export const PACE = { chance: 0.4, every: [25, 50], stops: [1, 3], pause: [4, 8], watch: 3 };
 export const LANE = 0.7;
 export const TURN_RATE = 3.75;
-export const GROUP = { size: [2, 4], start: [0.3, 7], spread: 0.8, lanes: [-0.7, -0.2, 0.3, 0.8], together: 40 };
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 

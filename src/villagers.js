@@ -2,10 +2,9 @@ import * as THREE from 'three';
 import { between } from './random.js';
 import { VILLAGER } from './config.js';
 import { INN_STAND } from './inn.js';
-import { realSeconds } from './clock.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
-import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GROUP, GUARDS, HANGOUTS, NO_REST_RADIUS, PASS_SPACING, PATHS_PER_FRAME, PEDDLER, PLAYER_AVOID_RANGE, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
+import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GUARDS, HANGOUTS, NO_REST_RADIUS, PASS_SPACING, PATHS_PER_FRAME, PEDDLER, PLAYER_AVOID_RANGE, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
 import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
@@ -15,11 +14,12 @@ const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
+  constructor({ root, nav, seats, studySeats, internalSeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
     this.studySeats = studySeats;
+    this.internalSeats = internalSeats;
     this.school = school;
     this.farm = farm;
     this.ledger = ledger;
@@ -53,7 +53,6 @@ export class Town {
     this.dust = dust;
     this.stepSound = stepSound;
     this.context = null;
-    this.hangouts = HANGOUTS.map((spot) => ({ ...spot, slots: new Array(4).fill(null) }));
     this.restGlow = createRestGlow();
     this.view = null;
     this.posing = true;
@@ -75,7 +74,6 @@ export class Town {
     this.frustum = new THREE.Frustum();
     this.viewProjection = new THREE.Matrix4();
     this.probe = new THREE.Sphere(new THREE.Vector3(), 1.4);
-    this.lastPhaseKey = null;
     this.lastNight = null;
     this.reviewAt = 0;
     this.started = false;
@@ -124,23 +122,10 @@ export class Town {
     return this.places.exits[member.profile.exit ?? 0];
   }
 
-  spareSeat(member) {
-    const homes = new Set();
-    for (const other of this.members) if (other !== member && other.homeSeat) homes.add(other.homeSeat);
-    return this.seats.nearestFree(member.position, member, (seat) => !homes.has(seat)) ?? this.seats.nearestFree(member.position, member);
-  }
-
   displaced(member, seat) {
-    if (seat.study) {
-      if (member instanceof Villager && member.targetSeat === seat && member.state === 'walking') member.goSelfStudy();
-      return;
-    }
-    if (member instanceof Villager && member.targetSeat === seat && member.state === 'walking') member.retargetSeat();
-  }
-
-  yardPoint() {
-    const [x0, z0, x1, z1] = pick(YARD);
-    return new THREE.Vector3(between(x0, x1), 0, between(z0, z1));
+    if (!(member instanceof Villager) || member.targetSeat !== seat || member.state !== 'walking') return;
+    if (seat.study) member.goSelfStudy();
+    else member.goExam();
   }
 
   strollPoint() {
@@ -204,31 +189,6 @@ export class Town {
     const index = Math.floor(Math.random() * 200);
     const spot = this.farm.spot(index);
     return spot ? this.farm.standFor(index, { x: spot.x - 2, z: spot.z }) : { x: 0.5, z: 40 };
-  }
-
-  reserveSlot(member) {
-    const options = [];
-    for (const spot of this.hangouts) {
-      const free = spot.slots.indexOf(null);
-      if (free < 0) continue;
-      options.push({ spot, free, weight: 1 + spot.slots.filter(Boolean).length * 2 });
-    }
-    if (!options.length) return null;
-    let r = Math.random() * options.reduce((sum, o) => sum + o.weight, 0);
-    const choice = options.find((o) => (r -= o.weight) <= 0) ?? options[options.length - 1];
-    choice.spot.slots[choice.free] = member;
-    member.slot = { spot: choice.spot, index: choice.free };
-    const a = (choice.free / 4) * Math.PI * 2 + 0.4;
-    return {
-      position: new THREE.Vector3(choice.spot.x + Math.cos(a) * 0.85, 0, choice.spot.z + Math.sin(a) * 0.85),
-      center: new THREE.Vector3(choice.spot.x, 0, choice.spot.z),
-    };
-  }
-
-  releaseSlot(member) {
-    if (!member.slot) return;
-    member.slot.spot.slots[member.slot.index] = null;
-    member.slot = null;
   }
 
   nearestRoaming(member, radius) {
@@ -449,7 +409,7 @@ export class Town {
     }
     const [x, z, facing] = Array.isArray(entry.at) ? entry.at : [];
     if (![x, z].every(Number.isFinite)) return false;
-    if (ctx.night ? member.wantsSleep(ctx) : ctx.phase.kind !== 'free' && member.attendsToday(ctx.day)) return false;
+    if (ctx.night && member.wantsSleep(ctx)) return false;
     const height = this.nav.heightAt(x, z);
     if (height === null) return false;
     member.position.set(x, height, z);
@@ -465,7 +425,6 @@ export class Town {
     this.context = ctx;
     this.started = true;
     this.lastNight = ctx.night;
-    this.lastPhaseKey = ctx.phase.key;
     if (this.teacher.onDuty(ctx)) this.teacher.beginTeaching();
     else if (ctx.night) this.teacher.settleNight();
     else this.teacher.vanish();
@@ -475,16 +434,6 @@ export class Town {
       if (member.wantsSleep(ctx)) {
         member.settleNight();
         continue;
-      }
-      const inSchool = ctx.phase.kind !== 'free' && member.attendsToday(ctx.day);
-      if (inSchool) {
-        const seat = this.spareSeat(member);
-        if (seat) {
-          member.seatDirect(seat);
-          if (ctx.phase.kind === 'period') member.pay();
-          if (ctx.phase.kind === 'recess') member.startRecess();
-          continue;
-        }
       }
       const spot = this.fieldPoint();
       const height = this.nav.heightAt(spot.x, spot.z);
@@ -499,63 +448,7 @@ export class Town {
     }
   }
 
-  transition(ctx, previous) {
-    const phase = ctx.phase;
-    if (previous?.kind === 'period') for (const member of this.members) member.periodEnd();
-    if (phase.kind === 'period') {
-      for (const member of this.members) {
-        if (member.recess) member.endRecess(true);
-        member.periodStart(ctx);
-      }
-      return;
-    }
-    if (phase.kind === 'recess') {
-      const seated = this.members.filter((member) => member.state === 'seated');
-      this.inGroups(seated, (member, delay) => member.startRecess(delay));
-      for (const member of this.members) if (!seated.includes(member)) member.startRecess();
-      return;
-    }
-    if (phase.kind === 'free') {
-      const seated = this.members.filter((member) => member.state === 'seated');
-      this.inGroups(seated, (member, delay) => member.leaveSchool(delay));
-      for (const member of this.members) {
-        if (member.inSchool && !seated.includes(member)) member.leaveSchool();
-      }
-    }
-  }
-
-  inGroups(members, leave) {
-    const pool = [...members];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const [lo, hi] = GROUP.size;
-    while (pool.length) {
-      const group = pool.splice(0, lo + Math.floor(Math.random() * (hi - lo + 1)));
-      const start = between(...GROUP.start);
-      const speed = (group.reduce((sum, member) => sum + member.walkSpeed, 0) / group.length);
-      const lanes = [...GROUP.lanes].sort(() => Math.random() - 0.5);
-      group.forEach((member, k) => {
-        member.lane = lanes[k % lanes.length];
-        member.together = { speed, until: member.now + GROUP.together };
-        leave(member, start + between(0, GROUP.spread));
-      });
-    }
-  }
-
   review(ctx) {
-    for (const member of this.members) {
-      if (member.state === 'away' || member.inSchool) continue;
-      if (member.task === 'home') continue;
-      if ((member.task === 'fish' || member.task === 'hunt') && member.shouldAttend(ctx)) {
-        member.goToClass();
-        continue;
-      }
-      if (member.state !== 'walking' && member.state !== 'idle') continue;
-      if (member.task === 'shop' || member.task === 'fishshop' || member.task === 'chief' || member.task === 'eat' || member.task === 'inn' || member.task === 'bank' || member.task === 'atm') continue;
-      if (member.shouldAttend(ctx)) member.goToClass();
-    }
     const teacher = this.teacher;
     if (teacher.state === 'teaching' && !teacher.onDuty(ctx)) teacher.stopTeaching();
     else if (teacher.state === 'away' && teacher.onDuty(ctx) && teacher.wakeAt === null) teacher.wakeAt = teacher.now + between(0.5, 3);
@@ -584,7 +477,6 @@ export class Town {
     this.posing = posing;
     this.budget = PATHS_PER_FRAME;
     this.player = player;
-    const previous = this.context?.phase;
     this.context = ctx;
     if (!this.started) this.restore(ctx, t);
     if (ctx.night !== this.lastNight) {
@@ -597,10 +489,7 @@ export class Town {
             if (!member.onDuty(ctx)) member.stopTeaching();
             continue;
           }
-          if (member !== this.teacher && !member.wantsSleep(ctx)) {
-            if (member.state === 'seated' && member.task === 'class') member.rise(() => member.think(), between(0.2, 2));
-            continue;
-          }
+          if (member !== this.teacher && !member.wantsSleep(ctx)) continue;
           if (member.state === 'seated') member.rise(() => member.goHome(), between(0.2, 2));
           else if (member.state !== 'rising' && member.state !== 'leaving' && member.state !== 'sitting' && member.state !== 'resting') member.goHome();
         }
@@ -610,19 +499,13 @@ export class Town {
         }
       }
     }
-    if (ctx.phase.key !== this.lastPhaseKey) {
-      this.lastPhaseKey = ctx.phase.key;
-      this.transition(ctx, previous);
-    }
     if (t >= this.reviewAt) {
       this.reviewAt = t + 1;
       this.review(ctx);
     }
     for (const member of this.all) member.tickEnergy(ctx);
     this.updateLod(camera);
-    const breakLeft = ctx.phase.kind === 'recess' ? realSeconds(ctx.phase.remaining) : Infinity;
     for (const member of this.all) {
-      if (breakLeft !== Infinity && member.dueBack(breakLeft)) member.endRecess();
       if (!member.near) {
         member.skipDt += dt;
         if (member.skipDt < FAR_STEP) continue;

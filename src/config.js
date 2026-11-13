@@ -7,20 +7,6 @@ export const DAYLIGHT = { sunrise: 5 * 60 + 30, sunset: 18 * 60 };
 export const ROUTINE = {
   wake: 5 * 60 + 30,
   home: 21 * 60,
-  schoolLead: 50,
-};
-
-export const SCHOOL = {
-  period: 120,
-  rest: 5,
-  recess: 15,
-  morning: 7 * 60 + 30,
-  afternoon: 13 * 60 + 30,
-  evening: 19 * 60,
-  plans: [{ morning: 0, afternoon: 0, evening: 0 }],
-  alertBefore: 10,
-  tuition: 1,
-  maxPrepaid: 30,
 };
 
 export const MONEY = { icon: '🪙', name: 'đồng' };
@@ -117,7 +103,6 @@ export const VILLAGER = {
   sellWhen: 6,
   seedStock: 4,
   houseReserve: 30,
-  sitWithoutPaying: 0.3,
   restUntil: 10,
   studyReserve: 2,
   leaseReserve: 20,

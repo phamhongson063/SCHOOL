@@ -113,7 +113,7 @@ export class RestBehavior {
     if (this.state === 'away') return ctx.night ? this.homeSleep() : 'idle';
     if (this.state === 'inn') return this.lodge?.id ?? 'inn';
     if (this.state === 'resting') return this.lyingDown ? (inStudyRoom(this.position) ? 'studyRest' : 'rest') : 'idle';
-    if (this.state === 'seated' && this.studying && (this.town.context.phase.kind === 'period' || this.task === 'selfstudy' || this.task === 'exam')) return 'study';
+    if (this.state === 'seated' && this.studying) return 'study';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
   }

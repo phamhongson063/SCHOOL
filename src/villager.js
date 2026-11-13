@@ -10,13 +10,13 @@ import { createClearing } from './clearing.js';
 import { createAngler } from './angler.js';
 import { between } from './random.js';
 import { ITEMS } from './inventory.js';
-import { MONEY, ROUTINE, SCHOOL, VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
+import { MONEY, VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
 import { certify } from './certify.js';
 import { leaveRoom } from './lodging.js';
 import { amount } from './format.js';
 import { iconTag } from './itemArt.js';
 import { layDown, restEase } from './walk.js';
-import { CHAT, CLASSROOM, FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, pick, wrap } from './villagerData.js';
+import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
 import { createStudyIcon } from './studyIcon.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 import { RestBehavior } from './villagerRest.js';
@@ -79,12 +79,8 @@ export class Villager {
     this.walkSpeed = MOVE.walk;
     this.runSpeed = MOVE.run;
     this.lane = between(-LANE, LANE);
-    this.together = null;
     this.wobbleP = Math.random() * Math.PI * 2;
     this.stepTime = between(0.35, 0.6);
-    this.chatty = between(0.6, 1.4);
-    this.returnSpeed = this.walkSpeed;
-    this.returnMargin = 6;
     this.gait = new Gait({ stride: between(0.6, 0.85), armSwing: between(0.55, 1.0), bounce: adult ? 0.8 : between(0.7, 1.4) });
     this.writing = Math.random() < 0.6;
     this.seatPhase = Math.random() * Math.PI * 2;
@@ -105,22 +101,12 @@ export class Villager {
     this.routeBudget = 0;
     this.pauseTimer = 0;
     this.pop = 0;
-    this.homeSeat = null;
     this.seatRef = null;
     this.targetSeat = null;
     this.afterLeave = null;
-    this.recess = false;
-    this.activity = null;
-    this.slot = null;
     this.lookAt = null;
-    this.nextLine = 0;
-    this.playLegs = 0;
     this.job = null;
     this.studying = false;
-    this.payAt = null;
-    this.attendDay = null;
-    this.attending = false;
-    this.sitAnyway = false;
     this.wakeAt = null;
     this.lyingDown = false;
     this.restBlend = 0;
@@ -150,12 +136,12 @@ export class Villager {
   }
 
   get roaming() {
-    return this.state === 'walking' || this.state === 'idle' || this.state === 'heeding' || this.state === 'working' || this.state === 'queued' || this.state === 'fishing';
+    return this.state === 'walking' || this.state === 'idle' || this.state === 'working' || this.state === 'queued' || this.state === 'fishing';
   }
 
   get inSchool() {
     if (this.task === 'selfstudy') return false;
-    return this.task === 'class' || this.recess || this.state === 'seated' || this.state === 'sitting' || this.state === 'rising' || this.state === 'leaving';
+    return this.state === 'seated' || this.state === 'sitting' || this.state === 'rising' || this.state === 'leaving';
   }
 
   owns(object) {
@@ -205,26 +191,6 @@ export class Villager {
     if (this.seated) this.seated.group.visible = this.seatedShown && this.near;
   }
 
-  attendsToday(day) {
-    if (this.kind === 'teacher') return false;
-    if (this.attendDay !== day) {
-      this.attendDay = day;
-      this.attending = Math.random() < this.diligence;
-      this.sitAnyway = Math.random() < VILLAGER.sitWithoutPaying;
-    }
-    if (!this.attending) return false;
-    const purse = this.purse;
-    return purse.credits > 0 || purse.money >= SCHOOL.tuition || this.sitAnyway;
-  }
-
-  shouldAttend(ctx) {
-    if (!this.attendsToday(ctx.day)) return false;
-    if (this.turnedAway === this.classSession(ctx)) return false;
-    const phase = ctx.phase;
-    if (phase.kind === 'free') return !!phase.next && phase.remaining <= ROUTINE.schoolLead;
-    return phase.kind !== 'period';
-  }
-
   think() {
     const ctx = this.town.context;
     this.lookAt = null;
@@ -235,7 +201,6 @@ export class Villager {
     if (this.wantsVendor()) return this.goVendor();
     if (this.wantsFood(ctx)) return this.goEat();
     if (ctx.martOpen && this.wantsMart()) return this.goMart();
-    if (this.shouldAttend(ctx)) return this.goToClass();
     if (this.examDeckWanted(ctx)) return this.goExam();
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
@@ -257,7 +222,6 @@ export class Villager {
   }
 
   travel(point, { speed = this.walkSpeed, then = null, fail = null, state = 'walking' } = {}) {
-    if (speed === this.walkSpeed && this.together && this.now < this.together.until) speed = this.together.speed;
     if (this.tired) speed = Math.min(speed, this.walkSpeed * ENERGY.tiredSpeed);
     const path = this.town.path(this.position, point);
     if (path === undefined) {
@@ -355,9 +319,6 @@ export class Villager {
     if (this.fx) for (const effect of Object.values(this.fx)) effect.busy && effect.cancel();
     if (this.targetSeat) this.town.seats.unreserve(this.targetSeat, this);
     this.targetSeat = null;
-    this.town.releaseSlot(this);
-    this.recess = false;
-    this.activity = null;
     this.afterWait = null;
     this.onRouteEnd = null;
     this.sleepingOut = false;
@@ -493,7 +454,6 @@ export class Villager {
     const heading = Math.atan2(target.x - pos.x, target.z - pos.z) + this.town.avoidance(this, remaining);
     this.turnTo(heading, rate, dt);
 
-    if (this.activity === 'wander' && this.pauseTimer <= 0 && Math.random() < dt * 0.12) this.pauseTimer = between(0.6, 1.8);
     let wanted = this.cruise * Math.min(1, remaining / 0.5 + 0.2);
     if (this.squeezeLeft > 0) wanted *= SQUEEZE.pace;
     if (this.pauseTimer > 0) {
@@ -545,13 +505,6 @@ export class Villager {
     this.timer -= dt;
     const focus = this.lookAt ?? this.town.nearestRoaming(this, 2.2)?.position;
     if (focus) this.turnTo(Math.atan2(focus.x - this.position.x, focus.z - this.position.z), 4, dt);
-    if (this.activity === 'chat' && this.recess) {
-      this.nextLine -= dt;
-      if (this.nextLine <= 0) {
-        this.say(pick(CHAT), 2.2);
-        this.nextLine = between(3.5, 7) / this.chatty;
-      }
-    }
     if (this.timer > 0) return;
     const next = this.afterWait;
     this.afterWait = null;
@@ -559,21 +512,13 @@ export class Villager {
     else this.think();
   }
 
-  heedUpdate(dt) {
-    this.slowDown();
-    this.turnTo(Math.atan2(CLASSROOM.x - this.position.x, CLASSROOM.z - this.position.z), 3, dt);
-    this.timer -= dt;
-    if (this.timer <= 0) this.headBack();
-  }
-
   seatedUpdate(t) {
     const s = this.seated;
-    if (this.payAt !== null && t >= this.payAt) this.pay();
     if (this.task === 'selfstudy') this.selfStudyUpdate(t);
     if (this.task === 'exam') this.examUpdate(t);
+    if (this.task === 'internal') this.internalUpdate(t);
     this.seatBubble.update(t);
-    const phase = this.town.context.phase;
-    const learning = this.studying && (phase.kind === 'period' || this.task === 'selfstudy' || this.task === 'exam');
+    const learning = this.studying;
     this.studyIcon.visible = learning;
     if (!this.near) return;
     if (learning && this.writing) {
@@ -620,7 +565,7 @@ export class Villager {
         this.step(dt, this.seatRef.spot, () => {
           const after = this.afterLeave;
           this.afterLeave = null;
-          if (this.seatRef.study) this.seatRef = null;
+          if (this.seatRef.study || this.seatRef.internal) this.seatRef = null;
           this.state = 'idle';
           this.timer = 0;
           if (after) after();
@@ -638,9 +583,6 @@ export class Villager {
         break;
       case 'resting':
         this.restUpdate(dt);
-        break;
-      case 'heeding':
-        this.heedUpdate(dt);
         break;
       case 'working':
         this.slowDown();
