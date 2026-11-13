@@ -476,7 +476,15 @@
       </div>
     </div>
   </dialog>
-  <div id="arenaBanner" class="arena-banner" popover="manual"></div>
+  <div id="arenaCast" class="arena-cast" popover="manual">
+    <div class="cast-strip"><span class="cast-live"><i></i>Trực tiếp</span><span class="cast-event"></span></div>
+    <div class="cast-main">
+      <div class="cast-heading"><span class="cast-stage"></span><span class="cast-title"></span></div>
+      <span class="cast-timer"></span>
+    </div>
+    <ul class="cast-list"></ul>
+  </div>
+  <div id="arenaCount" class="arena-count" popover="manual" aria-hidden="true"></div>
   <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
       <header class="sched-head bank-head">
@@ -548,6 +556,7 @@
           <button id="resetConfirmBtn" class="sched-primary" type="button">Xoá &amp; chơi lại</button>
         </div>
       </div>
+      <p id="versionNote" class="paper-note version-note"></p>
     </div>
   </dialog>
   <dialog id="elsewhereDialog" class="paper" aria-labelledby="elsewhereTitle">

@@ -285,10 +285,11 @@ export const ABSORB = {
 export const ARENA = {
   deck: 'n2',
   size: 8,
-  starts: [8 * 60 + 45, 19 * 60 + 45, 23 * 60 + 57],
+  starts: [25, 8 * 60 + 45, 19 * 60 + 45],
   lead: 30,
   opening: 1,
-  roundMinutes: 5,
+  breather: 25,
+  pause: 1.5,
   grace: 2,
   fee: 0,
   hp: 100,

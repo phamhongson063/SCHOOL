@@ -1,7 +1,6 @@
 import { ARENA } from './config.js';
 import { PLAYER } from './inventory.js';
-
-export const TURN_PAUSE = 1.5;
+import { matchMinutes, turnSeconds } from './arena.js';
 
 export const SKILLS = [
   { name: 'Kiếm khí', icon: '🗡️', color: 0xe8f4ff },
@@ -25,17 +24,12 @@ export const skillOf = (seed) => SKILLS[hash(seed) % SKILLS.length];
 
 export const hitSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds);
 
-export const turnSeconds = (turn) => hitSeconds(turn) + TURN_PAUSE;
-
-export function replayMinutes(match) {
-  return match.turns.reduce((sum, turn) => sum + turnSeconds(turn), 0) / 60;
-}
 
 export function onStage(match, now) {
   if (!match.a || !match.b || match.forfeit) return false;
   if (match.live || match.a === PLAYER || match.b === PLAYER) return match.live;
   if (!match.turns.length || match.startAt === null) return false;
-  return now >= match.startAt && now < match.startAt + replayMinutes(match);
+  return now >= match.startAt && now < match.startAt + matchMinutes(match);
 }
 
 export function replayState(match, now) {

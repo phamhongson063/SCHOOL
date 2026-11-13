@@ -60,7 +60,7 @@ export function roundName(size) {
 export function exitOf(event, id) {
   for (const round of event.rounds) {
     const match = round.find((item) => item.a === id || item.b === id);
-    if (match && match.winner && match.winner !== id) return { round: round.length, forfeit: match.forfeit === id };
+    if (match && match.winner && match.winner !== id) return { round: round.length, forfeit: match.forfeit === id, reason: match.reason };
   }
   return null;
 }
@@ -99,6 +99,20 @@ function load() {
   return { event: null, champions: [] };
 }
 
+export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds) + ARENA.pause;
+
+export const matchMinutes = (match) => match.turns.reduce((sum, turn) => sum + turnSeconds(turn), 0) / 60;
+
+const endOf = (match) => match.endAt ?? match.startAt + matchMinutes(match);
+
+export function nextAt(event) {
+  if (event?.phase !== 'running') return null;
+  if (event.round < 0) return event.firstAt ?? event.at;
+  const round = event.rounds[event.round];
+  if (!round || round.some((match) => !match.winner)) return null;
+  return Math.max(...round.map(endOf)) + ARENA.breather / 60;
+}
+
 export function damageOf({ correct, seconds }) {
   if (!correct) return 0;
   const left = Math.max(0, 1 - seconds / ARENA.seconds);
@@ -111,7 +125,7 @@ function cleanAnswer(raw) {
 }
 
 function newMatch(a, b) {
-  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, asked: [], pending: null, rival: null, turns: [] };
+  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, asked: [], pending: null, rival: null, turns: [], reason: null, endAt: null };
 }
 
 function pickKey(match, deck) {
@@ -123,8 +137,9 @@ function pickKey(match, deck) {
   return keys[Math.floor(Math.random() * keys.length)];
 }
 
-function decide(match) {
+function decide(match, reason) {
   const { hp, time } = match;
+  match.reason = reason;
   let side;
   if (hp.a !== hp.b) side = hp.a > hp.b ? 'a' : 'b';
   else if (time.a !== time.b) side = time.a < time.b ? 'a' : 'b';
@@ -135,9 +150,11 @@ function decide(match) {
   match.rival = null;
 }
 
-function forfeit(match, id) {
+function forfeit(match, id, at) {
   const side = sideOf(match, id);
   match.forfeit = id;
+  match.reason = 'forfeit';
+  match.endAt = at;
   match.winner = match[other(side)];
   match.live = false;
   match.pending = null;
@@ -159,7 +176,8 @@ function resolveTurn(match, key, answers) {
   match.rival = null;
   match.turns.push(turn);
   turn.hp = { ...match.hp };
-  if (match.hp.a <= 0 || match.hp.b <= 0 || match.turns.length >= ARENA.turns) decide(match);
+  if (match.hp.a <= 0 || match.hp.b <= 0) decide(match, 'ko');
+  else if (match.turns.length >= ARENA.turns) decide(match, 'turns');
   return turn;
 }
 
@@ -167,7 +185,7 @@ function simulate(match, deck) {
   while (!match.winner) {
     const key = pickKey(match, deck);
     if (!key) {
-      decide(match);
+      decide(match, 'empty');
       break;
     }
     resolveTurn(match, key, { a: absorption.respond(match.a, key, ARENA.seconds), b: absorption.respond(match.b, key, ARENA.seconds) });
@@ -194,15 +212,18 @@ function startRound(event, at, present) {
     match.startAt = at;
     if (!match.a || !match.b) {
       match.winner = match.a ?? match.b;
+      match.reason = 'bye';
+      match.endAt = at;
       continue;
     }
     const human = [match.a, match.b].find(isHuman);
     if (human) {
       if (present(human)) match.live = true;
-      else forfeit(match, human);
+      else forfeit(match, human, at);
       continue;
     }
     simulate(match, event.deck);
+    match.endAt = at + matchMinutes(match);
   }
 }
 
@@ -290,11 +311,9 @@ export function createArena({ ledger, roster = () => [] }) {
     }
     while (event.phase === 'running') {
       const round = event.rounds[event.round];
-      const at = round[0].startAt;
-      for (const match of round) if (match.live && now >= match.startAt + LIVE_MINUTES) forfeit(match, [match.a, match.b].find(isHuman));
-      if (round.some((match) => !match.winner)) return;
-      const next = at + ARENA.roundMinutes;
-      if (now < next) return;
+      for (const match of round) if (match.live && now >= match.startAt + LIVE_MINUTES) forfeit(match, [match.a, match.b].find(isHuman), Number.isFinite(now) ? now : match.startAt + LIVE_MINUTES);
+      const next = nextAt(event);
+      if (next === null || now < next) return;
       if (round.length === 1) finish(event);
       else startRound(event, Number.isFinite(now) ? Math.max(next, now) : next, present);
     }
@@ -358,7 +377,7 @@ export function createArena({ ledger, roster = () => [] }) {
       return ledger.purse(id).money >= ARENA.fee + npc.reserve && Math.random() < npc.eager;
     },
     liveMatch,
-    question(id) {
+    question(id, now) {
       const match = liveMatch(id);
       if (!match) return null;
       const side = sideOf(match, id);
@@ -366,7 +385,8 @@ export function createArena({ ledger, roster = () => [] }) {
       if (!match.pending) {
         match.pending = pickKey(match, state.event.deck);
         if (!match.pending) {
-          decide(match);
+          decide(match, 'empty');
+          match.endAt = now;
           store.save();
           return null;
         }
@@ -376,13 +396,14 @@ export function createArena({ ledger, roster = () => [] }) {
       match.rival ??= absorption.respond(match[rival], match.pending, ARENA.seconds);
       return { key: match.pending, seconds: ARENA.seconds, hp: { ...match.hp }, side, opponent: match[rival], turn: match.turns.length + 1, rival: { ...match.rival } };
     },
-    play(id, answer) {
+    play(id, answer, now) {
       const match = liveMatch(id);
       if (!match?.pending) return null;
       const side = sideOf(match, id);
       const rival = other(side);
       const key = match.pending;
       const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? absorption.respond(match[rival], key, ARENA.seconds) });
+      if (match.winner) match.endAt = now;
       store.save();
       return turn;
     },

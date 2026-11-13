@@ -9,7 +9,10 @@ const orbGeometry = new THREE.SphereGeometry(0.2, 14, 10);
 const ringGeometry = new THREE.TorusGeometry(0.5, 0.06, 8, 32);
 const flashGeometry = new THREE.SphereGeometry(0.35, 14, 10);
 
-const glow = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+const glow = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending });
+const columnGeometry = new THREE.CylinderGeometry(0.55, 0.85, 1, 24, 1, true);
+const floorRing = new THREE.RingGeometry(0.6, 0.9, 40);
+const WARP = { rise: 0.25, fade: 0.9, height: 7 };
 
 export function createArenaFx(scene) {
   const root = new THREE.Group();
@@ -23,7 +26,20 @@ export function createArenaFx(scene) {
     }
   }
 
+  const beams = [];
+
   return {
+    beam(at, color = 0xbfe8ff, size = 1) {
+      const column = new THREE.Mesh(columnGeometry, glow(color, 0.7));
+      column.material.side = THREE.DoubleSide;
+      column.position.set(at.x, at.y, at.z);
+      const ring = new THREE.Mesh(floorRing, glow(color, 0.9));
+      ring.material.side = THREE.DoubleSide;
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(at.x, at.y + 0.05, at.z);
+      root.add(column, ring);
+      beams.push({ column, ring, size, age: 0, meshes: [column, ring] });
+    },
     cast(from, to, color, power = 1) {
       const start = new THREE.Vector3(from.x, from.y + CHEST, from.z);
       const end = new THREE.Vector3(to.x, to.y + CHEST, to.z);
@@ -40,6 +56,24 @@ export function createArenaFx(scene) {
       live.push({ start, end, orb, ring, flash, power, age: 0, meshes: [orb, ring, flash] });
     },
     update(dt) {
+      for (let i = beams.length - 1; i >= 0; i--) {
+        const beam = beams[i];
+        beam.age += dt;
+        const { column, ring, size } = beam;
+        const height = WARP.height * size;
+        const grow = Math.min(1, beam.age / WARP.rise);
+        const fade = Math.max(0, (beam.age - WARP.rise) / WARP.fade);
+        if (fade >= 1) {
+          remove(beam);
+          beams.splice(i, 1);
+          continue;
+        }
+        column.scale.set(size * (1 - fade * 0.6), height * grow, size * (1 - fade * 0.6));
+        column.position.y = ring.position.y - 0.05 + (height * grow) / 2;
+        column.material.opacity = 0.7 * (1 - fade);
+        ring.scale.setScalar(size * (1 + beam.age * 2.2));
+        ring.material.opacity = 0.9 * (1 - fade);
+      }
       for (let i = live.length - 1; i >= 0; i--) {
         const effect = live[i];
         effect.age += dt;

@@ -96,6 +96,7 @@ import { createArenaTrip } from './arenaTrip.js';
 import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
 import { createArenaDuel } from './arenaDuel.js';
+import { createArenaCast } from './arenaCast.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
 import { arenaLines, createArenaDesk } from './arenaDesk.js';
 
@@ -319,7 +320,7 @@ regions.add(
 );
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
-const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE });
+const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight });
 regions.add(arenaIsland.region);
 for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
@@ -661,7 +662,8 @@ player.blockers = () => town.restingBlockers();
 town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4) });
+const arenaFx = createArenaFx(scene);
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size) });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -678,8 +680,8 @@ function sayInArena(id, text) {
   if (id === PLAYER) sayPlayer(text, 1.4);
   else town.members.find((member) => member.id === id)?.say(text, 1.4);
 }
-const arenaBattle = createArenaBattle({ arena, fx: createArenaFx(scene), nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here, hidden: () => arenaDuel.open });
-const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, sounds: uiSounds, onTurn: () => arenaBattle.played() });
+const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage) });
+const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave() });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
 arena.onFinish((event) => {
@@ -1810,6 +1812,7 @@ renderer.setAnimationLoop((time) => {
   clouds.update(dt, night);
   player.held = kanjiQuiz.open || arenaTrip.fighting;
   player.update(dt);
+  arenaDuel.frame(camera);
   placeBubble();
   updateBubbles(camera, t);
   regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);

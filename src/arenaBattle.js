@@ -3,7 +3,6 @@ import { roundName } from './arena.js';
 import { fighterSpot, stageOf } from './arenaIsland.js';
 import { onStage, replayState, resolveAt, skillOf } from './arenaReplay.js';
 import { plainText, unitOf } from './studyDecks.js';
-import { waitText } from './arenaBoard.js';
 import { PLAYER } from './inventory.js';
 
 const LATE_MINUTES = 1.5 / 60;
@@ -30,9 +29,8 @@ const setText = (node, text) => {
   if (node.textContent !== text) node.textContent = text;
 };
 
-export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, hidden = () => false }) {
+export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, cast, hidden = () => false, onHit = null }) {
   const hud = document.getElementById('battleHud');
-  const banner = document.getElementById('arenaBanner');
   const views = { a: sideView(hud.querySelector('.battle-side.a')), b: sideView(hud.querySelector('.battle-side.b')) };
   const round = hud.querySelector('.battle-round');
   const word = hud.querySelector('.battle-word');
@@ -40,7 +38,6 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
   const fired = new Set();
   let eventAt = null;
   let open = false;
-  let notice = false;
 
   function toggle(node, visible) {
     node.classList.toggle('shown', visible);
@@ -55,13 +52,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
     toggle(hud, visible);
   }
 
-  function announce(text) {
-    const visible = !!text;
-    if (visible) setText(banner, text);
-    if (visible === notice) return;
-    notice = visible;
-    toggle(banner, visible);
-  }
+
 
   function fire(key, size, index, match, turnIndex) {
     const turn = match.turns[turnIndex];
@@ -78,6 +69,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
       lines[rival].push(`-${move.damage}`);
     }
     for (const side of SIDES) if (lines[side].length) sayOf(match[side], lines[side].join(' '));
+    if (turn.a.correct || turn.b.correct) onHit?.(stageOf(size, index));
   }
 
   function noteOf(key, match, turnIndex, side, state) {
@@ -132,7 +124,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
         fired.clear();
       }
       const quiet = hidden() || !here();
-      announce(quiet ? null : waitText(event, now));
+      cast.update(event, now, !quiet);
       if (event?.phase !== 'running') {
         show(false);
         return;

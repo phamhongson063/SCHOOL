@@ -1,6 +1,8 @@
 import { ARENA } from './config.js';
 import { roundName } from './arena.js';
 import { skillOf } from './arenaReplay.js';
+import { ISLAND, stageOf } from './arenaIsland.js';
+import { END_REASONS } from './arenaBoard.js';
 import { DECKS, plainText, unitOf } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
 
@@ -10,6 +12,8 @@ const BEAT_MS = 800;
 const REVEAL_MS = 1300;
 const STRIKE_MS = 1900;
 const END_MS = 2200;
+const CHOICE_MS = 20000;
+const SHOT = { back: 8.5, rise: 2.2, aim: -0.6 };
 const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,7 +53,7 @@ function replay(node, className) {
   node.classList.add(className);
 }
 
-export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTurn = null }) {
+export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null, onTurn = null, onLeave = null }) {
   const dialog = document.getElementById('duelDialog');
   const cards = { me: cardView(dialog.querySelector('.duel-card.me')), foe: cardView(dialog.querySelector('.duel-card.foe')) };
   const banner = dialog.querySelector('.duel-banner');
@@ -63,6 +67,13 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
   dialog.addEventListener('cancel', (event) => event.preventDefault());
   let running = false;
   let ticker = null;
+  let shot = null;
+
+  function setOpen(open) {
+    document.body.classList.toggle('in-duel', open);
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }
 
   const label = (id) => (id === PLAYER ? 'Bạn' : nameOf(id));
 
@@ -93,6 +104,40 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
     view.pop.textContent = `-${damage}`;
     replay(view.pop, 'show');
     replay(view.root, 'hit');
+  }
+
+  function choose(labels) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(0), CHOICE_MS);
+      options.replaceChildren(
+        ...labels.map((text, i) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = i === 0 ? 'duel-option picked' : 'duel-option';
+          button.textContent = text;
+          button.addEventListener('click', () => {
+            clearTimeout(timer);
+            resolve(i);
+          });
+          return button;
+        }),
+      );
+    });
+  }
+
+  async function ending(match, won) {
+    const reason = END_REASONS[match.reason] ?? '';
+    clearInterval(ticker);
+    kind.textContent = '';
+    clock.textContent = '';
+    bar.style.transform = 'scaleX(0)';
+    word.textContent = won ? 'THẮNG' : 'THUA';
+    log.textContent = reason;
+    options.replaceChildren();
+    await shout(won ? 'THẮNG!' : 'THUA', END_MS);
+    if (won) return;
+    const pick = await choose(['Ở lại xem', 'Về làng']);
+    if (pick === 1) onLeave?.();
   }
 
   function runBar(seconds, from) {
@@ -207,7 +252,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
     if (correct) sounds?.correct();
     else sounds?.wrong();
     await wait(REVEAL_MS);
-    const turn = arena.play(PLAYER, { correct, seconds: choice.seconds });
+    const turn = arena.play(PLAYER, { correct, seconds: choice.seconds }, now());
     if (!turn) return null;
     onTurn?.();
     const sides = { me: asked.side, foe: asked.side === 'a' ? 'b' : 'a' };
@@ -235,6 +280,11 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
     get running() {
       return running;
     },
+    frame(camera) {
+      if (!shot) return;
+      camera.position.set(shot.x, shot.y + SHOT.rise, shot.z + shot.toward * SHOT.back);
+      camera.lookAt(shot.x, shot.y + SHOT.aim, shot.z);
+    },
     async run() {
       if (running) return;
       const event = arena.event;
@@ -246,6 +296,9 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
       const matchKey = `${event.at}:${event.round}:${round.indexOf(match)}`;
       const side = match.a === PLAYER ? 'a' : 'b';
       const foe = side === 'a' ? 'b' : 'a';
+      const stage = stageOf(size, round.indexOf(match));
+      const toward = Math.sign(ISLAND.z - stage.z) || 1;
+      shot = { x: stage.x, y: stage.y, z: stage.z, toward };
       try {
         setFighter(cards.me, PLAYER, match.hp[side]);
         setFighter(cards.foe, match[foe], match.hp[foe]);
@@ -255,16 +308,16 @@ export function createArenaDuel({ arena, nameOf, portraitOf, sounds = null, onTu
         word.textContent = '';
         log.textContent = `${label(match[foe])} đã sẵn sàng`;
         options.replaceChildren();
-        if (!dialog.open) dialog.showModal();
+        setOpen(true);
         for (const text of COUNTDOWN) await shout(text);
-        for (let asked = arena.question(PLAYER); asked; asked = arena.question(PLAYER)) {
+        for (let asked = arena.question(PLAYER, now()); asked; asked = arena.question(PLAYER, now())) {
           if (!(await playTurn(asked, size, matchKey))) break;
         }
-        const won = match.winner === PLAYER;
-        if (match.winner) await shout(won ? 'THẮNG!' : 'THUA', END_MS);
+        if (match.winner) await ending(match, match.winner === PLAYER);
       } finally {
         clearInterval(ticker);
-        if (dialog.open) dialog.close();
+        setOpen(false);
+        shot = null;
         running = false;
       }
     },

@@ -388,11 +388,35 @@ export class Villager {
   placeArena(spot) {
     this.position.set(spot.x, spot.y, spot.z);
     this.facing = spot.facing;
+    this.arenaFacing = spot.facing;
+    this.arenaGoal = null;
     this.velocity = 0;
     this.pop = 0.25;
   }
 
+  arenaStep(dt) {
+    const goal = this.arenaGoal;
+    if (goal) {
+      const dx = goal.x - this.position.x;
+      const dz = goal.z - this.position.z;
+      const gap = Math.hypot(dx, dz);
+      if (gap > 0.08) {
+        const speed = this.walkSpeed * 0.55;
+        const step = Math.min(gap, speed * dt);
+        this.position.x += (dx / gap) * step;
+        this.position.z += (dz / gap) * step;
+        this.velocity = speed;
+        this.turnTo(Math.atan2(dx, dz), 6, dt);
+        return;
+      }
+      this.arenaGoal = null;
+    }
+    this.velocity = 0;
+    if (Number.isFinite(this.arenaFacing)) this.turnTo(this.arenaFacing, 3, dt);
+  }
+
   leaveArena(spot) {
+    this.arenaGoal = null;
     this.task = null;
     this.state = 'idle';
     this.position.set(spot.x, this.town.nav.heightAt(spot.x, spot.z) ?? 0, spot.z);
@@ -642,7 +666,7 @@ export class Villager {
         this.slowDown();
         break;
       case 'arena':
-        this.velocity = 0;
+        this.arenaStep(dt);
         break;
       case 'fishing': {
         this.slowDown();

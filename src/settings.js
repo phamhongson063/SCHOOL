@@ -2,6 +2,7 @@ import { closable } from './dialog.js';
 import { musicEnabled, setMusicEnabled } from './audio.js';
 import { gameKeys } from './saveKeys.js';
 import { account, cloudEnabled, signOut } from './cloud.js';
+import { RELEASE, VERSION } from './version.js';
 
 export function wipeGame() {
   try {
@@ -39,6 +40,7 @@ export function createSettings({ onReset }) {
   const signOutBtn = document.getElementById('signOutBtn');
   const refresh = document.getElementById('refreshBtn');
   const refreshLabel = refresh.querySelector('.refresh-label');
+  document.getElementById('versionNote').textContent = `Phiên bản ${RELEASE} · ${VERSION}`;
 
   accountGroup.hidden = !cloudEnabled;
   const paintAccount = () => {

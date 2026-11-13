@@ -1,30 +1,37 @@
 import { ARENA } from './config.js';
-import { nextStart, roundName } from './arena.js';
+import { nextAt, nextStart, roundName } from './arena.js';
 import { onStage } from './arenaReplay.js';
 import { closable } from './dialog.js';
 import { clockText } from './clock.js';
 import { PLAYER } from './inventory.js';
 
-export const BOARD_SIZE = { width: 1024, height: 600 };
+export const BOARD_SIZE = { width: 2048, height: 1200 };
 
 export const PALETTES = {
-  board: { bg: '#2a1a3a', title: '#ffe08a', text: '#f3e9d2', dim: '#8a7f99', win: '#ffe08a', line: '#c9a24a', live: '#9ad8ff', box: '#3a2850', you: '#9ad8ff' },
+  board: { ornate: true, font: '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Noto Serif", serif', title: '#ffe9a8', text: '#eef4ff', dim: '#8fa3bf', win: '#ffe08a', winBox: 'rgba(255, 214, 120, 0.16)', line: '#e2c27a', glow: 'rgba(255, 214, 120, 0.85)', live: '#9ad8ff', box: 'rgba(160, 200, 255, 0.08)', you: '#9ad8ff' },
   paper: { bg: null, title: '#2b1c12', text: '#2b1c12', dim: '#a8998a', win: '#9a2418', line: '#8a7a68', live: '#2f6f8e', box: 'rgba(43, 28, 18, 0.06)', you: '#2f6f8e' },
 };
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
-const countdown = (minutes) => {
+export const END_REASONS = {
+  ko: 'Hạ gục',
+  turns: `Hết ${ARENA.turns} lượt, so máu`,
+  empty: 'Không còn từ chung để ra đề',
+  forfeit: 'Vắng mặt',
+  bye: 'Không có đối thủ',
+};
+
+export const countdown = (minutes) => {
   const seconds = Math.max(0, Math.ceil(minutes * 60));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 };
 
 export function waitText(event, now) {
-  if (event?.phase !== 'running') return null;
-  if (event.round < 0) return `Khai mạc sau ${countdown((event.firstAt ?? event.at) - now)}`;
+  const next = nextAt(event);
+  if (next === null) return null;
+  if (event.round < 0) return `Khai mạc sau ${countdown(next - now)}`;
   const round = event.rounds[event.round];
-  if (round.some((match) => !match.winner)) return null;
-  const next = round[0].startAt + ARENA.roundMinutes;
   return round.length === 1 ? `Trao thưởng sau ${countdown(next - now)}` : `${roundName(round.length / 2)} sau ${countdown(next - now)}`;
 }
 
@@ -65,42 +72,108 @@ function headline(event, now) {
   return `${time} · ${waitText(event, now) ?? roundName(event.rounds[event.round].length)}`;
 }
 
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function cloudCurl(ctx, x, y, size, flipX, flipY) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(flipX, flipY);
+  ctx.beginPath();
+  ctx.arc(size * 0.5, size * 0.5, size * 0.5, Math.PI, Math.PI * 2.4);
+  ctx.moveTo(size * 0.2, size * 0.5);
+  ctx.arc(size * 0.5, size * 0.5, size * 0.3, Math.PI, Math.PI * 2.1);
+  ctx.moveTo(size, size * 0.5);
+  ctx.quadraticCurveTo(size * 1.6, size * 0.1, size * 2.4, size * 0.4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function paintPanel(ctx, width, height, s, palette) {
+  const inset = 6 * s;
+  roundRect(ctx, inset, inset, width - inset * 2, height - inset * 2, 34 * s);
+  const fill = ctx.createLinearGradient(0, 0, 0, height);
+  fill.addColorStop(0, 'rgba(22, 40, 62, 0.95)');
+  fill.addColorStop(1, 'rgba(10, 18, 34, 0.95)');
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.save();
+  ctx.shadowColor = palette.glow;
+  ctx.shadowBlur = 16 * s;
+  ctx.strokeStyle = palette.line;
+  ctx.lineWidth = 4 * s;
+  roundRect(ctx, 16 * s, 16 * s, width - 32 * s, height - 32 * s, 26 * s);
+  ctx.stroke();
+  ctx.lineWidth = 1.5 * s;
+  roundRect(ctx, 28 * s, 28 * s, width - 56 * s, height - 56 * s, 20 * s);
+  ctx.stroke();
+  ctx.lineWidth = 2.5 * s;
+  const curl = 30 * s;
+  const edge = 34 * s;
+  cloudCurl(ctx, edge, edge, curl, 1, 1);
+  cloudCurl(ctx, width - edge, edge, curl, -1, 1);
+  cloudCurl(ctx, edge, height - edge, curl, 1, -1);
+  cloudCurl(ctx, width - edge, height - edge, curl, -1, -1);
+  ctx.restore();
+}
+
 export function drawBracket(ctx, { width, height }, event, { nameOf, now, palette }) {
+  const s = width / 1024;
+  const font = palette.font ?? FONT;
   ctx.clearRect(0, 0, width, height);
-  if (palette.bg) {
+  if (palette.ornate) paintPanel(ctx, width, height, s, palette);
+  else if (palette.bg) {
     ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, width, height);
   }
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
+  ctx.save();
+  if (palette.glow) {
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = 14 * s;
+  }
   ctx.fillStyle = palette.title;
-  ctx.font = `bold 34px ${FONT}`;
-  ctx.fillText(headline(event, now), width / 2, 40);
+  ctx.font = `bold ${36 * s}px ${font}`;
+  ctx.fillText(headline(event, now), width / 2, (palette.ornate ? 66 : 40) * s);
+  ctx.restore();
   if (!event?.rounds.length) return;
   const first = event.rounds[0].length;
   const columns = Math.log2(first) + 2;
-  const margin = 24;
-  const boxW = Math.min(220, (width - margin * 2) / columns - 18);
-  const boxH = 40;
-  const top = 110;
-  const area = height - top - 20;
+  const margin = (palette.ornate ? 56 : 24) * s;
+  const boxW = Math.min(220 * s, (width - margin * 2) / columns - 18 * s);
+  const boxH = 42 * s;
+  const top = (palette.ornate ? 150 : 110) * s;
+  const area = height - top - (palette.ornate ? 50 : 20) * s;
   const colX = (k) => margin + (k * (width - margin * 2 - boxW)) / (columns - 1);
   const ys = [];
   for (let k = 0; k < columns; k++) {
     const count = (first * 2) / 2 ** k;
     ys[k] = Array.from({ length: count }, (_, j) => (k === 0 ? top + ((j + 0.5) * area) / count : (ys[k - 1][2 * j] + ys[k - 1][2 * j + 1]) / 2));
   }
-  ctx.font = `bold 20px ${FONT}`;
+  ctx.font = `bold ${20 * s}px ${font}`;
   ctx.fillStyle = palette.dim;
-  for (let k = 0; k < columns; k++) ctx.fillText(k === columns - 1 ? 'Vô địch' : roundName(first / 2 ** k), colX(k) + boxW / 2, 84);
-  ctx.lineWidth = 3;
+  for (let k = 0; k < columns; k++) ctx.fillText(k === columns - 1 ? 'Vô địch' : roundName(first / 2 ** k), colX(k) + boxW / 2, top - 30 * s);
+  ctx.save();
+  if (palette.glow) {
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = 6 * s;
+  }
+  ctx.lineWidth = 3 * s;
+  ctx.strokeStyle = palette.line;
   for (let k = 0; k < columns - 1; k++) {
     for (let j = 0; j < ys[k].length; j += 2) {
       const x0 = colX(k) + boxW;
       const x1 = colX(k + 1);
       const mid = (x0 + x1) / 2;
       const target = ys[k + 1][j / 2];
-      ctx.strokeStyle = palette.line;
       ctx.beginPath();
       ctx.moveTo(x0, ys[k][j]);
       ctx.lineTo(mid, ys[k][j]);
@@ -112,23 +185,27 @@ export function drawBracket(ctx, { width, height }, event, { nameOf, now, palett
       ctx.stroke();
     }
   }
+  ctx.restore();
   for (let k = 0; k < columns; k++) {
     ys[k].forEach((y, j) => {
       const slot = slotOf(event, k, j, now);
       const x = colX(k);
-      ctx.fillStyle = palette.box;
-      ctx.fillRect(x, y - boxH / 2, boxW, boxH);
+      ctx.fillStyle = slot.state === 'win' && palette.winBox ? palette.winBox : palette.box;
+      roundRect(ctx, x, y - boxH / 2, boxW, boxH, 8 * s);
+      ctx.fill();
       if (slot.state === 'live' || slot.id === PLAYER) {
         ctx.strokeStyle = slot.state === 'live' ? palette.live : palette.you;
-        ctx.strokeRect(x + 1.5, y - boxH / 2 + 1.5, boxW - 3, boxH - 3);
+        ctx.lineWidth = 2.5 * s;
+        roundRect(ctx, x + 1.5 * s, y - boxH / 2 + 1.5 * s, boxW - 3 * s, boxH - 3 * s, 7 * s);
+        ctx.stroke();
       }
       const name = slot.id ? nameOf(slot.id) : '';
       const label = slot.id === PLAYER ? 'Bạn' : name;
-      ctx.font = `${slot.state === 'win' ? 'bold ' : ''}22px ${FONT}`;
+      ctx.font = `${slot.state === 'win' ? 'bold ' : ''}${22 * s}px ${font}`;
       ctx.fillStyle = slot.state === 'win' ? palette.win : slot.state === 'lose' ? palette.dim : slot.state === 'live' ? palette.live : palette.text;
       ctx.textAlign = 'left';
-      const shown = fit(ctx, `${label}${slot.forfeit ? ' (vắng)' : ''}`, boxW - 20);
-      ctx.fillText(slot.id ? shown : '—', x + 10, y + 1);
+      const shown = fit(ctx, `${label}${slot.forfeit ? ' (vắng)' : ''}`, boxW - 20 * s);
+      ctx.fillText(slot.id ? shown : '—', x + 10 * s, y + 1 * s);
       ctx.textAlign = 'center';
     });
   }

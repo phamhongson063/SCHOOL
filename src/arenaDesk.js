@@ -1,5 +1,6 @@
 import { ARENA } from './config.js';
 import { exitOf, nextStart, roundName } from './arena.js';
+import { END_REASONS } from './arenaBoard.js';
 import { closable } from './dialog.js';
 import { coins } from './format.js';
 import { setRich } from './goldArt.js';
@@ -28,7 +29,8 @@ export function arenaLines(event, nameOf) {
     const prizes = [place.money > 0 ? coins(place.money) : null, place.intellect > 0 ? `${place.intellect} 💡` : null].filter(Boolean);
     lines.push(`Lôi đài ${clockText(event.at)}: ngươi đạt hạng ${place.rank}${prizes.length ? `, nhận ${prizes.join(' + ')}` : ''}.`);
   } else if (exit) {
-    lines.push(`Lôi đài ${clockText(event.at)}: ngươi dừng bước ở ${roundName(exit.round)}${exit.forfeit ? ' vì vắng mặt' : ''}.`);
+    const reason = END_REASONS[exit.reason];
+    lines.push(`Lôi đài ${clockText(event.at)}: ngươi dừng bước ở ${roundName(exit.round)}${reason ? ` (${reason.toLowerCase()})` : ''}.`);
   }
   const champion = event.places.find((item) => item.rank === 1);
   if (champion && champion.id !== PLAYER) lines.push(`🏆 Vô địch: ${nameOf(champion.id)}.`);

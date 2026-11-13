@@ -23,7 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Stamp version
-        run: sed -i "s/VERSION = '[^']*'/VERSION = '${GITHUB_SHA::7}'/" src/version.js
+        run: |
+          sed -i "s/VERSION = '[^']*'/VERSION = '${GITHUB_SHA::7}'/" src/version.js
+          RELEASE=$(git log -1 --format=%s | grep -oE '^v[0-9]+(\.[0-9]+)*' || true)
+          sed -i "s/RELEASE = '[^']*'/RELEASE = '${RELEASE:-dev}'/" src/version.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
