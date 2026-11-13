@@ -26,7 +26,8 @@ export class MindBehavior {
   }
 
   moneyNeed() {
-    return MIND.comfortMoney / (MIND.comfortMoney + Math.max(0, this.purse.money));
+    const net = this.purse.money - this.debt();
+    return MIND.comfortMoney / Math.max(MIND.comfortMoney * MIND.debtFloor, MIND.comfortMoney + net);
   }
 
   walkMinutes(point) {

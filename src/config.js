@@ -124,6 +124,7 @@ export const VILLAGER = {
   leaseCycles: 3,
   renewBefore: 0.5,
   lodgeNights: 3,
+  frugalFull: 0.5,
   nightAwakeHours: 1,
   morningEnergy: 60,
   resumeMinutes: 10,
@@ -132,6 +133,7 @@ export const VILLAGER = {
 export const MIND = {
   energyCoin: 0.4,
   comfortMoney: 200,
+  debtFloor: 0.5,
   studyValue: 4.5,
   internalValue: 40,
   leisureValue: 1,
@@ -319,7 +321,7 @@ export const BANK = {
   maxLoans: 3,
   maxTerms: 5,
   catchUpDays: 60,
-  npc: { keepBase: 40, keepSpread: 60, broke: 15, borrowBase: 60, dueSoon: 1, maxLine: 3, urgentGap: 60, restGap: 8 * 60 },
+  npc: { keepBase: 40, keepSpread: 60, broke: 15, need: 40, repayShare: 0.5, repayMin: 10, dueSoon: 1, maxLine: 3, urgentGap: 60, restGap: 8 * 60 },
 };
 
 export const ATM = {

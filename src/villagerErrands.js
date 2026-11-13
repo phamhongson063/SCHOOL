@@ -1,6 +1,7 @@
 import { between } from './random.js';
 import { VILLAGER, BANK, ATM } from './config.js';
 import { BLOCKED, NAGS, pick } from './villagerData.js';
+import { economy } from './economy.js';
 
 export class ErrandBehavior {
   enqueue(queue, serve) {
@@ -154,7 +155,7 @@ export class ErrandBehavior {
   }
 
   bankClient() {
-    return { id: this.id, purse: this.purse, thrift: this.thrift, roll: this.bankRoll };
+    return { id: this.id, purse: this.purse, thrift: this.thrift, roll: this.bankRoll, income: economy.dailyFlow(this.id) };
   }
 
   nearestAtm() {

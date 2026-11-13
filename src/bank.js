@@ -372,7 +372,35 @@ export function createBank({ ledger, estate, now }) {
     };
   }
 
-  function npcPlan({ id, purse, thrift, roll }) {
+  function repayOrder(t) {
+    const pressure = (loan) => (dueOf(loan) <= t ? 2 : dueOf(loan) - t <= BANK.npc.dueSoon * DAY_MINUTES ? 1 : 0);
+    return (a, b) => pressure(b) - pressure(a) || b.rate - a.rate;
+  }
+
+  function npcRepay(account, money, t) {
+    const target = [...account.loans].sort(repayOrder(t))[0];
+    const owed = Math.ceil(debtOf(target));
+    const fromCash = Math.min(owed, Math.max(0, money - BANK.npc.broke));
+    const fromSavings = Math.min(Math.floor(account.savings), owed - fromCash);
+    const amount = fromCash + fromSavings;
+    if (amount < Math.min(owed, BANK.npc.repayMin)) return null;
+    return { kind: 'repay', id: target.id, amount, fromSavings, urgent: true };
+  }
+
+  function npcLoan(account, room, need, income) {
+    const capacity = Math.max(0, (income?.earn ?? 0) * BANK.npc.repayShare);
+    const owed = sum(account.loans, debtOf);
+    let best = null;
+    for (const [index, term] of BANK.loanTerms.entries()) {
+      const grow = 1 + loanRate(index) * term.days;
+      const amount = Math.min(need, room, Math.floor((capacity * term.days - owed) / grow));
+      if (amount >= need) return { amount, term: index };
+      if (amount >= BANK.minLoan && (!best || amount > best.amount)) best = { amount, term: index };
+    }
+    return best;
+  }
+
+  function npcPlan({ id, purse, thrift, roll, income = null }) {
     const t = now();
     tick(t);
     const account = state.accounts[id] ?? null;
@@ -381,19 +409,22 @@ export function createBank({ ledger, estate, now }) {
     const keep = BANK.npc.keepBase + BANK.npc.keepSpread * (1 - thrift);
     const liquid = account ? Math.floor(account.savings) : 0;
     const loans = account?.loans ?? [];
-    const urgent = loans.find((loan) => dueOf(loan) - t <= BANK.npc.dueSoon * DAY_MINUTES);
-    if (urgent && money > BANK.npc.broke) return { kind: 'repay', id: urgent.id, amount: money - BANK.npc.broke, urgent: true };
-    if (loans.length && money > keep * 1.5) return { kind: 'repay', id: loans[0].id, amount: Math.floor(money - keep) };
-    if (liquid > 0 && estate.affordableFor(id, money + liquid - VILLAGER.houseReserve) && !estate.affordableFor(id, money - VILLAGER.houseReserve)) {
+    if (loans.length) {
+      const repayPlan = npcRepay(account, money, t);
+      if (repayPlan) return repayPlan;
+    }
+    if (!loans.length && liquid > 0 && estate.affordableFor(id, money + liquid - VILLAGER.houseReserve) && !estate.affordableFor(id, money - VILLAGER.houseReserve)) {
       return { kind: 'withdraw', amount: liquid, urgent: true };
     }
     if (money < keep * 0.4 && liquid > 0) return { kind: 'withdraw', amount: Math.min(liquid, Math.ceil(keep - money)), urgent: true };
     if (money < BANK.npc.broke && !loans.some((loan) => dueOf(loan) <= t)) {
+      if (loans.length >= BANK.maxLoans) return null;
+      const appetite = Math.min(1, ((1 - thrift) * (BANK.deposit.base + BANK.loan.spread)) / state.loan);
+      if (roll >= appetite) return null;
       const room = roomFor(id, account ?? blankAccount(), t);
-      const want = Math.min(room, Math.round(BANK.npc.borrowBase + keep * 0.5));
-      const appetite = ((1 - thrift) * (BANK.deposit.base + BANK.loan.spread)) / state.loan;
-      if (want >= BANK.minLoan && loans.length < BANK.maxLoans && roll < appetite) return { kind: 'borrow', amount: want, term: thrift < 0.3 ? 0 : 1, urgent: true };
-      return null;
+      const need = Math.max(BANK.minLoan, BANK.npc.need - money);
+      const loan = npcLoan(account ?? blankAccount(), room, need, income);
+      return loan ? { kind: 'borrow', amount: loan.amount, term: loan.term, urgent: true } : null;
     }
     const surplus = Math.floor(money - keep);
     if (surplus < Math.max(BANK.minDeposit, keep)) return null;
@@ -419,6 +450,7 @@ export function createBank({ ledger, estate, now }) {
       const result = borrow(id, purse, plan.amount, plan.term);
       return result.ok ? `🏦 Vay tạm ${coins(plan.amount)}...` : result.text;
     }
+    if (plan.fromSavings > 0) withdraw(id, purse, plan.fromSavings);
     const result = repay(id, purse, plan.id, plan.amount);
     return result.ok ? `🏦 ${result.text}` : result.text;
   }

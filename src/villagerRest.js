@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, CERTIFY } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, CERTIFY, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
@@ -165,19 +165,30 @@ export class RestBehavior {
     this.say('✓', 1.2);
   }
 
+  debt() {
+    return this.town.bank?.debt(this.id) ?? 0;
+  }
+
+  frugal() {
+    if (this.debt() > 0) return true;
+    const flow = economy.dailyFlow(this.id);
+    return !!flow && flow.spent > flow.earn && this.purse.money < MIND.comfortMoney;
+  }
+
   wantsFood(ctx) {
     if (this.purse.energy >= ENERGY.low || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
     return Object.values(FOODS).some((food) => food.price <= this.purse.money);
   }
 
   wantsInn() {
-    return this.innGoer && this.purse.energy < ENERGY.low && !!this.pickLodge(false);
+    return this.innGoer && this.purse.energy < ENERGY.low && !this.frugal() && !!this.pickLodge(false);
   }
 
   pickLodge(allowGround = true) {
     const money = this.purse.money;
     const options = [];
-    for (const spot of this.town.lodgeSpots) {
+    const spots = this.frugal() ? [] : this.town.lodgeSpots;
+    for (const spot of spots) {
       const lodge = roomTier(spot.id);
       if (lodge.price * VILLAGER.lodgeNights > money || !isFree(spot.id, this)) continue;
       const taste = 1 - Math.abs(this.comfort - lodge.comfort);
@@ -324,8 +335,11 @@ export class RestBehavior {
   feast(foods, seller) {
     const purse = this.purse;
     const eaten = [];
-    for (const food of Object.values(foods).sort((a, b) => b.energy - a.energy)) {
-      while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
+    const frugal = this.frugal();
+    const full = ENERGY.max * (frugal ? VILLAGER.frugalFull : 0.8);
+    const order = frugal ? (a, b) => a.price / a.energy - b.price / b.energy : (a, b) => b.energy - a.energy;
+    for (const food of Object.values(foods).sort(order)) {
+      while (purse.energy < full && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
         economy.income(seller, food.price, this.id);
         purse.addEnergy(food.energy);
         eaten.push(food.icon);
@@ -357,7 +371,7 @@ export class RestBehavior {
   }
 
   wantsMart() {
-    return !!this.nearestMart() && this.purse.total('snack') === 0 && this.purse.money >= MART.reserve && Math.random() < MART.chance;
+    return !!this.nearestMart() && this.purse.total('snack') === 0 && this.purse.money >= MART.reserve && Math.random() < MART.chance && !this.frugal();
   }
 
   goMart() {

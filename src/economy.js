@@ -209,6 +209,12 @@ export const economy = {
     store.save();
     return gross - tax;
   },
+  dailyFlow(id) {
+    const flow = state.flows[id];
+    if (!flow || state.observed < ECONOMY.offline.minSample) return null;
+    const scale = DAY_MINUTES / state.observed;
+    return { earn: flow.earn * scale, spent: flow.spent * scale };
+  },
   reward(purse, amount) {
     purse.earn(amount);
     if (ctx) trackEarn(purse.id, amount);
