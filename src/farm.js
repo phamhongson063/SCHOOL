@@ -163,7 +163,7 @@ class Leases {
 function seedOptions(purse) {
   return Object.keys(CROPS)
     .filter((id) => purse.count(seedId(id)) > 0)
-    .map((id) => ({ id, icon: CROPS[id].icon, art: id, name: `×${purse.count(seedId(id))}`, label: `${CROPS[id].name} ×${purse.count(seedId(id))}` }));
+    .map((id) => ({ id, icon: CROPS[id].icon, art: id, name: `${CROPS[id].name} ×${purse.count(seedId(id))}` }));
 }
 
 const C = {
@@ -332,7 +332,7 @@ class FarmState {
       const bed = bedOf(index);
       if (!this.leases.holds(bed, actor, now)) return { id: 'look', hint: null };
       const options = seedOptions(purse);
-      return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options } } : { id: 'plant', hint: 'seed' };
+      return options.length ? { id: 'plant', hint: 'seed', choices: { title: 'Chọn hạt giống', options, menu: true } } : { id: 'plant', hint: 'seed' };
     }
     if (spot.stage === RIPE) {
       const pick = { kind: 'harvest', applyAt: 'start', count: yieldOf(spot), item: spot.crop };

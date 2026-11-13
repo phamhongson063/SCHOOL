@@ -277,7 +277,7 @@ export const BLESSING = {
 };
 
 export const RANKING = {
-  hours: [6 * 60, 12 * 60, 18 * 60],
+  hours: Array.from({ length: 24 }, (_, hour) => hour * 60),
 };
 
 export const BANK = {
