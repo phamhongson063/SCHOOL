@@ -54,6 +54,7 @@ import { book, leaveRoom } from './lodging.js';
 import { MOUNTAIN, terrainHeight, terrainFloor, navSurface, nearShelter } from './terrain.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
+import { watchUpdates } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
 import { createAngler } from './angler.js';
@@ -271,6 +272,7 @@ createSettings({
     window.location.reload();
   },
 });
+watchUpdates();
 
 const regions = new RegionManager({ scene, obstacles: school.obstacles });
 regions.add({

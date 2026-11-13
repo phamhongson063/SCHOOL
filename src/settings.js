@@ -20,7 +20,7 @@ function codeFiles() {
   return [...urls];
 }
 
-async function refreshFiles() {
+export async function refreshFiles() {
   await Promise.allSettled(codeFiles().map((url) => fetch(url, { cache: 'reload' }).then((response) => response.arrayBuffer())));
 }
 
