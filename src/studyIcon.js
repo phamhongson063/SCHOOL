@@ -24,10 +24,23 @@ function paintBadge(ctx, size, emoji) {
   ctx.lineWidth = size * 0.06;
   ctx.strokeStyle = '#c9962f';
   ctx.stroke();
-  ctx.font = `${size * 0.5}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  const digits = /^\d+$/.test(emoji) ? emoji.length : 0;
+  ctx.fillStyle = '#6b4a12';
+  ctx.font = `${digits ? 'bold ' : ''}${size * (digits > 1 ? 0.42 : 0.5)}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
+}
+
+const turnMaterials = new Map();
+
+export function turnBadgeMaterial(turn) {
+  let material = turnMaterials.get(turn);
+  if (!material) {
+    material = badgeMaterial(String(turn));
+    turnMaterials.set(turn, material);
+  }
+  return material;
 }
 
 let studyMaterial = null;

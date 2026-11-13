@@ -26,6 +26,11 @@ export class SeatWaitlist {
     return !!this.lineOf(who);
   }
 
+  turnOf(who) {
+    const found = this.lineOf(who);
+    return found ? found.line.entries.indexOf(found.entry) + 1 : 0;
+  }
+
   join(deck, who, { ready, take }) {
     const line = this.lines.get(deck);
     if (!line) return null;

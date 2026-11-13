@@ -43,7 +43,7 @@ import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, s
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
 import { createAwaySim } from './villagerAway.js';
-import { createStudyIcon, badgeMaterial } from './studyIcon.js';
+import { createStudyIcon, badgeMaterial, turnBadgeMaterial } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter, plazaFloor } from './quarter.js';
@@ -606,7 +606,8 @@ const seatedAvatar = modelReady ? createModel('player', { seated: true }) : crea
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
 seatedAvatar.group.add(playerStudyIcon);
-const playerBookIcon = new THREE.Sprite(badgeMaterial('🪑'));
+const bookMaterial = badgeMaterial('🪑');
+const playerBookIcon = new THREE.Sprite(bookMaterial);
 playerBookIcon.scale.setScalar(0.42);
 playerBookIcon.renderOrder = 6;
 playerBookIcon.visible = false;
@@ -1027,6 +1028,12 @@ function bookSeat(deck, teacher) {
   playerBookIcon.visible = true;
   player.requestMove(booking.target, false);
   seatWait.update(clock.elapsedTime);
+}
+
+function updateBookIcon() {
+  if (!playerBookIcon.visible) return;
+  const turn = seatWait.turnOf('player');
+  playerBookIcon.material = turn ? turnBadgeMaterial(turn) : bookMaterial;
 }
 
 function updateBooking() {
@@ -1742,6 +1749,7 @@ renderer.setAnimationLoop((time) => {
   updateExamTrip();
   seatWait.update(t);
   updateBooking();
+  updateBookIcon();
   updateListeners();
   school.update(t);
   for (const hall of studyHalls) hall.update(t, camera);

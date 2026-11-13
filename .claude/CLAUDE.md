@@ -9,3 +9,5 @@
 - **Giữ luật game tách khỏi phần vẽ 3D**: logic mới (trạng thái, giá, phí, năng lượng, quyết định của NPC, kinh tế) phải nằm trong hàm/module không phụ thuộc Three.js hay DOM, giống `bank.js`, `certify.js`, `economy.js`, `market.js`.
   - Phần vẽ (model, hoạt ảnh, hiệu ứng, UI) chỉ gọi vào luật, không chứa luật.
   - Lý do: sau này làm thế giới chung, luật phải chạy được trên máy chủ (Node) mà không cần tách lại.
+- **Nghiêm cấm viền cam/vàng bên trong popup**: không dùng `outline` (hay `box-shadow inset`, `border` lồng, pseudo-element) để vẽ khung màu cam/vàng (`--gold`, `--amber`...) thụt vào bên trong popup, dialog, panel. Khung popup chỉ giữ viền gỗ ngoài cùng.
+  - Lý do: user rất ghét kiểu viền này; trước đây nó nằm trong style chung `dialog.paper` nên popup nào cũng dính.
