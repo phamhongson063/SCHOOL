@@ -1,7 +1,7 @@
 import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
-import { ACCOUNT_KEY, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
+import { ACCOUNT_KEY, NEWEST_KEYS, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 import { haltStores } from './persist.js';
-import { auditSeal, dropTampered } from './seal.js';
+import { auditSeal, dropTampered, writeGameItem } from './seal.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
@@ -65,10 +65,23 @@ function snapshot(scope) {
   return JSON.stringify(data);
 }
 
+function stampOf(text) {
+  try {
+    const stamp = JSON.parse(text ?? 'null')?.savedAt;
+    return Number.isFinite(stamp) ? stamp : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function restore(text, scope) {
   const data = JSON.parse(text);
+  const kept = NEWEST_KEYS.filter((key) => scopeOf(key) === scope)
+    .map((key) => [key, localStorage.getItem(key)])
+    .filter(([key, value]) => value !== null && stampOf(value) > stampOf(data[key]));
   for (const key of gameKeys(scope)) localStorage.removeItem(key);
   for (const [key, value] of Object.entries(data)) if (isGameKey(key) && scopeOf(key) === scope && typeof value === 'string') localStorage.setItem(key, value);
+  for (const [key, value] of kept) writeGameItem(key, value);
 }
 
 async function claim(store, db, ref, scope, rev, id) {

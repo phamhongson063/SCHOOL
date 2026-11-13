@@ -424,26 +424,33 @@
     </div>
   </dialog>
   <div id="battleHud" class="battle-hud" popover="manual">
-    <div class="battle-side a">
-      <img class="battle-face" alt="">
-      <div class="battle-info">
-        <span class="battle-name"></span>
-        <span class="battle-hp"><span class="battle-hp-fill"></span></span>
-        <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
+    <div class="battle-row">
+      <div class="battle-side a">
+        <img class="battle-face" alt="">
+        <div class="battle-info">
+          <span class="battle-name"></span>
+          <span class="battle-hp"><span class="battle-hp-fill"></span></span>
+          <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
+        </div>
+      </div>
+      <div class="battle-mid">
+        <span class="battle-round"></span>
+        <span class="battle-word" lang="ja"></span>
+      </div>
+      <div class="battle-side b">
+        <img class="battle-face" alt="">
+        <div class="battle-info">
+          <span class="battle-name"></span>
+          <span class="battle-hp"><span class="battle-hp-fill"></span></span>
+          <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
+        </div>
       </div>
     </div>
-    <div class="battle-mid">
-      <span class="battle-round"></span>
-      <span class="battle-word" lang="ja"></span>
+    <div class="battle-quiz">
+      <span class="battle-kind"></span>
+      <div class="battle-options"></div>
     </div>
-    <div class="battle-side b">
-      <img class="battle-face" alt="">
-      <div class="battle-info">
-        <span class="battle-name"></span>
-        <span class="battle-hp"><span class="battle-hp-fill"></span></span>
-        <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
-      </div>
-    </div>
+  </div>
   </div>
   <dialog id="duelDialog" class="duel" aria-label="Lôi đài">
     <div class="duel-top">
@@ -487,14 +494,21 @@
   </div>
   <div id="arenaCount" class="arena-count" popover="manual" aria-hidden="true"></div>
   <div id="summonVeil" class="summon" hidden>
+    <div class="summon-rays"></div>
     <div class="summon-scroll">
-      <span class="summon-rod"></span>
+      <span class="summon-rod left"><i></i><i></i></span>
       <div class="summon-paper">
-        <span class="summon-seal" aria-hidden="true">敕</span>
-        <p class="summon-title">Thánh chỉ</p>
-        <div class="summon-text"></div>
+        <div class="summon-band"></div>
+        <div class="summon-body">
+          <p class="summon-han" lang="zh">聖旨</p>
+          <p class="summon-title">Thánh chỉ</p>
+          <span class="summon-divider"></span>
+          <div class="summon-text"></div>
+        </div>
+        <div class="summon-band"></div>
+        <span class="summon-seal" aria-hidden="true"><b>敕</b><b>命</b></span>
       </div>
-      <span class="summon-rod"></span>
+      <span class="summon-rod right"><i></i><i></i></span>
     </div>
     <div class="summon-flash"></div>
   </div>

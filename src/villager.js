@@ -9,13 +9,10 @@ import { createHarvesting } from './harvesting.js';
 import { createClearing } from './clearing.js';
 import { createAngler } from './angler.js';
 import { between } from './random.js';
-import { ITEMS } from './inventory.js';
-import { MONEY, VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
+import { VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { leaveRoom } from './lodging.js';
-import { amount } from './format.js';
-import { iconTag } from './itemArt.js';
 import { layDown, restEase } from './walk.js';
 import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
 import { createStudyIcon } from './studyIcon.js';
@@ -169,17 +166,6 @@ export class Villager {
     else this.bubble.show(text, seconds, this.now);
   }
 
-  greet(from) {
-    if (this.state === 'idle') this.facing = Math.atan2(from.x - this.position.x, from.z - this.position.z);
-    const purse = this.purse;
-    const parts = [`${MONEY.icon} ${amount(purse.money)}`];
-    for (const [id, amount] of purse.entries('produce')) parts.push(`${iconTag(ITEMS[id])} ${amount}`);
-    const seeds = purse.total('seed');
-    if (seeds) parts.push(`🌱 ${seeds}`);
-    const house = this.town.estate.houseOf(this.id);
-    this.say(`${this.name}: ${parts.join(' · ')}${house ? ` · 🏠 ${house.id}` : ''}`, 3);
-  }
-
   setVisible(visible) {
     this.present = visible;
     if (!visible) this.bubble.hide();
@@ -192,7 +178,7 @@ export class Villager {
   }
 
   applyLod() {
-    const near = this.present && this.near;
+    const near = this.present && this.near && !this.town.veiled?.has(this.id);
     this.walker.group.visible = near;
     this.shadow.setVisible(near);
     if (this.seated) this.seated.group.visible = this.seatedShown && this.near;

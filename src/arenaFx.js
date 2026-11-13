@@ -13,6 +13,33 @@ const glow = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparen
 const columnGeometry = new THREE.CylinderGeometry(0.55, 0.85, 1, 24, 1, true);
 const floorRing = new THREE.RingGeometry(0.6, 0.9, 40);
 const WARP = { rise: 0.25, fade: 0.9, height: 7 };
+const LABEL = { life: 1.5, rise: 0.9, head: 2.15, width: 2.6, height: 0.65 };
+const SHIELD = { life: 0.55 };
+const shieldGeometry = new THREE.SphereGeometry(0.85, 20, 14);
+
+function labelTexture(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.font = '900 64px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 24;
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = 'rgba(20, 8, 30, 0.9)';
+  ctx.strokeText(text, 256, 66, 496);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 256, 66, 496);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.fillText(text, 256, 62, 496);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
 export function createArenaFx(scene) {
   const root = new THREE.Group();
@@ -27,6 +54,8 @@ export function createArenaFx(scene) {
   }
 
   const beams = [];
+  const labels = [];
+  const shields = [];
 
   return {
     beam(at, color = 0xbfe8ff, size = 1) {
@@ -39,6 +68,21 @@ export function createArenaFx(scene) {
       ring.position.set(at.x, at.y + 0.05, at.z);
       root.add(column, ring);
       beams.push({ column, ring, size, age: 0, meshes: [column, ring] });
+    },
+    label(at, text, { color = '#ffffff', delay = 0, lift = 0, size = 1 } = {}) {
+      const map = labelTexture(text, color);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthTest: false, depthWrite: false }));
+      sprite.renderOrder = 10;
+      sprite.visible = false;
+      root.add(sprite);
+      labels.push({ sprite, map, base: new THREE.Vector3(at.x, at.y + LABEL.head + lift, at.z), size, age: -delay });
+    },
+    shield(at, delay = 0) {
+      const mesh = new THREE.Mesh(shieldGeometry, glow(0x9ad8ff, 0.5));
+      mesh.position.set(at.x, at.y + CHEST, at.z);
+      mesh.visible = false;
+      root.add(mesh);
+      shields.push({ mesh, age: -delay, meshes: [mesh] });
     },
     cast(from, to, color, power = 1) {
       const start = new THREE.Vector3(from.x, from.y + CHEST, from.z);
@@ -56,6 +100,40 @@ export function createArenaFx(scene) {
       live.push({ start, end, orb, ring, flash, power, age: 0, meshes: [orb, ring, flash] });
     },
     update(dt) {
+      for (let i = labels.length - 1; i >= 0; i--) {
+        const item = labels[i];
+        item.age += dt;
+        const { sprite } = item;
+        if (item.age < 0) continue;
+        const k = item.age / LABEL.life;
+        if (k >= 1) {
+          root.remove(sprite);
+          sprite.material.dispose();
+          item.map.dispose();
+          labels.splice(i, 1);
+          continue;
+        }
+        sprite.visible = true;
+        const pop = k < 0.12 ? 0.6 + (k / 0.12) * 0.55 : k < 0.22 ? 1.15 - ((k - 0.12) / 0.1) * 0.15 : 1;
+        sprite.scale.set(LABEL.width * item.size * pop, LABEL.height * item.size * pop, 1);
+        sprite.position.copy(item.base);
+        sprite.position.y += LABEL.rise * Math.sqrt(k);
+        sprite.material.opacity = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+      }
+      for (let i = shields.length - 1; i >= 0; i--) {
+        const item = shields[i];
+        item.age += dt;
+        if (item.age < 0) continue;
+        const k = item.age / SHIELD.life;
+        if (k >= 1) {
+          remove(item);
+          shields.splice(i, 1);
+          continue;
+        }
+        item.mesh.visible = true;
+        item.mesh.scale.setScalar(0.8 + k * 0.4);
+        item.mesh.material.opacity = 0.5 * (1 - k);
+      }
       for (let i = beams.length - 1; i >= 0; i--) {
         const beam = beams[i];
         beam.age += dt;

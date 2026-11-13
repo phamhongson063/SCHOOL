@@ -1,50 +1,21 @@
 import { ARENA } from './config.js';
-import { comboOf, enraged, roundName } from './arena.js';
-import { skillOf } from './arenaReplay.js';
+import { enraged, roundName } from './arena.js';
 import { stageOf } from './arenaIsland.js';
 import { END_REASONS } from './arenaBoard.js';
-import { DECKS, plainText, unitOf } from './studyDecks.js';
+import { KIND_LABELS, LETTERS, buildQuestion } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
 
-const LETTERS = ['A', 'B', 'C', 'D'];
 const COUNTDOWN = ['3', '2', '1', 'Đấu!'];
 const BEAT_MS = 800;
 const REVEAL_MS = 1300;
 const STRIKE_MS = 1900;
 const END_MS = 2200;
 const CHOICE_MS = 20000;
-const SHOT = { back: 9, rise: 2, aim: -0.26 };
+const SHOT = { back: 9, rise: 2.4, aim: -1.55 };
 const SET_MS = 1800;
-const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];
-const KANJI_WORDS = DECKS.n2.cards.map((card) => plainText(card.word)).filter((word) => /[㐀-鿿]/.test(word));
 const TIER_TAGS = { easy: '', normal: '', hard: ' · ⚡ Câu khó' };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function shuffle(list) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
-
-function kanjiQuestion(card) {
-  const answer = plainText(card.word);
-  const near = KANJI_WORDS.filter((word) => word !== answer && word.length === answer.length);
-  const wrong = [...new Set([...(card.kanjiChoices ?? []).map(plainText), ...shuffle([...near])])].filter((word) => word !== answer).slice(0, LETTERS.length - 1);
-  return { word: card.reading, hint: card.meaning, kind: 'kanji', answer, options: shuffle([answer, ...wrong]) };
-}
-
-function buildQuestion(key, tier) {
-  const card = unitOf(key);
-  if (tier === 'hard' && card.reading && card.kanjiChoices?.length) return kanjiQuestion(card);
-  const reading = !!card.reading && (card.distractors?.length ?? 0) >= LETTERS.length - 1 && Math.random() < 0.5;
-  const answer = reading ? card.reading : card.meaning;
-  const pool = reading ? card.distractors : MEANINGS.filter((meaning) => meaning !== card.meaning && !(card.siblingMeanings ?? []).includes(meaning));
-  const options = shuffle([answer, ...shuffle([...pool]).slice(0, LETTERS.length - 1)]);
-  return { word: plainText(card.word).replace(/[[\]]/g, ''), hint: '', kind: reading ? 'reading' : 'meaning', answer, options };
-}
 
 function cardView(root) {
   return {
@@ -64,7 +35,7 @@ function replay(node, className) {
   node.classList.add(className);
 }
 
-export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null, onTurn = null, onLeave = null }) {
+export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null, onTurn = null, onLeave = null, veil = null }) {
   const dialog = document.getElementById('duelDialog');
   const cards = { me: cardView(dialog.querySelector('.duel-card.me')), foe: cardView(dialog.querySelector('.duel-card.foe')) };
   const banner = dialog.querySelector('.duel-banner');
@@ -102,12 +73,17 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     view.name.textContent = need > 1 ? `${label(view.id)} ${'●'.repeat(won)}${'○'.repeat(need - won)}` : label(view.id);
   }
 
+  function setState(view, text, tone = '') {
+    view.state.textContent = text;
+    view.state.className = tone ? `duel-state ${tone}` : 'duel-state';
+  }
+
   function setFighter(view, id, hp) {
     view.id = id;
     view.name.textContent = label(id);
     const face = portraitOf(id);
     if (face) view.face.setAttribute('src', face);
-    view.state.textContent = '';
+    setState(view, '');
     setHp(view, hp);
   }
 
@@ -230,25 +206,24 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     });
   }
 
-  async function playTurn(asked, size, matchKey, match) {
+  async function playTurn(asked, size, match) {
     const quiz = buildQuestion(asked.key, asked.tier);
     const foeId = asked.opponent;
     const sides = { me: asked.side, foe: asked.side === 'a' ? 'b' : 'a' };
     setSets(cards.me, asked.sets[sides.me], asked.need);
     setSets(cards.foe, asked.sets[sides.foe], asked.need);
     turnLabel.textContent = `${roundName(size)}${asked.need > 1 ? ` · Hiệp ${asked.set}` : ''} · Lượt ${asked.turn}`;
-    kind.textContent = `${quiz.kind === 'kanji' ? 'Chữ Hán nào?' : quiz.kind === 'reading' ? 'Cách đọc?' : 'Nghĩa là gì?'}${TIER_TAGS[asked.tier] ?? ''}`;
+    kind.textContent = `${KIND_LABELS[quiz.kind]}${TIER_TAGS[asked.tier] ?? ''}`;
     word.textContent = quiz.word;
     hint.textContent = quiz.hint;
     log.textContent = '';
-    cards.me.state.textContent = '';
-    cards.foe.state.textContent = 'Đang đọc đề…';
+    setState(cards.me, '⏳', 'wait');
+    setState(cards.foe, '⏳', 'wait');
     const buttons = optionButtons(quiz);
     await readPhase(ARENA.read);
-    cards.foe.state.textContent = 'Đang nghĩ…';
-    const foeReady = setTimeout(() => (cards.foe.state.textContent = 'Đã chọn'), asked.rival.seconds * 1000);
+    const foeReady = setTimeout(() => setState(cards.foe, '✓', 'ok'), asked.rival.seconds * 1000);
     const choice = await pickPhase(buttons, asked.seconds);
-    cards.me.state.textContent = choice.button ? 'Đã chọn' : 'Hết giờ';
+    setState(cards.me, choice.button ? '✓' : '⌛', choice.button ? 'ok' : 'wait');
     const foeLeft = asked.rival.seconds - (performance.now() - choice.started) / 1000;
     if (foeLeft > 0) {
       log.textContent = `Chờ ${label(foeId)} chọn…`;
@@ -277,23 +252,14 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     const turn = arena.play(PLAYER, { correct, seconds: choice.seconds }, now());
     if (!turn) return null;
     onTurn?.();
-    const index = match.turns.length - 1;
     for (const [who, side] of Object.entries(sides)) {
       const move = turn[side];
-      cards[who].state.textContent = !move.correct ? '✗' : move.blocked ? `🛡 ${move.seconds.toFixed(1)}s` : `✓ ${move.seconds.toFixed(1)}s`;
+      if (!move.correct) setState(cards[who], '✗', 'bad');
+      else setState(cards[who], `${move.blocked ? '🛡' : '✓'} ${move.seconds.toFixed(1)}s`, 'ok');
     }
     const striker = Object.keys(sides).find((who) => sides[who] === turn.striker);
-    if (striker) {
-      const move = turn[turn.striker];
-      const target = striker === 'me' ? 'foe' : 'me';
-      const skill = skillOf(`${matchKey}:${index}:${turn.striker}`);
-      const parts = [`${label(striker === 'me' ? PLAYER : foeId)} ${skill.icon} ${skill.name}`];
-      if (move.combo >= 2) parts.push(`Liên kích ×${comboOf(move.combo).toFixed(1)}`);
-      if (move.rage) parts.push('🔥 Bạo nộ');
-      if (turn[sides[target]].blocked) parts.push(`${label(target === 'me' ? PLAYER : foeId)} 🛡 đỡ một nửa`);
-      log.textContent = parts.join(' · ');
-      hit(cards[target], move.damage);
-    } else log.textContent = turn.a.correct ? 'Hai bên ngang tốc, đòn triệt tiêu!' : 'Cả hai đều trượt!';
+    log.textContent = '';
+    if (striker) hit(cards[striker === 'me' ? 'foe' : 'me'], turn[turn.striker].damage);
     setHp(cards.me, turn.hp[sides.me]);
     setHp(cards.foe, turn.hp[sides.foe]);
     await wait(STRIKE_MS);
@@ -329,11 +295,11 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
       running = true;
       const round = event.rounds[event.round];
       const size = round.length;
-      const matchKey = `${event.at}:${event.round}:${round.indexOf(match)}`;
       const side = match.a === PLAYER ? 'a' : 'b';
       const foe = side === 'a' ? 'b' : 'a';
       const stage = stageOf(size, round.indexOf(match));
       shot = { x: stage.x, y: stage.y, z: stage.z, toward: side === 'a' ? 1 : -1 };
+      veil?.(match[foe]);
       try {
         setFighter(cards.me, PLAYER, match.hp[side]);
         setFighter(cards.foe, match[foe], match.hp[foe]);
@@ -347,12 +313,13 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
         setOpen(true);
         for (const text of COUNTDOWN) await shout(text);
         for (let asked = arena.question(PLAYER, now()); asked; asked = arena.question(PLAYER, now())) {
-          if (!(await playTurn(asked, size, matchKey, match))) break;
+          if (!(await playTurn(asked, size, match))) break;
         }
         if (match.winner) await ending(match, match.winner === PLAYER);
       } finally {
         clearInterval(ticker);
         setOpen(false);
+        veil?.(null);
         shot = null;
         running = false;
       }

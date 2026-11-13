@@ -102,6 +102,26 @@ function waterTexture() {
   return texture;
 }
 
+function lanternTexture() {
+  return paint(64, (ctx, w, h) => {
+    const glow = ctx.createRadialGradient(w / 2, h * 0.55, 2, w / 2, h * 0.55, w / 2);
+    glow.addColorStop(0, 'rgba(255,220,140,0.9)');
+    glow.addColorStop(1, 'rgba(255,160,60,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,170,80,1)';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.3, h * 0.28);
+    ctx.lineTo(w * 0.7, h * 0.28);
+    ctx.lineTo(w * 0.64, h * 0.8);
+    ctx.lineTo(w * 0.36, h * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,190,1)';
+    ctx.fillRect(w * 0.42, h * 0.5, w * 0.16, h * 0.22);
+  }, 80);
+}
+
 function shaftTexture() {
   return paint(64, (ctx, w, h) => {
     const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -320,10 +340,21 @@ export function createArenaSky(island) {
     return { swing, phase: rand() * Math.PI * 2 };
   });
 
-  const cranes = Array.from({ length: 4 }, (_, i) => {
+  const cranes = Array.from({ length: 8 }, (_, i) => {
     const bird = crane();
     group.add(bird.group);
-    return { ...bird, radius: 26 + i * 6 + rand() * 4, height: 9 + rand() * 10, speed: (0.08 + rand() * 0.05) * (i % 2 ? -1 : 1), angle: rand() * Math.PI * 2, flap: 2.4 + rand() };
+    const flock = i < 4;
+    return { ...bird, radius: flock ? 34 + rand() * 3 : 22 + i * 5 + rand() * 4, height: flock ? 14 + i * 0.8 : 6 + rand() * 12, speed: (0.07 + rand() * 0.04) * (i % 3 ? 1 : -1), angle: flock ? 1.2 + i * 0.09 : rand() * Math.PI * 2, flap: 2.2 + rand() };
+  });
+  for (const bird of cranes.slice(0, 4)) bird.speed = 0.08;
+
+  const lanternMaterial = new THREE.SpriteMaterial({ map: lanternTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const lanterns = Array.from({ length: 26 }, () => {
+    const sprite = new THREE.Sprite(lanternMaterial);
+    const size = 0.9 + rand() * 0.6;
+    sprite.scale.set(size, size * 1.25, 1);
+    group.add(sprite);
+    return { sprite, angle: rand() * Math.PI * 2, radius: 16 + rand() * 30, low: -10 + rand() * 6, y: rand() * 40, speed: 0.5 + rand() * 0.6, drift: (rand() - 0.5) * 0.02, phase: rand() * Math.PI * 2 };
   });
 
   let tint = -1;
@@ -364,6 +395,12 @@ export function createArenaSky(island) {
         islet.mesh.rotation.y += islet.spin * dt;
       }
       for (const banner of banners) banner.swing.rotation.x = Math.sin(t * 1.3 + banner.phase) * 0.12;
+      for (const lantern of lanterns) {
+        lantern.y += lantern.speed * dt;
+        if (lantern.y > 46) lantern.y = 0;
+        lantern.angle += lantern.drift * dt;
+        lantern.sprite.position.set(center.x + Math.cos(lantern.angle) * lantern.radius + Math.sin(t * 0.4 + lantern.phase) * 0.6, center.y + lantern.low + lantern.y, center.z + Math.sin(lantern.angle) * lantern.radius);
+      }
       for (const bird of cranes) {
         bird.angle += bird.speed * dt;
         const x = center.x + Math.cos(bird.angle) * bird.radius;

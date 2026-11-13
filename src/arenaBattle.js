@@ -1,8 +1,9 @@
 import { ARENA } from './config.js';
-import { roundName } from './arena.js';
+import { comboOf, roundName } from './arena.js';
 import { fighterSpot, stageOf } from './arenaIsland.js';
 import { onStage, replayState, resolveAt, skillOf } from './arenaReplay.js';
 import { plainText, unitOf } from './studyDecks.js';
+import { KIND_LABELS, LETTERS, buildQuestion, pickOf, seeded } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
 
 const LATE_MINUTES = 1.5 / 60;
@@ -29,11 +30,15 @@ const setText = (node, text) => {
   if (node.textContent !== text) node.textContent = text;
 };
 
-export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, cast, hidden = () => false, onHit = null }) {
+export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, hidden = () => false, onHit = null }) {
   const hud = document.getElementById('battleHud');
   const views = { a: sideView(hud.querySelector('.battle-side.a')), b: sideView(hud.querySelector('.battle-side.b')) };
   const round = hud.querySelector('.battle-round');
   const word = hud.querySelector('.battle-word');
+  const quizBox = hud.querySelector('.battle-quiz');
+  const quizKind = hud.querySelector('.battle-kind');
+  const quizOptions = hud.querySelector('.battle-options');
+  let quiz = null;
   const popover = typeof hud.showPopover === 'function';
   const fired = new Set();
   let eventAt = null;
@@ -56,24 +61,30 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
 
   function fire(key, size, index, match, turnIndex) {
     const turn = match.turns[turnIndex];
-    const lines = { a: [], b: [] };
-    for (const side of SIDES) {
-      const move = turn[side];
-      if (!move.correct) lines[side].push('✗');
-      else if (move.blocked) lines[side].push('🛡');
-    }
+    const spot = (side) => fighterSpot(size, index, side);
     const striker = turn.striker;
-    if (striker) {
-      const move = turn[striker];
-      const rival = other(striker);
-      const skill = skillOf(`${key}:${turnIndex}:${striker}`);
-      fx.cast(fighterSpot(size, index, striker), fighterSpot(size, index, rival), skill.color, move.damage >= ARENA.hit * CRITICAL ? 1.6 : 1);
-      lines[rival].push(`-${move.damage}`);
-      if (move.combo >= 2) lines[striker].push(`×${move.combo}`);
-      if (move.rage) lines[striker].push('🔥');
+    for (const side of SIDES) {
+      if (!turn[side].correct) fx.label(spot(side), 'Trượt', { color: '#cfc8dc', size: 0.75 });
     }
-    for (const side of SIDES) if (lines[side].length) sayOf(match[side], lines[side].join(' '));
-    if (striker) onHit?.(stageOf(size, index));
+    if (!striker) {
+      if (turn.a.correct && turn.b.correct) for (const side of SIDES) fx.label(spot(side), 'Triệt tiêu', { color: '#9ad8ff', size: 0.8 });
+      return;
+    }
+    const move = turn[striker];
+    const rival = other(striker);
+    const skill = skillOf(`${key}:${turnIndex}:${striker}`);
+    const color = `#${skill.color.toString(16).padStart(6, '0')}`;
+    fx.beam(spot(striker), skill.color, 0.45);
+    fx.cast(spot(striker), spot(rival), skill.color, move.damage >= ARENA.hit * CRITICAL ? 1.6 : 1);
+    fx.label(spot(striker), `${skill.icon} ${skill.name}`, { color, size: 0.95 });
+    if (move.combo >= 2) fx.label(spot(striker), `Liên kích ×${comboOf(move.combo).toFixed(1)}`, { color: '#ffe08a', delay: 0.2, lift: 0.5, size: 0.8 });
+    if (move.rage) fx.label(spot(striker), '🔥 Bạo nộ!', { color: '#ff5a5a', delay: 0.1, lift: 0.95, size: 0.85 });
+    fx.label(spot(rival), `-${move.damage}`, { color: '#ff6b6b', delay: 0.45, size: 1.25 });
+    if (turn[rival].blocked) {
+      fx.shield(spot(rival), 0.4);
+      fx.label(spot(rival), '🛡 Đỡ', { color: '#9ad8ff', delay: 0.4, lift: 0.55, size: 0.8 });
+    }
+    onHit?.(stageOf(size, index));
   }
 
   function noteOf(key, match, turnIndex, side, state) {
@@ -81,12 +92,64 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
     if (!turn) return '';
     const move = turn[side];
     const answered = state.live || state.elapsed >= ARENA.read + move.seconds;
-    if (!answered) return '…';
+    if (!answered) return '⏳';
     if (!move.correct) return `✗ ${move.seconds.toFixed(1)}s`;
     if (turnIndex >= state.resolved) return `✓ ${move.seconds.toFixed(1)}s`;
     if (turn.striker !== side) return '🛡 Đỡ đòn';
     const skill = skillOf(`${key}:${turnIndex}:${side}`);
     return `${skill.icon} ${skill.name} −${move.damage}${move.combo >= 2 ? ` ×${move.combo}` : ''}`;
+  }
+
+  function showQuiz(focus, state) {
+    const { key, match } = focus;
+    const turn = match.turns[state.index];
+    if (state.live || !turn) {
+      quizBox.hidden = true;
+      quiz = null;
+      return null;
+    }
+    quizBox.hidden = false;
+    const id = `${key}:${state.index}`;
+    if (quiz?.id !== id) {
+      const question = buildQuestion(turn.key, turn.tier, seeded(id));
+      const picks = { a: pickOf(question, turn.a.correct, seeded(`${id}:a`)), b: pickOf(question, turn.b.correct, seeded(`${id}:b`)) };
+      const chips = question.options.map((value, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'battle-option';
+        chip.lang = question.kind === 'meaning' ? 'vi' : 'ja';
+        const letter = document.createElement('b');
+        letter.textContent = LETTERS[i];
+        const text = document.createElement('span');
+        text.textContent = value;
+        const marks = document.createElement('i');
+        chip.append(letter, text, marks);
+        return { chip, value, marks };
+      });
+      quizOptions.replaceChildren(...chips.map((item) => item.chip));
+      quiz = { id, question, picks, chips, shown: '' };
+      setText(quizKind, `${KIND_LABELS[question.kind]}${question.hint ? ` · ${question.hint}` : ''}`);
+    }
+    const answered = SIDES.filter((side) => state.elapsed >= ARENA.read + turn[side].seconds);
+    const resolved = state.index < state.resolved;
+    const shown = `${answered.join('')}:${resolved}`;
+    if (shown !== quiz.shown) {
+      quiz.shown = shown;
+      for (const { chip, value, marks } of quiz.chips) {
+        chip.classList.toggle('right', resolved && value === quiz.question.answer);
+        chip.classList.toggle('wrong', resolved && value !== quiz.question.answer && answered.some((side) => quiz.picks[side] === value));
+        marks.replaceChildren(
+          ...answered
+            .filter((side) => quiz.picks[side] === value)
+            .map((side) => {
+              const tag = document.createElement('em');
+              tag.className = side;
+              tag.textContent = match[side] === PLAYER ? 'Bạn' : nameOf(match[side]);
+              return tag;
+            }),
+        );
+      }
+    }
+    return quiz.question;
   }
 
   function render(focus, now) {
@@ -107,7 +170,8 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
     const set = state.live ? match.set ?? 1 : shown?.set ?? 1;
     const inSet = state.live ? match.turns.filter((item) => (item.set ?? 1) === set).length + (match.pending ? 1 : 0) : match.turns.slice(0, state.index + 1).filter((item) => (item.set ?? 1) === set).length;
     setText(round, `${roundName(size)}${(match.need ?? 1) > 1 ? ` · Hiệp ${set}` : ''} · Lượt ${Math.max(1, inSet)}`);
-    setText(word, state.live ? wordOf(match.pending ?? match.turns.at(-1)?.key) : wordOf(match.turns[state.index]?.key));
+    const question = showQuiz(focus, state);
+    setText(word, question ? question.word : state.live ? wordOf(match.pending ?? match.turns.at(-1)?.key) : wordOf(match.turns[state.index]?.key));
   }
 
   return {
@@ -147,13 +211,13 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, 
         if (!onStage(match, now)) return;
         const key = `${event.at}:${event.round}:${index}`;
         const state = replayState(match, now);
+        const mine = match.a === PLAYER || match.b === PLAYER;
         for (let i = 0; i < state.resolved; i++) {
           const id = `${key}:${i}`;
           if (fired.has(id)) continue;
           fired.add(id);
-          if (!match.live && now - resolveAt(match, i) < LATE_MINUTES) fire(key, current.length, index, match, i);
+          if (!match.live && !hidden() && now - resolveAt(match, i) < LATE_MINUTES) fire(key, current.length, index, match, i);
         }
-        const mine = match.a === PLAYER || match.b === PLAYER;
         const stage = stageOf(current.length, index);
         const distance = mine ? -1 : Math.hypot(stage.x - position.x, stage.z - position.z);
         if (distance < best) {

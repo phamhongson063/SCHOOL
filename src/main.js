@@ -677,12 +677,8 @@ function portraitOf(id) {
   portraits.set(id, img.getAttribute('src'));
   return portraits.get(id);
 }
-function sayInArena(id, text) {
-  if (id === PLAYER) sayPlayer(text, 1.4);
-  else town.members.find((member) => member.id === id)?.say(text, 1.4);
-}
-const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage) });
-const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave() });
+const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage) });
+const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave(), veil: (keep) => (keep ? town.veil(keep) : town.unveil()) });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
 arena.onFinish((event) => {
@@ -1248,7 +1244,7 @@ function sceneClick(clientX, clientY, run) {
     return true;
   }
   if (villager) {
-    villager.greet(player.position);
+    villager.greet?.(player.position);
     return true;
   }
   if (school.isTeacher(hit.object)) {

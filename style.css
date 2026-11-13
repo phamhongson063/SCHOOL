@@ -5119,6 +5119,115 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 .battle-hud.shown {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.battle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.battle-quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.battle-quiz[hidden] {
+  display: none;
+}
+
+.battle-kind {
+  overflow: hidden;
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+}
+
+.battle-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.battle-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+  line-height: 1.25;
+  transition: background-color 0.25s;
+}
+
+.battle-option > b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 10px;
+}
+
+.battle-option > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.battle-option > i {
+  position: absolute;
+  top: -7px;
+  right: 4px;
+  display: flex;
+  gap: 3px;
+  font-style: normal;
+}
+
+.battle-option em {
+  padding: 0 5px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #21163a;
+  font: 800 9.5px/1.4 var(--font-ui);
+  font-style: normal;
+  animation: battle-pick 0.3s ease-out both;
+}
+
+.battle-option em.b {
+  background: #ffc2d4;
+}
+
+.battle-option.right {
+  background: rgba(47, 138, 78, 0.85);
+}
+
+.battle-option.wrong {
+  background: rgba(168, 58, 50, 0.85);
+}
+
+@keyframes battle-pick {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .battle-side {
@@ -5279,13 +5388,40 @@ dialog.duel::backdrop {
 }
 
 .duel-vs {
+  position: relative;
+  z-index: 0;
+  display: grid;
   flex: none;
-  padding: 3px 7px;
-  border-radius: 8px;
-  background: #d7263d;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   color: #fff;
-  font: 900 13px/1 var(--font-ui);
-  letter-spacing: 0.04em;
+  font: italic 900 14px/1 var(--font-ui);
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 0 #5a0a14;
+}
+
+.duel-vs::before {
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ff6a7c, #c0142f 50%, #5a0a1a);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 60, 90, 0.8);
+  transform: rotate(45deg);
+  content: "";
+}
+
+.duel-vs::after {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  z-index: -1;
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.85), transparent);
+  transform: translateX(-50%) rotate(28deg);
+  content: "";
 }
 
 .duel-card {
@@ -5311,8 +5447,8 @@ dialog.duel::backdrop {
 
 .duel-face {
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   object-fit: cover;
@@ -5383,6 +5519,24 @@ dialog.duel::backdrop {
   font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.duel-state.ok {
+  color: #5fe07a;
+}
+
+.duel-state.bad {
+  color: #ff7a7a;
+}
+
+.duel-state.wait {
+  animation: duel-wait 1.2s ease-in-out infinite;
+}
+
+@keyframes duel-wait {
+  50% {
+    opacity: 0.45;
+  }
 }
 
 .duel-pop {
@@ -5846,6 +6000,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
   z-index: 2000;
   display: grid;
   place-items: center;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -5854,73 +6009,219 @@ body.in-duel > :not(#app):not(#duelDialog) {
 }
 
 .summon.ceremony {
-  background: radial-gradient(circle at 50% 45%, rgba(40, 20, 6, 0.35), rgba(10, 6, 2, 0.75));
+  background: radial-gradient(circle at 50% 46%, rgba(60, 30, 4, 0.25), rgba(8, 4, 2, 0.82) 70%);
   pointer-events: auto;
 }
 
-.summon-scroll {
+.summon-rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: none;
-  align-items: stretch;
-  width: min(420px, calc(100vw - 48px));
-  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
+  width: 150vmax;
+  height: 150vmax;
+  background:
+    radial-gradient(circle, rgba(255, 228, 160, 0.55), rgba(255, 210, 120, 0.12) 22%, transparent 45%),
+    repeating-conic-gradient(from 0deg, rgba(255, 224, 150, 0.16) 0deg 5deg, transparent 5deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 52%);
+  mask-image: radial-gradient(circle, #000 18%, transparent 52%);
+  transform: translate(-50%, -50%);
+  animation: summon-spin 26s linear infinite;
+}
+
+.summon.ceremony .summon-rays {
+  display: block;
+}
+
+.summon-scroll {
+  --w: min(440px, calc(100vw - 76px));
+  position: relative;
+  display: none;
+  align-items: center;
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.6));
 }
 
 .summon.ceremony .summon-scroll {
   display: flex;
 }
 
-.summon-scroll.open {
-  animation: summon-unfurl 0.9s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+.summon-rod {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  align-self: stretch;
+  width: 16px;
+  margin: -15px 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #3a0a06, #8a1c12 28%, #d0503c 48%, #9a2416 66%, #3a0a06);
 }
 
-.summon-rod {
-  flex: none;
-  width: 18px;
-  border-radius: 9px;
-  background: linear-gradient(90deg, #5e120c, #a8281c 45%, #6e160e);
-  box-shadow: 0 -10px 0 -4px #d8b45a, 0 10px 0 -4px #d8b45a;
+.summon-rod i {
+  position: absolute;
+  left: 50%;
+  width: 24px;
+  height: 18px;
+  border-radius: 45% 45% 40% 40%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #e2b74e 40%, #9a6a14 85%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  transform: translateX(-50%);
+}
+
+.summon-rod i:first-child {
+  top: -12px;
+}
+
+.summon-rod i:last-child {
+  bottom: -12px;
 }
 
 .summon-paper {
   position: relative;
-  flex: 1;
-  padding: 22px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  width: var(--w);
+  min-height: 250px;
+  margin: 0 -3px;
   background:
-    repeating-linear-gradient(90deg, rgba(150, 100, 20, 0.06) 0 2px, transparent 2px 9px),
-    linear-gradient(180deg, #f8e3a2, #efc964 55%, #e2b44a);
-  color: #4a1a0c;
+    linear-gradient(90deg, rgba(90, 50, 0, 0.3), transparent 5%, transparent 95%, rgba(90, 50, 0, 0.3)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60' viewBox='0 0 120 60'%3E%3Cg fill='none' stroke='%23a8741e' stroke-opacity='0.22' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M10 40c0-8 10-10 14-4c2-10 16-10 18 0c6-4 14 0 12 7'/%3E%3Cpath d='M20 38c0-4 6-5 8-2'/%3E%3Cpath d='M70 18c0-8 10-10 14-4c2-10 16-10 18 0c6-4 14 0 12 7'/%3E%3Cpath d='M80 16c0-4 6-5 8-2'/%3E%3C/g%3E%3C/svg%3E") center / 120px 60px,
+    repeating-linear-gradient(0deg, rgba(120, 80, 10, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(120, 80, 10, 0.04) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, #fbe7ab, #f2d077 48%, #e8bd55);
+  color: #3a1206;
   text-align: center;
-  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Noto Serif", serif;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Noto Serif", Georgia, serif;
+}
+
+.summon-band {
+  flex: none;
+  height: 16px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 10c4 0 4-6 8-6s4 6 8 6s4-6 8-6s4 6 4 6' fill='none' stroke='%237a1408' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='4' r='1.3' fill='%237a1408'/%3E%3Ccircle cx='24' cy='4' r='1.3' fill='%237a1408'/%3E%3C/svg%3E") center / 28px 14px repeat-x,
+    linear-gradient(180deg, #d6a43c, #c08a26);
+}
+
+.summon-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 26px 18px;
+}
+
+.summon-han {
+  margin: 0;
+  color: #7a1408;
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.7), 0 -1px 0 rgba(90, 30, 0, 0.25);
+}
+
+.summon-title {
+  margin: 2px 0 0;
+  color: #7a3a10;
+  font-size: 12px;
+  letter-spacing: 0.55em;
+  text-indent: 0.55em;
+  text-transform: uppercase;
+}
+
+.summon-divider {
+  position: relative;
+  width: 60%;
+  height: 1px;
+  margin: 12px 0 10px;
+  background: linear-gradient(90deg, transparent, #7a1408 20%, #7a1408 80%, transparent);
+}
+
+.summon-divider::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  background: #7a1408;
+  transform: translate(-50%, -50%) rotate(45deg);
+  content: "";
+}
+
+.summon-text p {
+  margin: 3px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.summon-text p:first-child {
+  margin-bottom: 6px;
+  font-size: 19px;
+  font-weight: 700;
 }
 
 .summon-seal {
   position: absolute;
-  right: 14px;
-  bottom: 12px;
+  right: 18px;
+  bottom: 24px;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 6px;
-  background: #b3261a;
-  color: #fde7c4;
-  font-size: 26px;
-  transform: rotate(-8deg);
-  opacity: 0.92;
-}
-
-.summon-title {
-  margin: 0 0 10px;
-  font-size: 30px;
-  font-weight: 900;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.summon-text p {
-  margin: 4px 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  background: #a8231a;
+  box-shadow: inset 0 0 0 3px #a8231a, inset 0 0 0 4.5px rgba(255, 225, 190, 0.85);
+  color: #fde6c4;
   font-size: 17px;
+  line-height: 1;
+  opacity: 0;
+  transform: rotate(-9deg);
+}
+
+.summon-seal b {
   font-weight: 700;
+}
+
+.summon-scroll.open {
+  animation: summon-drop 0.35s ease-out both;
+}
+
+.summon-scroll.open .summon-paper {
+  animation: summon-reveal 0.85s cubic-bezier(0.3, 0.8, 0.25, 1) 0.3s both;
+}
+
+.summon-scroll.open .summon-rod.left {
+  animation: summon-rod-left 0.85s cubic-bezier(0.3, 0.8, 0.25, 1) 0.3s both;
+}
+
+.summon-scroll.open .summon-rod.right {
+  animation: summon-rod-right 0.85s cubic-bezier(0.3, 0.8, 0.25, 1) 0.3s both;
+}
+
+.summon-scroll.open .summon-body > * {
+  animation: summon-ink 0.5s ease-out both;
+}
+
+.summon-scroll.open .summon-han {
+  animation-delay: 0.85s;
+}
+
+.summon-scroll.open .summon-title {
+  animation-delay: 0.95s;
+}
+
+.summon-scroll.open .summon-divider {
+  animation-delay: 1.05s;
+}
+
+.summon-scroll.open .summon-text {
+  animation-delay: 1.15s;
+}
+
+.summon-scroll.open .summon-seal {
+  animation: summon-stamp 0.4s cubic-bezier(0.5, 0, 0.6, 1.4) 1.55s both;
 }
 
 .summon-flash {
@@ -5939,18 +6240,75 @@ body.in-duel > :not(#app):not(#duelDialog) {
   animation: summon-flash-out 0.7s ease-out both;
 }
 
-@keyframes summon-unfurl {
+@keyframes summon-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes summon-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes summon-reveal {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes summon-rod-left {
+  from {
+    transform: translateX(calc(var(--w) / 2 - 4px));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes summon-rod-right {
+  from {
+    transform: translateX(calc(var(--w) / -2 + 4px));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes summon-ink {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+@keyframes summon-stamp {
   0% {
     opacity: 0;
-    transform: scale(0.6, 0.2);
+    transform: rotate(-9deg) scale(2.4);
   }
-  35% {
+  70% {
     opacity: 1;
-    transform: scale(0.08, 1);
+    transform: rotate(-9deg) scale(0.92);
   }
   100% {
-    opacity: 1;
-    transform: scale(1, 1);
+    opacity: 0.95;
+    transform: rotate(-9deg) scale(1);
   }
 }
 

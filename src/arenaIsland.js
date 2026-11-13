@@ -289,6 +289,26 @@ function swirlTexture() {
   });
 }
 
+function threadTexture() {
+  const texture = canvasTexture(64, (ctx, size) => {
+    const fade = ctx.createLinearGradient(0, 0, 0, size);
+    fade.addColorStop(0, 'rgba(255,240,200,0)');
+    fade.addColorStop(0.35, 'rgba(255,230,170,0.5)');
+    fade.addColorStop(1, 'rgba(255,250,230,1)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 0, size, size);
+    const edge = ctx.createLinearGradient(0, 0, size, 0);
+    edge.addColorStop(0, 'rgba(0,0,0,1)');
+    edge.addColorStop(0.5, 'rgba(0,0,0,0)');
+    edge.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, size, size);
+  });
+  texture.wrapS = THREE.RepeatWrapping;
+  return texture;
+}
+
 function haloTexture() {
   return canvasTexture(256, (ctx, size) => {
     const c = size / 2;
@@ -463,8 +483,16 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         crystal.position.set(ISLAND.x, CRYSTAL_Y, ISLAND.z);
         crystal.userData.board = true;
         const beamHeight = BOARD.y - BOARD.height / 2 - CRYSTAL_Y;
-        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.7, beamHeight, 20, 1, true), additive({ color: 0xffe6a8, opacity: 0.22 }));
+        const thread = threadTexture();
+        const beam = new THREE.Group();
         beam.position.set(ISLAND.x, CRYSTAL_Y + beamHeight / 2, ISLAND.z);
+        for (const turn of [0, Math.PI / 2]) {
+          const ribbon = new THREE.Mesh(new THREE.PlaneGeometry(0.22, beamHeight), additive({ map: thread, color: 0xffe6a8, opacity: 0.55 }));
+          ribbon.rotation.y = turn;
+          beam.add(ribbon);
+        }
+        const threadMotes = motes(36, 0.18, 0, beamHeight, 0xffe6a8, 0.22, 63);
+        threadMotes.points.position.set(ISLAND.x, CRYSTAL_Y, ISLAND.z);
 
         const stageRunes = PLATFORMS.map((stage) => {
           const mesh = new THREE.Mesh(new THREE.PlaneGeometry(stage.r * 1.7, stage.r * 1.7), additive({ map: runes, opacity: 0.5, color: 0xffe6a8 }));
@@ -480,7 +508,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         islandMotes.points.position.set(ISLAND.x, ISLAND.y, ISLAND.z);
 
         const heaven = createArenaSky(skyLayout());
-        group.add(scenery, heaven.group, vortex, gateRunes, daisRunes, crystal, beam, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
+        group.add(scenery, heaven.group, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
         const look = new THREE.Vector3();
         return {
           group,
@@ -492,7 +520,8 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
             for (const [i, mesh] of stageRunes.entries()) mesh.rotation.z = t * (i % 2 ? 0.2 : -0.2);
             crystal.rotation.y = t * 0.9;
             crystal.position.y = CRYSTAL_Y + Math.sin(t * 1.6) * 0.15;
-            beam.material.opacity = 0.18 + Math.sin(t * 2.1) * 0.06;
+            for (const ribbon of beam.children) ribbon.material.opacity = 0.45 + Math.sin(t * 2.1) * 0.15;
+            threadMotes.update(dt * 4);
             sky.holder.position.y = BOARD.y + Math.sin(t * 0.7) * 0.3;
             camera.getWorldPosition(look);
             sky.holder.rotation.y = Math.atan2(look.x - ISLAND.x, look.z - ISLAND.z);

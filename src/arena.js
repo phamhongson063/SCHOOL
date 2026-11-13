@@ -290,15 +290,16 @@ export function createArena({ ledger, roster = () => [] }) {
   const state = load();
   const purged = state.purged;
   delete state.purged;
-  const store = createStore(KEY, () => ({ version: DATA_VERSION, ...state }));
+  const store = createStore(KEY, () => ({ version: DATA_VERSION, savedAt: Date.now(), ...state }));
   if (purged) store.save();
   const finished = [];
 
-  function eventOf(at) {
+  function eventOf(at, now) {
     if (at === null || (state.event && state.event.at > at)) return null;
     if (!state.event || state.event.at < at) {
       if (state.event) wrapUp(state.event);
       state.event = blankEvent(at);
+      if (now >= at) state.event.phase = 'done';
       store.save();
     }
     return state.event;
@@ -404,7 +405,7 @@ export function createArena({ ledger, roster = () => [] }) {
 
   return {
     tick(now, { present = () => false } = {}) {
-      const event = eventOf(slotOf(now));
+      const event = eventOf(slotOf(now), now);
       if (!event) return;
       const before = signature(event);
       if (event.phase === 'open' && now >= event.at) begin(event, event.at, present);

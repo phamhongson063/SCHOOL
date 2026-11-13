@@ -6,6 +6,8 @@ const LOCAL_PLAYER = 'player';
 const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'studyFurigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key), ACCOUNT_KEY]);
 
 export const worldKey = (name) => WORLD_PREFIX + name;
+
+export const NEWEST_KEYS = [worldKey('arena')];
 export const selfKey = (name) => `${PREFIX}me.${name}`;
 
 export const isGameKey = (key) => Boolean(key?.startsWith(PREFIX)) && !DEVICE_KEYS.has(key);

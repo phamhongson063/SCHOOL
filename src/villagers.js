@@ -98,6 +98,17 @@ export class Town {
     return { x: center.x, z: center.z };
   }
 
+  veil(keep) {
+    this.veiled = new Set(this.all.filter((member) => member.id !== keep).map((member) => member.id));
+    for (const member of this.all) member.applyLod();
+  }
+
+  unveil() {
+    if (!this.veiled) return;
+    this.veiled = null;
+    for (const member of this.all) member.applyLod();
+  }
+
   quizRound() {
     const day = this.context?.day;
     for (const member of this.all) {

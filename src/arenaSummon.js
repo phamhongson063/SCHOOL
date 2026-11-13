@@ -1,4 +1,4 @@
-const SCROLL_MS = 2200;
+const SCROLL_MS = 3000;
 const FLASH_IN_MS = 260;
 const FLASH_OUT_MS = 700;
 
