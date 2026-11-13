@@ -1,7 +1,17 @@
 export class SeatWaitlist {
   constructor(seats, halls) {
     this.seats = seats;
-    this.lines = new Map(halls.map((hall) => [hall.deck, { spots: hall.waitSpots, look: hall.look, entries: [] }]));
+    this.lines = new Map(halls.map((hall) => [hall.deck, { spots: hall.waitSpots, look: hall.look, area: hall.area, entry: hall.entry, entries: [] }]));
+  }
+
+  inside(deck, position) {
+    const area = this.lines.get(deck)?.area;
+    if (!area) return true;
+    return position.x >= area.x0 && position.x <= area.x1 && position.z >= area.z0 && position.z <= area.z1;
+  }
+
+  entry(deck) {
+    return this.lines.get(deck)?.entry ?? null;
   }
 
   lineOf(who) {

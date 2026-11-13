@@ -27,6 +27,7 @@ const WAIT_SPOTS = [
   [-1.3, 7.8],
   [1.3, 7.8],
 ];
+const ENTRY_DEPTH = 1.5;
 const ROOF = { overhang: 0.9, porch: 2, ridge: 3.6, lift: 0.1, rise: 3.4 };
 const ROOF_GAP = 0.08;
 const LACQUER = 0x8a1d14;
@@ -338,6 +339,9 @@ export function createStudyHall(scene, hall) {
     return new THREE.Vector3(x, 0, z);
   });
 
+  const doorIn = frame.point(0, ENTRY_DEPTH);
+  const entry = new THREE.Vector3(doorIn.x, 0, doorIn.z);
+
   const obstacles = local.map(frame.box);
   for (const s of [-1, 1]) {
     const edge = hall.x + s * (door / 2);
@@ -373,6 +377,7 @@ export function createStudyHall(scene, hall) {
     seats,
     internalSeats,
     waitSpots,
+    entry,
     obstacles,
     teacher,
     setNight(k) {

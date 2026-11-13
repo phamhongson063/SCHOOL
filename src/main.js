@@ -63,7 +63,7 @@ import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
-import { buildStudyHall, createStudyHall, STUDY_HALLS } from './studyHall.js';
+import { buildStudyHall, createStudyHall, hallBounds, STUDY_HALLS } from './studyHall.js';
 import { createInn, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
@@ -600,7 +600,7 @@ const studySeats = new Seats(studyHallSeats);
 const internalSeats = new Seats(internalHallSeats);
 const seatWait = new SeatWaitlist(
   studySeats,
-  STUDY_HALLS.map(({ deck }, i) => ({ deck, waitSpots: studyHalls[i].waitSpots, look: studyHalls[i].teacher.at })),
+  STUDY_HALLS.map((hall, i) => ({ deck: hall.deck, waitSpots: studyHalls[i].waitSpots, look: studyHalls[i].teacher.at, area: hallBounds(hall), entry: studyHalls[i].entry })),
 );
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();

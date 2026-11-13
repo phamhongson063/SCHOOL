@@ -116,11 +116,23 @@ export class SchoolBehavior {
   }
 
   goSelfStudy(deck = this.studyDeckWanted()) {
-    const seats = this.town.studySeats;
     if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;
     }
+    const wait = this.town.seatWait;
+    const entry = deck && wait && !wait.inside(deck, this.position) ? wait.entry(deck) : null;
+    if (!entry) {
+      this.pickStudySeat(deck);
+      return;
+    }
+    this.cancel();
+    this.task = 'selfstudy';
+    this.travel(entry, { then: () => this.pickStudySeat(deck), fail: () => this.quitSelfStudy() });
+  }
+
+  pickStudySeat(deck) {
+    const seats = this.town.studySeats;
     const seat = this.studySeatFor(deck);
     this.cancel();
     if (!seat) {
