@@ -5282,3 +5282,387 @@ dialog.paper.phrase-quiz.closing::backdrop {
     font-size: 17px;
   }
 }
+
+dialog.duel {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  border: 0;
+  background: transparent;
+  color: #f4ecff;
+  font: 15px/1.3 var(--font-ui);
+}
+
+dialog.duel[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+dialog.duel::backdrop {
+  background: linear-gradient(rgba(12, 6, 24, 0.45), rgba(12, 6, 24, 0.08) 38%, rgba(12, 6, 24, 0.6));
+}
+
+.duel-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(560px, 100%);
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: rgba(30, 18, 50, 0.9);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.duel-card.foe {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.duel-card.hit {
+  animation: duel-shake 0.4s ease-out;
+}
+
+.duel-face {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  object-fit: cover;
+}
+
+.duel-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.duel-name {
+  overflow: hidden;
+  font-weight: 800;
+  font-size: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.duel-hp {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.duel-hp-fill {
+  position: absolute;
+  inset: 0;
+  background: #4cc764;
+  transform-origin: left center;
+  transition: transform 0.6s ease-out, background-color 0.3s;
+}
+
+.duel-card.foe .duel-hp-fill {
+  transform-origin: right center;
+}
+
+.duel-hp-fill.mid {
+  background: #e0c43a;
+}
+
+.duel-hp-fill.low {
+  background: #e05a4a;
+}
+
+.duel-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.duel-card.foe .duel-meta {
+  flex-direction: row-reverse;
+}
+
+.duel-hp-text {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.duel-state {
+  overflow: hidden;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.duel-pop {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  color: #ff6b6b;
+  font: 900 30px/1 var(--font-ui);
+  text-shadow: 0 2px 0 #2a0a0a;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.duel-pop.show {
+  animation: duel-pop 1.1s ease-out both;
+}
+
+.duel-center {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  pointer-events: none;
+}
+
+.duel-banner {
+  color: #fff;
+  font: 900 64px/1 var(--font-ui);
+  text-shadow: 0 4px 0 #3a1a6a, 0 0 24px rgba(154, 216, 255, 0.7);
+  opacity: 0;
+}
+
+.duel-banner.show {
+  animation: duel-banner 0.8s ease-out both;
+}
+
+.duel-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, 100%);
+}
+
+.duel-bottom .duel-card {
+  width: 100%;
+}
+
+.duel-board {
+  padding: 10px 12px 12px;
+  border-radius: 18px;
+  background: rgba(30, 18, 50, 0.94);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.duel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.duel-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.duel-track {
+  display: block;
+  height: 6px;
+  margin: 6px 0 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.duel-bar {
+  display: block;
+  height: 100%;
+  background: #7cc4ff;
+  transform-origin: left center;
+}
+
+.duel-word {
+  margin: 2px 0 10px;
+  font-weight: 800;
+  font-size: 40px;
+  text-align: center;
+}
+
+.duel-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.duel-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: #3d2c62;
+  color: #f4ecff;
+  font: 600 15px/1.25 var(--font-ui);
+  text-align: left;
+  box-shadow: 0 3px 0 #21163a;
+  cursor: pointer;
+}
+
+.duel-option:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.duel-option.picked,
+.duel-option.right,
+.duel-option.wrong {
+  opacity: 1;
+}
+
+.duel-option.picked {
+  background: #2f6fb8;
+  box-shadow: 0 3px 0 #1d4a80;
+}
+
+.duel-option.right {
+  background: #2f8a4e;
+  box-shadow: 0 3px 0 #1d5a32;
+}
+
+.duel-option.wrong {
+  background: #a83a32;
+  box-shadow: 0 3px 0 #6a221c;
+}
+
+.duel-letter {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  font-weight: 800;
+}
+
+.duel-marks {
+  position: absolute;
+  top: -9px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.duel-mark {
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #21163a;
+  font: 800 11px/1.3 var(--font-ui);
+}
+
+.duel-mark.foe {
+  background: #ffc2d4;
+}
+
+.duel-log {
+  min-height: 1.3em;
+  margin: 8px 0 0;
+  font-weight: 700;
+  text-align: center;
+}
+
+@keyframes duel-banner {
+  0% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes duel-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -34px) scale(1);
+  }
+}
+
+@keyframes duel-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+@media (max-width: 420px) {
+  .duel-face {
+    width: 46px;
+    height: 46px;
+  }
+
+  .duel-word {
+    font-size: 32px;
+  }
+
+  .duel-option {
+    min-height: 52px;
+    font-size: 14px;
+  }
+
+  .duel-banner {
+    font-size: 52px;
+  }
+}
+
+.arena-banner {
+  position: fixed;
+  inset: 10px auto auto 50%;
+  transform: translateX(-50%);
+  display: none;
+  margin: 0;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(24, 14, 30, 0.86);
+  color: #f3e9d2;
+  font: 700 15px/1.3 var(--font-ui);
+  pointer-events: none;
+}
+
+.arena-banner.shown {
+  display: block;
+}

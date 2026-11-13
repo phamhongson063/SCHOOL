@@ -3,6 +3,7 @@ import { roundName } from './arena.js';
 import { fighterSpot, stageOf } from './arenaIsland.js';
 import { onStage, replayState, resolveAt, skillOf } from './arenaReplay.js';
 import { plainText, unitOf } from './studyDecks.js';
+import { waitText } from './arenaBoard.js';
 import { PLAYER } from './inventory.js';
 
 const LATE_MINUTES = 1.5 / 60;
@@ -29,8 +30,9 @@ const setText = (node, text) => {
   if (node.textContent !== text) node.textContent = text;
 };
 
-export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here }) {
+export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here, hidden = () => false }) {
   const hud = document.getElementById('battleHud');
+  const banner = document.getElementById('arenaBanner');
   const views = { a: sideView(hud.querySelector('.battle-side.a')), b: sideView(hud.querySelector('.battle-side.b')) };
   const round = hud.querySelector('.battle-round');
   const word = hud.querySelector('.battle-word');
@@ -38,14 +40,27 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here }
   const fired = new Set();
   let eventAt = null;
   let open = false;
+  let notice = false;
+
+  function toggle(node, visible) {
+    node.classList.toggle('shown', visible);
+    if (!popover) return;
+    if (visible) node.showPopover();
+    else node.hidePopover();
+  }
 
   function show(visible) {
     if (visible === open) return;
     open = visible;
-    hud.classList.toggle('shown', visible);
-    if (!popover) return;
-    if (visible) hud.showPopover();
-    else hud.hidePopover();
+    toggle(hud, visible);
+  }
+
+  function announce(text) {
+    const visible = !!text;
+    if (visible) setText(banner, text);
+    if (visible === notice) return;
+    notice = visible;
+    toggle(banner, visible);
   }
 
   function fire(key, size, index, match, turnIndex) {
@@ -109,11 +124,6 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here }
       fired.add(`${key}:${turn}`);
       fire(key, current.length, index, match, turn);
     },
-    raise() {
-      if (!open || !popover) return;
-      hud.hidePopover();
-      hud.showPopover();
-    },
     update(now, dt, position) {
       fx.update(dt);
       const event = arena.event;
@@ -121,11 +131,17 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here }
         eventAt = event?.at ?? null;
         fired.clear();
       }
+      const quiet = hidden() || !here();
+      announce(quiet ? null : waitText(event, now));
       if (event?.phase !== 'running') {
         show(false);
         return;
       }
       const current = event.rounds[event.round];
+      if (!current) {
+        show(false);
+        return;
+      }
       let focus = null;
       let best = Infinity;
       current.forEach((match, index) => {
@@ -146,7 +162,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, sayOf, here }
           focus = { key, match, size: current.length };
         }
       });
-      const visible = !!focus && here();
+      const visible = !!focus && !quiet;
       show(visible);
       if (visible) render(focus, now);
     },

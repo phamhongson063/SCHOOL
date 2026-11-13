@@ -14,9 +14,23 @@ export const PALETTES = {
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
+const countdown = (minutes) => {
+  const seconds = Math.max(0, Math.ceil(minutes * 60));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
+export function waitText(event, now) {
+  if (event?.phase !== 'running') return null;
+  if (event.round < 0) return `Khai mạc sau ${countdown((event.firstAt ?? event.at) - now)}`;
+  const round = event.rounds[event.round];
+  if (round.some((match) => !match.winner)) return null;
+  const next = round[0].startAt + ARENA.roundMinutes;
+  return round.length === 1 ? `Trao thưởng sau ${countdown(next - now)}` : `${roundName(round.length / 2)} sau ${countdown(next - now)}`;
+}
+
 export function bracketKey(event, now) {
   if (!event) return 'none';
-  const parts = [event.at, event.phase, event.round, event.entrants.length];
+  const parts = [event.at, event.phase, event.round, event.entrants.length, waitText(event, now)];
   for (const round of event.rounds) for (const match of round) parts.push(`${match.a}|${match.b}|${match.winner ?? ''}|${onStage(match, now) ? 1 : 0}`);
   return parts.join(';');
 }
@@ -48,7 +62,7 @@ function headline(event, now) {
   const time = `Lôi đài ${clockText(event.at)}`;
   if (event.phase === 'open') return `${time} · Ghi danh ${event.entrants.length}/${ARENA.size}`;
   if (event.phase === 'done') return `${time} · Đã kết thúc`;
-  return `${time} · ${roundName(event.rounds[event.round].length)}`;
+  return `${time} · ${waitText(event, now) ?? roundName(event.rounds[event.round].length)}`;
 }
 
 export function drawBracket(ctx, { width, height }, event, { nameOf, now, palette }) {

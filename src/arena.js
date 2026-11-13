@@ -111,7 +111,7 @@ function cleanAnswer(raw) {
 }
 
 function newMatch(a, b) {
-  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, asked: [], pending: null, turns: [] };
+  return { a, b, winner: null, forfeit: null, live: false, startAt: null, hp: { a: ARENA.hp, b: ARENA.hp }, time: { a: 0, b: 0 }, asked: [], pending: null, rival: null, turns: [] };
 }
 
 function pickKey(match, deck) {
@@ -132,6 +132,7 @@ function decide(match) {
   match.winner = match[side];
   match.live = false;
   match.pending = null;
+  match.rival = null;
 }
 
 function forfeit(match, id) {
@@ -140,6 +141,7 @@ function forfeit(match, id) {
   match.winner = match[other(side)];
   match.live = false;
   match.pending = null;
+  match.rival = null;
 }
 
 function resolveTurn(match, key, answers) {
@@ -154,6 +156,7 @@ function resolveTurn(match, key, answers) {
   }
   match.asked.push(key);
   match.pending = null;
+  match.rival = null;
   match.turns.push(turn);
   turn.hp = { ...match.hp };
   if (match.hp.a <= 0 || match.hp.b <= 0 || match.turns.length >= ARENA.turns) decide(match);
@@ -276,10 +279,15 @@ export function createArena({ ledger, roster = () => [] }) {
     }
     draw(event);
     event.phase = 'running';
-    startRound(event, at, present);
+    event.firstAt = at + ARENA.opening;
   }
 
   function advance(event, now, present) {
+    if (event.phase === 'running' && event.round < 0) {
+      const first = event.firstAt ?? event.at;
+      if (now < first) return;
+      startRound(event, first, present);
+    }
     while (event.phase === 'running') {
       const round = event.rounds[event.round];
       const at = round[0].startAt;
@@ -301,7 +309,7 @@ export function createArena({ ledger, roster = () => [] }) {
   function liveMatch(id) {
     const event = state.event;
     if (event?.phase !== 'running') return null;
-    return event.rounds[event.round].find((match) => match.live && sideOf(match, id)) ?? null;
+    return event.rounds[event.round]?.find((match) => match.live && sideOf(match, id)) ?? null;
   }
 
   function blocked(id) {
@@ -353,6 +361,8 @@ export function createArena({ ledger, roster = () => [] }) {
     question(id) {
       const match = liveMatch(id);
       if (!match) return null;
+      const side = sideOf(match, id);
+      const rival = other(side);
       if (!match.pending) {
         match.pending = pickKey(match, state.event.deck);
         if (!match.pending) {
@@ -360,10 +370,11 @@ export function createArena({ ledger, roster = () => [] }) {
           store.save();
           return null;
         }
+        match.rival = absorption.respond(match[rival], match.pending, ARENA.seconds);
         store.save();
       }
-      const side = sideOf(match, id);
-      return { key: match.pending, seconds: ARENA.seconds, hp: { ...match.hp }, side, opponent: match[other(side)], turn: match.turns.length + 1 };
+      match.rival ??= absorption.respond(match[rival], match.pending, ARENA.seconds);
+      return { key: match.pending, seconds: ARENA.seconds, hp: { ...match.hp }, side, opponent: match[rival], turn: match.turns.length + 1, rival: { ...match.rival } };
     },
     play(id, answer) {
       const match = liveMatch(id);
@@ -371,7 +382,7 @@ export function createArena({ ledger, roster = () => [] }) {
       const side = sideOf(match, id);
       const rival = other(side);
       const key = match.pending;
-      const turn = resolveTurn(match, key, { [side]: answer, [rival]: absorption.respond(match[rival], key, ARENA.seconds) });
+      const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? absorption.respond(match[rival], key, ARENA.seconds) });
       store.save();
       return turn;
     },

@@ -29,7 +29,7 @@ const ARENA_PICK = 'north:3';
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
 const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const ARENA_SIGN = { bg: 0x2a1a3a, fg: '#ffe08a', border: 0xc9a24a };
-const FIELD_PICK = 'south:4';
+const EMPTY_PICKS = new Set(['south:4', 'north:2']);
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
@@ -74,7 +74,7 @@ function layout() {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
       const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
-      if (`${row.side}:${index}` === FIELD_PICK) return;
+      if (EMPTY_PICKS.has(`${row.side}:${index}`)) return;
       const lodge = LODGE_PICKS[`${row.side}:${index}`];
       if (lodge) {
         house.lodge = lodge;

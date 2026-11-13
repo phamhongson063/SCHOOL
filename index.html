@@ -446,6 +446,37 @@
       </div>
     </div>
   </div>
+  <dialog id="duelDialog" class="duel" aria-label="Lôi đài">
+    <div class="duel-card foe">
+      <img class="duel-face" alt="">
+      <div class="duel-info">
+        <span class="duel-name"></span>
+        <span class="duel-hp"><span class="duel-hp-fill"></span></span>
+        <span class="duel-meta"><span class="duel-hp-text"></span><span class="duel-state"></span></span>
+      </div>
+      <span class="duel-pop" aria-hidden="true"></span>
+    </div>
+    <div class="duel-center"><span class="duel-banner" aria-live="polite"></span></div>
+    <div class="duel-bottom">
+      <div class="duel-card me">
+        <img class="duel-face" alt="">
+        <div class="duel-info">
+          <span class="duel-name"></span>
+          <span class="duel-hp"><span class="duel-hp-fill"></span></span>
+          <span class="duel-meta"><span class="duel-hp-text"></span><span class="duel-state"></span></span>
+        </div>
+        <span class="duel-pop" aria-hidden="true"></span>
+      </div>
+      <div class="duel-board">
+        <div class="duel-head"><span class="duel-turn"></span><span class="duel-kind"></span><span class="duel-clock"></span></div>
+        <span class="duel-track"><span class="duel-bar"></span></span>
+        <p class="duel-word" lang="ja"></p>
+        <div class="duel-options"></div>
+        <p class="duel-log"></p>
+      </div>
+    </div>
+  </dialog>
+  <div id="arenaBanner" class="arena-banner" popover="manual"></div>
   <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
       <header class="sched-head bank-head">

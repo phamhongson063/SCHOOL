@@ -37,7 +37,7 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY, ARENA } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
@@ -95,6 +95,7 @@ import { ISLAND_BOUNDS, createArenaIsland, islandFloor, islandNavFloor } from '.
 import { createArenaTrip } from './arenaTrip.js';
 import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
+import { createArenaDuel } from './arenaDuel.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
 import { arenaLines, createArenaDesk } from './arenaDesk.js';
 
@@ -677,47 +678,15 @@ function sayInArena(id, text) {
   if (id === PLAYER) sayPlayer(text, 1.4);
   else town.members.find((member) => member.id === id)?.say(text, 1.4);
 }
-const arenaBattle = createArenaBattle({ arena, fx: createArenaFx(scene), nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here });
+const arenaBattle = createArenaBattle({ arena, fx: createArenaFx(scene), nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here, hidden: () => arenaDuel.open });
+const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, sounds: uiSounds, onTurn: () => arenaBattle.played() });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
   mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true });
 });
-let arenaBusy = false;
 const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping;
-
-async function fightArena() {
-  arenaBusy = true;
-  sayPlayer('⚔️ Tới lượt bạn lên lôi đài!', 2.4);
-  try {
-    for (let asked = arena.question(PLAYER); asked; asked = arena.question(PLAYER)) {
-      const rival = asked.side === 'a' ? 'b' : 'a';
-      const asking = kanjiQuiz.ask({
-        key: asked.key,
-        icon: '⚔️',
-        seconds: asked.seconds,
-        level: `Lôi đài · ${asked.turn}`,
-        clock: `❤️ ${asked.hp[asked.side]} · ${nameOf(asked.opponent)} ❤️ ${asked.hp[rival]}`,
-        brief: true,
-        closeAfter: 900,
-        kind: Math.random() < 0.5 ? 'reading' : 'meaning',
-        choices: arena.event.deck === 'n2' ? 4 : 0,
-        lock: ARENA.read,
-        onAnswer: (right) => (right ? uiSounds.correct() : uiSounds.wrong()),
-      });
-      arenaBattle.raise();
-      const result = await asking;
-      if (!arena.play(PLAYER, { correct: result.correct && !result.cancelled, seconds: result.seconds ?? asked.seconds })) break;
-      arenaBattle.played();
-    }
-  } finally {
-    arenaBusy = false;
-  }
-  const event = arena.event;
-  const lost = event?.rounds.some((round) => round.some((match) => (match.a === PLAYER || match.b === PLAYER) && match.winner && match.winner !== PLAYER));
-  sayPlayer(lost ? '⚔️ Thua mất rồi...' : '⚔️ Thắng rồi!', 2.4);
-}
 
 function updateArena(dt) {
   arena.tick(gameNow(), { present: arenaPresent });
@@ -725,7 +694,7 @@ function updateArena(dt) {
   arenaTrip.update(now, clock.elapsedTime);
   arenaBattle.update(now, dt, player.position);
   arenaIsland.paintBoard(bracketKey(arena.event, now), (ctx) => drawBracket(ctx, BOARD_SIZE, arena.event, { nameOf, now, palette: PALETTES.board }));
-  if (!arenaBusy && arenaTrip.fighting && arena.liveMatch(PLAYER) && !kanjiQuiz.open && !exams.running) fightArena();
+  if (!arenaDuel.running && arenaTrip.fighting && arena.liveMatch(PLAYER) && !kanjiQuiz.open && !exams.running) arenaDuel.run();
 }
 const blessingDialog = createBlessingDialog({
   blessing,
@@ -1852,7 +1821,7 @@ renderer.setAnimationLoop((time) => {
   const focus = mode === 'overview' ? orbit.target : player.position;
   regions.update(t, dt, focus);
   updateSoundscape(focus);
-  quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
+  quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
   updateBlessingRewards();
