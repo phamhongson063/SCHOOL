@@ -984,9 +984,9 @@ function beginExamSitting() {
   }, SIT_DIM_MS);
 }
 const TEACHER_MENU = [
-  { id: 'book', name: 'Đặt chỗ', icon: '🪑' },
-  { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝' },
-  { id: 'about', name: 'Giới thiệu', icon: '❓' },
+  { id: 'book', name: 'Đặt chỗ', icon: '🪑', art: 'scroll' },
+  { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝', art: 'scroll' },
+  { id: 'about', name: 'Giới thiệu', icon: '❓', art: 'question' },
 ];
 const BOOK_REACH = 1.2;
 const BOOK_RETRIES = 3;

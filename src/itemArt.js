@@ -116,6 +116,18 @@ const ART = {
     <path d="M3 32 q4 2 8 1" fill="none" stroke-width="1.5"/>
     ${eye(10, 29, 2.3)}
   </g>`),
+  scroll: svg(`
+    <path d="M17 14 H47 V52 H17 Z" fill="#ead7a4"/>
+    <path d="M23 23 H41 M23 29 H41 M23 35 H38 M23 41 H40" stroke="#9a7444" stroke-width="2" fill="none"/>
+    <rect x="11" y="8" width="42" height="9" rx="4.5" fill="#c99b5a"/>
+    <rect x="11" y="49" width="42" height="9" rx="4.5" fill="#c99b5a"/>
+    <path d="M15 11 H49 M15 52 H49" stroke="#e8c48a" stroke-width="1.6" fill="none"/>
+  `),
+  question: svg(`
+    <path d="M21 22 C21 10 43 9 43 21 C43 30 32 30 32 40" stroke="${OUT}" stroke-width="12" fill="none"/>
+    <path d="M21 22 C21 10 43 9 43 21 C43 30 32 30 32 40" stroke="#f2cf63" stroke-width="6.5" fill="none"/>
+    <circle cx="32" cy="52" r="5.5" fill="#f2cf63"/>
+  `),
 };
 
 const images = new Map();

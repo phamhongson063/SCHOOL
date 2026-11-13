@@ -108,6 +108,7 @@ const leaseOptions = (renew = false) =>
   FARMING.leases.map((offer, i) => ({
     id: `${LEASE_CHOICE}${i}`,
     icon: '📜',
+    art: 'scroll',
     name: `${renew ? '+' : ''}${offer.days} ngày · ${coins(offer.price)}`,
     label: `${renew ? 'Gia hạn' : 'Thuê'} ${offer.days} ngày, ${coins(offer.price)}`,
   }));

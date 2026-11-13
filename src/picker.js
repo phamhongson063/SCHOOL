@@ -6,7 +6,8 @@ const MARGIN = 12;
 export function createPicker() {
   const panel = document.getElementById('picker');
   const list = panel.querySelector('.picker-options');
-  const heading = panel.querySelector('.picker-title');
+  const head = panel.querySelector('.picker-head');
+  const heading = head.querySelector('.picker-title');
   let onPick = null;
 
   function close() {
@@ -39,7 +40,7 @@ export function createPicker() {
     panel.setAttribute('aria-label', title);
     panel.classList.toggle('menu', menu);
     heading.textContent = title;
-    heading.hidden = !menu;
+    head.hidden = !menu;
     list.replaceChildren(...options.map(option));
     onPick = pick;
     panel.hidden = false;
@@ -52,6 +53,8 @@ export function createPicker() {
     panel.classList.toggle('tailless', top + height > y - 4);
     list.firstElementChild?.focus({ preventScroll: true });
   }
+
+  head.querySelector('.picker-x').addEventListener('click', close);
 
   document.addEventListener('pointerdown', (event) => {
     if (!panel.hidden && !panel.contains(event.target)) close();
