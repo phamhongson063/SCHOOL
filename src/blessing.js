@@ -813,6 +813,16 @@ export function createBlessing(scene) {
       testing.add(id);
       return true;
     },
+    standing(id, minutes) {
+      return member(id, minutes) ? { session: members.get(id), testing: testing.has(id) } : null;
+    },
+    resume(id, saved, minutes) {
+      if (!active(minutes) || saved?.session !== sessionAt(minutes)) return false;
+      members.set(id, saved.session);
+      if (saved.testing === true) testing.add(id);
+      else testing.delete(id);
+      return true;
+    },
     altarFor() {
       return altarSpots[Math.floor(Math.random() * altarSpots.length)];
     },

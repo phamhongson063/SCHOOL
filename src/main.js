@@ -340,6 +340,7 @@ regions.add(
   }),
 );
 const PLACE_KEY = 'langsch.player';
+const BLESSING_KEY = 'langsch.blessing';
 const VILLAGERS_KEY = worldKey('villagers');
 function loadPlace() {
   try {
@@ -560,6 +561,7 @@ function savePlace() {
   const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
   try {
     writeGameItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
+    writeGameItem(BLESSING_KEY, JSON.stringify(blessing.standing(PLAYER, gameNow())));
     if (town?.started) writeGameItem(VILLAGERS_KEY, JSON.stringify(town.snapshot(clock.elapsedTime, context.minutes)));
   } catch {}
 }
@@ -659,6 +661,9 @@ const blessingDialog = createBlessingDialog({
   },
   onStart: () => blessing.startTest(PLAYER, context.minutes),
 });
+try {
+  blessing.resume(PLAYER, JSON.parse(localStorage.getItem(BLESSING_KEY) ?? 'null'), gameNow());
+} catch {}
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 economy.start({
   ledger,
@@ -1536,7 +1541,8 @@ function updateBlessingQuiz(dt) {
   const keys = certify.pool(PLAYER);
   if (!keys.length) return;
   const session = blessing.session(context.minutes);
-  kanjiQuiz.ask({ keys, icon: '✨', quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then((result) => {
+  const correct = blessingTally?.session === session ? blessingTally.correct : 0;
+  kanjiQuiz.ask({ keys, icon: '✨', note: `✅ ${correct}`, quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then((result) => {
     if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
     if (result.correct && session) tallyBlessing(session);
   });

@@ -251,7 +251,7 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, clock = null } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
@@ -266,7 +266,7 @@ export function createKanjiQuiz() {
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
         ui.icon.className = 'quiz-icon hooked';
         pending.blanks = showPrompt(ui, entry, asked);
-        ui.level.textContent = level ?? levelOf(entry);
+        ui.level.textContent = [level ?? levelOf(entry), note].filter(Boolean).join(' · ');
         ui.clock.textContent = clock ?? '';
         ui.clock.hidden = !clock;
         ui.result.textContent = '';

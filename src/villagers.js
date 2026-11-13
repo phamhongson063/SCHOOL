@@ -390,6 +390,8 @@ export class Town {
         entry.study = { seat: seats.indexOf(member.seatRef), left: Math.round(member.studyUntil - t), words: member.sitWords ?? 0, mark: Math.round(t - member.studyMark) };
       } else if (member.present && member.roaming) {
         entry.at = [Math.round(member.position.x * 100) / 100, Math.round(member.position.z * 100) / 100, Math.round(member.facing * 100) / 100];
+        const blessed = this.blessing?.standing(member.id, minutes);
+        if (blessed) entry.blessing = blessed;
       }
       return entry;
     });
@@ -429,6 +431,11 @@ export class Town {
     member.position.set(x, height, z);
     if (Number.isFinite(facing)) member.facing = facing;
     member.setVisible(true);
+    if (this.blessing?.resume(member.id, entry.blessing, ctx.minutes) && this.blessing.onPlaza(member.position)) {
+      member.task = 'blessing';
+      member.stayBlessed();
+      return true;
+    }
     member.wait(between(0.2, 1.5));
     return true;
   }
