@@ -10,8 +10,7 @@ const MIN_SLOTS = 20;
 const TABS = [
   { key: 'seed', icon: '🌱', label: 'Hạt giống', kinds: ['seed'], empty: 'Chưa có hạt giống. Ra tiệm buôn mua nhé!' },
   { key: 'produce', icon: '🥬', label: 'Nông sản', kinds: ['produce'], empty: 'Chưa thu hoạch được gì.' },
-  { key: 'fish', icon: '🐟', label: 'Thủy sản', kinds: ['fish'], empty: 'Chưa câu được con nào.' },
-  { key: 'game', icon: '🐇', label: 'Thú rừng', kinds: ['game'], empty: 'Chưa bắt được con nào.' },
+  { key: 'fish', icon: '🐟', label: 'Cá & thú rừng', kinds: ['fish', 'game'], empty: 'Chưa câu hay bắt được con nào.' },
   { key: 'food', icon: '🍱', label: 'Đồ ăn', kinds: ['snack'], empty: 'Chưa có đồ ăn mang theo.' },
   { key: 'tools', icon: '🎣', label: 'Đồ nghề', kinds: ['gear', 'fertilizer'], empty: 'Chưa có đồ nghề.' },
 ];

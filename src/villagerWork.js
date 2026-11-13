@@ -173,11 +173,11 @@ export class WorkBehavior {
     return this.purse.spendEnergy(ENERGY.costs.fish) && this.purse.take('bait', 1);
   }
 
-  landFish(spot, minutes, day) {
+  landFish(spot, minutes) {
     const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
     if (!(Math.random() < skill && this.town.river.take(spot))) return null;
     const fish = this.town.river.rollFish(minutes);
-    this.purse.catchFish(fishId(fish), day);
+    this.purse.add(fishId(fish), 1);
     this.luckyIntellect();
     return fish;
   }
@@ -200,7 +200,7 @@ export class WorkBehavior {
     session.reelAt = null;
     const ctx = this.town.context;
     this.effects.angler.reel();
-    const fish = this.landFish(session.spot, ctx.minutes, ctx.day);
+    const fish = this.landFish(session.spot, ctx.minutes);
     if (fish) {
       const float = session.berth.float;
       this.effects.harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });

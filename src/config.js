@@ -63,7 +63,6 @@ export const FISHING = {
   biteSeconds: 3,
   villagerAnswer: [2, 6],
   quizSeconds: 20,
-  spoilDays: 3,
   villagerSkill: { student: 0.6, farmer: 0.45 },
   villagerAnglers: 3,
   villagerCasts: [3, 7],

@@ -740,7 +740,6 @@ const fishing = createPlayerFishing({
   say: (text, seconds) => sayPlayer(text, seconds),
   now: () => clock.elapsedTime,
   minutes: () => context.minutes,
-  day: () => context.day,
 });
 const mountain = createMountain({
   nav: () => player.nav,
@@ -761,11 +760,6 @@ const mountain = createMountain({
 });
 regions.add(mountain.region());
 town.wildlife = mountain.wildlife;
-function dropSpoiledFish(delay = 0) {
-  if (!ledger.spoilFish(context.day).includes(PLAYER)) return;
-  setTimeout(() => sayPlayer('Có cá để lâu bị ươn, đành bỏ đi...', 3), delay);
-}
-dropSpoiledFish(1500);
 
 const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
 const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
@@ -1659,7 +1653,6 @@ await loadingStep(0.97);
 
 let shownNight = -1;
 let framesShown = 0;
-let lastDay = context.day;
 renderer.setAnimationLoop((time) => {
   const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active;
   if (busy) lastInput = performance.now();
@@ -1714,10 +1707,6 @@ renderer.setAnimationLoop((time) => {
     streetLamps.setNight(night);
   }
   notice.refresh(context.day);
-  if (context.day !== lastDay) {
-    lastDay = context.day;
-    dropSpoiledFish();
-  }
   dust.update(t);
   stepSound.listen(camera);
   riverAmbience.update(dt);
