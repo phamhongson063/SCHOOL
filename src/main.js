@@ -7,6 +7,7 @@ import { createPlayer, createSeatedPlayer } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
 import { createRooms, inStudyRoom } from './rooms.js';
 import { Seats } from './seats.js';
+import { SeatWaitlist } from './seatWait.js';
 import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
 import { NavGrid } from './nav.js';
 import { createSky, createClouds } from './sky.js';
@@ -41,7 +42,7 @@ import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
-import { createStudyIcon } from './studyIcon.js';
+import { createStudyIcon, badgeMaterial } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter, plazaFloor } from './quarter.js';
@@ -595,10 +596,20 @@ const seats = new Seats(school.seats);
 const playerSeats = new Seats([...school.seats, ...studyHallSeats, ...internalHallSeats]);
 const studySeats = new Seats(studyHallSeats);
 const internalSeats = new Seats(internalHallSeats);
+const seatWait = new SeatWaitlist(
+  studySeats,
+  STUDY_HALLS.map(({ deck }, i) => ({ deck, waitSpots: studyHalls[i].waitSpots, look: studyHalls[i].teacher.at })),
+);
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
 const playerStudyIcon = createStudyIcon();
 playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
 seatedAvatar.group.add(playerStudyIcon);
+const playerBookIcon = new THREE.Sprite(badgeMaterial('🪑'));
+playerBookIcon.scale.setScalar(0.42);
+playerBookIcon.renderOrder = 6;
+playerBookIcon.visible = false;
+playerBookIcon.position.set(0, modelReady ? 2.05 : 1.8, 0);
+avatar.group.add(playerBookIcon);
 scene.add(seatedAvatar.group);
 player.attachSeating({
   seats: playerSeats,
@@ -613,6 +624,7 @@ town = new Town({
   seats,
   studySeats,
   internalSeats,
+  seatWait,
   school,
   farm: farm.crew,
   ledger,
@@ -765,7 +777,7 @@ dropSpoiledFish(1500);
 
 const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
 const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
-const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3) });
+const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3), onRegister: (deck) => goExamSeat(deck) });
 const endOfDay = () => (dayOf(context.minutes) + 1) * DAY_MINUTES;
 const study = createStudy({
   purse,
@@ -795,6 +807,7 @@ player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
   if (player.seat?.study) study.open(player.seat.deck);
   if (player.seat?.internal) beginInternalExam();
+  if (player.seat && player.seat === examTrip?.seat) beginExamSitting();
 };
 player.onStand = () => {
   study.close();
@@ -883,8 +896,8 @@ const examSitting = {
   },
 };
 
-const internalDim = document.getElementById('internalDim');
-const INTERNAL_DIM_MS = 1200;
+const sitDim = document.getElementById('sitDim');
+const SIT_DIM_MS = 1200;
 let internalTrip = null;
 
 function internalSeatFor(deck) {
@@ -931,15 +944,123 @@ function beginInternalExam() {
   const trip = internalTrip;
   if (!trip || trip.started || player.seat !== trip.seat) return;
   trip.started = true;
-  internalDim.classList.add('on');
+  sitDim.classList.add('on');
   setTimeout(async () => {
     const line = player.seat === trip.seat ? await study.takeInternal(trip.deck) : null;
-    internalDim.classList.remove('on');
+    sitDim.classList.remove('on');
     internalTrip = null;
     if (line) trip.teacher.say(line, clock.elapsedTime);
     if (player.seat === trip.seat) player.standUp();
-  }, INTERNAL_DIM_MS);
+  }, SIT_DIM_MS);
 }
+
+let examTrip = null;
+
+function goExamSeat(deck) {
+  if (examTrip && !examTrip.started) seats.unreserve(examTrip.seat, 'player');
+  examTrip = null;
+  const seat = seats.nearestFree(player.position, 'player');
+  if (!seat) {
+    sayPlayer('Hết ghế trống rồi, đợi chút nhé.', 2.4);
+    return;
+  }
+  seats.reserve(seat, 'player');
+  examTrip = { deck, seat, started: false };
+  player.requestSeat(seat);
+}
+
+function updateExamTrip() {
+  const trip = examTrip;
+  if (!trip || trip.started) return;
+  if (player.posture === 'standing' || player.pendingAction) return;
+  if (player.seat === trip.seat || player.pendingSeat === trip.seat) return;
+  seats.unreserve(trip.seat, 'player');
+  examTrip = null;
+}
+
+function beginExamSitting() {
+  const trip = examTrip;
+  if (!trip || trip.started || player.seat !== trip.seat) return;
+  trip.started = true;
+  sitDim.classList.add('on');
+  setTimeout(async () => {
+    if (player.seat === trip.seat) await examHall.sit(trip.deck);
+    sitDim.classList.remove('on');
+    examTrip = null;
+    if (player.seat === trip.seat) player.standUp();
+  }, SIT_DIM_MS);
+}
+const TEACHER_MENU = [
+  { id: 'book', name: 'Đặt chỗ', icon: '🪑' },
+  { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝' },
+];
+const BOOK_REACH = 1.2;
+const BOOK_RETRIES = 3;
+let booking = null;
+
+function endBooking() {
+  if (!booking) return;
+  seatWait.leave('player');
+  if (booking.seat && player.seat !== booking.seat) studySeats.unreserve(booking.seat, 'player');
+  booking = null;
+  playerBookIcon.visible = false;
+}
+
+function takeBookedSeat(seat) {
+  if (!booking) {
+    studySeats.unreserve(seat, 'player');
+    return;
+  }
+  booking.seat = seat;
+  player.requestSeat(seat);
+}
+
+function bookSeat(deck, teacher) {
+  leaveLine();
+  if (booking?.deck === deck && !booking.seat) {
+    booking.retries = 0;
+    player.requestMove(booking.target, false);
+    return;
+  }
+  endBooking();
+  const spot = seatWait.join(deck, 'player', { ready: () => true, take: takeBookedSeat });
+  if (!spot) {
+    teacher.say('Chỗ chờ kín rồi con.', clock.elapsedTime);
+    return;
+  }
+  booking = { deck, target: spot.clone(), seat: null, retries: 0, settled: false };
+  playerBookIcon.visible = true;
+  player.requestMove(booking.target, false);
+  seatWait.update(clock.elapsedTime);
+}
+
+function updateBooking() {
+  const b = booking;
+  if (!b) return;
+  if (player.lying || player.posture === 'standing' || player.pendingAction) return;
+  if (b.seat) {
+    if (player.seat === b.seat) {
+      booking = null;
+      playerBookIcon.visible = false;
+    } else if (player.pendingSeat !== b.seat) endBooking();
+    return;
+  }
+  if (player.posture !== 'free' || player.destination !== b.target) {
+    endBooking();
+    return;
+  }
+  if (player.path) return;
+  if (Math.hypot(b.target.x - player.position.x, b.target.z - player.position.z) > BOOK_REACH) {
+    if (b.retries++ >= BOOK_RETRIES) endBooking();
+    else player.requestMove(b.target, false);
+    return;
+  }
+  if (b.settled) return;
+  b.settled = true;
+  const look = seatWait.look(b.deck);
+  if (look) player.faceToward(look.x, look.z);
+}
+
 const noticeSpot = {
   act() {
     scheduleBoard.open();
@@ -1087,7 +1208,14 @@ function sceneClick(clientX, clientY, run) {
   if (classroom >= 0) {
     const { deck } = STUDY_HALLS[classroom];
     const { teacher } = studyHalls[classroom];
-    joinLine(`teacher:${deck}`, () => serveInternal(deck, teacher), examSitting, () => internalReady(deck));
+    picker.open({ title: 'Cô giáo', options: TEACHER_MENU, x: clientX, y: clientY }, (option) => {
+      if (option.id === 'book') {
+        bookSeat(deck, teacher);
+        return;
+      }
+      endBooking();
+      joinLine(`teacher:${deck}`, () => serveInternal(deck, teacher), examSitting, () => internalReady(deck));
+    });
     return true;
   }
   if (blessing.ownsStatue(hit.object)) {
@@ -1164,6 +1292,10 @@ function sceneClick(clientX, clientY, run) {
   }
   const seat = playerSeats.at(hit.point);
   if (seat && !seat.internal && playerSeats.canTake(seat, 'player')) {
+    if (seat.study && player.seat !== seat && !seatWait.openTo(seat, 'player', clock.elapsedTime)) {
+      sayPlayer('Ghế này đã có người đặt.', 2.4);
+      return false;
+    }
     const rest = playerSeats.restLeft(seat, 'player', clock.elapsedTime);
     if (rest > 0 && player.seat !== seat) {
       sayPlayer(`Ghế này phải đợi ${Math.ceil(rest / 60)} phút nữa.`, 2.4);
@@ -1612,6 +1744,9 @@ renderer.setAnimationLoop((time) => {
   district.update(t, context, camera);
   updateLine();
   updateInternalTrip();
+  updateExamTrip();
+  seatWait.update(t);
+  updateBooking();
   updateListeners();
   school.update(t);
   for (const hall of studyHalls) hall.update(t, camera);

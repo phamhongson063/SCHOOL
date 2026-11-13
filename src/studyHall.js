@@ -21,6 +21,12 @@ const STONE = 0xb3ab99;
 const FLOOR_TILE = 0x9c624a;
 const DESK_ROWS = [3, 6.2];
 const INTERNAL_ROW = 9.4;
+const WAIT_SPOTS = [
+  [-1.3, 4.6],
+  [1.3, 4.6],
+  [-1.3, 7.8],
+  [1.3, 7.8],
+];
 const ROOF = { overhang: 0.9, porch: 2, ridge: 3.6, lift: 0.1, rise: 3.4 };
 const ROOF_GAP = 0.08;
 const LACQUER = 0x8a1d14;
@@ -327,6 +333,11 @@ export function createStudyHall(scene, hall) {
     internalSeats.push({ ...desk(s, INTERNAL_ROW, 960 + (s < 0 ? 0 : 50)), internal: true });
   }
 
+  const waitSpots = WAIT_SPOTS.map(([lx, lz]) => {
+    const { x, z } = frame.point(lx, lz);
+    return new THREE.Vector3(x, 0, z);
+  });
+
   const obstacles = local.map(frame.box);
   for (const s of [-1, 1]) {
     const edge = hall.x + s * (door / 2);
@@ -361,6 +372,7 @@ export function createStudyHall(scene, hall) {
     group,
     seats,
     internalSeats,
+    waitSpots,
     obstacles,
     teacher,
     setNight(k) {

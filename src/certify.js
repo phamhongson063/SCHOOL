@@ -225,6 +225,12 @@ export const certify = {
     const fresh = [...state.batch];
     return shuffle([...fresh, ...oldKeys(state, totalQuestions(deck) - fresh.length)]);
   },
+  examExtra(actor, deck, last = null) {
+    const state = deckState(actor, deck);
+    const pool = [...state.batch, ...Object.keys(state.certified)];
+    const choices = pool.length > 1 ? pool.filter((key) => key !== last) : pool;
+    return choices.length ? choices[Math.floor(Math.random() * choices.length)] : null;
+  },
   gradeExam(actor, deck, results) {
     const state = deckState(actor, deck);
     const fresh = [...state.batch];
@@ -232,8 +238,12 @@ export const certify = {
     const passedFresh = [];
     const revoked = [];
     let right = 0;
+    const answers = new Map();
     for (const { key, correct } of results) {
       if (correct) right += 1;
+      answers.set(key, (answers.get(key) ?? true) && correct);
+    }
+    for (const [key, correct] of answers) {
       if (fresh.includes(key)) {
         if (correct) passedFresh.push(key);
         else {

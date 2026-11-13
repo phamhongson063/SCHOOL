@@ -2,6 +2,7 @@ import { between } from './random.js';
 import { CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { averageYield } from './market.js';
+import { SELF_STUDY } from './villagerData.js';
 
 const KINDS = ['farm', 'fish', 'hunt', 'study'];
 
@@ -83,9 +84,11 @@ export class MindBehavior {
     }
     if (!certify.learnLeft(this.id, deck).length) return null;
     const seat = this.studySeatFor(deck);
-    if (!seat) return null;
+    const waiting = !seat && this.canWaitForSeat(deck);
+    if (!seat && !waiting) return null;
     const sit = CERTIFY.sitSeconds / 60;
-    const minutes = this.walkMinutes(seat.spot) + sit;
+    const target = seat ? seat.spot : this.town.seatWait.look(deck);
+    const minutes = this.walkMinutes(target) + sit + (waiting ? SELF_STUDY.waitMax / 60 : 0);
     const gain = MIND.studyValue * this.diligence * sit - CERTIFY.learnFee * need;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
     return { kind: 'study', rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };

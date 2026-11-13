@@ -14,12 +14,13 @@ const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
 
 export class Town {
-  constructor({ root, nav, seats, studySeats, internalSeats, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
+  constructor({ root, nav, seats, studySeats, internalSeats, seatWait = null, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
     this.root = root;
     this.nav = nav;
     this.seats = seats;
     this.studySeats = studySeats;
     this.internalSeats = internalSeats;
+    this.seatWait = seatWait;
     this.school = school;
     this.farm = farm;
     this.ledger = ledger;

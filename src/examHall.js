@@ -34,7 +34,7 @@ function examLines(deck, result) {
   return lines;
 }
 
-export function createExamHall({ purse, exams, mailbox, minutes, say }) {
+export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister }) {
   const dialog = document.getElementById('examDialog');
   const note = document.getElementById('examNote');
   const list = document.getElementById('examList');
@@ -75,9 +75,20 @@ export function createExamHall({ purse, exams, mailbox, minutes, say }) {
     );
   }
 
-  async function register(deck) {
+  function register(deck) {
     if (blocker(deck, minutes()) || exams.running) {
       render();
+      return;
+    }
+    dialog.close();
+    onRegister?.(deck);
+  }
+
+  async function sit(deck) {
+    if (exams.running) return;
+    const reason = blocker(deck, minutes());
+    if (reason) {
+      say?.(reason);
       return;
     }
     if (!purse.take('intellect', CERTIFY.examIntellect)) return;
@@ -87,8 +98,14 @@ export function createExamHall({ purse, exams, mailbox, minutes, say }) {
     }
     economy.income('teacher', CERTIFY.examFee);
     mailbox.removeTag(qualifyTag(deck));
-    dialog.close();
-    const results = await exams.run({ title: `Khảo thí ${DECKS[deck].title}`, deck, keys: certify.examQuestions(PLAYER, deck), icon: '🎓' });
+    const results = await exams.run({
+      title: `Khảo thí ${DECKS[deck].title}`,
+      deck,
+      keys: certify.examQuestions(PLAYER, deck),
+      icon: '🎓',
+      minSeconds: CERTIFY.examMinutes * 60,
+      more: (last) => certify.examExtra(PLAYER, deck, last),
+    });
     const result = certify.gradeExam(PLAYER, deck, results);
     mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true });
     say?.(result.passed ? '🎓 Đậu khảo thí! Xem kết quả trong hộp thư nhé.' : '📄 Đã có kết quả khảo thí, xem hộp thư nhé.');
@@ -102,5 +119,6 @@ export function createExamHall({ purse, exams, mailbox, minutes, say }) {
       render();
       dialog.showModal();
     },
+    sit,
   };
 }
