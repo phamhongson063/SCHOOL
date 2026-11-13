@@ -42,7 +42,8 @@ const BOARD = { width: 11, height: 6.45, y: ISLAND.y + 14, tilt: 0.26 };
 const BOARD_STAND = { x: ISLAND.x, z: ISLAND.z + DAIS.tiers[0] + 1.2 };
 
 const GATE = { x: ISLAND.x, z: ISLAND.z + ISLAND.radius - 2.4, radius: 1.85, tube: 0.32 };
-export const ARRIVAL = { x: GATE.x, y: ISLAND.y, z: GATE.z - 2.6, facing: Math.PI };
+const GATE_STAND = { x: GATE.x, z: GATE.z - 2.2 };
+export const ARRIVAL = { x: ISLAND.x + 2.5, y: ISLAND.y, z: ISLAND.z + 6.5, facing: Math.PI };
 
 const inDisc = (x, z, radius) => (x - ISLAND.x) ** 2 + (z - ISLAND.z) ** 2 <= radius * radius;
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
@@ -59,7 +60,7 @@ export const SPECTATORS = (() => {
       const angle = ((i + 0.5 + (rand() - 0.5) * 0.5) / count) * Math.PI * 2;
       const reach = radius + (rand() - 0.5) * 1.4;
       const spot = { x: ISLAND.x + Math.cos(angle) * reach, y: ISLAND.y, z: ISLAND.z + Math.sin(angle) * reach };
-      if (Math.hypot(spot.x - GATE.x, spot.z - GATE.z) < 3.4) continue;
+      if (Math.hypot(spot.x - GATE.x, spot.z - GATE.z) < 3.4 || Math.hypot(spot.x - ARRIVAL.x, spot.z - ARRIVAL.z) < 1.6) continue;
       spots.push({ ...spot, facing: facingTo(spot, ISLAND) });
     }
   }
@@ -302,6 +303,21 @@ function haloTexture() {
 
 const additive = (options) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, ...options });
 
+let moteMap = null;
+
+function moteTexture() {
+  moteMap ??= canvasTexture(64, (ctx, size) => {
+    const c = size / 2;
+    const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
+    glow.addColorStop(0, 'rgba(255,255,255,1)');
+    glow.addColorStop(0.35, 'rgba(255,255,255,0.6)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, size, size);
+  });
+  return moteMap;
+}
+
 function motes(count, spread, low, high, color, size, seed) {
   const rand = makeRandom(seed);
   const positions = new Float32Array(count * 3);
@@ -314,7 +330,7 @@ function motes(count, spread, low, high, color, size, seed) {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size, map: moteTexture(), transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
   points.frustumCulled = false;
   return {
     points,
@@ -412,7 +428,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
       target(hit) {
         if (hit.object.userData.board) return { kind: 'board', id: 'board', index: 'board', x: ISLAND.x, z: ISLAND.z, stand: BOARD_STAND };
         if (!hit.object.userData.portal) return null;
-        return { kind: 'portal', id: 'portal', index: 'portal', x: GATE.x, z: GATE.z, stand: ARRIVAL };
+        return { kind: 'portal', id: 'portal', index: 'portal', x: GATE.x, z: GATE.z, stand: GATE_STAND };
       },
       actionFor() {
         return { id: 'visit', hint: 'hand' };
@@ -437,7 +453,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         vortex.userData.portal = true;
         const gateRunes = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), additive({ map: runes, opacity: 0.75 }));
         gateRunes.rotation.x = -Math.PI / 2;
-        gateRunes.position.set(ARRIVAL.x, ISLAND.y + 0.03, ARRIVAL.z + 0.6);
+        gateRunes.position.set(GATE.x, ISLAND.y + 0.03, GATE.z - 2);
         gateRunes.userData.portal = true;
 
         const daisRunes = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), additive({ map: runes, opacity: 0.6, color: 0xffe6a8 }));
@@ -458,9 +474,9 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         });
 
         const sky = skyBoard();
-        const gateMotes = motes(60, 1.6, 0.2, 5, 0xbfe8ff, 0.14, 77);
+        const gateMotes = motes(60, 1.6, 0.2, 5, 0xbfe8ff, 0.3, 77);
         gateMotes.points.position.set(GATE.x, ISLAND.y, GATE.z);
-        const islandMotes = motes(140, ISLAND.radius + 6, -4, 16, 0xffe6a8, 0.18, 91);
+        const islandMotes = motes(140, ISLAND.radius + 6, -4, 16, 0xffe6a8, 0.35, 91);
         islandMotes.points.position.set(ISLAND.x, ISLAND.y, ISLAND.z);
 
         const heaven = createArenaSky(skyLayout());

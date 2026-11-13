@@ -97,6 +97,7 @@ import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
 import { createArenaDuel } from './arenaDuel.js';
 import { createArenaCast } from './arenaCast.js';
+import { createArenaSummon } from './arenaSummon.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
 import { arenaLines, createArenaDesk } from './arenaDesk.js';
 
@@ -663,7 +664,7 @@ town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
 const arenaFx = createArenaFx(scene);
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size) });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }) });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -686,12 +687,14 @@ const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() 
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
-  mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true });
+  mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
 });
+if (arena.purged) mailbox.removeWhere((mail) => mail.tag === 'arena' || mail.icon === '⚔️');
 const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping;
 
 function updateArena(dt) {
   arena.tick(gameNow(), { present: arenaPresent });
+  if (!hasEntered()) return;
   const now = gameNow();
   arenaTrip.update(now, clock.elapsedTime);
   arenaBattle.update(now, dt, player.position);

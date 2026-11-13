@@ -3,7 +3,6 @@ const track = root?.querySelector('.loader-track');
 const fill = root?.querySelector('.loader-fill');
 const stage = root?.querySelector('.loader-stage');
 const label = root?.querySelector('.loader-label');
-const start = root?.querySelector('.loader-start');
 const HOLD_FULL = 450;
 const REMOVE_AFTER = 2600;
 
@@ -60,13 +59,5 @@ function leave() {
 export function loadingDone() {
   if (!root) return;
   setProgress(1);
-  if (!start) {
-    setTimeout(leave, HOLD_FULL);
-    return;
-  }
-  start.addEventListener('click', leave, { once: true });
-  setTimeout(() => {
-    root.classList.add('loaded');
-    start.focus({ preventScroll: true });
-  }, HOLD_FULL);
+  setTimeout(leave, HOLD_FULL);
 }

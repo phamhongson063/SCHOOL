@@ -35,6 +35,33 @@ export function createUiSounds() {
     source.start();
   }
 
+  function gong() {
+    if (!ctx || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    const body = ctx.createGain();
+    body.gain.setValueAtTime(0.0001, now);
+    body.gain.exponentialRampToValueAtTime(0.9, now + 0.02);
+    body.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+    body.connect(out);
+    for (const [ratio, level] of [
+      [1, 0.6],
+      [1.47, 0.35],
+      [2.09, 0.25],
+      [2.76, 0.15],
+      [3.9, 0.08],
+    ]) {
+      const tone = ctx.createOscillator();
+      const gain = ctx.createGain();
+      tone.type = 'sine';
+      tone.frequency.setValueAtTime(98 * ratio, now);
+      tone.frequency.exponentialRampToValueAtTime(92 * ratio, now + 3);
+      gain.gain.value = level;
+      tone.connect(gain).connect(body);
+      tone.start(now);
+      tone.stop(now + 3.3);
+    }
+  }
+
   document.addEventListener('click', (event) => {
     const button = event.target.closest?.(BUTTONS);
     if (!button) return;
@@ -46,5 +73,6 @@ export function createUiSounds() {
     correct: () => play(correct),
     wrong: () => play(wrong),
     pop: () => play(pop),
+    gong,
   };
 }

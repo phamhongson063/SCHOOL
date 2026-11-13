@@ -1,7 +1,7 @@
 import { ARENA } from './config.js';
 import { comboOf, enraged, roundName } from './arena.js';
 import { skillOf } from './arenaReplay.js';
-import { ISLAND, stageOf } from './arenaIsland.js';
+import { stageOf } from './arenaIsland.js';
 import { END_REASONS } from './arenaBoard.js';
 import { DECKS, plainText, unitOf } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
@@ -13,7 +13,7 @@ const REVEAL_MS = 1300;
 const STRIKE_MS = 1900;
 const END_MS = 2200;
 const CHOICE_MS = 20000;
-const SHOT = { back: 8.5, rise: 2.2, aim: -0.6 };
+const SHOT = { back: 9, rise: 2, aim: -0.26 };
 const SET_MS = 1800;
 const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];
 const KANJI_WORDS = DECKS.n2.cards.map((card) => plainText(card.word)).filter((word) => /[㐀-鿿]/.test(word));
@@ -333,8 +333,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
       const side = match.a === PLAYER ? 'a' : 'b';
       const foe = side === 'a' ? 'b' : 'a';
       const stage = stageOf(size, round.indexOf(match));
-      const toward = Math.sign(ISLAND.z - stage.z) || 1;
-      shot = { x: stage.x, y: stage.y, z: stage.z, toward };
+      shot = { x: stage.x, y: stage.y, z: stage.z, toward: side === 'a' ? 1 : -1 };
       try {
         setFighter(cards.me, PLAYER, match.hp[side]);
         setFighter(cards.foe, match[foe], match.hp[foe]);

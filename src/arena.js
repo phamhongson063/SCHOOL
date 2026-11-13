@@ -94,10 +94,12 @@ function load() {
       return {
         event: validEvent(saved.event) ? saved.event : null,
         champions: Array.isArray(saved.champions) ? saved.champions.filter((item) => Number.isFinite(item?.at) && typeof item?.id === 'string').slice(0, ARENA.champions) : [],
+        purged: false,
       };
     }
+    if (saved) return { event: null, champions: [], purged: true };
   } catch {}
-  return { event: null, champions: [] };
+  return { event: null, champions: [], purged: false };
 }
 
 export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds) + ARENA.pause + (turn.setWinner ? ARENA.setPause : 0);
@@ -286,7 +288,10 @@ function startRound(event, at, present) {
 
 export function createArena({ ledger, roster = () => [] }) {
   const state = load();
+  const purged = state.purged;
+  delete state.purged;
   const store = createStore(KEY, () => ({ version: DATA_VERSION, ...state }));
+  if (purged) store.save();
   const finished = [];
 
   function eventOf(at) {
@@ -406,6 +411,8 @@ export function createArena({ ledger, roster = () => [] }) {
       if (event.phase === 'running') advance(event, now, present);
       if (signature(event) !== before) store.save();
     },
+    version: DATA_VERSION,
+    purged,
     onFinish(listener) {
       finished.push(listener);
     },

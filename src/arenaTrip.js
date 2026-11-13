@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ARRIVAL, ISLAND, SPECTATORS, STAGES, fighterSpot, onIsland, stageOf, wander } from './arenaIsland.js';
 import { PLAYER } from './inventory.js';
 import { onStage } from './arenaReplay.js';
+import { roundName } from './arena.js';
+import { clockText } from './clock.js';
 
 const HOME_DELAY = 8;
 const IDLE = [4, 11];
@@ -9,6 +11,7 @@ const CHEERS = ['Hay!', 'Đẹp!', 'Tuyệt!', '👏', '🔥', 'Ồ!', 'Cố lê
 const CHEER_REACH = 22;
 const CHEER_CHANCE = 0.35;
 const HOME_WARP = 0xffe6a8;
+const SUMMON_WARP = 0xffe08a;
 
 const between = (a, b) => a + Math.random() * (b - a);
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
@@ -40,7 +43,7 @@ function nearest(list, from) {
   return best;
 }
 
-export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null }) {
+export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null }) {
   const where = new Map();
   const lives = new Map();
   let back = null;
@@ -69,25 +72,45 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     player.facing = spot.facing;
   }
 
+  function summonLines() {
+    const event = arena.event;
+    const live = arena.liveMatch(PLAYER);
+    const round = event?.rounds[event.round];
+    const stage = live && round ? roundName(round.length) : event?.round < 0 ? roundName(event.rounds[0].length) : 'Lôi đài';
+    return ['Triệu tập Bạn lên Lôi Đài', `${event ? `Lôi đài ${clockText(event.at)} · ` : ''}${stage}`, live ? 'Tới lượt ngươi xuất chiến!' : 'Khai mạc tranh tài, chớ chậm trễ!'];
+  }
+
+  function teleport(ceremony, lines, move) {
+    if (!summon) {
+      move();
+      return;
+    }
+    summon.run({ ceremony, lines }, move);
+  }
+
   function goUp() {
-    if (!ready()) return false;
+    if (summon?.busy || !ready()) return false;
     wantUp = false;
-    if (!playerHere()) back = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.yaw };
-    placePlayer(ARRIVAL);
-    warp?.(ARRIVAL);
-    say?.('⚔️ Truyền tống tới lôi đài!');
+    teleport(true, summonLines(), () => {
+      if (!playerHere()) back = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.yaw };
+      placePlayer(ARRIVAL);
+      warp?.(ARRIVAL, SUMMON_WARP, 1.8);
+      say?.('⚔️ Đã tới Lôi Đài!');
+    });
     return true;
   }
 
   function goDown() {
-    if (!ready()) return false;
+    if (summon?.busy || !ready()) return false;
     const spot = back ?? deskSpot();
-    back = null;
-    homeAt = null;
-    fighting = false;
-    const y = spot.y ?? town.nav.heightAt(spot.x, spot.z) ?? 0;
-    player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw ?? 0);
-    warp?.({ x: spot.x, y, z: spot.z }, HOME_WARP);
+    teleport(false, [], () => {
+      back = null;
+      homeAt = null;
+      fighting = false;
+      const y = spot.y ?? town.nav.heightAt(spot.x, spot.z) ?? 0;
+      player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw ?? 0);
+      warp?.({ x: spot.x, y, z: spot.z }, HOME_WARP, 1.2);
+    });
     return true;
   }
 
@@ -106,7 +129,7 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     const live = arena.liveMatch(PLAYER);
     if (live && !playerHere()) wantUp = true;
     if (wantUp && !playerHere()) goUp();
-    if (live && playerHere()) {
+    if (live && playerHere() && !summon?.busy) {
       const round = event.rounds[event.round];
       const index = round.indexOf(live);
       const spot = fighterSpot(round.length, index, live.a === PLAYER ? 'a' : 'b');

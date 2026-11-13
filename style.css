@@ -3617,39 +3617,6 @@ dialog.paper.phrase-quiz {
   opacity: 1;
 }
 
-.loader-start {
-  display: none;
-  margin-top: 26px;
-  padding: 10px 38px;
-  border: 2px solid var(--gold);
-  border-radius: 99px;
-  background: linear-gradient(180deg, #fff7e6 0%, #f3dcb2 100%);
-  color: #5a3a22;
-  font: 600 clamp(20px, 2.6vw, 26px)/1.2 "Dancing Script", cursive;
-  box-shadow: 0 4px 18px rgba(90, 58, 34, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.loader-start:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(90, 58, 34, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.loader-start:active {
-  transform: translateY(1px);
-}
-
-.loader-start:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 3px;
-}
-
-.loader.loaded .loader-track,
-.loader.loaded .loader-stage {
-  display: none;
-}
-
 .loader.blocked .loader-track,
 .loader.blocked .loader-dots {
   display: none;
@@ -3687,11 +3654,6 @@ dialog.paper.phrase-quiz {
 
 .loader.login .loader-login {
   display: inline-flex;
-  animation: loader-enter 0.55s ease both;
-}
-
-.loader.loaded .loader-start {
-  display: inline-block;
   animation: loader-enter 0.55s ease both;
 }
 
@@ -5291,34 +5253,51 @@ dialog.duel {
   height: 100%;
   max-height: 100%;
   margin: 0;
-  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   border: 0;
   background: transparent;
   color: #f4ecff;
-  font: 15px/1.3 var(--font-ui);
+  font: 14px/1.3 var(--font-ui);
 }
 
 dialog.duel[open] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 dialog.duel::backdrop {
-  background: linear-gradient(rgba(8, 6, 20, 0.35), rgba(8, 6, 20, 0) 22%, rgba(8, 6, 20, 0) 50%, rgba(8, 6, 20, 0.55));
+  background: linear-gradient(rgba(8, 6, 20, 0.4), rgba(8, 6, 20, 0) 16%, rgba(8, 6, 20, 0) 58%, rgba(8, 6, 20, 0.5));
+}
+
+.duel-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(600px, 100%);
+}
+
+.duel-vs {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: #d7263d;
+  color: #fff;
+  font: 900 13px/1 var(--font-ui);
+  letter-spacing: 0.04em;
 }
 
 .duel-card {
   position: relative;
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 10px;
-  width: min(560px, 100%);
-  padding: 8px 12px;
-  border-radius: 16px;
-  background: rgba(30, 18, 50, 0.9);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  gap: 7px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(24, 14, 40, 0.86);
 }
 
 .duel-card.foe {
@@ -5332,8 +5311,8 @@ dialog.duel::backdrop {
 
 .duel-face {
   flex: none;
-  width: 56px;
-  height: 56px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   object-fit: cover;
@@ -5343,22 +5322,22 @@ dialog.duel::backdrop {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .duel-name {
   overflow: hidden;
   font-weight: 800;
-  font-size: 16px;
+  font-size: 13px;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .duel-hp {
   position: relative;
-  height: 10px;
-  border-radius: 5px;
+  height: 8px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.15);
   overflow: hidden;
 }
@@ -5386,8 +5365,8 @@ dialog.duel::backdrop {
 .duel-meta {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 11px;
 }
 
 .duel-card.foe .duel-meta {
@@ -5396,7 +5375,7 @@ dialog.duel::backdrop {
 
 .duel-hp-text {
   font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  opacity: 0.75;
 }
 
 .duel-state {
@@ -5408,10 +5387,10 @@ dialog.duel::backdrop {
 
 .duel-pop {
   position: absolute;
-  top: -6px;
+  top: 100%;
   left: 50%;
   color: #ff6b6b;
-  font: 900 30px/1 var(--font-ui);
+  font: 900 26px/1 var(--font-ui);
   text-shadow: 0 2px 0 #2a0a0a;
   opacity: 0;
   pointer-events: none;
@@ -5430,7 +5409,8 @@ dialog.duel::backdrop {
 
 .duel-banner {
   color: #fff;
-  font: 900 64px/1 var(--font-ui);
+  font: 900 56px/1 var(--font-ui);
+  text-align: center;
   text-shadow: 0 4px 0 #3a1a6a, 0 0 24px rgba(154, 216, 255, 0.7);
   opacity: 0;
 }
@@ -5439,30 +5419,19 @@ dialog.duel::backdrop {
   animation: duel-banner 0.8s ease-out both;
 }
 
-.duel-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(560px, 100%);
-}
-
-.duel-bottom .duel-card {
-  width: 100%;
-}
-
 .duel-board {
-  padding: 10px 12px 12px;
-  border-radius: 18px;
-  background: rgba(30, 18, 50, 0.94);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  width: min(600px, 100%);
+  padding: 8px 10px 10px;
+  border-radius: 14px;
+  background: rgba(24, 14, 40, 0.9);
 }
 
 .duel-head {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
-  opacity: 0.85;
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 .duel-clock {
@@ -5471,9 +5440,9 @@ dialog.duel::backdrop {
 
 .duel-track {
   display: block;
-  height: 6px;
-  margin: 6px 0 4px;
-  border-radius: 3px;
+  height: 4px;
+  margin: 5px 0 2px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.15);
   overflow: hidden;
 }
@@ -5486,15 +5455,16 @@ dialog.duel::backdrop {
 }
 
 .duel-word {
-  margin: 2px 0 10px;
+  margin: 2px 0 6px;
   font-weight: 800;
-  font-size: 40px;
+  font-size: 30px;
+  line-height: 1.15;
   text-align: center;
 }
 
 .duel-hint {
-  margin: -6px 0 10px;
-  font-size: 14px;
+  margin: -4px 0 6px;
+  font-size: 12px;
   text-align: center;
   opacity: 0.8;
 }
@@ -5504,7 +5474,7 @@ dialog.duel::backdrop {
 }
 
 .duel-card.rage {
-  box-shadow: 0 0 0 2px rgba(220, 30, 60, 0.9), 0 0 22px rgba(220, 30, 60, 0.6);
+  box-shadow: 0 0 0 2px rgba(220, 30, 60, 0.9), 0 0 18px rgba(220, 30, 60, 0.6);
   animation: duel-rage 1.1s ease-in-out infinite;
 }
 
@@ -5512,33 +5482,34 @@ dialog.duel::backdrop {
   animation: duel-shake 0.4s ease-out;
 }
 
-@keyframes duel-rage {
-  50% {
-    box-shadow: 0 0 0 2px rgba(220, 30, 60, 0.4), 0 0 10px rgba(220, 30, 60, 0.3);
-  }
-}
-
 .duel-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 
 .duel-option {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 58px;
-  padding: 8px 10px;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #3d2c62;
   color: #f4ecff;
-  font: 600 15px/1.25 var(--font-ui);
+  font: 600 13.5px/1.25 var(--font-ui);
   text-align: left;
-  box-shadow: 0 3px 0 #21163a;
+  box-shadow: 0 2px 0 #21163a;
   cursor: pointer;
+}
+
+.duel-option > span:nth-child(2) {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .duel-option:disabled {
@@ -5554,44 +5525,45 @@ dialog.duel::backdrop {
 
 .duel-option.picked {
   background: #2f6fb8;
-  box-shadow: 0 3px 0 #1d4a80;
+  box-shadow: 0 2px 0 #1d4a80;
 }
 
 .duel-option.right {
   background: #2f8a4e;
-  box-shadow: 0 3px 0 #1d5a32;
+  box-shadow: 0 2px 0 #1d5a32;
 }
 
 .duel-option.wrong {
   background: #a83a32;
-  box-shadow: 0 3px 0 #6a221c;
+  box-shadow: 0 2px 0 #6a221c;
 }
 
 .duel-letter {
   display: grid;
   flex: none;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.16);
   font-weight: 800;
+  font-size: 12px;
 }
 
 .duel-marks {
   position: absolute;
-  top: -9px;
+  top: -8px;
   right: 6px;
   display: flex;
   gap: 4px;
 }
 
 .duel-mark {
-  padding: 2px 7px;
-  border-radius: 8px;
+  padding: 1px 6px;
+  border-radius: 7px;
   background: #ffffff;
   color: #21163a;
-  font: 800 11px/1.3 var(--font-ui);
+  font: 800 10.5px/1.3 var(--font-ui);
 }
 
 .duel-mark.foe {
@@ -5599,10 +5571,17 @@ dialog.duel::backdrop {
 }
 
 .duel-log {
-  min-height: 1.3em;
-  margin: 8px 0 0;
+  min-height: 1.25em;
+  margin: 6px 0 0;
   font-weight: 700;
+  font-size: 13px;
   text-align: center;
+}
+
+@keyframes duel-rage {
+  50% {
+    box-shadow: 0 0 0 2px rgba(220, 30, 60, 0.4), 0 0 8px rgba(220, 30, 60, 0.3);
+  }
 }
 
 @keyframes duel-banner {
@@ -5626,15 +5605,15 @@ dialog.duel::backdrop {
 @keyframes duel-pop {
   0% {
     opacity: 0;
-    transform: translate(-50%, 10px) scale(0.6);
+    transform: translate(-50%, -6px) scale(0.6);
   }
   20% {
     opacity: 1;
-    transform: translate(-50%, -6px) scale(1.15);
+    transform: translate(-50%, 4px) scale(1.15);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -34px) scale(1);
+    transform: translate(-50%, 26px) scale(1);
   }
 }
 
@@ -5655,183 +5634,163 @@ dialog.duel::backdrop {
 }
 
 @media (max-width: 420px) {
-  .duel-face {
-    width: 46px;
-    height: 46px;
-  }
-
   .duel-word {
-    font-size: 32px;
-  }
-
-  .duel-option {
-    min-height: 52px;
-    font-size: 14px;
+    font-size: 26px;
   }
 
   .duel-banner {
-    font-size: 52px;
+    font-size: 46px;
   }
 }
 
 .arena-cast {
   position: fixed;
-  inset: 12px auto auto 50%;
+  inset: 10px auto auto 50%;
   display: none;
   flex-direction: column;
-  width: min(520px, calc(100vw - 32px));
+  gap: 6px;
+  width: min(440px, calc(100vw - 32px));
   margin: 0;
-  padding: 0;
+  padding: 8px 10px;
   overflow: hidden;
   border: 0;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(14, 22, 48, 0.94), rgba(46, 18, 64, 0.94));
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(14, 22, 48, 0.92), rgba(46, 18, 64, 0.92));
   color: #f4ecff;
-  font: 14px/1.3 var(--font-ui);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font: 13px/1.3 var(--font-ui);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .arena-cast.shown {
   display: flex;
-  animation: cast-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-}
-
-.cast-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.cast-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: #d7263d;
-  color: #fff;
-  font-weight: 800;
-}
-
-.cast-live i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #fff;
-  animation: cast-dot 1s ease-in-out infinite;
-}
-
-.cast-event {
-  opacity: 0.75;
+  animation: cast-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .cast-main {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px 6px;
+  gap: 10px;
+}
+
+.cast-live {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #d7263d;
+  color: #fff;
+  font: 800 10.5px/1.4 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cast-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: cast-dot 1s ease-in-out infinite;
 }
 
 .cast-heading {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
 
 .cast-stage {
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .cast-title {
   overflow: hidden;
-  font: 900 30px/1.1 var(--font-ui);
+  font: 900 18px/1.1 var(--font-ui);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
-  background: linear-gradient(180deg, #ffffff, #9ad8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .cast-timer {
   flex: none;
-  padding: 4px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
-  font: 800 28px/1.1 var(--font-ui);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  font: 800 20px/1.2 var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
 
 .cast-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 6px 14px 12px;
+  padding: 0;
   list-style: none;
+}
+
+.cast-list:empty {
+  display: none;
 }
 
 .cast-list li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 3px 7px;
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
 }
 
 .cast-list li.mine {
-  background: rgba(70, 140, 230, 0.45);
+  background: rgba(70, 140, 230, 0.5);
 }
 
 .cast-list li.champion {
   grid-column: 1 / -1;
   justify-content: center;
-  font: 800 20px/1.3 var(--font-ui);
+  font: 800 16px/1.3 var(--font-ui);
 }
 
 .cast-list b {
+  flex: 1;
   overflow: hidden;
   font-weight: 700;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.cast-list b:last-child {
+  text-align: right;
+}
+
 .cast-list em {
   flex: none;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: #d7263d;
-  color: #fff;
-  font: 900 11px/1.4 var(--font-ui);
+  color: #ff8a9a;
+  font: 900 10px/1 var(--font-ui);
   font-style: normal;
 }
 
 .arena-count {
   position: fixed;
-  inset: 50% auto auto 50%;
+  inset: 45% auto auto 50%;
   display: none;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   color: #fff;
-  font: 900 120px/1 var(--font-ui);
+  font: 900 110px/1 var(--font-ui);
   text-shadow: 0 6px 0 #3a1a6a, 0 0 40px rgba(154, 216, 255, 0.85);
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -5848,7 +5807,7 @@ dialog.duel::backdrop {
 @keyframes cast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -24px);
+    transform: translate(-50%, -18px);
   }
   to {
     opacity: 1;
@@ -5877,30 +5836,138 @@ dialog.duel::backdrop {
   }
 }
 
-@media (max-width: 420px) {
-  .cast-title {
-    font-size: 24px;
-  }
-
-  .cast-timer {
-    font-size: 22px;
-  }
-
-  .cast-list {
-    grid-template-columns: 1fr;
-  }
-
-  .arena-count {
-    font-size: 96px;
-  }
-}
-
-.version-note {
-  margin: 12px 0 0;
-  text-align: center;
-  opacity: 0.7;
-}
-
 body.in-duel > :not(#app):not(#duelDialog) {
   visibility: hidden !important;
+}
+
+.summon {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.summon[hidden] {
+  display: none;
+}
+
+.summon.ceremony {
+  background: radial-gradient(circle at 50% 45%, rgba(40, 20, 6, 0.35), rgba(10, 6, 2, 0.75));
+  pointer-events: auto;
+}
+
+.summon-scroll {
+  display: none;
+  align-items: stretch;
+  width: min(420px, calc(100vw - 48px));
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
+}
+
+.summon.ceremony .summon-scroll {
+  display: flex;
+}
+
+.summon-scroll.open {
+  animation: summon-unfurl 0.9s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.summon-rod {
+  flex: none;
+  width: 18px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #5e120c, #a8281c 45%, #6e160e);
+  box-shadow: 0 -10px 0 -4px #d8b45a, 0 10px 0 -4px #d8b45a;
+}
+
+.summon-paper {
+  position: relative;
+  flex: 1;
+  padding: 22px 26px 26px;
+  background:
+    repeating-linear-gradient(90deg, rgba(150, 100, 20, 0.06) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #f8e3a2, #efc964 55%, #e2b44a);
+  color: #4a1a0c;
+  text-align: center;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Noto Serif", serif;
+}
+
+.summon-seal {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: #b3261a;
+  color: #fde7c4;
+  font-size: 26px;
+  transform: rotate(-8deg);
+  opacity: 0.92;
+}
+
+.summon-title {
+  margin: 0 0 10px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.summon-text p {
+  margin: 4px 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.summon-flash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, #ffffff, #fff4cc 60%, #ffe08a);
+  opacity: 0;
+}
+
+.summon-flash.in {
+  animation: summon-flash-in 0.26s ease-in both;
+}
+
+.summon-flash.out {
+  opacity: 1;
+  animation: summon-flash-out 0.7s ease-out both;
+}
+
+@keyframes summon-unfurl {
+  0% {
+    opacity: 0;
+    transform: scale(0.6, 0.2);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(0.08, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes summon-flash-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes summon-flash-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }

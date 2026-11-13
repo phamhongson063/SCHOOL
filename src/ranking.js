@@ -64,7 +64,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
   }
 
   function snapshot({ slot, at }) {
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs), arena: standings(titlesOf, board?.arena) };
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs), arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -97,7 +97,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
 
   function update() {
     const checkpoint = latestCheckpoint(now());
-    if (board?.slot === checkpoint.slot && board.certs && board.arena) return;
+    if (board?.slot === checkpoint.slot && board.certs && board.arena && board.arenaVersion === arena.version) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }

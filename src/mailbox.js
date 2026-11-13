@@ -232,6 +232,10 @@ export function createMailbox({ onTravel, onClaim = null }) {
     for (const [id, mail] of mails) if (mail.tag === tag) remove(id);
   }
 
+  function removeWhere(test) {
+    for (const [id, mail] of mails) if (test(mail)) remove(id);
+  }
+
   function hasTag(tag) {
     return [...mails.values()].some((mail) => mail.tag === tag);
   }
@@ -301,5 +305,5 @@ export function createMailbox({ onTravel, onClaim = null }) {
     if (event.key === 'Escape' && isOpen()) setOpen(false);
   });
 
-  return { sync, notify, remove, removeTag, hasTag, tick };
+  return { sync, notify, remove, removeTag, removeWhere, hasTag, tick };
 }

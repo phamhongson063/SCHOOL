@@ -97,7 +97,6 @@
       </svg>
       <div class="loader-track"><span class="loader-fill"></span></div>
       <p class="loader-stage"><span class="loader-label">Đang tải</span><span class="loader-dots" aria-hidden="true"><i></i><i></i><i></i></span></p>
-      <button type="button" class="loader-start">Vào game</button>
       <button type="button" class="loader-login">
         <svg viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -447,17 +446,7 @@
     </div>
   </div>
   <dialog id="duelDialog" class="duel" aria-label="Lôi đài">
-    <div class="duel-card foe">
-      <img class="duel-face" alt="">
-      <div class="duel-info">
-        <span class="duel-name"></span>
-        <span class="duel-hp"><span class="duel-hp-fill"></span></span>
-        <span class="duel-meta"><span class="duel-hp-text"></span><span class="duel-state"></span></span>
-      </div>
-      <span class="duel-pop" aria-hidden="true"></span>
-    </div>
-    <div class="duel-center"><span class="duel-banner" aria-live="polite"></span></div>
-    <div class="duel-bottom">
+    <div class="duel-top">
       <div class="duel-card me">
         <img class="duel-face" alt="">
         <div class="duel-info">
@@ -467,25 +456,48 @@
         </div>
         <span class="duel-pop" aria-hidden="true"></span>
       </div>
-      <div class="duel-board">
-        <div class="duel-head"><span class="duel-turn"></span><span class="duel-kind"></span><span class="duel-clock"></span></div>
-        <span class="duel-track"><span class="duel-bar"></span></span>
-        <p class="duel-word" lang="ja"></p>
-        <p class="duel-hint"></p>
-        <div class="duel-options"></div>
-        <p class="duel-log"></p>
+      <span class="duel-vs">VS</span>
+      <div class="duel-card foe">
+        <img class="duel-face" alt="">
+        <div class="duel-info">
+          <span class="duel-name"></span>
+          <span class="duel-hp"><span class="duel-hp-fill"></span></span>
+          <span class="duel-meta"><span class="duel-hp-text"></span><span class="duel-state"></span></span>
+        </div>
+        <span class="duel-pop" aria-hidden="true"></span>
       </div>
+    </div>
+    <div class="duel-center"><span class="duel-banner" aria-live="polite"></span></div>
+    <div class="duel-board">
+      <div class="duel-head"><span class="duel-turn"></span><span class="duel-kind"></span><span class="duel-clock"></span></div>
+      <span class="duel-track"><span class="duel-bar"></span></span>
+      <p class="duel-word" lang="ja"></p>
+      <p class="duel-hint"></p>
+      <div class="duel-options"></div>
+      <p class="duel-log"></p>
     </div>
   </dialog>
   <div id="arenaCast" class="arena-cast" popover="manual">
-    <div class="cast-strip"><span class="cast-live"><i></i>Trực tiếp</span><span class="cast-event"></span></div>
     <div class="cast-main">
-      <div class="cast-heading"><span class="cast-stage"></span><span class="cast-title"></span></div>
+      <span class="cast-live"><i></i>Trực tiếp</span>
+      <span class="cast-heading"><span class="cast-stage"></span><span class="cast-title"></span></span>
       <span class="cast-timer"></span>
     </div>
     <ul class="cast-list"></ul>
   </div>
   <div id="arenaCount" class="arena-count" popover="manual" aria-hidden="true"></div>
+  <div id="summonVeil" class="summon" hidden>
+    <div class="summon-scroll">
+      <span class="summon-rod"></span>
+      <div class="summon-paper">
+        <span class="summon-seal" aria-hidden="true">敕</span>
+        <p class="summon-title">Thánh chỉ</p>
+        <div class="summon-text"></div>
+      </div>
+      <span class="summon-rod"></span>
+    </div>
+    <div class="summon-flash"></div>
+  </div>
   <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
       <header class="sched-head bank-head">

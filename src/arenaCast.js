@@ -1,6 +1,5 @@
 import { nextAt, roundName } from './arena.js';
 import { onStage } from './arenaReplay.js';
-import { clockText } from './clock.js';
 import { PLAYER } from './inventory.js';
 
 const FINAL_COUNT = 5;
@@ -34,7 +33,6 @@ function castInfo(event, now) {
 export function createArenaCast({ nameOf }) {
   const cast = document.getElementById('arenaCast');
   const count = document.getElementById('arenaCount');
-  const label = cast.querySelector('.cast-event');
   const stage = cast.querySelector('.cast-stage');
   const title = cast.querySelector('.cast-title');
   const timer = cast.querySelector('.cast-timer');
@@ -101,7 +99,6 @@ export function createArenaCast({ nameOf }) {
         lastCount = null;
         return;
       }
-      setText(label, `Lôi đài ${clockText(event.at)}`);
       setText(stage, info.stage);
       setText(title, info.title);
       setText(timer, info.left === null ? '' : seconds(info.left));
