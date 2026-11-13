@@ -1,10 +1,12 @@
-export const PREFIX = 'truong-lang-xua.';
+export const PREFIX = 'langsch.';
+export const OLD_PREFIX = 'truong-lang-xua.';
 export const WORLD_PREFIX = PREFIX + 'world.';
 export const ACCOUNT_KEY = PREFIX + 'account';
 export const LOCAL_PLAYER = 'player';
 
 const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'studyFurigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key), ACCOUNT_KEY]);
 
+export const renamedKey = (key) => (key.startsWith(OLD_PREFIX) ? PREFIX + key.slice(OLD_PREFIX.length) : key);
 export const worldKey = (name) => WORLD_PREFIX + name;
 export const selfKey = (name) => `${PREFIX}me.${name}`;
 

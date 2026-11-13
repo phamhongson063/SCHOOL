@@ -17,7 +17,7 @@ import { worldKey } from './saveKeys.js';
 
 const STORAGE_KEY = worldKey('farm');
 const LEASE_KEY = worldKey('farmLeases');
-const LEGACY_KEY = 'truong-lang-xua.farm';
+const LEGACY_KEY = 'langsch.farm';
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
 const SHAPED_FROM = 3;

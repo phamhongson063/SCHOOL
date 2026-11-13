@@ -1,7 +1,7 @@
 import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
 import { ACCOUNT_KEY, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 import { haltStores } from './persist.js';
-import { auditSeal, dropTampered } from './seal.js';
+import { auditSeal, dropTampered, renameOldKeys } from './seal.js';
 import { splitLegacySave } from './saveSplit.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
@@ -67,7 +67,7 @@ function snapshot(scope) {
 }
 
 function restore(text, scope) {
-  const data = JSON.parse(text);
+  const data = renameOldKeys(JSON.parse(text));
   for (const key of gameKeys(scope)) localStorage.removeItem(key);
   for (const [key, value] of Object.entries(data)) if (isGameKey(key) && scopeOf(key) === scope && typeof value === 'string') localStorage.setItem(key, value);
 }

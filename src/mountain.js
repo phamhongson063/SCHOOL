@@ -8,7 +8,7 @@ import { dailyMark } from './daily.js';
 import { hasModel } from './characterModels.js';
 import { keeperNPC } from './village.js';
 
-const PRAYER_KEY = 'truong-lang-xua.prayedDay';
+const PRAYER_KEY = 'langsch.prayedDay';
 const MONKS = [
   { name: 'Sư cụ', model: 'monk', dx: -1.6, dz: 2.7, turn: 0.15 },
   { name: 'Sư ông', model: 'monk-brown', dx: 1.6, dz: 2.7, turn: -0.15 },

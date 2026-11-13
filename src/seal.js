@@ -1,4 +1,4 @@
-import { PREFIX, WORLD_PREFIX, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
+import { OLD_PREFIX, PREFIX, WORLD_PREFIX, gameKeys, isGameKey, renamedKey, scopeOf } from './saveKeys.js';
 
 export const SEAL_KEY = PREFIX + 'seal';
 export const WORLD_SEAL_KEY = WORLD_PREFIX + 'seal';
@@ -85,4 +85,39 @@ export function dropTampered(keys) {
     }
     writeSeal(scope, seal);
   }
+}
+
+function resealed(text, entries) {
+  let seal = null;
+  try {
+    seal = JSON.parse(text);
+  } catch {}
+  if (!seal || typeof seal !== 'object' || Array.isArray(seal)) return text;
+  const next = {};
+  for (const [key, mark] of Object.entries(seal)) {
+    const value = entries[key];
+    if (typeof value === 'string' && mark === digest(key, value)) next[renamedKey(key)] = digest(renamedKey(key), value);
+  }
+  return JSON.stringify(next);
+}
+
+export function renameOldKeys(entries) {
+  const next = {};
+  for (const [key, value] of Object.entries(entries)) {
+    const target = renamedKey(key);
+    next[target] = target !== key && isSealKey(target) ? resealed(value, entries) : value;
+  }
+  return next;
+}
+
+export function renameOldStorage() {
+  try {
+    const old = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(OLD_PREFIX)) old[key] = localStorage.getItem(key);
+    }
+    for (const [key, value] of Object.entries(renameOldKeys(old))) localStorage.setItem(key, value);
+    for (const key of Object.keys(old)) localStorage.removeItem(key);
+  } catch {}
 }

@@ -6,7 +6,7 @@ import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 
-const FURIGANA_KEY = 'truong-lang-xua.studyFurigana';
+const FURIGANA_KEY = 'langsch.studyFurigana';
 const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
 
 function shuffle(list) {

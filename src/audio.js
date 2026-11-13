@@ -1,4 +1,4 @@
-const MUSIC_KEY = 'truong-lang-xua.music';
+const MUSIC_KEY = 'langsch.music';
 const MUSIC_FADE = 0.15;
 
 let ctx = null;

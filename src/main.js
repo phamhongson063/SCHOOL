@@ -337,7 +337,7 @@ regions.add(
     startFishing: (spot, berth) => fishing.start(spot, berth),
   }),
 );
-const PLACE_KEY = 'truong-lang-xua.player';
+const PLACE_KEY = 'langsch.player';
 const VILLAGERS_KEY = worldKey('villagers');
 function loadPlace() {
   try {
@@ -1546,7 +1546,7 @@ function updateBlessingQuiz(dt) {
   });
 }
 
-const TALLY_KEY = 'truong-lang-xua.blessingTally';
+const TALLY_KEY = 'langsch.blessingTally';
 function loadTally() {
   try {
     const saved = JSON.parse(localStorage.getItem(TALLY_KEY) ?? 'null');

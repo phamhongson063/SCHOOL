@@ -4,7 +4,7 @@ import { MONEY, SNACKS } from './config.js';
 import { amount } from './format.js';
 import { GOLD_HTML } from './goldArt.js';
 
-const TAB_KEY = 'truong-lang-xua.bagTab';
+const TAB_KEY = 'langsch.bagTab';
 const COLUMNS = 5;
 const MIN_SLOTS = 20;
 const TABS = [

@@ -1,8 +1,10 @@
 import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
 import { splitLegacySave } from './saveSplit.js';
 import { playerId } from './saveKeys.js';
+import { renameOldStorage } from './seal.js';
 
-const LOCK = 'truong-lang-xua.game';
+const LOCK = 'langsch.game';
+renameOldStorage();
 performance.setResourceTimingBufferSize?.(1000);
 const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');

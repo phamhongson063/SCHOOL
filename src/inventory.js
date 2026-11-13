@@ -8,8 +8,8 @@ import { playerId, selfKey, worldKey } from './saveKeys.js';
 const WORLD_KEY = worldKey('ledger');
 const SELF_KEY = selfKey('ledger');
 const FULL_MARGIN = 0.5;
-const LEGACY_PLAYER = 'truong-lang-xua.inventory';
-const LEGACY_FARMERS = 'truong-lang-xua.farmers';
+const LEGACY_PLAYER = 'langsch.inventory';
+const LEGACY_FARMERS = 'langsch.farmers';
 
 export const PLAYER = playerId();
 export const seedId = (crop) => `seed:${crop}`;

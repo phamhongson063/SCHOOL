@@ -3,7 +3,7 @@ import { setRich } from './goldArt.js';
 import { coins } from './format.js';
 import { writeGameItem } from './seal.js';
 
-const KEY = 'truong-lang-xua.mail';
+const KEY = 'langsch.mail';
 const TABS = [
   { key: 'system', icon: '🔔', label: 'Hệ thống', empty: 'Chưa có thư.' },
   { key: 'cert', icon: '🎓', label: 'Chứng chỉ', empty: 'Chưa có kết quả khảo thí.' },
