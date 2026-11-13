@@ -69,6 +69,7 @@ import { createStudy } from './study.js';
 import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
 import { createInternalDialog } from './internalDialog.js';
+import { createHallIntro } from './hallIntro.js';
 import { certify } from './certify.js';
 import { DECKS } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
@@ -881,6 +882,7 @@ const teacherDesk = {
   },
 };
 const internalDialog = createInternalDialog();
+const hallIntro = createHallIntro();
 const examSitting = {
   get isOpen() {
     return internalDialog.isOpen || exams.running;
@@ -984,6 +986,7 @@ function beginExamSitting() {
 const TEACHER_MENU = [
   { id: 'book', name: 'Đặt chỗ', icon: '🪑' },
   { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝' },
+  { id: 'about', name: 'Giới thiệu', icon: '❓' },
 ];
 const BOOK_REACH = 1.2;
 const BOOK_RETRIES = 3;
@@ -1204,7 +1207,11 @@ function sceneClick(clientX, clientY, run) {
   if (classroom >= 0) {
     const { deck } = STUDY_HALLS[classroom];
     const { teacher } = studyHalls[classroom];
-    picker.open({ title: 'Cô giáo', options: TEACHER_MENU, x: clientX, y: clientY }, (option) => {
+    picker.open({ title: 'Cô giáo', options: TEACHER_MENU, x: clientX, y: clientY, menu: true }, (option) => {
+      if (option.id === 'about') {
+        hallIntro.open(deck);
+        return;
+      }
       if (option.id === 'book') {
         bookSeat(deck, teacher);
         return;

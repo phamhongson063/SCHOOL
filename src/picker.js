@@ -6,6 +6,7 @@ const MARGIN = 12;
 export function createPicker() {
   const panel = document.getElementById('picker');
   const list = panel.querySelector('.picker-options');
+  const heading = panel.querySelector('.picker-title');
   let onPick = null;
 
   function close() {
@@ -34,8 +35,11 @@ export function createPicker() {
     return button;
   }
 
-  function open({ title, options, x, y }, pick) {
+  function open({ title, options, x, y, menu = false }, pick) {
     panel.setAttribute('aria-label', title);
+    panel.classList.toggle('menu', menu);
+    heading.textContent = title;
+    heading.hidden = !menu;
     list.replaceChildren(...options.map(option));
     onPick = pick;
     panel.hidden = false;
