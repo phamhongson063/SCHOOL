@@ -902,6 +902,9 @@ export function createFarm({ ledger, nameOf, nav }) {
       return lease;
     },
     animate: (index, kind, duration) => viewOf(index)?.animate(index, kind, duration),
+    ownerOf(index) {
+      return state.spots[index]?.owner ?? null;
+    },
     randomPlot(actor) {
       const mine = [];
       state.spots.forEach((plant, index) => {

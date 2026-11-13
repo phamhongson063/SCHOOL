@@ -20,7 +20,7 @@ export class RestBehavior {
       this.blessingSession = session;
       this.blessingWish = Math.random() < BLESSING.villagerChance;
     }
-    return this.blessingWish || this.purse.energy < ENERGY.costs.clear;
+    return this.blessingWish || this.purse.energy < ENERGY.workMin;
   }
 
   goBlessing() {
@@ -268,26 +268,9 @@ export class RestBehavior {
     return Math.min(ENERGY.max, morning) < VILLAGER.morningEnergy;
   }
 
-  nightTask() {
-    const deck = this.seated ? this.studyDeckWanted() : null;
-    if (this.studySeatFor(deck)) return 'study';
-    if (this.canFish()) return 'fish';
-    if (this.canHunt()) return 'hunt';
-    return null;
-  }
-
   wantsSleep(ctx) {
     if (!ctx.night) return false;
-    if (this.needsSleep(ctx)) return true;
-    return !this.nightTask() && !this.town.farm.jobFor(this, this.seedChoice());
-  }
-
-  nightWork() {
-    const task = this.nightTask();
-    if (task === 'study') return this.goSelfStudy();
-    if (task === 'fish' && this.goFish()) return;
-    if (task === 'hunt' && this.goHunt()) return;
-    this.goHome();
+    return this.needsSleep(ctx) || !this.plan(ctx);
   }
 
   goNight() {

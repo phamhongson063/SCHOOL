@@ -338,17 +338,21 @@ export function createWildlife({ nav, onBoarHit }) {
     scare(animal, from) {
       flee(animal, from);
     },
-    claim(hunter) {
+    nearestPrey(from) {
       let best = null;
       let bestD = Infinity;
       for (const animal of animals) {
         if (!animal.spec.gentle || animal.hunter || animal.state === 'gone' || animal.state === 'flee' || animal.state === 'frozen') continue;
-        const d = Math.hypot(animal.x - hunter.position.x, animal.z - hunter.position.z);
+        const d = Math.hypot(animal.x - from.x, animal.z - from.z);
         if (d < bestD) {
           bestD = d;
           best = animal;
         }
       }
+      return best;
+    },
+    claim(hunter) {
+      const best = this.nearestPrey(hunter.position);
       if (best) {
         best.hunter = hunter;
         best.state = 'idle';

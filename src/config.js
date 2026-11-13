@@ -128,9 +128,29 @@ export const VILLAGER = {
   morningEnergy: 60,
 };
 
+export const MIND = {
+  energyCoin: 0.4,
+  comfortMoney: 200,
+  studyValue: 4.5,
+  internalValue: 40,
+  leisureValue: 1,
+  workSeconds: 5,
+  castSeconds: 9,
+  huntSeconds: 5,
+  queueSeconds: 60,
+  harvestShare: { harvest: 1, plant: 0.5, lease: 0.5, water: 0.18, fertilize: 0.18, clear: 0.1, clearOther: 0.05 },
+  crowdCut: 0.4,
+  taste: [0.75, 1.25],
+  farmerFarmTaste: 0.15,
+  noise: [0.85, 1.15],
+  stick: 1.2,
+  stickSeconds: 120,
+};
+
 export const ENERGY = {
   max: 100,
-  costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 1, fish: 2 },
+  costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 0, fish: 2 },
+  workMin: 1,
   drain: { seated: 2, idle: 2, walk: 4, study: 6, run: 8 },
   nightFactor: 2,
   sleepPerHour: 10,

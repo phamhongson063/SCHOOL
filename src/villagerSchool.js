@@ -112,22 +112,32 @@ export class SchoolBehavior {
     return certify.internalReady(this.id, deck) && this.purse.money >= CERTIFY.internalFee && this.internalTriesLeft(deck) > 0;
   }
 
-  studyDeckWanted() {
-    return DECK_IDS.find((deck) => certify.learnLeft(this.id, deck).length > 0 || this.canTakeInternal(deck)) ?? null;
+  hallRoom(deck) {
+    const seats = this.town.studySeats.list.filter((seat) => seat.deck === deck);
+    const free = seats.filter((seat) => this.town.studySeats.isFreeFor(seat, this)).length;
+    return seats.length ? free / seats.length : 0;
+  }
+
+  studyDeckWanted(ctx = this.town.context) {
+    let best = null;
+    let bestScore = -Infinity;
+    for (const deck of DECK_IDS) {
+      const learning = certify.learnLeft(this.id, deck).length > 0;
+      const internal = !ctx.night && this.canTakeInternal(deck);
+      if (!learning && !internal) continue;
+      const score = (internal && !learning ? 1 : this.hallRoom(deck)) + Math.random() * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = deck;
+      }
+    }
+    return best;
   }
 
   studySeatFor(deck) {
     if (!deck || this.purse.money < CERTIFY.learnFee) return null;
     const seats = this.town.studySeats;
     return seats.nearestFree(this.position, this, (seat) => seat.deck === deck && seats.restLeft(seat, this, this.now) <= 0);
-  }
-
-  wantsSelfStudy(ctx) {
-    if (!this.seated || this.now < this.studyRestAt) return false;
-    const deck = this.studyDeckWanted();
-    if (!deck || Math.random() >= SELF_STUDY.chance * this.diligence) return false;
-    if (!ctx.night && this.wantsInternal(deck)) return true;
-    return !!this.studySeatFor(deck);
   }
 
   wantsInternal(deck) {
@@ -141,9 +151,8 @@ export class SchoolBehavior {
     this.lineUp(this.town.queues[`teacher:${deck}`], () => this.takeInternal());
   }
 
-  goSelfStudy() {
+  goSelfStudy(deck = this.studyDeckWanted()) {
     const seats = this.town.studySeats;
-    const deck = this.studyDeckWanted();
     if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;

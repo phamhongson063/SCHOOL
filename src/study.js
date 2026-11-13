@@ -50,7 +50,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   const meaning = document.getElementById('studyMeaning');
   const note = document.getElementById('studyNote');
   const title = panel.querySelector('.study-title');
-  const bar = document.getElementById('studyBar');
+  const nav = body.querySelector('.study-nav');
   const prev = document.getElementById('studyPrev');
   const next = document.getElementById('studyNext');
   const remembered = document.getElementById('studyRemembered');
@@ -231,11 +231,8 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     timerFill.style.transition = '';
   }
 
-  function paintLearnProgress() {
+  function paintLearnOrder() {
     const learning = certify.batch(PLAYER, deckId).filter((item) => !item.ready);
-    const total = learning.length * CERTIFY.remember;
-    const done = learning.reduce((sum, item) => sum + Math.min(item.count, CERTIFY.remember), 0);
-    bar.style.transform = `scaleX(${total ? done / total : 1})`;
     modeChip.textContent = `${learning.findIndex((item) => item.key === current) + 1}/${learning.length}`;
   }
 
@@ -252,7 +249,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     showTranslation(false);
     setCovered(true);
     restartTimer();
-    paintLearnProgress();
+    paintLearnOrder();
   }
 
   const learnedToday = () =>
@@ -272,8 +269,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     setStudying(true);
     showChip('learn');
     current = null;
-    prev.hidden = true;
-    next.hidden = true;
+    nav.hidden = true;
     start.hidden = true;
     body.hidden = false;
     nextLearn();
@@ -282,7 +278,6 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   function renderReview() {
     fill(order[pos]);
     modeChip.textContent = `${pos + 1}/${order.length}`;
-    bar.style.transform = `scaleX(${(pos + 1) / order.length})`;
   }
 
   function beginReview() {
@@ -298,8 +293,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     showTranslation(false);
     setStudying(true);
     showChip(chip);
-    prev.hidden = false;
-    next.hidden = false;
+    nav.hidden = false;
     start.hidden = true;
     body.hidden = false;
     body.classList.remove('covered');

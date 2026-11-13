@@ -2883,28 +2883,8 @@ dialog.paper.phrase-quiz {
   font: 500 15px/1.5 var(--font-ui);
 }
 
-.study-meter {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  max-width: 260px;
-}
-
-.study-progress {
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(107, 68, 37, 0.15);
-  overflow: hidden;
-}
-
-.study-progress span {
-  display: block;
-  height: 100%;
-  background: #2f7fd6;
-  transform-origin: left;
-  transition: transform 0.2s ease;
+.study-nav[hidden] {
+  display: none;
 }
 
 .study-nav {

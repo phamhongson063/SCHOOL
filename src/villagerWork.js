@@ -33,9 +33,8 @@ export class WorkBehavior {
     return best;
   }
 
-  goFarm(idle = () => this.leisure()) {
+  goFarm(idle = () => this.leisure(), job = this.town.farm.jobFor(this, this.seedChoice())) {
     const farm = this.town.farm;
-    const job = farm.jobFor(this, this.seedChoice());
     if (!job) {
       idle();
       return;
@@ -53,7 +52,7 @@ export class WorkBehavior {
   canHunt() {
     const wildlife = this.town.wildlife;
     if (!wildlife) return false;
-    return this.purse.energy >= HUNTING.energy + ENERGY.costs.clear && wildlife.hunters < HUNTING.villagerHunters && wildlife.hasPrey;
+    return this.purse.energy >= HUNTING.energy + ENERGY.workMin && wildlife.hunters < HUNTING.villagerHunters && wildlife.hasPrey;
   }
 
   goHunt() {
@@ -190,8 +189,6 @@ export class WorkBehavior {
   leisure() {
     this.task = 'leisure';
     this.lookAt = null;
-    if (Math.random() < 0.2 && this.canHunt() && this.goHunt()) return;
-    if (Math.random() < 0.35 && this.canFish() && this.goFish()) return;
     const farm = this.town.farm;
     const r = Math.random();
     const plot = farm.randomPlot(this.id);
