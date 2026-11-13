@@ -126,6 +126,7 @@ export const VILLAGER = {
   lodgeNights: 3,
   nightAwakeHours: 1,
   morningEnergy: 60,
+  resumeMinutes: 10,
 };
 
 export const MIND = {

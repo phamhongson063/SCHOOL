@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
+import { VILLAGER } from './config.js';
 import { INN_STAND } from './inn.js';
 import { realSeconds } from './clock.js';
 import { ServiceQueue } from './queue.js';
@@ -399,7 +400,68 @@ export class Town {
     }
   }
 
-  restore(ctx) {
+  snapshot(t, minutes) {
+    const seats = this.studySeats.list;
+    const rests = [];
+    seats.forEach((seat, index) => {
+      for (const [who, until] of seat.rested ?? []) {
+        const id = who === 'player' ? who : who?.id;
+        if (id && until > t) rests.push([index, id, Math.round(until - t)]);
+      }
+    });
+    const members = this.members.map((member) => {
+      const entry = { id: member.id };
+      if (member.studyRestAt > t) entry.studyRest = Math.round(member.studyRestAt - t);
+      if (member.state === 'seated' && member.task === 'selfstudy' && member.seatRef?.study) {
+        entry.study = { seat: seats.indexOf(member.seatRef), left: Math.round(member.studyUntil - t), words: member.sitWords ?? 0, mark: Math.round(t - member.studyMark) };
+      } else if (member.present && member.roaming) {
+        entry.at = [Math.round(member.position.x * 100) / 100, Math.round(member.position.z * 100) / 100, Math.round(member.facing * 100) / 100];
+      }
+      return entry;
+    });
+    return { minutes, members, rests };
+  }
+
+  resumable(ctx) {
+    const saved = this.saved;
+    this.saved = null;
+    const gap = ctx.minutes - saved?.minutes;
+    if (!(gap >= 0 && gap <= VILLAGER.resumeMinutes) || !Array.isArray(saved.members)) return { members: new Map(), rests: [] };
+    const members = new Map(saved.members.filter((entry) => entry && typeof entry.id === 'string').map((entry) => [entry.id, entry]));
+    return { members, rests: Array.isArray(saved.rests) ? saved.rests : [] };
+  }
+
+  restoreRests(rests, t) {
+    for (const [index, id, left] of rests) {
+      const seat = this.studySeats.list[index];
+      const who = id === 'player' ? id : this.members.find((member) => member.id === id);
+      if (seat && who && left > 0) this.studySeats.rest(seat, who, t + left);
+    }
+  }
+
+  resumeMember(member, entry, ctx, t) {
+    if (!entry) return false;
+    if (entry.studyRest > 0) member.studyRestAt = t + entry.studyRest;
+    const study = entry.study;
+    if (study && study.left > 0 && !(ctx.night && member.needsSleep(ctx))) {
+      const seat = this.studySeats.list[study.seat];
+      if (seat && member.resumeStudy(seat, study, t)) return true;
+    }
+    const [x, z, facing] = Array.isArray(entry.at) ? entry.at : [];
+    if (![x, z].every(Number.isFinite)) return false;
+    if (ctx.night ? member.wantsSleep(ctx) : ctx.phase.kind !== 'free' && member.attendsToday(ctx.day)) return false;
+    const height = this.nav.heightAt(x, z);
+    if (height === null) return false;
+    member.position.set(x, height, z);
+    if (Number.isFinite(facing)) member.facing = facing;
+    member.setVisible(true);
+    member.wait(between(0.2, 1.5));
+    return true;
+  }
+
+  restore(ctx, t = 0) {
+    const saved = this.resumable(ctx);
+    this.restoreRests(saved.rests, t);
     this.context = ctx;
     this.started = true;
     this.lastNight = ctx.night;
@@ -409,6 +471,7 @@ export class Town {
     else this.teacher.vanish();
     for (const worker of this.shiftWorkers) worker.vanish();
     for (const member of this.members) {
+      if (this.resumeMember(member, saved.members.get(member.id), ctx, t)) continue;
       if (member.wantsSleep(ctx)) {
         member.settleNight();
         continue;
@@ -523,7 +586,7 @@ export class Town {
     this.player = player;
     const previous = this.context?.phase;
     this.context = ctx;
-    if (!this.started) this.restore(ctx);
+    if (!this.started) this.restore(ctx, t);
     if (ctx.night !== this.lastNight) {
       this.lastNight = ctx.night;
       if (ctx.night) {

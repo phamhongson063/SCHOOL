@@ -352,6 +352,26 @@ export class SchoolBehavior {
     if (!waiting || this.town.context.night) this.rise(() => this.think(), between(1, 3));
   }
 
+  resumeStudy(seat, { left, words, mark }, t) {
+    if (!certify.learnLeft(this.id, seat.deck).length || !this.town.studySeats.canTake(seat, this)) return false;
+    this.cancel();
+    this.town.studySeats.occupy(seat, this);
+    this.seatRef = seat;
+    seat.place(this.seated.group);
+    this.position.copy(seat.sit);
+    this.setVisible(false);
+    this.showSeated(true);
+    this.now = t;
+    this.state = 'seated';
+    this.task = 'selfstudy';
+    this.recess = false;
+    this.studying = true;
+    this.studyUntil = t + left;
+    this.studyMark = t - mark;
+    this.sitWords = words;
+    return true;
+  }
+
   seatDirect(seat) {
     this.cancel();
     this.town.seats.occupy(seat, this);

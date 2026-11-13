@@ -333,6 +333,7 @@ regions.add(
   }),
 );
 const PLACE_KEY = 'truong-lang-xua.player';
+const VILLAGERS_KEY = 'truong-lang-xua.villagers';
 function loadPlace() {
   try {
     const saved = JSON.parse(localStorage.getItem(PLACE_KEY) ?? 'null');
@@ -552,6 +553,7 @@ function savePlace() {
   const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
   try {
     writeGameItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
+    if (town?.started) writeGameItem(VILLAGERS_KEY, JSON.stringify(town.snapshot(clock.elapsedTime, context.minutes)));
   } catch {}
 }
 let placeSavedAt = 0;
@@ -621,6 +623,9 @@ town = new Town({
   dust,
 });
 
+try {
+  town.saved = JSON.parse(localStorage.getItem(VILLAGERS_KEY) ?? 'null');
+} catch {}
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
 player.blockers = () => town.restingBlockers();
 town.martStands = [quarter.martStand, fieldMart.stand];
