@@ -9,6 +9,7 @@ import { inStudyRoom } from './rooms.js';
 import { economy } from './economy.js';
 
 const VENDOR_TRIES = 2;
+const [MART_SNACK, MART_SNACK_INFO] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
 const OFFICIAL_ATTEND = 3;
 
 export class RestBehavior {
@@ -234,15 +235,13 @@ export class RestBehavior {
       else this.wait(between(1.5, 3));
       return;
     }
-    const rent = roomTier(spot.id).price;
-    if (!this.purse.spend(rent)) {
+    if (!this.payRoom(spot.id)) {
       leaveRoom(this);
       this.say('Hết tiền thuê phòng rồi...', 2);
       if (this.town.context.night) this.sleepOut();
       else this.wait(between(1.5, 3));
       return;
     }
-    economy.collect(rent * ECONOMY.vat, this.id, rent);
     this.cancel();
     book(spot.id, this);
     this.task = 'inn';
@@ -252,6 +251,13 @@ export class RestBehavior {
     this.velocity = 0;
     this.state = 'inn';
     this.setVisible(false);
+  }
+
+  payRoom(room) {
+    const rent = roomTier(room).price;
+    if (!this.purse.spend(rent)) return false;
+    economy.collect(rent * ECONOMY.vat, this.id, rent);
+    return true;
   }
 
   leaveInn() {
@@ -378,12 +384,15 @@ export class RestBehavior {
     this.cancel();
     this.task = 'shop';
     const buy = () => {
-      const [id, snack] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
       if (!this.town.context.martOpen) this.say('Siêu thị đóng cửa mất rồi!', 1.8);
-      else if (this.town.market.buy(this.purse, snackId(id), MART.stock)) this.say(`Mua ${MART.stock} gói ${snack.icon} để dành`, 2.2);
+      else if (this.buySnacks()) this.say(`Mua ${MART.stock} gói ${MART_SNACK_INFO.icon} để dành`, 2.2);
       this.wait(between(1.5, 3), () => this.think());
     };
     this.travel(this.nearestMart(), { then: buy, fail: () => this.think() });
+  }
+
+  buySnacks() {
+    return this.town.market.buy(this.purse, snackId(MART_SNACK), MART.stock);
   }
 
   canEat(ctx) {

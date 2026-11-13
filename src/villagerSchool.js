@@ -11,7 +11,7 @@ const FORGET = 0.15;
 const INTERNAL_SEAT_RETRY = 1;
 
 const answerSkill = (member) => Math.min(0.99, 0.9 + 0.09 * member.diligence);
-const simulate = (member, keys) => keys.map((key) => ({ key, correct: Math.random() < answerSkill(member) }));
+export const simulate = (member, keys) => keys.map((key) => ({ key, correct: Math.random() < answerSkill(member) }));
 
 export class SchoolBehavior {
   internalTriesLeft(deck) {
@@ -193,9 +193,17 @@ export class SchoolBehavior {
     this.wait(between(1, 2));
   }
 
+  beginInternal(deck) {
+    if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return null;
+    economy.income('teacher', CERTIFY.internalFee, this.id);
+    this.internalTries[deck] = (this.internalTries[deck] ?? 0) + 1;
+    return certify.internalQuestions(this.id, deck);
+  }
+
   startInternal() {
     const deck = this.internalDeck;
-    if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) {
+    const keys = this.beginInternal(deck);
+    if (!keys) {
       this.internalDeck = null;
       this.rise(() => {
         this.task = null;
@@ -203,9 +211,7 @@ export class SchoolBehavior {
       }, between(0.5, 2));
       return;
     }
-    economy.income('teacher', CERTIFY.internalFee, this.id);
-    this.internalTries[deck] = (this.internalTries[deck] ?? 0) + 1;
-    this.internalKeys = certify.internalQuestions(this.id, deck);
+    this.internalKeys = keys;
     this.internalUntil = this.now + this.internalKeys.length * CERTIFY.seconds[deck] * between(0.4, 0.8);
     this.studying = true;
   }
@@ -231,13 +237,18 @@ export class SchoolBehavior {
     if (!left.length) return true;
     if (t - this.studyMark < CERTIFY.viewSeconds) return false;
     this.studyMark = t;
-    const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
-    if (Math.random() < FORGET * (1 - this.diligence)) certify.forget(this.id, deck, key);
-    else {
-      certify.remember(this.id, deck, key);
-      this.sitWords += 1;
-    }
+    if (this.learnWord(deck, left)) this.sitWords += 1;
     return false;
+  }
+
+  learnWord(deck, left = certify.learnLeft(this.id, deck)) {
+    const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
+    if (Math.random() < FORGET * (1 - this.diligence)) {
+      certify.forget(this.id, deck, key);
+      return false;
+    }
+    certify.remember(this.id, deck, key);
+    return true;
   }
 
   examDeckWanted(ctx) {
@@ -269,29 +280,33 @@ export class SchoolBehavior {
     });
   }
 
-  startExam() {
-    const deck = this.examDeck;
+  beginExam(deck, pace) {
     const purse = this.purse;
     const ready = deck && certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck);
-    if (!ready || !purse.take('intellect', CERTIFY.examIntellect)) {
-      this.examDeck = null;
-      this.rise(() => this.think(), between(0.5, 2));
-      return;
-    }
+    if (!ready || !purse.take('intellect', CERTIFY.examIntellect)) return null;
     if (!purse.spend(CERTIFY.examFee)) {
       purse.add('intellect', CERTIFY.examIntellect);
-      this.examDeck = null;
-      this.rise(() => this.think(), between(0.5, 2));
-      return;
+      return null;
     }
     economy.income('teacher', CERTIFY.examFee, this.id);
     const keys = certify.examQuestions(this.id, deck);
-    const pace = CERTIFY.seconds[deck] * between(0.4, 0.8);
     const count = Math.max(keys.length, Math.ceil((CERTIFY.examMinutes * 60) / pace));
     while (keys.length < count) {
       const key = certify.examExtra(this.id, deck, keys.at(-1) ?? null);
       if (!key) break;
       keys.push(key);
+    }
+    return keys;
+  }
+
+  startExam() {
+    const deck = this.examDeck;
+    const pace = CERTIFY.seconds[deck] * between(0.4, 0.8);
+    const keys = this.beginExam(deck, pace);
+    if (!keys) {
+      this.examDeck = null;
+      this.rise(() => this.think(), between(0.5, 2));
+      return;
     }
     this.examKeys = keys;
     this.examUntil = this.now + keys.length * pace;
@@ -343,12 +358,11 @@ export class SchoolBehavior {
     this.velocity = 0;
     this.state = 'seated';
     if (this.seatRef.study) {
-      if (!this.purse.spend(CERTIFY.learnFee)) {
+      if (!this.payStudy()) {
         this.task = null;
         this.rise(() => this.think(), between(0.3, 1.5));
         return;
       }
-      economy.income('teacher', CERTIFY.learnFee, this.id);
       this.task = 'selfstudy';
       this.studying = true;
       this.studyUntil = this.now + CERTIFY.sitSeconds;
@@ -365,6 +379,12 @@ export class SchoolBehavior {
       return;
     }
     this.rise(() => this.think(), between(1, 3));
+  }
+
+  payStudy() {
+    if (!this.purse.spend(CERTIFY.learnFee)) return false;
+    economy.income('teacher', CERTIFY.learnFee, this.id);
+    return true;
   }
 
   resumeStudy(seat, { left, words, mark }, t) {

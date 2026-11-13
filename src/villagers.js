@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { VILLAGER } from './config.js';
+import { QUIZ, VILLAGER } from './config.js';
 import { INN_STAND } from './inn.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
@@ -10,6 +10,8 @@ import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 import { SQUEEZE, squeezePast } from './squeeze.js';
 import { PLAYER } from './inventory.js';
+import { certify } from './certify.js';
+import { economy } from './economy.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
@@ -93,6 +95,16 @@ export class Town {
     if (cell < 0) return point;
     const center = this.nav.center(cell);
     return { x: center.x, z: center.z };
+  }
+
+  quizRound() {
+    for (const member of this.all) {
+      if (!certify.pool(member.id).length) continue;
+      const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
+      if (Math.random() >= pass) continue;
+      economy.reward(member.purse, QUIZ.reward);
+      member.luckyIntellect();
+    }
   }
 
   nameOf(id) {

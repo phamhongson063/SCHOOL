@@ -1,7 +1,8 @@
-import { ECONOMY, VILLAGER } from './config.js';
-import { dayOf, gameMinutesOf, DAY_MINUTES } from './clock.js';
+import { AWAY, ECONOMY, VILLAGER } from './config.js';
+import { atGameTime, dayOf, gameMinutesOf, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
+import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
 
 const KEY = worldKey('economy');
@@ -88,33 +89,6 @@ function observe(minutes) {
   }
 }
 
-function replay(minutes) {
-  if (state.observed < ECONOMY.offline.minSample) return;
-  const scale = Math.min(minutes, ECONOMY.catchUpDays * DAY_MINUTES) / state.observed;
-  const people = new Set(ctx.people());
-  for (const [id, flow] of Object.entries(state.flows)) {
-    if (!people.has(id) || !flowOf(id)) continue;
-    pay(id, flow.earn * scale);
-    pay(FUND, flow.tax * scale);
-    const want = flow.spent * scale;
-    const purse = ctx.ledger.purse(id);
-    const paid = Math.min(Math.floor(want), purse.money);
-    if (!(paid > 0) || !purse.spend(paid)) continue;
-    const share = (paid / want) * scale;
-    for (const [recipient, amount] of Object.entries(flow.to)) pay(recipient, amount * share);
-  }
-}
-
-function watch(t) {
-  const gap = state.seen === null ? 0 : t - state.seen;
-  state.seen = t;
-  if (gap > 0) {
-    if (gap <= ONLINE_GAP && !document.hidden) observe(gap);
-    else replay(gap);
-  }
-  store.save();
-}
-
 function payWages() {
   const fund = ctx.ledger.purse(FUND);
   for (const worker of workers()) {
@@ -166,19 +140,38 @@ function settleDay() {
   manageSavings();
 }
 
-function update() {
-  const t = ctx.now();
+function settleThrough(t) {
   const today = dayOf(t);
   if (state.day === null) state.day = today;
-  const from = Math.max(state.day, today - ECONOMY.catchUpDays);
-  for (let day = from; day < today; day++) settleDay();
+  for (let day = Math.max(state.day, today - ECONOMY.catchUpDays); day < today; day++) settleDay();
   state.day = today;
-  watch(t);
+}
+
+function advance(from, to) {
+  for (let t = Math.max(from, to - ECONOMY.catchUpDays * DAY_MINUTES); t < to; ) {
+    const end = Math.min(to, t + AWAY.step, (dayOf(t) + 1) * DAY_MINUTES);
+    atGameTime(t, () => {
+      settleThrough(t);
+      ctx.away.step(t, end);
+    });
+    observe(end - t);
+    t = end;
+  }
+}
+
+function update() {
+  const t = ctx.now();
+  const gap = state.seen === null ? 0 : t - state.seen;
+  if (gap > ONLINE_GAP || (gap > 0 && document.hidden)) holdWrites(() => ctx.away.during(() => advance(state.seen, t)));
+  else if (gap > 0) observe(gap);
+  settleThrough(t);
+  state.seen = t;
+  store.save();
 }
 
 export const economy = {
-  start({ ledger, bank, estate, staff, people, now }) {
-    ctx = { ledger, bank, estate, staff, people, now };
+  start({ ledger, bank, estate, staff, people, now, away }) {
+    ctx = { ledger, bank, estate, staff, people, now, away };
     if (!state.seeded) {
       state.seeded = true;
       pay(FUND, ECONOMY.fundSeed);

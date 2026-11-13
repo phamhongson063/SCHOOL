@@ -813,7 +813,9 @@ export function createFarm({ ledger, nameOf, nav }) {
   const views = {};
   let lastTick = 0;
 
+  let quiet = false;
   const refreshAll = () => {
+    if (quiet) return;
     for (const view of Object.values(views)) view?.refresh();
   };
   const viewOf = (index) => views[fieldOf(index)];
@@ -873,6 +875,17 @@ export function createFarm({ ledger, nameOf, nav }) {
 
   const crew = {
     nav,
+    grow: () => tick(),
+    quietly(run) {
+      if (quiet) return run();
+      quiet = true;
+      try {
+        return run();
+      } finally {
+        quiet = false;
+        refreshAll();
+      }
+    },
     spot: (index) => spots[index],
     standFor: (index, from) => standFor(spots[index], from),
     claim: (index, who) => claims.set(index, who),
@@ -1024,7 +1037,6 @@ export function createFarm({ ledger, nameOf, nav }) {
         viewOf(target.index)?.animate(target.index, kind, duration);
       },
       load() {
-        tick();
         if (built[field]) built[field].refresh();
         else built[field] = new FarmView(spots, state, field);
         const view = built[field];

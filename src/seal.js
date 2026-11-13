@@ -43,7 +43,28 @@ function sealAll(scope) {
   return seal;
 }
 
+let held = null;
+
+export function holdWrites(run) {
+  if (held) return run();
+  held = new Map();
+  try {
+    return run();
+  } finally {
+    const writes = held;
+    held = null;
+    for (const [key, value] of writes) {
+      if (value === null) removeGameItem(key);
+      else writeGameItem(key, value);
+    }
+  }
+}
+
 export function writeGameItem(key, value) {
+  if (held) {
+    held.set(key, value);
+    return;
+  }
   localStorage.setItem(key, value);
   const scope = scopeOf(key);
   const seal = readSeal(scope) ?? sealAll(scope);
@@ -52,6 +73,10 @@ export function writeGameItem(key, value) {
 }
 
 export function removeGameItem(key) {
+  if (held) {
+    held.set(key, null);
+    return;
+  }
   localStorage.removeItem(key);
   const scope = scopeOf(key);
   const seal = readSeal(scope) ?? sealAll(scope);

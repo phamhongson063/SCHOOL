@@ -42,6 +42,7 @@ import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
+import { createAwaySim } from './villagerAway.js';
 import { createStudyIcon, badgeMaterial } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
@@ -673,6 +674,7 @@ economy.start({
   ],
   people: () => everyone.map((person) => person.id),
   now: gameNow,
+  away: createAwaySim({ town, contextAt }),
 });
 createRanking({ ledger, bank, estate, people: everyone, now: gameNow });
 
@@ -729,15 +731,7 @@ const quiz = createQuiz({
     regen.coin(QUIZ.reward, player.position);
   },
   onEmpty: () => sayPlayer('📖 Chưa có từ nào để ôn, hãy tới phòng tự học nhé!', 3),
-  onVillagers: () => {
-    for (const member of town?.all ?? []) {
-      if (!certify.pool(member.id).length) continue;
-      const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
-      if (Math.random() >= pass) continue;
-      economy.reward(member.purse, QUIZ.reward);
-      member.luckyIntellect();
-    }
-  },
+  onVillagers: () => town?.quizRound(),
 });
 const fishing = createPlayerFishing({
   river,

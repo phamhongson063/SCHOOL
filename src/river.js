@@ -593,6 +593,7 @@ export function createRiver() {
     hasFish(spot) {
       return spot.fish > 0;
     },
+    restock: (minutes) => refill(minutes),
     get hasRoom() {
       return spots.some((spot) => spot.fish > 0 && spot.berths.some((item) => !item.who));
     },

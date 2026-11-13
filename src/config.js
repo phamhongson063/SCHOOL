@@ -152,6 +152,8 @@ export const ENERGY = {
 
 export const MOVE = { walk: 2, run: 3 };
 
+export const AWAY = { step: 15, walk: 1.5 };
+
 export const LODGES = {
   inn: { price: 25, perHour: 28, comfort: 0.6 },
   cheap: { price: 20, perHour: 20, comfort: 0.2 },

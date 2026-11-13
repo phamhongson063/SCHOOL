@@ -155,7 +155,7 @@ export class WorkBehavior {
       return;
     }
     if (!this.holdBerth()) return;
-    if (!this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
+    if (!this.payCast()) {
       this.endFishing();
       return;
     }
@@ -167,6 +167,19 @@ export class WorkBehavior {
     this.effects.angler.cast(session.berth.float);
     session.biteAt = this.now + FISHING.biteSeconds;
     this.state = 'fishing';
+  }
+
+  payCast() {
+    return this.purse.spendEnergy(ENERGY.costs.fish) && this.purse.take('bait', 1);
+  }
+
+  landFish(spot, minutes, day) {
+    const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
+    if (!(Math.random() < skill && this.town.river.take(spot))) return null;
+    const fish = this.town.river.rollFish(minutes);
+    this.purse.catchFish(fishId(fish), day);
+    this.luckyIntellect();
+    return fish;
   }
 
   fishBite() {
@@ -187,11 +200,8 @@ export class WorkBehavior {
     session.reelAt = null;
     const ctx = this.town.context;
     this.effects.angler.reel();
-    const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
-    if (Math.random() < skill && this.town.river.take(session.spot)) {
-      const fish = this.town.river.rollFish(ctx.minutes);
-      this.purse.catchFish(fishId(fish), ctx.day);
-      this.luckyIntellect();
+    const fish = this.landFish(session.spot, ctx.minutes, ctx.day);
+    if (fish) {
       const float = session.berth.float;
       this.effects.harvest.start({ count: 1, at: { x: float.x, y: 0.05, z: float.z }, height: 0.1, item: fishId(fish) });
       if (Math.random() < 0.6) this.say(`${pick(CAUGHT)} ${iconTag(ITEMS[fishId(fish)])}`, 1.8);
@@ -294,6 +304,12 @@ export class WorkBehavior {
     this.lookAt = sign;
   }
 
+  tend(job) {
+    const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
+    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && Math.random() < (FISHING.villagerSkill[this.kind] ?? 0.5)) this.luckyIntellect();
+    return reply;
+  }
+
   work() {
     const job = this.job;
     const farm = this.town.farm;
@@ -317,11 +333,10 @@ export class WorkBehavior {
     this.facing = Math.atan2(spot.x - this.position.x, spot.z - this.position.z);
     const effect = farm.effectFor(job.index, job.action, this.id);
     const finish = () => {
-      const reply = farm.act(job.action, job.index, job.choice, this.id);
+      const reply = this.tend(job);
       farm.release(job.index, this.id);
       this.job = null;
       if (reply && (job.action === 'harvest' || Math.random() < 0.25)) this.say(reply);
-      if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && Math.random() < (FISHING.villagerSkill[this.kind] ?? 0.5)) this.luckyIntellect();
       this.wait(0.8 + Math.random() * 1.6);
     };
     if (!effect) {

@@ -2,8 +2,21 @@ import { TIME_ZONE_MINUTES } from './config.js';
 
 export const DAY_MINUTES = 1440;
 
-export function gameNow(real = Date.now()) {
-  return real / 60000 + TIME_ZONE_MINUTES;
+let frozen = null;
+
+export function gameNow(real) {
+  if (real === undefined && frozen !== null) return frozen;
+  return (real ?? Date.now()) / 60000 + TIME_ZONE_MINUTES;
+}
+
+export function atGameTime(minutes, run) {
+  const before = frozen;
+  frozen = minutes;
+  try {
+    return run();
+  } finally {
+    frozen = before;
+  }
 }
 
 export const dayOf = (minutes) => Math.floor(minutes / DAY_MINUTES);
