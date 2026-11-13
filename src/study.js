@@ -5,6 +5,7 @@ import { CERTIFY } from './config.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
+import { paintIcon } from './itemArt.js';
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
 const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
@@ -42,6 +43,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   const notice = document.getElementById('studyNotice');
   const learnPick = start.querySelector('[data-mode="learn"]');
   const reviewPick = start.querySelector('[data-mode="review"]');
+  for (const pick of [learnPick, reviewPick]) paintIcon(pick.querySelector('span'), { art: 'scroll' });
   const body = document.getElementById('studyBody');
   const modeChip = document.getElementById('studyMode');
   const word = document.getElementById('studyWord');

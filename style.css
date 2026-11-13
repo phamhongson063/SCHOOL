@@ -485,7 +485,7 @@ body {
 
 .picker.menu {
   width: min(260px, calc(100vw - 24px));
-  padding: 0 0 6px;
+  padding: 0 0 4px;
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(42, 28, 18, 0.96) 0%, rgba(24, 15, 9, 0.96) 100%);
 }
@@ -496,7 +496,7 @@ body {
 
 .picker-head {
   position: relative;
-  padding: 8px 40px 7px;
+  padding: 6px 40px 5px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.6);
   border-radius: 9px 9px 0 0;
   background:
@@ -524,7 +524,7 @@ body {
   padding: 0;
   border: none;
   border-radius: 5px;
-  background: linear-gradient(180deg, #5a3a22 0%, #2e1c10 100%);
+  background: linear-gradient(180deg, #c0392b 0%, var(--lacquer) 100%);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   color: var(--cream);
   font: 700 18px/1 var(--font-ui);
@@ -541,8 +541,8 @@ body {
 .picker.menu .picker-options {
   flex-direction: column;
   flex-wrap: nowrap;
-  gap: 2px;
-  padding: 6px 6px 0;
+  gap: 0;
+  padding: 4px 6px 0;
 }
 
 .picker.menu .picker-option {
@@ -552,7 +552,7 @@ body {
   gap: 10px;
   width: 100%;
   height: auto;
-  padding: 9px 10px;
+  padding: 6px 10px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -2930,6 +2930,121 @@ dialog.paper.phrase-quiz {
   color: var(--lacquer);
   font: 600 14px/1.4 var(--font-ui);
   text-align: center;
+}
+
+.study-card:has(.study-body[hidden]) {
+  width: min(280px, calc(100vw - 24px));
+  border: 1.5px solid rgba(214, 168, 72, 0.85);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(42, 28, 18, 0.96) 0%, rgba(24, 15, 9, 0.96) 100%);
+  color: #f4ead2;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.study-card:has(.study-body[hidden]) > .paper-body {
+  padding: 0 6px 4px;
+}
+
+.study-card:has(.study-body[hidden]) .sched-head {
+  justify-content: center;
+  margin: 0 -6px 6px;
+  padding: 6px 40px 5px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 9px 9px 0 0;
+  background:
+    linear-gradient(180deg, rgba(255, 226, 160, 0.08) 0%, transparent 55%),
+    linear-gradient(180deg, #3b2616 0%, #1f130b 100%);
+  box-shadow: 0 1px 0 rgba(255, 226, 160, 0.08);
+}
+
+.study-card:has(.study-body[hidden]) .study-title {
+  flex: none;
+  color: #f0c75a;
+  font: 700 17px/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+.study-card:has(.study-body[hidden]) #studyClose {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #c0392b 0%, var(--lacquer) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  transform: translateY(-50%);
+}
+
+.study-card:has(.study-body[hidden]) #studyClose::before {
+  width: 11px;
+  height: 2.5px;
+  background: var(--cream);
+  filter: none;
+  transform: translate(-50%, -50%);
+}
+
+.study-card:has(.study-body[hidden]) .study-start {
+  gap: 4px;
+  padding: 0;
+}
+
+.study-card:has(.study-body[hidden]) .study-status {
+  padding: 2px 8px;
+  color: #d8c7a3;
+  font: 500 13px/1.45 var(--font-ui);
+}
+
+.study-card:has(.study-body[hidden]) .study-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.study-card:has(.study-body[hidden]) .study-pick {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cream);
+  font: 600 15px/1.3 var(--font-ui);
+  text-align: left;
+}
+
+.study-card:has(.study-body[hidden]) .study-pick span {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  font-size: 22px;
+}
+
+.study-card:has(.study-body[hidden]) .study-pick small {
+  margin-left: auto;
+  color: #c9a86a;
+  font: 600 13px/1.2 var(--font-ui);
+}
+
+.study-card:has(.study-body[hidden]) .study-pick:hover,
+.study-card:has(.study-body[hidden]) .study-pick:focus-visible {
+  background: rgba(255, 226, 160, 0.1);
+  color: var(--amber);
+  outline: none;
+}
+
+.study-card:has(.study-body[hidden]) .study-pick:disabled:hover {
+  background: transparent;
+  color: var(--cream);
+}
+
+.study-card:has(.study-body[hidden]) .study-pack-note {
+  margin: 4px 0 0;
+  color: #ff8f7a;
 }
 
 .study-body {

@@ -6,6 +6,7 @@ import { closable } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
+import { certify } from './certify.js';
 
 const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -45,43 +46,56 @@ export function createRanking({ ledger, bank, estate, people, now }) {
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
   const names = new Map(people.map(({ id, name }) => [id, name]));
+  const tabs = [...dialog.querySelectorAll('[data-tab]')];
   let board = load();
+  let tab = 'worth';
 
   const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) + (estate.houseOf(id)?.price ?? 0);
 
-  function snapshot({ slot, at }) {
-    const before = new Map((board?.rows ?? []).map((row) => [row.id, row.worth]));
-    const rows = people.map(({ id }) => ({ id, worth: worthOf(id) })).sort((a, b) => b.worth - a.worth);
+  function standings(score, previous) {
+    const before = new Map((previous ?? []).map((row) => [row.id, row.score]));
+    const rows = people.map(({ id }) => ({ id, score: score(id) })).sort((a, b) => b.score - a.score);
     rows.forEach((row, i) => {
       row.rank = i + 1;
-      row.prevWorth = before.get(row.id) ?? null;
+      row.prev = before.get(row.id) ?? null;
     });
-    board = { slot, at, rows };
+    return rows;
+  }
+
+  function snapshot({ slot, at }) {
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs) };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
   }
 
-  function row({ id, worth, rank, prevWorth }) {
+  const scoreCell = {
+    worth: (worth) => richSpan(worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
+    certs: (count) => el('span', 'rank-worth', `🎓 ${amount(count)}`),
+  };
+
+  function row({ id, score, rank, prev }) {
     const item = el('li', id === PLAYER ? 'rank-row mine' : 'rank-row');
-    const change = Number.isFinite(prevWorth) ? worth - prevWorth : 0;
+    const change = Number.isFinite(prev) ? score - prev : 0;
     item.append(
       el('span', 'rank-place', MEDALS[rank - 1] ?? String(rank)),
       el('span', 'rank-name', names.get(id) ?? 'người khác'),
-      richSpan(worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
+      scoreCell[tab](score),
       el('span', change > 0 ? 'rank-trend up' : change < 0 ? 'rank-trend down' : 'rank-trend', change > 0 ? `+${amount(change)}` : change < 0 ? `-${amount(-change)}` : ''),
     );
     return item;
   }
 
   function render() {
-    list.replaceChildren(...board.rows.filter((entry) => names.has(entry.id)).map(row));
+    for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
+    const rows = tab === 'certs' ? board.certs : board.rows;
+    list.replaceChildren(...rows.filter((entry) => names.has(entry.id)).map(row));
     stamp.textContent = `Cập nhật lúc ${clockText(board.at)}`;
   }
 
   function update() {
     const checkpoint = latestCheckpoint(now());
-    if (board?.slot === checkpoint.slot) return;
+    if (board?.slot === checkpoint.slot && board.certs) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }
@@ -95,5 +109,11 @@ export function createRanking({ ledger, bank, estate, people, now }) {
     dialog.showModal();
   });
   button.addEventListener('pointerup', () => button.blur());
+  for (const node of tabs) {
+    node.addEventListener('click', () => {
+      tab = node.dataset.tab;
+      render();
+    });
+  }
   closable(dialog);
 }

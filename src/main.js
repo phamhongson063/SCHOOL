@@ -1207,7 +1207,7 @@ function sceneClick(clientX, clientY, run) {
   if (classroom >= 0) {
     const { deck } = STUDY_HALLS[classroom];
     const { teacher } = studyHalls[classroom];
-    picker.open({ title: 'Cô giáo', options: TEACHER_MENU, x: clientX, y: clientY, menu: true }, (option) => {
+    picker.open({ title: `Lớp ${DECKS[deck].label}`, options: TEACHER_MENU, x: clientX, y: clientY, menu: true }, (option) => {
       if (option.id === 'about') {
         hallIntro.open(deck);
         return;

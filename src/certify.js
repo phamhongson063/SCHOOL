@@ -181,6 +181,9 @@ export const certify = {
   certifiedCount(actor, deck) {
     return Object.keys(deckState(actor, deck).certified).length;
   },
+  certifiedTotal(actor) {
+    return Object.values(actors[actor] ?? {}).reduce((sum, state) => sum + Object.keys(state?.certified ?? {}).length, 0);
+  },
   needsInternal(actor, deck) {
     const state = deckState(actor, deck);
     return learnKeys(state).length > 0 && state.qualified !== state.day;
