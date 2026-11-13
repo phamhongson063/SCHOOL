@@ -111,10 +111,29 @@ export class WorkBehavior {
     if (!berth) return false;
     this.task = 'fish';
     const [lo, hi] = FISHING.villagerCasts;
-    river.claim(this, berth);
+    river.aim(this, berth);
     this.fishing = { spot: berth.spot, berth, casts: lo + Math.floor(Math.random() * (hi - lo + 1)), biteAt: 0, done: false };
-    this.travel(new THREE.Vector3(berth.stand.x, 0, berth.stand.z), { then: () => this.castLine(), fail: () => this.endFishing() });
+    this.walkToBerth(berth);
     return true;
+  }
+
+  walkToBerth(berth) {
+    this.travel(new THREE.Vector3(berth.stand.x, 0, berth.stand.z), { then: () => this.castLine(), fail: () => this.endFishing() });
+  }
+
+  holdBerth() {
+    const session = this.fishing;
+    const river = this.town.river;
+    if (river.hold(this, session.berth)) return true;
+    const other = river.berthFor(this, session.spot, this.position);
+    if (!other) {
+      this.endFishing();
+      return false;
+    }
+    session.berth = other;
+    river.aim(this, other);
+    this.walkToBerth(other);
+    return false;
   }
 
   nextTurn() {
@@ -131,7 +150,12 @@ export class WorkBehavior {
   castLine() {
     const session = this.fishing;
     const ctx = this.town.context;
-    if (!session || session.casts <= 0 || this.needsSleep(ctx) || this.shouldAttend(ctx) || !this.town.river.hasFish(session.spot) || !this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
+    if (!session || session.casts <= 0 || this.needsSleep(ctx) || this.shouldAttend(ctx) || !this.town.river.hasFish(session.spot)) {
+      this.endFishing();
+      return;
+    }
+    if (!this.holdBerth()) return;
+    if (!this.purse.spendEnergy(ENERGY.costs.fish) || !this.purse.take('bait', 1)) {
       this.endFishing();
       return;
     }

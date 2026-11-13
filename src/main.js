@@ -74,7 +74,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createRanking } from './ranking.js';
 import { economy, SHOPKEEPERS } from './economy.js';
-import { loadingStep, loadingDone } from './loading.js';
+import { loadingStep, loadingDone, hasEntered } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
 import { JOIN_RADIUS } from './queue.js';
@@ -1577,7 +1577,7 @@ renderer.setAnimationLoop((time) => {
   const focus = mode === 'overview' ? orbit.target : player.position;
   regions.update(t, dt, focus);
   updateSoundscape(focus);
-  quiz.update(dt, regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
+  quiz.update(dt, hasEntered() && regions.active?.id !== 'school' && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
   updateBlessingRewards();

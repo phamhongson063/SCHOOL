@@ -399,7 +399,8 @@ export function createRiver() {
     spot.jumpAt = clock + between(0.5, 2);
   }
 
-  const busy = (spot) => spot.berths.some((berth) => berth.who);
+  const heading = new Map();
+  const busy = (spot) => spot.berths.some((berth) => berth.who) || [...heading.values()].some((berth) => berth.spot === spot);
 
   const startedAt = gameNow();
   if (saved) {
@@ -547,14 +548,15 @@ export function createRiver() {
 
   const berths = spots.flatMap((spot) => spot.berths);
   const taken = (who) => berths.filter((item) => item.who && item.who !== who);
+  const expected = (who) => [...taken(who), ...[...heading].filter(([other]) => other !== who).map(([, berth]) => berth)];
   const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
   function crowdAt(point, who) {
-    return taken(who).filter((item) => gap(item.stand, point) < CROWD_RADIUS).length;
+    return expected(who).filter((item) => gap(item.stand, point) < CROWD_RADIUS).length;
   }
 
   function freeBerth(spot, who, point) {
-    const others = taken(who);
+    const others = expected(who);
     let best = null;
     let bestScore = -Infinity;
     for (const item of spot.berths) {
@@ -594,7 +596,7 @@ export function createRiver() {
       return spots.some((spot) => spot.fish > 0 && spot.berths.some((item) => !item.who));
     },
     get anglers() {
-      return berths.filter((item) => item.who).length;
+      return berths.filter((item) => item.who).length + heading.size;
     },
     pick(point, who) {
       let best = null;
@@ -614,12 +616,20 @@ export function createRiver() {
     berthFor(who, spot, point) {
       return freeBerth(spot, who, point);
     },
-    claim(who, berth) {
+    aim(who, berth) {
       for (const item of berths) if (item.who === who) item.who = null;
-      berth.who = who;
+      heading.set(who, berth);
       return berth;
     },
+    hold(who, berth) {
+      if (berth.who && berth.who !== who) return false;
+      heading.delete(who);
+      for (const item of berths) if (item.who === who) item.who = null;
+      berth.who = who;
+      return true;
+    },
     leave(who) {
+      heading.delete(who);
       for (const item of berths) if (item.who === who) item.who = null;
     },
     take(spot) {

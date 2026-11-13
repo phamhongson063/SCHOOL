@@ -3,6 +3,7 @@ import { FISH, FISHING, ENERGY } from './config.js';
 import { fishId } from './inventory.js';
 
 const REACH = 0.9;
+const CROWDED = 'Chỗ này đông người rồi, tìm chỗ khác nhé!';
 const NO_BAIT = 'Hết mồi rồi! Ra hàng cá mua mồi giun nhé.';
 const NO_ENERGY = 'Đói quá, hết sức câu rồi! Ra quán ăn nạp năng lượng nhé.';
 
@@ -24,6 +25,24 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
   }
 
   const away = () => Math.hypot(session.berth.stand.x - player.position.x, session.berth.stand.z - player.position.z);
+
+  function walkToBerth(berth) {
+    river.aim(player, berth);
+    session.berth = berth;
+    if (away() > REACH) player.requestMove(new THREE.Vector3(berth.stand.x, 0, berth.stand.z), false);
+  }
+
+  function holdBerth() {
+    if (river.hold(player, session.berth)) return true;
+    const other = river.berthFor(player, session.spot, player.position);
+    if (!other) {
+      stop();
+      say(CROWDED, 2);
+      return false;
+    }
+    walkToBerth(other);
+    return false;
+  }
 
   function cast() {
     const problem = shortage();
@@ -72,10 +91,9 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
       if (problem) return problem;
       if (!river.hasFish(spot)) return 'Chỗ này hết cá rồi!';
       const free = berth && !berth.who ? berth : river.berthFor(player, spot, player.position);
-      if (!free) return 'Chỗ này đông người rồi, tìm chỗ khác nhé!';
-      river.claim(player, free);
+      if (!free) return CROWDED;
       session = { spot, berth: free, phase: 'walk', at: 0 };
-      if (away() > REACH) player.requestMove(new THREE.Vector3(free.stand.x, 0, free.stand.z), false);
+      walkToBerth(free);
       return null;
     },
     stop,
@@ -98,8 +116,9 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
         stop();
         return;
       }
-      if (session.phase === 'walk') cast();
-      else if (session.phase === 'waiting' && now() >= session.at) bite();
+      if (session.phase === 'walk') {
+        if (holdBerth()) cast();
+      } else if (session.phase === 'waiting' && now() >= session.at) bite();
       else if (session.phase === 'pause' && now() >= session.at) {
         angler.stop();
         cast();

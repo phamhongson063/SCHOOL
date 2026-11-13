@@ -8,6 +8,9 @@ const HOLD_FULL = 450;
 const REMOVE_AFTER = 2600;
 
 let progress = 0;
+let entered = !root;
+
+export const hasEntered = () => entered;
 
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
 
@@ -45,6 +48,7 @@ export function loadingStep(value, text) {
 }
 
 function leave() {
+  entered = true;
   const remove = () => root.remove();
   root.addEventListener('transitionend', (event) => {
     if (event.target === root && event.propertyName === 'opacity') remove();
