@@ -2,14 +2,11 @@ import { CROPS } from './crops.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 import { createPairStore, without } from './persist.js';
-import { removeGameItem } from './seal.js';
 import { playerId, selfKey, worldKey } from './saveKeys.js';
 
 const WORLD_KEY = worldKey('ledger');
 const SELF_KEY = selfKey('ledger');
 const FULL_MARGIN = 0.5;
-const LEGACY_PLAYER = 'langsch.inventory';
-const LEGACY_FARMERS = 'langsch.farmers';
 
 export const PLAYER = playerId();
 export const seedId = (crop) => `seed:${crop}`;
@@ -106,33 +103,6 @@ function readJSON(key) {
   } catch {
     return null;
   }
-}
-
-function migrate() {
-  const accounts = {};
-  const player = readJSON(LEGACY_PLAYER);
-  if (player && typeof player === 'object') {
-    const account = starter();
-    for (const [id, amount] of Object.entries(player)) {
-      if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = (account.items[id] ?? 0) + Math.floor(amount);
-    }
-    accounts[PLAYER] = account;
-  }
-  const farmers = readJSON(LEGACY_FARMERS);
-  if (farmers && typeof farmers === 'object') {
-    for (const [owner, bag] of Object.entries(farmers)) {
-      const account = starter();
-      for (const [id, amount] of Object.entries(bag ?? {})) {
-        if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = (account.items[id] ?? 0) + Math.floor(amount);
-      }
-      accounts[owner] = account;
-    }
-  }
-  try {
-    removeGameItem(LEGACY_PLAYER);
-    removeGameItem(LEGACY_FARMERS);
-  } catch {}
-  return accounts;
 }
 
 export class Purse {
@@ -301,7 +271,7 @@ export class Ledger {
   constructor() {
     const world = readJSON(WORLD_KEY);
     const mine = readJSON(SELF_KEY);
-    const raw = world || mine ? { ...world, ...(mine && { [PLAYER]: mine }) } : migrate();
+    const raw = { ...world, ...(mine && { [PLAYER]: mine }) };
     this.accounts = {};
     for (const [id, account] of Object.entries(raw)) {
       this.accounts[id] = clean(account);

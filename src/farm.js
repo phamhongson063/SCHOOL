@@ -12,12 +12,11 @@ import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
-import { writeGameItem, removeGameItem } from './seal.js';
+import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 
 const STORAGE_KEY = worldKey('farm');
 const LEASE_KEY = worldKey('farmLeases');
-const LEGACY_KEY = 'langsch.farm';
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
 const SHAPED_FROM = 3;
@@ -246,7 +245,6 @@ class FarmState {
 
   load() {
     try {
-      removeGameItem(LEGACY_KEY);
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
       if (!saved || !Array.isArray(saved.spots) || saved.spots.length > this.spots.length) return false;
       const now = gameNow();

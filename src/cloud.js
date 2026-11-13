@@ -1,8 +1,7 @@
 import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
 import { ACCOUNT_KEY, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 import { haltStores } from './persist.js';
-import { auditSeal, dropTampered, renameOldKeys } from './seal.js';
-import { splitLegacySave } from './saveSplit.js';
+import { auditSeal, dropTampered } from './seal.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
@@ -67,7 +66,7 @@ function snapshot(scope) {
 }
 
 function restore(text, scope) {
-  const data = renameOldKeys(JSON.parse(text));
+  const data = JSON.parse(text);
   for (const key of gameKeys(scope)) localStorage.removeItem(key);
   for (const [key, value] of Object.entries(data)) if (isGameKey(key) && scopeOf(key) === scope && typeof value === 'string') localStorage.setItem(key, value);
 }
@@ -106,11 +105,9 @@ export async function connect() {
   const id = newId();
   const tampered = auditSeal();
   if (tampered.length) dropTampered(tampered);
-  splitLegacySave(user.uid);
   const continuing = !tampered.length && saved?.uid === user.uid;
   const world = await claim(store, db, refs.world, 'world', continuing ? saved.worldRev : null, id);
   const mine = await claim(store, db, refs.self, 'self', continuing ? saved.rev : null, id);
-  splitLegacySave(user.uid);
   saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: mine.rev, worldRev: world.rev });
   startSync(store, refs, id, { self: mine.data, world: world.data });
   upload();

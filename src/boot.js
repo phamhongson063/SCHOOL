@@ -1,10 +1,6 @@
 import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
-import { splitLegacySave } from './saveSplit.js';
-import { playerId } from './saveKeys.js';
-import { renameOldStorage } from './seal.js';
 
 const LOCK = 'langsch.game';
-renameOldStorage();
 performance.setResourceTimingBufferSize?.(1000);
 const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');
@@ -50,17 +46,12 @@ async function enter() {
   }
 }
 
-function launch() {
-  splitLegacySave(playerId());
-  return import('./main.js');
-}
-
 function startGame() {
   if (loader?.classList.contains('blocked')) {
     loader.classList.remove('blocked');
     label.textContent = idleLabel;
   }
-  enter().then(launch);
+  enter().then(() => import('./main.js'));
   return holdWhileOpen();
 }
 
@@ -80,7 +71,7 @@ addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload();
 });
 
-if (!navigator.locks) enter().then(launch);
+if (!navigator.locks) enter().then(() => import('./main.js'));
 else {
   navigator.locks.request(LOCK, { ifAvailable: true }, (lock) => {
     if (lock) return startGame();
