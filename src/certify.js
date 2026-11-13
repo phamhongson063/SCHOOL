@@ -296,6 +296,15 @@ export const certify = {
     }
     return keys;
   },
+  familiarity(actor, key) {
+    const deck = deckOf(key);
+    if (!deck) return 'new';
+    const state = deckState(actor, deck);
+    if (state.certified[key] !== undefined) return state.weak[key] !== undefined ? 'weak' : 'certified';
+    if (state.carry.includes(key) || (state.batch.includes(key) && (state.counts[key] ?? 0) >= CERTIFY.remember)) return 'studied';
+    if (state.viewed.includes(key) || state.batch.includes(key)) return 'seen';
+    return 'new';
+  },
   markWeak(actor, key, correct) {
     const deck = deckOf(key);
     if (!deck || correct) return;

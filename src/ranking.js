@@ -41,7 +41,7 @@ function richSpan(className, text) {
   return node;
 }
 
-export function createRanking({ ledger, bank, estate, people, now }) {
+export function createRanking({ ledger, bank, estate, arena, people, now }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
@@ -50,6 +50,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
   let board = load();
   let tab = 'worth';
 
+  const titlesOf = (id) => arena.champions.filter((item) => item.id === id).length;
   const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) + (estate.houseOf(id)?.price ?? 0);
 
   function standings(score, previous) {
@@ -63,7 +64,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
   }
 
   function snapshot({ slot, at }) {
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs) };
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs), arena: standings(titlesOf, board?.arena) };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -72,6 +73,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
   const scoreCell = {
     worth: (worth) => richSpan(worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
     certs: (count) => el('span', 'rank-worth', `🎓 ${amount(count)}`),
+    arena: (count) => el('span', 'rank-worth', `🏆 ${amount(count)}`),
   };
 
   function row({ id, score, rank, prev }) {
@@ -79,7 +81,7 @@ export function createRanking({ ledger, bank, estate, people, now }) {
     const change = Number.isFinite(prev) ? score - prev : 0;
     item.append(
       el('span', 'rank-place', MEDALS[rank - 1] ?? String(rank)),
-      el('span', 'rank-name', names.get(id) ?? 'người khác'),
+      el('span', 'rank-name', `${names.get(id) ?? 'người khác'}${id === arena.champions[0]?.id ? ' ⚔️' : ''}`),
       scoreCell[tab](score),
       el('span', change > 0 ? 'rank-trend up' : change < 0 ? 'rank-trend down' : 'rank-trend', change > 0 ? `+${amount(change)}` : change < 0 ? `-${amount(-change)}` : ''),
     );
@@ -88,14 +90,14 @@ export function createRanking({ ledger, bank, estate, people, now }) {
 
   function render() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
-    const rows = tab === 'certs' ? board.certs : board.rows;
-    list.replaceChildren(...rows.filter((entry) => names.has(entry.id)).map(row));
+    const rows = (tab === 'certs' ? board.certs : tab === 'arena' ? board.arena.filter((entry) => entry.score > 0) : board.rows).filter((entry) => names.has(entry.id));
+    list.replaceChildren(...(rows.length ? rows.map(row) : [el('li', 'rank-empty', 'Chưa có nhà vô địch.')]));
     stamp.textContent = `Cập nhật lúc ${clockText(board.at)}`;
   }
 
   function update() {
     const checkpoint = latestCheckpoint(now());
-    if (board?.slot === checkpoint.slot && board.certs) return;
+    if (board?.slot === checkpoint.slot && board.certs && board.arena) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }

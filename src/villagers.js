@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { QUIZ, VILLAGER } from './config.js';
+import { ENERGY, QUIZ, VILLAGER } from './config.js';
 import { INN_STAND } from './inn.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
@@ -12,6 +12,7 @@ import { SQUEEZE, squeezePast } from './squeeze.js';
 import { PLAYER } from './inventory.js';
 import { certify } from './certify.js';
 import { economy } from './economy.js';
+import { absorption } from './absorption.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
@@ -98,10 +99,13 @@ export class Town {
   }
 
   quizRound() {
+    const day = this.context?.day;
     for (const member of this.all) {
-      if (!certify.pool(member.id).length) continue;
-      const pass = member.kind === 'student' ? member.diligence : QUIZ.villagerPass;
-      if (Math.random() >= pass) continue;
+      if (Number.isInteger(day)) {
+        if (member.purse.energy < ENERGY.low) absorption.note(member.id, 'tired', day);
+        if (member.debt() > 0) absorption.note(member.id, 'debt', day);
+      }
+      if (!member.answerPool()) continue;
       economy.reward(member.purse, QUIZ.reward);
       member.luckyIntellect();
     }
@@ -505,7 +509,7 @@ export class Town {
       if (ctx.night) {
         for (const member of this.all) {
           if (member.state === 'inn') member.lodgeNight = true;
-          if (member.state === 'away' || member.state === 'inn' || member.keepsNight) continue;
+          if (member.state === 'away' || member.state === 'inn' || member.state === 'arena' || member.keepsNight) continue;
           if (member === this.teacher && (member.state === 'teaching' || member.onDuty(ctx))) {
             if (!member.onDuty(ctx)) member.stopTeaching();
             continue;

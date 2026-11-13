@@ -8,6 +8,7 @@ import { worldKey } from './saveKeys.js';
 const KEY = worldKey('economy');
 const FUND = 'fund';
 const CHECK_MS = 5000;
+const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
 
 export const SHOPKEEPERS = [
@@ -143,26 +144,49 @@ function settleDay() {
 function settleThrough(t) {
   const today = dayOf(t);
   if (state.day === null) state.day = today;
-  for (let day = Math.max(state.day, today - ECONOMY.catchUpDays); day < today; day++) settleDay();
+  for (let day = state.day; day < today; day++) settleDay();
   state.day = today;
 }
 
-function advance(from, to) {
-  for (let t = Math.max(from, to - ECONOMY.catchUpDays * DAY_MINUTES); t < to; ) {
-    const end = Math.min(to, t + AWAY.step, (dayOf(t) + 1) * DAY_MINUTES);
-    atGameTime(t, () => {
-      settleThrough(t);
-      ctx.away.step(t, end);
-    });
-    observe(end - t);
-    t = end;
+function stepAway(t, to) {
+  const end = Math.min(to, t + AWAY.step, (dayOf(t) + 1) * DAY_MINUTES);
+  atGameTime(t, () => {
+    settleThrough(t);
+    ctx.away.step(t, end);
+  });
+  observe(end - t);
+  return end;
+}
+
+const pause = () => new Promise((resolve) => setTimeout(resolve));
+
+let catching = false;
+
+async function catchUp(from, to, progress) {
+  catching = true;
+  try {
+    let t = from;
+    while (t < to) {
+      const until = performance.now() + SLICE_MS;
+      holdWrites(() =>
+        ctx.away.during(() => {
+          while (t < to && performance.now() < until) t = stepAway(t, to);
+        }),
+      );
+      state.seen = t;
+      store.save();
+      if (t < to) await (progress ? progress((t - from) / (to - from)) : pause());
+    }
+  } finally {
+    catching = false;
   }
 }
 
-function update() {
+async function update(progress = null) {
+  if (catching) return;
   const t = ctx.now();
   const gap = state.seen === null ? 0 : t - state.seen;
-  if (gap > ONLINE_GAP || (gap > 0 && document.hidden)) holdWrites(() => ctx.away.during(() => advance(state.seen, t)));
+  if (gap > ONLINE_GAP || (gap > 0 && document.hidden)) await catchUp(state.seen, t, progress);
   else if (gap > 0) observe(gap);
   settleThrough(t);
   state.seen = t;
@@ -170,15 +194,18 @@ function update() {
 }
 
 export const economy = {
-  start({ ledger, bank, estate, staff, people, now, away }) {
+  get catching() {
+    return catching;
+  },
+  async start({ ledger, bank, estate, staff, people, now, away, progress = null }) {
     ctx = { ledger, bank, estate, staff, people, now, away };
     if (!state.seeded) {
       state.seeded = true;
       pay(FUND, ECONOMY.fundSeed);
       store.save();
     }
-    update();
-    setInterval(update, CHECK_MS);
+    await update(progress);
+    setInterval(() => update(), CHECK_MS);
   },
   income(seller, price, payer = null) {
     if (!ctx || !(price > 0)) return;

@@ -4,6 +4,27 @@ import { BLOCKED, NAGS, pick } from './villagerData.js';
 import { economy } from './economy.js';
 
 export class ErrandBehavior {
+  wantsArena() {
+    return !!this.town.arenaDesk && !!this.town.arena?.consider(this.id);
+  }
+
+  goArena() {
+    const desk = this.town.arenaDesk;
+    this.task = 'arena';
+    this.lookAt = null;
+    this.travel(pick(desk.spots), {
+      then: () => {
+        this.lookAt = desk.at;
+        if (this.town.arena.register(this.id)) {
+          this.say('⚔️', 1.6);
+          desk.say('Ghi danh xong!');
+        }
+        this.wait(between(1.5, 2.5), () => this.think());
+      },
+      fail: () => this.think(),
+    });
+  }
+
   enqueue(queue, serve) {
     this.queue = queue;
     this.serve = serve;

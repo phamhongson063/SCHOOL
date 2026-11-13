@@ -5,13 +5,12 @@ import { DECK_IDS } from './studyDecks.js';
 import { examOpen } from './examHall.js';
 import { SELF_STUDY } from './villagerData.js';
 import { economy } from './economy.js';
+import { absorption } from './absorption.js';
 
 const INTERNAL_TRIES = 3;
-const FORGET = 0.15;
 const INTERNAL_SEAT_RETRY = 1;
 
-const answerSkill = (member) => Math.min(0.99, 0.9 + 0.09 * member.diligence);
-export const simulate = (member, keys) => keys.map((key) => ({ key, correct: Math.random() < answerSkill(member) }));
+export const simulate = (member, keys) => keys.map((key) => ({ key, correct: absorption.answer(member.id, key) }));
 
 export class SchoolBehavior {
   internalTriesLeft(deck) {
@@ -255,7 +254,8 @@ export class SchoolBehavior {
 
   learnWord(deck, left = certify.learnLeft(this.id, deck)) {
     const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
-    if (Math.random() < FORGET * (1 - this.diligence)) {
+    absorption.note(this.id, 'study', this.town.context.day);
+    if (absorption.forgets(this.id)) {
       certify.forget(this.id, deck, key);
       return false;
     }

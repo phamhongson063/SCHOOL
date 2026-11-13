@@ -117,6 +117,7 @@ export function createAwaySim({ town, contextAt }) {
     eat(member, ctx);
     if (ctx.martOpen && member.wantsMart()) member.buySnacks();
     exams(member, ctx);
+    if (town.arena?.consider(member.id)) town.arena.register(member.id);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);
@@ -257,6 +258,7 @@ export function createAwaySim({ town, contextAt }) {
       if (!(minutes > 0)) return;
       const ctx = contextAt(from);
       town.context = ctx;
+      town.arena?.tick(from);
       farm.grow();
       river.restock(from);
       const slots = { anglers: new Set(), hunters: new Set(), study: new Map(), seats: { ...seatsOf } };

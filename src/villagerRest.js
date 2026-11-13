@@ -159,7 +159,7 @@ export class RestBehavior {
     if (this.now < ask.answerAt) return;
     ask.answerAt = null;
     ask.at = this.now + BLESSING.quizSeconds;
-    if (Math.random() >= (FISHING.villagerSkill[this.kind] ?? 0.5)) return;
+    if (!this.answerPool()) return;
     const session = this.town.blessing.session(this.town.context.minutes);
     if (this.blessingTally?.session !== session) this.blessingTally = { session, correct: 0 };
     this.blessingTally.correct += 1;

@@ -306,7 +306,7 @@ export class WorkBehavior {
 
   tend(job) {
     const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
-    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && Math.random() < (FISHING.villagerSkill[this.kind] ?? 0.5)) this.luckyIntellect();
+    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) this.luckyIntellect();
     return reply;
   }
 

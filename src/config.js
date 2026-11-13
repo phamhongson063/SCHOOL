@@ -258,11 +258,53 @@ export const ECONOMY = {
   houseTax: 0.0001,
   buyback: 0.8,
   thrift: 0.6,
-  catchUpDays: 7,
   offline: { sampleDays: 3, minSample: 120 },
 };
 
-export const QUIZ = { seconds: 5 * 60, reward: 1, villagerPass: 0.7 };
+export const QUIZ = { seconds: 5 * 60, reward: 1 };
+
+export const ABSORB = {
+  min: 0.3,
+  max: 1,
+  talent: [0.4, 0.9],
+  start: [0.3, 0.95],
+  rate: 0.1,
+  catchUp: 30,
+  study: 0.1,
+  idle: 0.1,
+  tired: 0.1,
+  debt: 0.05,
+  guess: 0.25,
+  fade: 0.25,
+  ceiling: 0.99,
+  forget: 0.3,
+  grasp: { certified: 1, studied: 0.95, weak: 0.7, seen: 0.35, new: 0 },
+  think: { sure: 0.15, slow: 0.8, guess: [0.55, 1], jitter: [0.85, 1.15] },
+};
+
+export const ARENA = {
+  deck: 'n2',
+  size: 8,
+  starts: [8 * 60 + 45, 19 * 60 + 45, 23 * 60 + 35],
+  lead: 30,
+  roundMinutes: 10,
+  grace: 2,
+  fee: 0,
+  hp: 100,
+  hit: 18,
+  speed: 0.6,
+  seconds: 15,
+  read: 5,
+  turns: 12,
+  places: [
+    { rank: 1, share: 0, intellect: 0 },
+    { rank: 2, share: 0, intellect: 0 },
+    { rank: 3, share: 0, intellect: 0 },
+  ],
+  champions: 30,
+  rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
+  npc: { minCertified: 20, reserve: 40, eager: 0.6 },
+};
 
 export const BLESSING = {
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),

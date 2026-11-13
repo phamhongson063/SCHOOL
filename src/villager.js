@@ -12,6 +12,7 @@ import { between } from './random.js';
 import { ITEMS } from './inventory.js';
 import { MONEY, VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
 import { certify } from './certify.js';
+import { absorption } from './absorption.js';
 import { leaveRoom } from './lodging.js';
 import { amount } from './format.js';
 import { iconTag } from './itemArt.js';
@@ -152,6 +153,11 @@ export class Villager {
     return false;
   }
 
+  answerPool() {
+    const keys = certify.pool(this.id);
+    return keys.length > 0 && absorption.answer(this.id, keys[Math.floor(Math.random() * keys.length)]);
+  }
+
   luckyIntellect() {
     if (Math.random() >= CERTIFY.dropChance || !certify.pool(this.id).length) return;
     this.purse.addIntellect(1);
@@ -205,6 +211,7 @@ export class Villager {
     if (this.examDeckWanted(ctx)) return this.goExam();
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
+    if (this.wantsArena()) return this.goArena();
     if (this.wantsBlessing(ctx)) return this.goBlessing();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
@@ -353,6 +360,46 @@ export class Villager {
     const home = this.homePoint();
     this.position.set(home.x, 0, home.z);
     this.setVisible(false);
+  }
+
+  enterArena(spot) {
+    if (this.seatRef && (this.state === 'seated' || this.state === 'sitting' || this.state === 'rising' || this.state === 'leaving')) {
+      this.town.seats.vacate(this.seatRef, this);
+      this.showSeated(false);
+    }
+    if (this.state === 'inn') leaveRoom(this);
+    this.cancel();
+    this.seatRef = null;
+    this.studying = false;
+    this.examKeys = null;
+    this.examDeck = null;
+    this.internalKeys = null;
+    this.internalDeck = null;
+    this.lyingDown = false;
+    this.restBlend = 0;
+    this.route = null;
+    this.wakeAt = null;
+    this.task = 'arena';
+    this.state = 'arena';
+    this.placeArena(spot);
+    this.setVisible(true);
+  }
+
+  placeArena(spot) {
+    this.position.set(spot.x, spot.y, spot.z);
+    this.facing = spot.facing;
+    this.velocity = 0;
+    this.pop = 0.25;
+  }
+
+  leaveArena(spot) {
+    this.task = null;
+    this.state = 'idle';
+    this.position.set(spot.x, this.town.nav.heightAt(spot.x, spot.z) ?? 0, spot.z);
+    this.velocity = 0;
+    this.pop = 0.25;
+    this.setVisible(true);
+    this.wait(between(0.5, 1.5));
   }
 
   appear() {
@@ -593,6 +640,9 @@ export class Villager {
         break;
       case 'working':
         this.slowDown();
+        break;
+      case 'arena':
+        this.velocity = 0;
         break;
       case 'fishing': {
         this.slowDown();

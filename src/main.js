@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
 import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
-import { createPlayer, createSeatedPlayer } from './characters.js';
+import { createPlayer, createSeatedPlayer, createWalker } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
 import { createRooms, inStudyRoom } from './rooms.js';
 import { Seats } from './seats.js';
@@ -37,7 +37,7 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY, ARENA } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
@@ -90,6 +90,13 @@ import { coins } from './format.js';
 import { haltStores } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
+import { createArena } from './arena.js';
+import { ISLAND_BOUNDS, createArenaIsland, islandFloor, islandNavFloor } from './arenaIsland.js';
+import { createArenaTrip } from './arenaTrip.js';
+import { createArenaFx } from './arenaFx.js';
+import { createArenaBattle } from './arenaBattle.js';
+import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
+import { arenaLines, createArenaDesk } from './arenaDesk.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -104,7 +111,7 @@ const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
 const IDLE_AFTER = 20000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
-const NAV_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: MOUNTAIN.z0, z1: 84 };
+const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: 84 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(MAX_PIXEL_RATIO);
@@ -212,7 +219,7 @@ const player = new PlayerController({
   stepSound,
   shadow: createBlobShadow(scene, 0.34),
 });
-player.surfaceAt = (x, z) => stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
+player.surfaceAt = (x, z) => islandFloor(x, z) ?? stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
 player.terrainAt = terrainHeight;
 
 const ledger = new Ledger();
@@ -305,11 +312,14 @@ regions.add(
     rentLodge: (id) => lodgeDesk.rent(id),
     bank,
     openBank: () => bankUI.open(),
+    openArena: () => arenaDesk.open(),
     minutes: () => gameNow(),
   }),
 );
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
+const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE });
+regions.add(arenaIsland.region);
 for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
     estate,
@@ -354,7 +364,7 @@ regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
 await loadingStep(0.72, 'Mở lối đi');
 player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
-  surfaceAt: (x, z) => stairHeight(x, z) ?? plazaFloor(x, z) ?? navSurface(x, z),
+  surfaceAt: (x, z) => (x > WORLD.x1 ? islandNavFloor(x, z) : stairHeight(x, z) ?? plazaFloor(x, z) ?? navSurface(x, z)),
   blocked: (p) => player.blocks(p),
 });
 regions.onLoad = (region) => {
@@ -556,9 +566,10 @@ if (savedClear) {
   if (savedPlace.resting) player.restoreRest();
 } else player.place(new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z), 0);
 
+let arenaTrip = null;
 function savePlace() {
   if (placeLocked) return;
-  const at = player.posture === 'free' || !player.seat ? player.position : player.seat.spot;
+  const at = arenaTrip?.returnSpot() ?? (player.posture === 'free' || !player.seat ? player.position : player.seat.spot);
   try {
     writeGameItem(PLACE_KEY, JSON.stringify({ x: at.x, z: at.z, yaw: player.yaw, facing: player.facing, resting: player.resting }));
     writeGameItem(BLESSING_KEY, JSON.stringify(blessing.standing(PLAYER, gameNow())));
@@ -648,6 +659,74 @@ player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(positio
 player.blockers = () => town.restingBlockers();
 town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
+const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4) });
+town.arena = arena;
+town.arenaDesk = district.arenaDesk;
+const portraits = new Map();
+function portraitOf(id) {
+  if (portraits.has(id)) return portraits.get(id);
+  const profile = town.members.find((member) => member.id === id)?.profile;
+  const model = id === PLAYER ? (modelReady ? createModel('player') : createPlayer()) : profile ? (profile.model && hasModel(profile.model) ? createModel(profile.model) : createWalker(profile.look)) : null;
+  const img = new Image();
+  if (model) paintPortrait(renderer, model, img);
+  portraits.set(id, img.getAttribute('src'));
+  return portraits.get(id);
+}
+function sayInArena(id, text) {
+  if (id === PLAYER) sayPlayer(text, 1.4);
+  else town.members.find((member) => member.id === id)?.say(text, 1.4);
+}
+const arenaBattle = createArenaBattle({ arena, fx: createArenaFx(scene), nameOf, portraitOf, sayOf: sayInArena, here: () => arenaTrip.here });
+const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
+const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
+arena.onFinish((event) => {
+  if (!event.entrants.includes(PLAYER)) return;
+  mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true });
+});
+let arenaBusy = false;
+const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping;
+
+async function fightArena() {
+  arenaBusy = true;
+  sayPlayer('⚔️ Tới lượt bạn lên lôi đài!', 2.4);
+  try {
+    for (let asked = arena.question(PLAYER); asked; asked = arena.question(PLAYER)) {
+      const rival = asked.side === 'a' ? 'b' : 'a';
+      const asking = kanjiQuiz.ask({
+        key: asked.key,
+        icon: '⚔️',
+        seconds: asked.seconds,
+        level: `Lôi đài · ${asked.turn}`,
+        clock: `❤️ ${asked.hp[asked.side]} · ${nameOf(asked.opponent)} ❤️ ${asked.hp[rival]}`,
+        brief: true,
+        closeAfter: 900,
+        kind: Math.random() < 0.5 ? 'reading' : 'meaning',
+        choices: arena.event.deck === 'n2' ? 4 : 0,
+        lock: ARENA.read,
+        onAnswer: (right) => (right ? uiSounds.correct() : uiSounds.wrong()),
+      });
+      arenaBattle.raise();
+      const result = await asking;
+      if (!arena.play(PLAYER, { correct: result.correct && !result.cancelled, seconds: result.seconds ?? asked.seconds })) break;
+      arenaBattle.played();
+    }
+  } finally {
+    arenaBusy = false;
+  }
+  const event = arena.event;
+  const lost = event?.rounds.some((round) => round.some((match) => (match.a === PLAYER || match.b === PLAYER) && match.winner && match.winner !== PLAYER));
+  sayPlayer(lost ? '⚔️ Thua mất rồi...' : '⚔️ Thắng rồi!', 2.4);
+}
+
+function updateArena(dt) {
+  arena.tick(gameNow(), { present: arenaPresent });
+  const now = gameNow();
+  arenaTrip.update(now, clock.elapsedTime);
+  arenaBattle.update(now, dt, player.position);
+  arenaIsland.paintBoard(bracketKey(arena.event, now), (ctx) => drawBracket(ctx, BOARD_SIZE, arena.event, { nameOf, now, palette: PALETTES.board }));
+  if (!arenaBusy && arenaTrip.fighting && arena.liveMatch(PLAYER) && !kanjiQuiz.open && !exams.running) fightArena();
+}
 const blessingDialog = createBlessingDialog({
   blessing,
   minutes: () => context.minutes,
@@ -665,7 +744,7 @@ try {
   blessing.resume(PLAYER, JSON.parse(localStorage.getItem(BLESSING_KEY) ?? 'null'), gameNow());
 } catch {}
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
-economy.start({
+await economy.start({
   ledger,
   bank,
   estate,
@@ -677,8 +756,9 @@ economy.start({
   people: () => everyone.map((person) => person.id),
   now: gameNow,
   away: createAwaySim({ town, contextAt }),
+  progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
-createRanking({ ledger, bank, estate, people: everyone, now: gameNow });
+createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow });
 
 let context = null;
 
@@ -1724,7 +1804,10 @@ renderer.setAnimationLoop((time) => {
   cullRooms();
   const simSpan = Math.min(elapsed, SIM_SPAN);
   const simSteps = Math.max(1, Math.ceil(simSpan / MAX_STEP));
-  for (let i = 0; i < simSteps; i++) town.update(t, simSpan / simSteps, context, player, camera, i === simSteps - 1);
+  if (!economy.catching) {
+    for (let i = 0; i < simSteps; i++) town.update(t, simSpan / simSteps, context, player, camera, i === simSteps - 1);
+    updateArena(dt);
+  }
   if (shopUI.isOpen && !context.shopOpen) {
     shopUI.close();
     sayPlayer(`Tiệm đóng cửa rồi, mở ${shopHours()} nhé!`, 2.4);
@@ -1733,8 +1816,10 @@ renderer.setAnimationLoop((time) => {
     fishShopUI.close();
     sayPlayer(`Hàng cá đóng cửa rồi, mở ${fishShopHours()} nhé!`, 2.4);
   }
-  bank.tick(context.minutes);
-  bank.mature();
+  if (!economy.catching) {
+    bank.tick(context.minutes);
+    bank.mature();
+  }
   if (bankUI.isOpen && !context.bankOpen) {
     bankUI.close();
     sayPlayer(`Ngân hàng đóng cửa rồi, mở ${bankHours()} nhé!`, 2.4);
@@ -1754,7 +1839,7 @@ renderer.setAnimationLoop((time) => {
   streetLamps.update(t);
   river.update(dt, context.minutes);
   clouds.update(dt, night);
-  player.held = kanjiQuiz.open;
+  player.held = kanjiQuiz.open || arenaTrip.fighting;
   player.update(dt);
   placeBubble();
   updateBubbles(camera, t);

@@ -156,7 +156,9 @@ export function createKanjiQuiz() {
     const ui = current.view;
     current.answered = true;
     current.correct = correct;
+    current.seconds = current.startedAt === null ? 0 : (performance.now() - current.startedAt) / 1000;
     clearInterval(current.tick);
+    clearTimeout(current.unlock);
     ui.icon.classList.remove('hooked');
     if (correct) ui.icon.classList.add('caught');
     for (const button of ui.options.children) {
@@ -187,14 +189,14 @@ export function createKanjiQuiz() {
     const ui = current.view;
     if (!ui.dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       hide(ui);
-      current.resolve({ correct: current.correct, entry: current.entry });
+      current.resolve({ correct: current.correct, entry: current.entry, seconds: current.seconds });
       return;
     }
     ui.dialog.classList.add('closing');
     closing = {
       view: ui,
       timer: setTimeout(endClosing, CLOSE_ANIMATION_MS),
-      done: () => current.resolve({ correct: current.correct, entry: current.entry }),
+      done: () => current.resolve({ correct: current.correct, entry: current.entry, seconds: current.seconds }),
     };
   }
 
@@ -251,7 +253,7 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
@@ -260,7 +262,7 @@ export function createKanjiQuiz() {
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {
-        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blanks: [] };
+        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, unlock: null, startedAt: null, seconds: 0, blanks: [] };
         ui.close.hidden = true;
         ui.dialog.classList.toggle('brief', brief);
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
@@ -274,14 +276,24 @@ export function createKanjiQuiz() {
         ui.options.classList.toggle('lettered', lettered);
         ui.options.classList.toggle('meanings', asked.kind === 'meaning');
         ui.options.replaceChildren(...shuffle([asked.answer, ...asked.wrong]).map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
-        const started = performance.now();
         const total = (seconds ?? quizSeconds(asked.kind, phrase)) * 1000;
+        const current = pending;
         ui.bar.style.transform = 'scaleX(1)';
-        pending.tick = setInterval(() => {
-          const left = Math.max(0, 1 - (performance.now() - started) / total);
-          ui.bar.style.transform = `scaleX(${left})`;
-          if (left <= 0) settle(false, null);
-        }, 100);
+        const begin = () => {
+          if (pending !== current || current.answered) return;
+          for (const button of ui.options.children) button.disabled = false;
+          const started = performance.now();
+          current.startedAt = started;
+          current.tick = setInterval(() => {
+            const left = Math.max(0, 1 - (performance.now() - started) / total);
+            ui.bar.style.transform = `scaleX(${left})`;
+            if (left <= 0) settle(false, null);
+          }, 100);
+        };
+        if (lock > 0) {
+          for (const button of ui.options.children) button.disabled = true;
+          current.unlock = setTimeout(begin, lock * 1000);
+        } else begin();
         if (!ui.dialog.open) ui.dialog.showModal();
         ui.dialog.focus({ preventScroll: true });
       });
@@ -291,6 +303,7 @@ export function createKanjiQuiz() {
       const current = pending;
       clearInterval(current.tick);
       clearTimeout(current.closeAt);
+      clearTimeout(current.unlock);
       pending = null;
       hide(current.view);
       current.resolve({ correct: false, entry: current.entry, cancelled: true });

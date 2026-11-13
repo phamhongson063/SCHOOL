@@ -399,6 +399,53 @@
       </div>
     </div>
   </dialog>
+  <dialog id="arenaDialog" class="paper" aria-labelledby="arenaTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">⚔️</span>
+        <h2 id="arenaTitle">Lôi đài</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <p id="arenaText" class="paper-note"></p>
+      <div class="sched-actions">
+        <button id="arenaBracket" class="sched-ghost" type="button">Sơ đồ</button>
+        <span class="spacer"></span>
+        <button id="arenaJoin" class="sched-primary" type="button">Ghi danh</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="bracketDialog" class="paper bracket" aria-labelledby="bracketTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">🏆</span>
+        <h2 id="bracketTitle">Sơ đồ lôi đài</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <canvas id="bracketCanvas" class="bracket-canvas"></canvas>
+    </div>
+  </dialog>
+  <div id="battleHud" class="battle-hud" popover="manual">
+    <div class="battle-side a">
+      <img class="battle-face" alt="">
+      <div class="battle-info">
+        <span class="battle-name"></span>
+        <span class="battle-hp"><span class="battle-hp-fill"></span></span>
+        <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
+      </div>
+    </div>
+    <div class="battle-mid">
+      <span class="battle-round"></span>
+      <span class="battle-word" lang="ja"></span>
+    </div>
+    <div class="battle-side b">
+      <img class="battle-face" alt="">
+      <div class="battle-info">
+        <span class="battle-name"></span>
+        <span class="battle-hp"><span class="battle-hp-fill"></span></span>
+        <span class="battle-meta"><span class="battle-hp-text"></span><span class="battle-note"></span></span>
+      </div>
+    </div>
+  </div>
   <dialog id="lodgeDialog" class="paper wide bank stall" aria-labelledby="lodgeTitle">
     <div class="paper-body">
       <header class="sched-head bank-head">
@@ -573,6 +620,7 @@
       <div class="bank-tabs" role="tablist">
         <button type="button" role="tab" data-tab="worth" aria-selected="true" aria-label="Tài sản"><span class="rank-tab-art" aria-hidden="true">💰</span></button>
         <button type="button" role="tab" data-tab="certs" aria-selected="false" aria-label="Chứng chỉ"><span class="rank-tab-art" aria-hidden="true">🎓</span></button>
+        <button type="button" role="tab" data-tab="arena" aria-selected="false" aria-label="Lôi đài"><span class="rank-tab-art" aria-hidden="true">⚔️</span></button>
       </div>
       <div class="bank-panel">
         <ol id="rankList" class="rank-list"></ol>

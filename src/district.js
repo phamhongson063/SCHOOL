@@ -6,7 +6,8 @@ import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './sce
 import { createShophouse, createBank, shophousePots } from './architecture.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
-import { LODGE_ROOMS } from './config.js';
+import { ARENA, LODGE_ROOMS } from './config.js';
+import { clockText } from './clock.js';
 import { roomTier } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
 
@@ -24,6 +25,10 @@ const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
 const ROW = { x0: 102, x1: 179 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
+const ARENA_PICK = 'north:3';
+const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
+const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
+const ARENA_SIGN = { bg: 0x2a1a3a, fg: '#ffe08a', border: 0xc9a24a };
 const FIELD_PICK = 'south:4';
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
@@ -75,6 +80,10 @@ function layout() {
         house.lodge = lodge;
         house.stories = LODGE_LOOKS[LODGE_ROOMS[lodge].tier].stories;
       }
+      if (`${row.side}:${index}` === ARENA_PICK) {
+        house.arena = true;
+        house.stories = 2;
+      }
       if (`${row.side}:${index}` === BANK_PICK) {
         house.bank = true;
         house.width = BANK_WIDTH;
@@ -125,7 +134,7 @@ function mergeByMaterial(root) {
 function buildBlock(block) {
   const root = new THREE.Group();
   for (const house of block.houses) {
-    if (house.lodge || house.bank) continue;
+    if (house.lodge || house.bank || house.arena) continue;
     const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
     built.group.position.set(house.x, 0, house.front);
     built.group.rotation.y = house.turn;
@@ -183,6 +192,16 @@ function streetMesh(plaza) {
   parts.push(roundedRectGeometry(plaza.x0, plaza.z0, plaza.x1, plaza.z1, 0.6));
   const merged = mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part)), false);
   return groundDecal(merged, paving(), PAVING_LAYER, 0.014);
+}
+
+function animateKeeper(npc, t, near) {
+  npc.walker.group.visible = near;
+  if (!near) return;
+  npc.bubble.update(t);
+  npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
+  npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
+  npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+  npc.walker.pose?.();
 }
 
 export const DISTRICT_STREETS = [[BOUNDS.x0 + 2, MAIN.z0 + 0.5, EAST_GATE - 2, MAIN.z1 - 0.5]];
@@ -248,6 +267,33 @@ export function createDistrict() {
       };
     }
   }
+  let arena = null;
+  for (const block of blocks) {
+    for (const house of block.houses) {
+      if (!house.arena) continue;
+      const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
+      built.group.position.set(house.x, 0, house.front);
+      built.group.rotation.y = house.turn;
+      const sign = plaqueBoard(['LÔI ĐÀI', ARENA.starts.map(clockText).join(' · ')], ARENA_SIGN);
+      sign.mesh.position.set(built.plaque.x, built.plaque.y, built.plaque.z);
+      built.group.add(sign.mesh);
+      group.add(built.group);
+      clickables.push(built.group);
+      const side = house.north ? 1 : -1;
+      const at = { x: house.x + side * built.door.x, z: house.front + side * built.door.z };
+      const registrar = keeperNPC(REGISTRAR_LOOK, REGISTRAR.model);
+      registrar.walker.group.position.set(at.x, 0, at.z);
+      registrar.walker.group.rotation.y = house.turn;
+      clickables.push(registrar.walker.group);
+      obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
+      const spots = REGISTRAR.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * REGISTRAR.reach }));
+      arena = { group: built.group, registrar, at, spots, stand: spots[1] };
+    }
+  }
+  const ownsArena = (object) => {
+    for (let node = object; node; node = node.parent) if (node === arena?.group || node === arena?.registrar.walker.group) return true;
+    return false;
+  };
   const ownsBank = (object) => {
     for (let node = object; node; node = node.parent) if (node === bank?.group || node === bank?.teller.walker.group) return true;
     return false;
@@ -271,6 +317,7 @@ export function createDistrict() {
   const root = new THREE.Group();
   root.add(group);
   if (bank) root.add(bank.teller.walker.group);
+  if (arena) root.add(arena.registrar.walker.group);
   const pending = [...blocks];
   let now = 0;
 
@@ -279,18 +326,11 @@ export function createDistrict() {
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
     bankDoor: bank ? bank.stand : null,
+    arenaDesk: arena ? { at: arena.at, spots: arena.spots, say: (text) => arena.registrar.bubble.show(text, 1.8, now) } : null,
     update(t, ctx, camera) {
       now = t;
-      if (!bank) return;
-      const npc = bank.teller;
-      const near = bankOpen(ctx.minutes) && camera.position.distanceTo(npc.walker.group.position) < TELLER_DISTANCE;
-      npc.walker.group.visible = near;
-      if (!near) return;
-      npc.bubble.update(t);
-      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-      npc.walker.pose?.();
+      if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);
+      if (arena) animateKeeper(arena.registrar, t, camera.position.distanceTo(arena.registrar.walker.group.position) < TELLER_DISTANCE);
     },
     region(options) {
       return {
@@ -299,6 +339,7 @@ export function createDistrict() {
         bounds: BOUNDS,
         staticNav: true,
         target(hit) {
+          if (ownsArena(hit.object)) return { kind: 'arena', id: 'arena', index: 'arena', x: arena.at.x, z: arena.at.z, stand: arena.stand };
           if (ownsBank(hit.object)) return { kind: 'bank', id: 'bank', index: 'bank', x: bank.look.x, z: bank.look.z, stand: bank.stand };
           const lodge = lodgeOf(hit.object);
           if (!lodge) return null;
@@ -311,6 +352,10 @@ export function createDistrict() {
           return new THREE.Vector3(target.x, 3.6, target.z);
         },
         act(action, target) {
+          if (target.kind === 'arena') {
+            options.openArena();
+            return null;
+          }
           if (target.kind === 'bank') {
             if (!bankOpen(options.minutes())) return `Ngân hàng đóng cửa rồi, mở ${bankHours()} nhé!`;
             bank.teller.bubble.show('Kính chào quý khách!', 1.8, now);
