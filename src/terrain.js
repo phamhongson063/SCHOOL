@@ -80,7 +80,7 @@ const STREAM = [
 ];
 const STREAM_HALF = 1.1;
 const BANK_HALF = 1.9;
-export const BRIDGE = { x: -108, z0: 32.2, z1: 37.8, half: 2.3, deck: 0.16 };
+export const BRIDGE = { x: -108, z: 35, span: 3.6, rise: 1.12, step: 0.1, base: 0.25, half: 1.4, wall: 0.25, pad: 1.3, padHalf: 2.3, arch: 1.5, crown: 0.8 };
 
 const COLS = Math.round((MOUNTAIN.x1 - MOUNTAIN.x0) / STEP) + 1;
 const ROWS = Math.round((MOUNTAIN.z1 - MOUNTAIN.z0) / STEP) + 1;
@@ -243,7 +243,8 @@ function shelterFloor(x, z) {
 }
 
 export function terrainFloor(x, z) {
-  if (onBridge(x, z)) return BRIDGE.deck;
+  const deck = bridgeSurface(x, z);
+  if (deck !== null && !Number.isNaN(deck)) return deck;
   const h = terrainHeight(x, z);
   const floor = shelterFloor(x, z) ?? stairTop(x, z);
   if (floor !== null) return Math.max(h, floor);
@@ -331,10 +332,28 @@ export function streamDistance(x, z) {
   return Math.sqrt(best);
 }
 
-const onBridge = (x, z) => z > BRIDGE.z0 && z < BRIDGE.z1 && Math.abs(x - BRIDGE.x) < BRIDGE.half + 0.5;
+const bridgeCurve = (dx) => BRIDGE.rise * Math.max(0, 1 - (dx / BRIDGE.span) ** 2);
+const bridgeTop = (dx) => BRIDGE.base + Math.floor(bridgeCurve(dx) / BRIDGE.step + 1e-6) * BRIDGE.step;
+const bridgeLanterns = () => {
+  const ox = BRIDGE.span + BRIDGE.pad - 0.3;
+  const oz = BRIDGE.padHalf - 0.3;
+  return [-1, 1].flatMap((sx) => [-1, 1].map((sz) => ({ x: BRIDGE.x + sx * ox, z: BRIDGE.z + sz * oz })));
+};
+
+function bridgeSurface(x, z) {
+  const dx = Math.abs(x - BRIDGE.x);
+  const dz = Math.abs(z - BRIDGE.z);
+  if (dx <= BRIDGE.span) {
+    if (dz < BRIDGE.half) return bridgeTop(dx);
+    return dz <= BRIDGE.half + BRIDGE.wall ? NaN : null;
+  }
+  if (dx > BRIDGE.span + BRIDGE.pad || dz > BRIDGE.padHalf) return null;
+  if (bridgeLanterns().some((lamp) => Math.abs(x - lamp.x) < 0.3 && Math.abs(z - lamp.z) < 0.3)) return NaN;
+  return BRIDGE.base;
+}
 
 export function inStream(x, z) {
-  return !onBridge(x, z) && streamDistance(x, z) < STREAM_HALF + 0.25;
+  return bridgeSurface(x, z) === null && streamDistance(x, z) < STREAM_HALF + 0.25;
 }
 
 const BUCKET = 4;
@@ -424,7 +443,8 @@ export function terrainBlocked(x, z) {
 }
 
 export function navSurface(x, z) {
-  if (onBridge(x, z)) return BRIDGE.deck;
+  const deck = bridgeSurface(x, z);
+  if (deck !== null) return deck;
   if (inStream(x, z)) return NaN;
   const h = terrainHeight(x, z);
   const floor = shelterFloor(x, z) ?? stairTop(x, z);
@@ -556,7 +576,7 @@ function streamMeshes() {
   const rand = makeRandom(6262);
   for (let i = 4; i < streamPoints.length - 4; i += 7) {
     const [x, z] = streamPoints[i];
-    if (Math.abs(z - (BRIDGE.z0 + BRIDGE.z1) / 2) < 5) continue;
+    if (Math.abs(z - BRIDGE.z) < 5) continue;
     const side = rand() < 0.5 ? -1 : 1;
     const px = x + side * (STREAM_HALF + 0.35 + rand() * 0.4);
     const pz = z + (rand() - 0.5) * 0.6;
@@ -567,18 +587,117 @@ function streamMeshes() {
   return { meshes: [bank, water, pebbles], flow };
 }
 
+const STONE = { light: 0xc9c2b2, mid: 0xb3ab99, tread: [0xb0a898, 0xa39b8a], dark: 0x8a8273, ring: 0x7a7366, pad: 0x9e9484 };
+const LACQUER = { rail: 0x8a2e22, post: 0x6a2a1e, baluster: 0x7a3024 };
+
+function slope(b, x0, y0, x1, y1, z, height, depth, hex) {
+  const length = Math.hypot(x1 - x0, y1 - y0);
+  b.add(shapes.box(length + 0.02, height, depth), hex, { p: [(x0 + x1) / 2, (y0 + y1) / 2, z], r: [0, 0, Math.atan2(y1 - y0, x1 - x0)] });
+}
+
+function stoneLantern(b, x, z, y) {
+  b.add(shapes.box(0.44, 0.12, 0.44), STONE.dark, { p: [x, y + 0.06, z] });
+  b.add(shapes.box(0.2, 0.62, 0.2), STONE.mid, { p: [x, y + 0.43, z] });
+  b.add(shapes.box(0.38, 0.06, 0.38), STONE.dark, { p: [x, y + 0.77, z] });
+  b.add(shapes.box(0.32, 0.28, 0.32), STONE.light, { p: [x, y + 0.94, z] });
+  b.add(shapes.box(0.34, 0.12, 0.16), 0x3a2a1a, { p: [x, y + 0.95, z] });
+  b.add(shapes.box(0.16, 0.12, 0.34), 0x3a2a1a, { p: [x, y + 0.95, z] });
+  b.add(shapes.cone(0.34, 0.24, 4), STONE.dark, { p: [x, y + 1.2, z], r: [0, Math.PI / 4, 0] });
+  b.add(shapes.sphere(0.05, 8, 6), STONE.mid, { p: [x, y + 1.34, z] });
+}
+
 function bridgeMesh() {
   const b = new Batch();
-  const { x, z0, z1, half } = BRIDGE;
-  const length = z1 - z0;
-  b.add(shapes.box(half * 2, BRIDGE.deck, length), 0xb3ab99, { p: [x, BRIDGE.deck / 2, (z0 + z1) / 2] });
-  b.add(shapes.box(half * 2 + 0.2, 0.08, length + 0.1), 0x8a8273, { p: [x, 0.02, (z0 + z1) / 2] });
-  for (const z of [z0 - 0.1, z1 + 0.1]) {
-    b.add(shapes.box(half * 2 + 0.6, 0.12, 0.26), 0x9e9484, { p: [x, 0.78, z] });
-    for (const dx of [-half - 0.2, -half / 2, 0, half / 2, half + 0.2]) b.add(shapes.box(0.24, 0.7, 0.24), 0xb3ab99, { p: [x + dx, 0.4, z] });
+  const { x: X, z: Z, span, rise, step, base, half, wall, pad, padHalf, arch, crown } = BRIDGE;
+  const radius = (arch * arch + crown * crown) / (2 * crown);
+  const centerY = crown - radius;
+  const intrados = (dx) => centerY + Math.sqrt(Math.max(0, radius * radius - dx * dx));
+  const levels = Math.floor(rise / step + 1e-6);
+  const reach = (k) => (k > levels ? 0 : span * Math.sqrt(Math.max(0, 1 - (k * step) / rise)));
+  const coping = (dx) => base + bridgeCurve(dx) + 0.08;
+
+  for (let k = 0; k <= levels; k++) {
+    const outer = k === 0 ? span : reach(k);
+    const inner = reach(k + 1);
+    const top = base + k * step;
+    const hex = STONE.tread[k % 2];
+    if (k === levels) {
+      b.add(shapes.box(outer * 2, 0.25, half * 2), hex, { p: [X, top - 0.125, Z] });
+      continue;
+    }
+    for (const side of [-1, 1]) b.add(shapes.box(outer - inner, 0.25, half * 2), hex, { p: [X + side * (outer + inner) / 2, top - 0.125, Z] });
   }
+
+  const vaultDepth = (half + wall) * 2;
+  const sweep = Math.asin(arch / radius);
+  const stones = 13;
+  for (let i = 0; i < stones; i++) {
+    const angle = -sweep + ((i + 0.5) * 2 * sweep) / stones;
+    const r = radius + 0.1;
+    const key = i === (stones - 1) / 2;
+    const p = [X + Math.sin(angle) * r, centerY + Math.cos(angle) * r, Z];
+    const arc = ((2 * sweep) / stones) * r * 1.04;
+    b.add(shapes.box(arc, 0.2, vaultDepth), STONE.dark, { p, r: [0, 0, -angle] });
+    for (const side of [-1, 1]) {
+      b.add(shapes.box(arc * 0.94, key ? 0.34 : 0.26, 0.08), key ? STONE.light : STONE.ring, { p: [p[0], p[1] + (key ? 0.04 : 0), Z + side * (half + wall + 0.03)], r: [0, 0, -angle] });
+    }
+  }
+
+  const column = 0.15;
+  for (let cx = -span + column / 2; cx < span; cx += column) {
+    const dx = Math.abs(cx);
+    const top = coping(dx);
+    const bottom = dx < arch ? intrados(dx) + 0.2 : -0.05;
+    if (top - bottom < 0.02) continue;
+    for (const side of [-1, 1]) b.add(shapes.box(column + 0.005, top - bottom, wall), STONE.light, { p: [X + cx, (top + bottom) / 2, Z + side * (half + wall / 2)] });
+  }
+
+  const pieces = 24;
+  const railZ = half + wall / 2;
+  for (let i = 0; i < pieces; i++) {
+    const xa = -span + (i * 2 * span) / pieces;
+    const xb = -span + ((i + 1) * 2 * span) / pieces;
+    const ya = coping(Math.abs(xa));
+    const yb = coping(Math.abs(xb));
+    for (const side of [-1, 1]) {
+      const z = Z + side * railZ;
+      slope(b, X + xa, ya + 0.03, X + xb, yb + 0.03, z, 0.06, wall + 0.08, STONE.dark);
+      slope(b, X + xa, ya + 0.7, X + xb, yb + 0.7, z, 0.07, 0.09, LACQUER.rail);
+      slope(b, X + xa, ya + 0.16, X + xb, yb + 0.16, z, 0.05, 0.06, LACQUER.rail);
+      const mid = (xa + xb) / 2;
+      const ym = coping(Math.abs(mid));
+      b.add(shapes.box(0.035, 0.52, 0.035), LACQUER.baluster, { p: [X + mid, ym + 0.42, z] });
+      if (i % 4 === 0 || i === pieces - 1) {
+        const px = i === pieces - 1 ? xb : xa;
+        const py = coping(Math.abs(px));
+        const end = i === 0 || i === pieces - 1;
+        const h = end ? 0.95 : 0.82;
+        b.add(shapes.box(end ? 0.13 : 0.09, h, end ? 0.13 : 0.09), LACQUER.post, { p: [X + px, py + h / 2, z] });
+        b.add(shapes.sphere(end ? 0.08 : 0.055, 8, 6), LACQUER.rail, { p: [X + px, py + h + 0.03, z], s: [1, 1.3, 1] });
+      }
+    }
+  }
+
+  for (const side of [-1, 1]) {
+    const cx = X + side * (span + pad / 2);
+    b.add(shapes.box(pad + 0.16, 0.1, padHalf * 2 + 0.16), STONE.dark, { p: [cx, 0.05, Z] });
+    b.add(shapes.box(pad, base - 0.02, padHalf * 2), STONE.pad, { p: [cx, (base - 0.02) / 2, Z] });
+    const cols = 2;
+    const rows = 4;
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        const tx = cx - pad / 2 + ((i + 0.5) * pad) / cols;
+        const tz = Z - padHalf + ((j + 0.5) * 2 * padHalf) / rows;
+        b.add(shapes.box((pad / cols) * 0.95, 0.02, ((2 * padHalf) / rows) * 0.95), (i + j) % 2 ? STONE.mid : 0xaba392, { p: [tx, base - 0.01, tz] });
+      }
+    }
+  }
+  for (const lamp of bridgeLanterns()) stoneLantern(b, lamp.x, lamp.z, base);
+
   const mesh = b.mesh();
   mesh.renderOrder = GROUND_LAYER.mark + 2;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return mesh;
 }
 
