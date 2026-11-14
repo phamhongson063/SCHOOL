@@ -4699,7 +4699,7 @@ dialog.paper.phrase-quiz.closing::backdrop {
 .map-labels {
   position: fixed;
   inset: 0;
-  z-index: var(--z-scene-ui);
+  z-index: 1;
   overflow: hidden;
   pointer-events: none;
   -webkit-user-select: none;
@@ -4715,11 +4715,11 @@ dialog.paper.phrase-quiz.closing::backdrop {
   position: absolute;
   top: 0;
   left: 0;
-  padding: 2px 10px 6px;
+  padding: 2px 6px 4px;
   border: 0;
   background: none;
   color: #fff3d2;
-  font: 400 34px/1 "Water Brush", "Dancing Script", cursive;
+  font: 400 clamp(21px, 5.6vw, 30px)/1 "Water Brush", "Dancing Script", cursive;
   white-space: nowrap;
   text-shadow:
     0 0 2px #2a170b,
@@ -4729,7 +4729,18 @@ dialog.paper.phrase-quiz.closing::backdrop {
   pointer-events: auto;
   will-change: transform;
   -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s;
+  transition:
+    color 0.15s,
+    opacity 0.25s;
+}
+
+.map-label.muted {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-labels.settling .map-label {
+  transition: none;
 }
 
 .map-label:hover,

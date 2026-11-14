@@ -1459,32 +1459,37 @@ function setMode(next) {
 
 const mapLabels = createMapLabels({
   camera,
+  zoom: () => camera.position.distanceTo(orbit.target),
   onPick: (stand) => {
     setMode('play');
     player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
   },
 });
+const HALL_NAMES = { n2: 'Từ vựng N2', sugu1: 'Lớp Sugu 1' };
+const HOME_NAME = 'Nhà của bạn';
 const midRiver = river.spots[Math.floor(river.spots.length / 2)]?.stand ?? null;
+let homeLabel = null;
 for (const [name, at, stand, lift] of [
   ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND, 9],
   ...STUDY_HALLS.map((hall) => {
     const { out } = hallBounds(hall);
-    return [`Phòng học ${DECKS[hall.deck].label}`, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
+    return [HALL_NAMES[hall.deck], { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
   }),
+  [HOME_NAME, null],
   ['Tượng thần', blessing.statueAt, blessing.official.stand, 8],
+  ['Siêu thị', quarter.martStand],
+  ['Quán ăn', village.places.eatery],
   ['Tiệm buôn', village.places.shop],
   ['Hàng cá', village.places.fish],
-  ['Quán ăn', village.places.eatery],
-  ['Siêu thị', quarter.martStand],
   ['Ngân hàng', district.bankDoor],
-  ['Nhà Lý trưởng', village.places.chief],
   ['Lôi đài', district.arenaStand],
-  ['Bến sông Hoài', midRiver, midRiver, 3],
+  ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
+  ['Bến sông Hoài', midRiver, midRiver, 3],
 ]) {
-  mapLabels.add(name, at, stand ?? at, lift);
+  const label = mapLabels.add(name, at, stand ?? at, lift);
+  if (name === HOME_NAME) homeLabel = label;
 }
-const homeLabel = mapLabels.add('Nhà của bạn');
 
 function refreshHomeLabel() {
   const house = estate.houseOf(PLAYER);
