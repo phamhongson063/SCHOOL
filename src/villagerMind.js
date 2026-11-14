@@ -3,7 +3,8 @@ import { BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CER
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
-import { blessingSlots } from './economy.js';
+import { blessingSlots, economy } from './economy.js';
+import { blessingAskScore } from './blessingRules.js';
 import { averageYield } from './market.js';
 import { SELF_STUDY } from './villagerData.js';
 
@@ -26,6 +27,12 @@ function blessingMinutesLeft(minutes) {
   const m = minuteOfDay(minutes);
   const slot = blessingSlots(dayOf(minutes)).find(({ start, end }) => m >= start && m < end);
   return slot ? slot.end - m : 0;
+}
+
+export const blessingCloseAt = (minutes) => minutes + blessingMinutesLeft(minutes);
+
+export function blessingStayMinutes(from, close, roll = between(...BLESSING.villagerStay) / 60) {
+  return Math.max(0, Math.min(close - from, roll));
 }
 
 export class MindBehavior {
@@ -79,9 +86,10 @@ export class MindBehavior {
     return keys.reduce((sum, key) => sum + absorption.chance(this.id, key), 0) / keys.length;
   }
 
-  blessingGain(need, stay) {
-    const correct = (this.answerOdds() * stay * 60) / BLESSING_ASK_SECONDS;
-    return (correct / CERTIFY.blessingCoinPer) * need + (correct / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
+  blessingGain(need, stay, session) {
+    const score = (blessingAskScore(this.answerOdds()) * stay * 60) / BLESSING_ASK_SECONDS;
+    const coins = Math.min(score / CERTIFY.blessingCoinPer, economy.blessingLeft(session));
+    return coins * need + (score / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
   }
 
   blessingOption(ctx, need) {
@@ -90,7 +98,7 @@ export class MindBehavior {
     const walk = this.walkMinutes(blessing.official.at);
     const stay = Math.min(blessingMinutesLeft(ctx.minutes) - walk, BLESSING_STAY);
     if (stay <= 0) return null;
-    return { kind: 'blessing', rate: this.blessingGain(need, stay) / (walk + stay), go: () => this.goBlessing() };
+    return { kind: 'blessing', rate: this.blessingGain(need, stay, blessing.session(ctx.minutes)) / (walk + stay), go: () => this.goBlessing() };
   }
 
   farmOption(need) {

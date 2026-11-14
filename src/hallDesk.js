@@ -85,7 +85,7 @@ export function createHallUI({ economy, now }) {
     times.append(...slots.map(({ start, end }) => el('span', 'hall-time', `${clockText(start)}–${clockText(end)}`)));
     return [
       el('h3', 'bank-ribbon', 'Chúc phúc'),
-      row('✨', `${slots.length}/${BLESSING.windows.length} buổi`, slots.length * BLESSING.cost),
+      row('✨', `${slots.length}/${BLESSING.windows.length} buổi`, economy.blessingBudget(day)),
       times,
       el('h3', 'bank-ribbon', 'Lôi đài'),
       row('🏆', `Giải mỗi trận · ${ARENA.starts.length} trận`, economy.arenaPrize()),

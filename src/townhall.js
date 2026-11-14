@@ -9,20 +9,27 @@ export function spreadPicks(count, total) {
   return Array.from({ length: count }, (_, i) => Math.round(((i + 0.5) * total) / count - 0.5));
 }
 
-export function planDay({ fund, wages, windows, starts, blessingCost }) {
+export function planDay({ fund, wages, windows, starts, blessingRate }) {
   const reserve = wages * TOWNHALL.reserveDays;
   const budget = Math.max(0, fund - reserve) * TOWNHALL.spend;
-  const wanted = Math.floor((budget * TOWNHALL.blessingShare) / blessingCost);
+  const wanted = Math.floor((budget * TOWNHALL.blessingShare) / blessingRate);
   const count = Math.max(Math.min(TOWNHALL.blessingMin, windows), Math.min(windows, wanted));
-  const blessingSpend = Math.min(fund, count * blessingCost);
-  const arenaBudget = Math.max(0, budget - count * blessingCost);
+  const blessingPool = Math.max(0, Math.min(fund, Math.round(count * blessingRate)));
+  const arenaBudget = Math.max(0, budget - count * blessingRate);
   return {
     blessings: spreadPicks(count, windows),
-    blessingSpend,
+    blessingPool,
     arenaPrize: starts > 0 ? Math.floor(arenaBudget / starts) : 0,
     reserve,
     budget,
   };
+}
+
+export function nextBlessingRate(rate, { paid, sessions, dry }, floor) {
+  if (!(sessions > 0)) return rate;
+  const seen = paid / sessions;
+  if (dry) return Math.max(rate, seen * TOWNHALL.blessingGrow);
+  return Math.max(floor, rate + (seen - rate) * TOWNHALL.blessingEase);
 }
 
 export function bookDay(book, day) {

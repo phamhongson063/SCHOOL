@@ -173,7 +173,8 @@ export function createKanjiQuiz() {
       blank.replaceChildren(mark);
       blank.classList.add('filled');
     }
-    current.onAnswer?.(correct);
+    clearTimeout(current.unlock);
+    current.onAnswer?.(correct, chosen);
     if (!current.brief) ui.close.hidden = false;
     const delay = current.closeAfter ?? (current.quick ? QUICK_CLOSE_MS : correct ? AUTO_CLOSE_MS : null);
     if (delay !== null) current.closeAt = setTimeout(finish, delay);
@@ -251,7 +252,7 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
@@ -274,6 +275,15 @@ export function createKanjiQuiz() {
         ui.options.classList.toggle('lettered', lettered);
         ui.options.classList.toggle('meanings', asked.kind === 'meaning');
         ui.options.replaceChildren(...shuffle([asked.answer, ...asked.wrong]).map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
+        if (lock > 0) {
+          const current = pending;
+          const buttons = [...ui.options.children];
+          for (const button of buttons) button.disabled = true;
+          current.unlock = setTimeout(() => {
+            if (pending !== current || current.answered) return;
+            for (const button of buttons) button.disabled = false;
+          }, lock * 1000);
+        }
         const started = performance.now();
         const total = (seconds ?? quizSeconds(asked.kind, phrase)) * 1000;
         ui.bar.style.transform = 'scaleX(1)';
@@ -291,6 +301,7 @@ export function createKanjiQuiz() {
       const current = pending;
       clearInterval(current.tick);
       clearTimeout(current.closeAt);
+      clearTimeout(current.unlock);
       pending = null;
       hide(current.view);
       current.resolve({ correct: false, entry: current.entry, cancelled: true });

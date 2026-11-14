@@ -9,6 +9,7 @@ import { plazaFloor, PLAZA_ZONE } from './quarter.js';
 import { keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { blessingSlots } from './economy.js';
+import { arcSlots, claimHold, createSlotClaims, inSector, lineSlots } from './blessingSpots.js';
 
 const STONE = 0xb3ab99;
 const STONE_DARK = 0x8a8273;
@@ -42,10 +43,19 @@ const AURA_CYCLE = 0.08;
 const BURST_AHEAD = 1.1;
 const LAMP = { y: HEAD_Y + 0.6, ahead: -2.6, distance: 16, idle: 14, blessed: 24 };
 const BODY_GLOW = { idle: 0.16, blessed: 0.3 };
-const OFFICIAL = { x: PLAZA.x - 8, z: PLAZA.z0 + 0.6, facing: Math.PI, model: 'scholar-ink', reach: 1.6, spots: [-0.9, 0, 0.9] };
+const OFFICIAL = { x: PLAZA.x - 8, z: PLAZA.z0 + 0.6, facing: Math.PI, model: 'scholar-ink', rows: [{ reach: 1.6, offsets: [-0.9, 0, 0.9] }, { reach: 2.8, offsets: [-1.2, 0, 1.2] }] };
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
-const ALTAR = { ahead: RING_BED.outer + 0.8, spots: [-1.2, 0, 1.2] };
+const ALTAR = {
+  ahead: RING_BED.outer + 0.8,
+  facing: Math.PI,
+  rows: [
+    { radius: RING_BED.outer + 0.8, angles: [-0.46, -0.23, 0, 0.23, 0.46] },
+    { radius: RING_BED.outer + 2, angles: [-0.4, -0.2, 0, 0.2, 0.4] },
+  ],
+  zone: { radius: RING_BED.outer + 3.2, spread: 0.75 },
+};
+const STAY_TRIES = 16;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
 const LIGHT = 'rgba(255,255,255,1)';
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
@@ -669,6 +679,11 @@ function strengthAt(minutes) {
   return Math.min(1, (m - start) / FADE, (end - m) / FADE);
 }
 
+function minutesLeftAt(minutes) {
+  const index = windowIndexAt(minutes);
+  return index < 0 ? 0 : BLESSING.windows[index][1] - minuteOfDay(minutes);
+}
+
 function sessionAt(minutes) {
   const index = windowIndexAt(minutes);
   return index < 0 ? null : `${dayOf(minutes)}:${index}`;
@@ -698,14 +713,13 @@ function createOfficial(scene) {
   npc.walker.group.rotation.y = OFFICIAL.facing;
   scene.add(npc.walker.group);
   const attention = createAttention(npc.walker.group);
-  const ahead = { x: Math.sin(OFFICIAL.facing), z: Math.cos(OFFICIAL.facing) };
-  const side = { x: ahead.z, z: -ahead.x };
-  const spots = OFFICIAL.spots.map((offset) => new THREE.Vector3(at.x + ahead.x * OFFICIAL.reach + side.x * offset, PLAZA.rise, at.z + ahead.z * OFFICIAL.reach + side.z * offset));
+  const rows = lineSlots(at, OFFICIAL.facing, OFFICIAL.rows);
+  const front = rows[0][Math.floor(rows[0].length / 2)];
   return {
     ...npc,
     at,
-    stand: spots[1],
-    spots,
+    stand: new THREE.Vector3(front.x, PLAZA.rise, front.z),
+    rows,
     attend: attention.attend,
     release: attention.release,
     owns(object) {
@@ -742,7 +756,11 @@ export function createBlessing(scene) {
   const body = b.mesh(statueMaterial);
   const ring = ringFlowers.mesh();
   statue.add(flowers.mesh(), ring, body);
-  const altarSpots = ALTAR.spots.map((dx) => new THREE.Vector3(PLAZA.x + dx, PLAZA.rise, PLAZA.z - ALTAR.ahead));
+  const statueAt = { x: PLAZA.x, z: PLAZA.z };
+  const altarRows = arcSlots(statueAt, ALTAR.facing, ALTAR.rows);
+  const altarFront = altarRows[0][Math.floor(altarRows[0].length / 2)];
+  const altarCenter = { x: PLAZA.x + Math.sin(ALTAR.facing) * ALTAR.ahead, z: PLAZA.z + Math.cos(ALTAR.facing) * ALTAR.ahead };
+  const inAltarZone = (x, z) => inSector(statueAt, ALTAR.facing, ALTAR.zone, x, z);
   scene.add(statue);
   freeze(statue);
 
@@ -754,6 +772,8 @@ export function createBlessing(scene) {
   const toward = new THREE.Vector3();
 
   const official = createOfficial(scene);
+  const officialClaims = createSlotClaims(official.rows);
+  const altarClaims = createSlotClaims(altarRows);
   const zone = createZoneGlow();
   scene.add(zone.group);
 
@@ -783,14 +803,15 @@ export function createBlessing(scene) {
     obstacles,
     clickables: [statue, official.walker.group],
     official,
-    statueAt: { x: PLAZA.x, z: PLAZA.z },
-    altar: altarSpots[1],
+    statueAt,
+    altar: new THREE.Vector3(altarFront.x, PLAZA.rise, altarFront.z),
     onPlaza: inside,
     ownsStatue: (object) => object === body || object === ring,
     active,
     member,
     testing: (id, minutes) => member(id, minutes) && testing.has(id),
     session: sessionAt,
+    minutesLeft: minutesLeftAt,
     nextWindow: nextWindowText,
     upcoming: upcomingWindow,
     blessed(id, position, minutes) {
@@ -822,25 +843,32 @@ export function createBlessing(scene) {
       else testing.delete(id);
       return true;
     },
-    altarFor() {
-      return altarSpots[Math.floor(Math.random() * altarSpots.length)];
+    altarFor(id, from, speed) {
+      return altarClaims.claim(id, clock, claimHold(from, altarCenter, speed));
     },
     greet() {
       official.bubble.show(OFFICIAL_LINES[Math.floor(Math.random() * OFFICIAL_LINES.length)], 2, clock);
     },
-    standFor() {
-      return official.spots[Math.floor(Math.random() * official.spots.length)];
+    standFor(id, from, speed) {
+      return officialClaims.claim(id, clock, claimHold(from, official.at, speed));
+    },
+    leaveSpot(id) {
+      officialClaims.release(id);
+      altarClaims.release(id);
+    },
+    clearOfAltar(position) {
+      return !inAltarZone(position.x, position.z);
     },
     stayPoint() {
-      for (let tries = 0; tries < 12; tries++) {
+      for (let tries = 0; tries < STAY_TRIES; tries++) {
         const a = Math.random() * Math.PI * 2;
         const r = RING_BED.outer + 0.9 + Math.random() * 1.6;
         const x = Math.cos(a) * r;
         const z = Math.sin(a) * r;
-        if (inBed(x, z)) continue;
+        if (inBed(x, z) || inAltarZone(PLAZA.x + x, PLAZA.z + z)) continue;
         return new THREE.Vector3(PLAZA.x + x, 0, PLAZA.z + z);
       }
-      return new THREE.Vector3(PLAZA.x, 0, PLAZA.z - RING_BED.outer - 1.2);
+      return new THREE.Vector3(PLAZA.x, 0, PLAZA.z + RING_BED.outer + 1.2);
     },
     update(dt, minutes, camera, night = 0) {
       clock += dt;
@@ -887,7 +915,11 @@ export function createBlessingDialog({ blessing, minutes, onJoin, onStart }) {
       blessing.greet();
       if (blessing.member(id, now)) return;
       if (!blessing.active(now)) show(tooEarly(now));
-      else show('Ngươi có muốn tham gia nhận chúc phúc không?', { accept: onJoin, label: 'Tham gia' });
+      else {
+        const left = blessing.minutesLeft(now);
+        const invite = left < BLESSING.lateMinutes ? `Buổi chúc phúc chỉ còn ${Math.max(1, Math.ceil(left))} phút. Ngươi vẫn muốn tham gia chứ?` : 'Ngươi có muốn tham gia nhận chúc phúc không?';
+        show(invite, { accept: onJoin, label: 'Tham gia' });
+      }
     },
     openStatue(id) {
       const now = minutes();

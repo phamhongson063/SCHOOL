@@ -405,7 +405,7 @@ export class Town {
       } else if (member.present && member.roaming) {
         entry.at = [Math.round(member.position.x * 100) / 100, Math.round(member.position.z * 100) / 100, Math.round(member.facing * 100) / 100];
         const blessed = this.blessing?.standing(member.id, minutes);
-        if (blessed) entry.blessing = blessed;
+        if (blessed) entry.blessing = member.task === 'blessing' && Number.isFinite(member.blessingUntil) ? { ...blessed, until: Math.round(member.blessingUntil * 100) / 100 } : blessed;
       }
       return entry;
     });
@@ -447,7 +447,7 @@ export class Town {
     member.setVisible(true);
     if (this.blessing?.resume(member.id, entry.blessing, ctx.minutes) && this.blessing.onPlaza(member.position)) {
       member.task = 'blessing';
-      member.stayBlessed();
+      member.stayBlessed(0, entry.blessing.until);
       return true;
     }
     member.wait(between(0.2, 1.5));

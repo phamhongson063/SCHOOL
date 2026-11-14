@@ -4,8 +4,9 @@ import { certify } from './certify.js';
 import { gameId } from './inventory.js';
 import { energyRate, homeActivity } from './stamina.js';
 import { between } from './random.js';
-import { AVERAGE_CASTS, BLESSING_STAY } from './villagerMind.js';
+import { AVERAGE_CASTS, BLESSING_STAY, blessingStayMinutes } from './villagerMind.js';
 import { blessingSlots, economy } from './economy.js';
+import { blessingScore } from './blessingRules.js';
 import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
@@ -51,13 +52,15 @@ function blessingWindow(from, to) {
 function blessingAnswers(member, minutes) {
   let left = minutes * 60 - BLESSING.firstQuiz;
   let correct = 0;
-  while (left > 0) {
-    left -= between(...FISHING.villagerAnswer);
+  let wrong = 0;
+  while (left > 0 && certify.pool(member.id).length) {
+    left -= Math.max(BLESSING.answerLock, between(...FISHING.villagerAnswer));
     if (left < 0) break;
     if (member.answerPool()) correct += 1;
+    else wrong += 1;
     left -= BLESSING.quizSeconds;
   }
-  return correct;
+  return { correct, wrong };
 }
 
 export function createAwaySim({ town, contextAt }) {
@@ -243,10 +246,9 @@ export function createAwaySim({ town, contextAt }) {
 
   function bless(member, clock, { window, from }) {
     memoOf(member).blessing = window.session;
-    const minutes = Math.min(window.close - from, between(...BLESSING.villagerStay) / 60);
-    const correct = blessingAnswers(member, minutes);
-    const money = Math.floor(correct / CERTIFY.blessingCoinPer);
-    const intellect = Math.floor(correct / CERTIFY.blessingIntellectPer);
+    const minutes = blessingStayMinutes(from, window.close);
+    const { correct, wrong } = blessingAnswers(member, minutes);
+    const { money, intellect } = economy.payBlessing(member.id, window.session, blessingScore(correct, wrong));
     if (money > 0) economy.reward(member.purse, money);
     if (intellect > 0) member.purse.addIntellect(intellect);
     return from - clock + minutes;
@@ -256,7 +258,7 @@ export function createAwaySim({ town, contextAt }) {
     const need = member.moneyNeed();
     const options = [];
     const blessing = blessingPlan(member, clock, end);
-    if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
+    if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay, blessing.window.session) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
     const job = farm.jobFor(member, member.seedChoice());
     if (job) options.push({ kind: 'farm', as: 'walk', rate: member.farmGain(need, job) / (AWAY.walk + FARM), run: () => tend(member, job) });
     if (canFish(member, slots)) {

@@ -40,6 +40,7 @@ import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText } from './clock.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
+import { blessingScore } from './blessingRules.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
@@ -1721,6 +1722,7 @@ function remindBlessing() {
 }
 
 let blessingQuizIn = BLESSING.firstQuiz;
+let blessingAsk = null;
 function updateBlessingQuiz(dt) {
   if (mode !== 'play' || purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes) || !blessing.testing(PLAYER, context.minutes)) {
     blessingQuizIn = BLESSING.firstQuiz;
@@ -1733,10 +1735,17 @@ function updateBlessingQuiz(dt) {
   const keys = certify.pool(PLAYER);
   if (!keys.length) return;
   const session = blessing.session(context.minutes);
-  const correct = blessingTally?.session === session ? blessingTally.correct : 0;
-  kanjiQuiz.ask({ keys, icon: '✨', note: `✅ ${correct}`, quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer: (correct) => (correct ? uiSounds.correct() : uiSounds.wrong()) }).then((result) => {
+  const tally = blessingTally?.session === session ? blessingTally : { correct: 0, wrong: 0 };
+  const ask = (blessingAsk = { session, answered: false });
+  const onAnswer = (right, chosen) => {
+    ask.answered = true;
+    if (right) uiSounds.correct();
+    else uiSounds.wrong();
+    if (session && (right || chosen !== null)) tallyBlessing(session, right);
+  };
+  kanjiQuiz.ask({ keys, icon: '✨', note: `✅ ${tally.correct} ❌ ${tally.wrong}`, quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, lock: BLESSING.answerLock, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer }).then((result) => {
+    if (blessingAsk === ask) blessingAsk = null;
     if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
-    if (result.correct && session) tallyBlessing(session);
   });
 }
 
@@ -1744,7 +1753,7 @@ const TALLY_KEY = 'langsch.blessingTally';
 function loadTally() {
   try {
     const saved = JSON.parse(localStorage.getItem(TALLY_KEY) ?? 'null');
-    if (saved && typeof saved.session === 'string' && Number.isFinite(saved.correct)) return saved;
+    if (saved && typeof saved.session === 'string' && Number.isFinite(saved.correct)) return { session: saved.session, correct: saved.correct, wrong: Number.isFinite(saved.wrong) ? saved.wrong : 0 };
   } catch {}
   return null;
 }
@@ -1758,22 +1767,23 @@ function saveTally() {
 function openTally(session) {
   if (!session || blessingTally?.session === session) return;
   settleBlessing();
-  blessingTally = { session, correct: 0 };
+  blessingTally = { session, correct: 0, wrong: 0 };
   saveTally();
 }
-function tallyBlessing(session) {
+function tallyBlessing(session, right) {
+  if (session !== blessing.session(context.minutes)) return;
   openTally(session);
-  blessingTally.correct += 1;
+  if (right) blessingTally.correct += 1;
+  else blessingTally.wrong += 1;
   saveTally();
 }
 function settleBlessing() {
   if (!blessingTally) return;
-  const { correct } = blessingTally;
+  const { session, correct, wrong } = blessingTally;
   blessingTally = null;
   saveTally();
-  const money = Math.floor(correct / CERTIFY.blessingCoinPer);
-  const intellect = Math.floor(correct / CERTIFY.blessingIntellectPer);
-  const lines = [`Buổi chúc phúc đã kết thúc. Bạn trả lời đúng ${correct} câu.`];
+  const { money, intellect } = economy.payBlessing(PLAYER, session, blessingScore(correct, wrong));
+  const lines = [`Buổi chúc phúc đã kết thúc. Bạn trả lời đúng ${correct} câu, sai ${wrong} câu.`];
   if (!money && !intellect) lines.push('Chưa đủ số câu đúng để nhận thưởng, lần sau cố gắng hơn nhé!');
   mailbox.notify({
     icon: '✨',
@@ -1784,7 +1794,9 @@ function settleBlessing() {
   });
 }
 function updateBlessingRewards() {
-  if (blessingTally && blessing.session(context.minutes) !== blessingTally.session) settleBlessing();
+  const session = blessing.session(context.minutes);
+  if (blessingAsk && !blessingAsk.answered && blessingAsk.session !== session) kanjiQuiz.cancel();
+  if (blessingTally && session !== blessingTally.session) settleBlessing();
 }
 
 const sleepVeil = document.getElementById('sleepVeil');

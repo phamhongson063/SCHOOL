@@ -4,7 +4,8 @@ import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
-import { planDay, pruneBook, record, sumBook } from './townhall.js';
+import { nextBlessingRate, planDay, pruneBook, record, sumBook } from './townhall.js';
+import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -35,10 +36,14 @@ function load() {
         flows: saved.flows && typeof saved.flows === 'object' ? saved.flows : {},
         book: saved.book && typeof saved.book === 'object' ? saved.book : {},
         plans: saved.plans && typeof saved.plans === 'object' ? saved.plans : {},
+        blessingPool: Number.isFinite(saved.blessingPool) ? saved.blessingPool : 0,
+        blessingRate: Number.isFinite(saved.blessingRate) ? saved.blessingRate : BLESSING.cost,
+        blessingCaps: saved.blessingCaps && typeof saved.blessingCaps === 'object' ? saved.blessingCaps : {},
+        blessingCarry: saved.blessingCarry && typeof saved.blessingCarry === 'object' ? saved.blessingCarry : {},
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {} };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingRate: BLESSING.cost, blessingCaps: {}, blessingCarry: {} };
 }
 
 let ctx = null;
@@ -140,16 +145,56 @@ function collectTaxes() {
   }
 }
 
+function closeBlessingPool(day) {
+  const left = Math.max(0, state.blessingPool);
+  const last = state.plans[day - 1];
+  if (Number.isFinite(last?.blessingPool) && last.blessingPool > 0) {
+    state.blessingRate = nextBlessingRate(state.blessingRate, { paid: last.blessingPool - left, sessions: last.blessings.length, dry: left < 1 }, BLESSING.cost);
+  }
+  state.blessingPool = 0;
+  state.blessingCaps = {};
+  if (left > 0) ctx.ledger.purse(FUND).earn(left);
+}
+
+function shareOf(session) {
+  const at = parseSession(session);
+  return at ? sessionShare(Math.max(0, state.blessingPool), blessingSlots(at.day), at.index) : 0;
+}
+
+function capOf(session) {
+  state.blessingCaps[session] ??= { cap: shareOf(session), paid: 0 };
+  return state.blessingCaps[session];
+}
+
+function grantBlessing(session, value) {
+  const cap = capOf(session);
+  const paid = Math.min(Math.floor(value), cap.cap - cap.paid, Math.floor(state.blessingPool));
+  if (!(paid > 0)) return 0;
+  cap.paid += paid;
+  state.blessingPool -= paid;
+  record(state.book, today(), 'out', 'blessing', paid);
+  return paid;
+}
+
+function openBlessingPool(value) {
+  const fund = ctx.ledger.purse(FUND);
+  const amount = Math.min(Math.floor(value), fund.money);
+  if (!(amount > 0) || !fund.spend(amount)) return 0;
+  state.blessingPool = amount;
+  return amount;
+}
+
 function planFor(day) {
+  closeBlessingPool(day);
   const plan = planDay({
     fund: ctx.ledger.purse(FUND).money,
     wages: dailyWages(),
     windows: BLESSING.windows.length,
     starts: ARENA.starts.length,
-    blessingCost: BLESSING.cost,
+    blessingRate: state.blessingRate,
   });
-  withdraw(plan.blessingSpend, 'blessing');
-  state.plans[day] = { blessings: plan.blessings, arenaPrize: plan.arenaPrize, reserve: plan.reserve };
+  const blessingPool = openBlessingPool(plan.blessingPool);
+  state.plans[day] = { blessings: plan.blessings, arenaPrize: plan.arenaPrize, reserve: plan.reserve, blessingPool };
   for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
   pruneBook(state.book, day);
 }
@@ -206,7 +251,7 @@ function settleThrough(t) {
   if (state.day === null) state.day = now;
   for (let day = state.day; day < now; day++) settleDay(day + 1);
   state.day = now;
-  if (!state.plans[now]) planFor(now);
+  if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
 }
 
 function mergeArenaPool() {
@@ -318,6 +363,22 @@ export const economy = {
   reward(purse, amount) {
     purse.earn(amount);
     if (ctx) trackEarn(purse.id, amount);
+  },
+  payBlessing(id, session, score) {
+    const reward = blessingReward(score, state.blessingCarry[id]);
+    if (!ctx) return { money: 0, intellect: reward.intellect };
+    state.blessingCarry[id] = reward.carry;
+    const money = grantBlessing(session, reward.money);
+    store.save();
+    return { money, intellect: reward.intellect };
+  },
+  blessingLeft(session) {
+    const cap = state.blessingCaps[session];
+    const left = cap ? cap.cap - cap.paid : shareOf(session);
+    return Math.max(0, Math.min(left, Math.floor(state.blessingPool)));
+  },
+  blessingBudget(day = today()) {
+    return planOf(day)?.blessingPool ?? 0;
   },
   payOut(value, purse, kind = 'buyback') {
     if (!ctx || !(value > 0) || ctx.ledger.purse(FUND).money < value) return false;

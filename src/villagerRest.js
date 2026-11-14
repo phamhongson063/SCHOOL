@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, CERTIFY, MIND } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, isFree, leaveRoom, roomTier } from './lodging.js';
@@ -7,47 +7,73 @@ import { activityOf, energyRate, homeActivity, moodOf, nextShift } from './stami
 import { REST_TIME } from './walk.js';
 import { inStudyRoom } from './rooms.js';
 import { economy } from './economy.js';
+import { realSeconds } from './clock.js';
+import { blessingCloseAt, blessingStayMinutes } from './villagerMind.js';
+import { blessingScore } from './blessingRules.js';
 
 const VENDOR_TRIES = 2;
 const [MART_SNACK, MART_SNACK_INFO] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
 const OFFICIAL_ATTEND = 3;
+const STAY_RETRIES = 5;
 
 export class RestBehavior {
   goBlessing() {
     const blessing = this.town.blessing;
     this.task = 'blessing';
     this.lookAt = null;
-    this.travel(blessing.standFor(), {
+    this.blessingUntil = null;
+    const leave = () => {
+      blessing.leaveSpot(this.id);
+      this.think();
+    };
+    this.travel(blessing.standFor(this.id, this.position, this.walkSpeed), {
       then: () => {
-        if (!blessing.join(this.id, this.town.context.minutes)) return this.think();
+        if (!blessing.join(this.id, this.town.context.minutes)) return leave();
         this.lookAt = blessing.official.at;
         blessing.official.attend(this, OFFICIAL_ATTEND);
         this.wait(between(1.5, 2.5), () => this.startBlessingTest());
       },
-      fail: () => this.think(),
+      fail: leave,
     });
   }
 
   startBlessingTest() {
     const blessing = this.town.blessing;
+    blessing.leaveSpot(this.id);
     this.lookAt = null;
-    this.travel(blessing.altarFor(), {
-      then: () => {
-        if (!blessing.startTest(this.id, this.town.context.minutes)) return this.think();
-        this.lookAt = blessing.statueAt;
-        this.wait(between(1, 2), () => this.stayBlessed());
-      },
-      fail: () => this.think(),
+    const leave = () => {
+      blessing.leaveSpot(this.id);
+      this.think();
+    };
+    const begin = () => {
+      if (!blessing.startTest(this.id, this.town.context.minutes)) return leave();
+      this.lookAt = blessing.statueAt;
+      this.wait(between(1, 2), () => this.stayBlessed());
+    };
+    this.travel(blessing.altarFor(this.id, this.position, this.walkSpeed), {
+      then: begin,
+      fail: () => (blessing.onPlaza(this.position) ? begin() : leave()),
     });
   }
 
-  stayBlessed() {
+  stayBlessed(tries = 0, until = null) {
     const blessing = this.town.blessing;
+    blessing.leaveSpot(this.id);
     this.lookAt = null;
+    this.blessingUntil = Number.isFinite(until) ? until : null;
+    const done = () => {
+      this.blessingUntil = null;
+      this.think();
+    };
     const settle = () => {
-      if (!blessing.member(this.id, this.town.context.minutes)) return this.think();
+      const now = this.town.context.minutes;
+      if (!blessing.member(this.id, now)) return done();
+      if (!blessing.clearOfAltar(this.position) && tries < STAY_RETRIES) return this.wait(between(0.5, 1.5), () => this.stayBlessed(tries + 1, this.blessingUntil));
+      const close = blessingCloseAt(now);
+      this.blessingUntil = this.blessingUntil === null ? now + blessingStayMinutes(now, close) : Math.min(this.blessingUntil, close);
+      if (this.blessingUntil <= now) return done();
       this.lookAt = blessing.statueAt;
-      this.wait(between(...BLESSING.villagerStay), () => this.think());
+      this.wait(realSeconds(this.blessingUntil - now), done);
     };
     this.travel(blessing.stayPoint(), { then: settle, fail: settle });
   }
@@ -112,6 +138,10 @@ export class RestBehavior {
     const blessed = this.town.blessing?.blessed(this.id, this.position, ctx.minutes) ?? false;
     this.purse.liveEnergy(ctx.minutes, activity, stay ?? this.homeSleep(), stay ?? 'idle');
     this.blessingQuiz(blessed);
+    if (this.task === 'blessing' && this.blessingUntil != null && !this.town.blessing?.member(this.id, ctx.minutes)) {
+      this.blessingUntil = null;
+      this.think();
+    }
     this.tired = this.purse.energy <= 0;
     if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
     const mood = moodOf(this.purse.energy);
@@ -123,8 +153,7 @@ export class RestBehavior {
     const tally = this.blessingTally;
     if (!tally || this.town.blessing?.session(this.town.context.minutes) === tally.session) return;
     this.blessingTally = null;
-    const money = Math.floor(tally.correct / CERTIFY.blessingCoinPer);
-    const intellect = Math.floor(tally.correct / CERTIFY.blessingIntellectPer);
+    const { money, intellect } = economy.payBlessing(this.id, tally.session, blessingScore(tally.correct, tally.wrong));
     if (money > 0) economy.reward(this.purse, money);
     if (intellect > 0) this.purse.addIntellect(intellect);
   }
@@ -138,7 +167,7 @@ export class RestBehavior {
     const ask = (this.blessingAsk ??= { at: this.now + BLESSING.firstQuiz, answerAt: null });
     if (ask.answerAt === null) {
       if (this.now < ask.at || !certify.pool(this.id).length) return;
-      const thinking = between(...FISHING.villagerAnswer);
+      const thinking = Math.max(BLESSING.answerLock, between(...FISHING.villagerAnswer));
       ask.answerAt = this.now + thinking;
       this.say('🤔', thinking);
       return;
@@ -146,9 +175,13 @@ export class RestBehavior {
     if (this.now < ask.answerAt) return;
     ask.answerAt = null;
     ask.at = this.now + BLESSING.quizSeconds;
-    if (!this.answerPool()) return;
+    const right = this.answerPool();
     const session = this.town.blessing.session(this.town.context.minutes);
-    if (this.blessingTally?.session !== session) this.blessingTally = { session, correct: 0 };
+    if (this.blessingTally?.session !== session) this.blessingTally = { session, correct: 0, wrong: 0 };
+    if (!right) {
+      this.blessingTally.wrong += 1;
+      return;
+    }
     this.blessingTally.correct += 1;
     this.say('✓', 1.2);
   }

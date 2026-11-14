@@ -328,6 +328,8 @@ export const TOWNHALL = {
   spend: 0.2,
   blessingShare: 0.5,
   blessingMin: 2,
+  blessingGrow: 1.5,
+  blessingEase: 0.3,
   history: 14,
 };
 
@@ -339,6 +341,9 @@ export const BLESSING = {
   remindBefore: 10,
   firstQuiz: 3,
   villagerStay: [5 * 60, 15 * 60],
+  wrongCost: 0.5,
+  answerLock: 2,
+  lateMinutes: 5,
 };
 
 export const RANKING = {
