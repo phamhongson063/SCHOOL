@@ -22,7 +22,7 @@ export function unitLabel(key) {
   const card = unitOf(key);
   if (!card) return key;
   const word = plainText(card.word).replace(/[[\]]/g, '');
-  if (card.deck !== 'sugu1') return word;
+  if (DECKS[card.deck].quiz !== 'phrase') return word;
   return `${word} (ví dụ ${key.split(':')[2]})`;
 }
 

@@ -70,7 +70,9 @@ function clozeLines(lines, cloze) {
   return { nodes, blanks };
 }
 
-function pickLine(text) {
+const readingOf = (mark) => mark.replace(RUBY, '$1');
+
+function pickLine(text, shown) {
   const line = document.createElement('p');
   line.className = 'phrase-line';
   const words = document.createElement('span');
@@ -81,7 +83,7 @@ function pickLine(text) {
     const blank = document.createElement('span');
     blank.className = 'phrase-blank';
     blank.lang = 'ja';
-    blank.textContent = match[1].replace(RUBY, '$1');
+    blank.textContent = shown(match[1]);
     blank.dataset.fill = match[1];
     words.append(blank);
     blanks.push(blank);
@@ -97,8 +99,17 @@ function kanjiPick(entry) {
   return { kind: 'pick', answer: entry.word, wrong: shuffle([...entry.kanjiChoices]), text: example.lines[0][1] };
 }
 
+function kanjiQuestion(entry, kind) {
+  const text = entry.examples[0].lines[0][1];
+  const write = kind ? kind === 'meaning' : Math.random() < 0.5;
+  if (write) return { kind: 'pick', answer: entry.word, wrong: shuffle([...entry.writeChoices]), text };
+  return { kind: 'read', answer: entry.reading, wrong: shuffle([...entry.distractors]), text };
+}
+
 function question(entry, kind, choices) {
-  if (entry.deck === 'n2') {
+  const style = DECKS[entry.deck].quiz;
+  if (style === 'kanji') return kanjiQuestion(entry, kind);
+  if (style === 'vocab') {
     if (kind !== 'meaning' && entry.kanjiChoices.length && entry.examples.length) return kanjiPick(entry);
     const byMeaning = kind === 'meaning' || !entry.distractors.length;
     const answer = byMeaning ? entry.meaning : entry.reading;
@@ -116,7 +127,7 @@ function question(entry, kind, choices) {
 
 function quizSeconds(kind, phrase) {
   if (!phrase) return FISHING.quizSeconds;
-  return kind === 'cloze' || kind === 'pick' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
+  return kind === 'cloze' || kind === 'pick' || kind === 'read' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
 }
 
 const levelOf = (entry) => DECKS[entry.deck].level;
@@ -213,8 +224,8 @@ export function createKanjiQuiz() {
       ui.text.textContent = entry.word;
       return [];
     }
-    if (asked.kind === 'pick') {
-      const sentence = pickLine(asked.text);
+    if (asked.kind === 'pick' || asked.kind === 'read') {
+      const sentence = pickLine(asked.text, asked.kind === 'read' ? plain : readingOf);
       ui.text.className = 'phrase-text dialogue';
       ui.text.replaceChildren(...sentence.nodes);
       return sentence.blanks;
@@ -252,12 +263,12 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = 'reading', choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = null, choices = 0, closeAfter = null, onAnswer = null, brief = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
       const asked = question(entry, kind, choices);
-      const phrase = entry.deck !== 'n2' || asked.kind === 'pick';
+      const phrase = DECKS[entry.deck].quiz !== 'vocab' || asked.kind === 'pick';
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {

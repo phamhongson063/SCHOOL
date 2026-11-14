@@ -1,4 +1,5 @@
 import { CERTIFY } from './config.js';
+import { DECKS } from './studyDecks.js';
 
 const ANSWER_PAUSE_MS = 1200;
 
@@ -25,7 +26,7 @@ export function createExams({ quiz, sounds = null }) {
           brief: true,
           closeAfter: ANSWER_PAUSE_MS,
           kind: Math.random() < 0.5 ? 'reading' : 'meaning',
-          choices: deck === 'n2' ? 4 : 0,
+          choices: DECKS[deck].choices,
           onAnswer: (right) => (right ? sounds?.correct() : sounds?.wrong()),
         });
         const result = { key, correct: !!correct };

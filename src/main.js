@@ -1494,7 +1494,6 @@ const mapLabels = createMapLabels({
     player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
   },
 });
-const HALL_NAMES = { n2: 'Từ vựng N2', sugu1: 'Lớp Sugu 1' };
 const HOME_NAME = 'Nhà của bạn';
 const midRiver = river.spots[Math.floor(river.spots.length / 2)]?.stand ?? null;
 let homeLabel = null;
@@ -1502,7 +1501,7 @@ for (const [name, at, stand, lift] of [
   ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND, 9],
   ...STUDY_HALLS.map((hall) => {
     const { out } = hallBounds(hall);
-    return [HALL_NAMES[hall.deck], { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
+    return [hall.name, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
   }),
   [HOME_NAME, null],
   ['Tượng thần', blessing.statueAt, blessing.official.stand, 8],

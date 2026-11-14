@@ -1,5 +1,6 @@
 import { N2_VOCAB } from './vocabN2.js';
 import { LESSONS } from './lessons.js';
+import { KANJI_N2 } from './kanjiN2.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
 const MARKS = /\[([^\]]+)\]/g;
@@ -47,12 +48,43 @@ function linkSiblings(cards, entries) {
 
 const N2_KEYS = n2Keys(N2_VOCAB);
 
+const KANJI_RUN = /([㐀-鿿々〆]+)/;
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function rubyOf(word, reading) {
+  const parts = word.split(KANJI_RUN).filter(Boolean);
+  const match = reading.match(new RegExp(`^${parts.map((part) => (KANJI.test(part) ? '(.+?)' : escapeRegex(part))).join('')}$`));
+  if (!match) return `${word}{${reading}}`;
+  let next = 1;
+  return parts.map((part) => (KANJI.test(part) ? `${part}{${match[next++]}}` : part)).join('');
+}
+
+const kanjiNote = (kanji) => [`${kanji.kanji} ${kanji.hanViet}`, kanji.on, kanji.kun, kanji.parts].filter(Boolean).join(' · ');
+
+const kanjiCards = () =>
+  KANJI_N2.flatMap((kanji) =>
+    kanji.words.map((entry, i) => ({
+      key: `kn2:${kanji.no}:${i + 1}`,
+      deck: 'kanjiN2',
+      word: entry.word,
+      reading: entry.reading,
+      hanViet: entry.hanViet,
+      meaning: entry.meaning,
+      distractors: entry.wrong,
+      writeChoices: kanji.like.map((other) => entry.word.replaceAll(kanji.kanji, other)),
+      note: kanjiNote(kanji),
+      examples: [{ title: '', lines: [['', entry.example.replace(`[${entry.word}]`, `[${rubyOf(entry.word, entry.reading)}]`), entry.vi]] }],
+    })),
+  );
+
 export const DECKS = {
   n2: {
     title: 'N2',
     label: 'Từ vựng N2',
     level: '単語 N2',
     unit: 'từ',
+    quiz: 'vocab',
+    choices: 4,
     cards: linkSiblings(N2_VOCAB.map((entry, i) => ({
       key: N2_KEYS[i],
       deck: 'n2',
@@ -77,6 +109,8 @@ export const DECKS = {
     label: 'すぐに使える①',
     level: 'すぐに使える①',
     unit: 'câu ví dụ',
+    quiz: 'phrase',
+    choices: 0,
     cards: LESSONS.flatMap((lesson) =>
       lesson.examples.map((example, i) => ({
         key: `sugu1:${lesson.no}:${i + 1}`,
@@ -90,6 +124,15 @@ export const DECKS = {
         cloze: clozeOf(example.lines),
       })),
     ),
+  },
+  kanjiN2: {
+    title: '漢字 N2',
+    label: 'Kanji N2',
+    level: '漢字 N2',
+    unit: 'từ',
+    quiz: 'kanji',
+    choices: 4,
+    cards: kanjiCards(),
   },
 };
 
