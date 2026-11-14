@@ -502,7 +502,7 @@ function ribbonGeometry(points, half, lift, along = 1) {
     }
     if (i > 0) {
       const a = (i - 1) * 2;
-      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   });
   const geometry = new THREE.BufferGeometry();
