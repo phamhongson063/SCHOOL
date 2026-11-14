@@ -13,7 +13,6 @@ const END_MS = 2200;
 const CHOICE_MS = 20000;
 const SHOT = { back: 9, rise: 2.4, aim: -1.55 };
 const SET_MS = 1800;
-const TIER_TAGS = { easy: '', normal: '', hard: ' · ⚡ Câu khó' };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -35,12 +34,14 @@ function replay(node, className) {
   node.classList.add(className);
 }
 
-export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null, onTurn = null, onLeave = null, veil = null }) {
+export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null, onTurn = null, onLeave = null, veil = null, focus = null }) {
   const dialog = document.getElementById('duelDialog');
   const cards = { me: cardView(dialog.querySelector('.duel-card.me')), foe: cardView(dialog.querySelector('.duel-card.foe')) };
   const banner = dialog.querySelector('.duel-banner');
-  const turnLabel = dialog.querySelector('.duel-turn');
+  const roundLabel = dialog.querySelector('.duel-round');
+  const board = dialog.querySelector('.duel-board');
   const kind = dialog.querySelector('.duel-kind');
+  const hard = dialog.querySelector('.duel-hard');
   const clock = dialog.querySelector('.duel-clock');
   const bar = dialog.querySelector('.duel-bar');
   const word = dialog.querySelector('.duel-word');
@@ -123,6 +124,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     const reason = END_REASONS[match.reason] ?? '';
     clearInterval(ticker);
     kind.textContent = '';
+    setHard(false);
     clock.textContent = '';
     bar.style.transform = 'scaleX(0)';
     word.textContent = won ? 'THẮNG' : 'THUA';
@@ -132,6 +134,11 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     if (won) return;
     const pick = await choose(['Ở lại xem', 'Về làng']);
     if (pick === 1) onLeave?.();
+  }
+
+  function setHard(on) {
+    hard.hidden = !on;
+    board.classList.toggle('hard', on);
   }
 
   function runBar(seconds, from) {
@@ -206,14 +213,14 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     });
   }
 
-  async function playTurn(asked, size, match) {
+  async function playTurn(asked, match) {
     const quiz = buildQuestion(asked.key, asked.tier);
     const foeId = asked.opponent;
     const sides = { me: asked.side, foe: asked.side === 'a' ? 'b' : 'a' };
     setSets(cards.me, asked.sets[sides.me], asked.need);
     setSets(cards.foe, asked.sets[sides.foe], asked.need);
-    turnLabel.textContent = `${roundName(size)}${asked.need > 1 ? ` · Hiệp ${asked.set}` : ''} · Lượt ${asked.turn}`;
-    kind.textContent = `${KIND_LABELS[quiz.kind]}${TIER_TAGS[asked.tier] ?? ''}`;
+    kind.textContent = KIND_LABELS[quiz.kind];
+    setHard(asked.tier === 'hard');
     word.textContent = quiz.word;
     hint.textContent = quiz.hint;
     log.textContent = '';
@@ -300,11 +307,13 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
       const stage = stageOf(size, round.indexOf(match));
       shot = { x: stage.x, y: stage.y, z: stage.z, toward: side === 'a' ? 1 : -1 };
       veil?.(match[foe]);
+      focus?.(stage, shot.toward);
       try {
         setFighter(cards.me, PLAYER, match.hp[side]);
         setFighter(cards.foe, match[foe], match.hp[foe]);
-        turnLabel.textContent = roundName(size);
+        roundLabel.textContent = roundName(size);
         kind.textContent = '';
+        setHard(false);
         clock.textContent = '';
         word.textContent = '';
         hint.textContent = '';
@@ -313,13 +322,14 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
         setOpen(true);
         for (const text of COUNTDOWN) await shout(text);
         for (let asked = arena.question(PLAYER, now()); asked; asked = arena.question(PLAYER, now())) {
-          if (!(await playTurn(asked, size, match))) break;
+          if (!(await playTurn(asked, match))) break;
         }
         if (match.winner) await ending(match, match.winner === PLAYER);
       } finally {
         clearInterval(ticker);
         setOpen(false);
         veil?.(null);
+        focus?.(null);
         shot = null;
         running = false;
       }

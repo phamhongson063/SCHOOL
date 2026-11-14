@@ -11,6 +11,8 @@ const CHEERS = ['Hay!', 'Đẹp!', 'Tuyệt!', '👏', '🔥', 'Ồ!', 'Cố lê
 const CHEER_REACH = 22;
 const CHEER_CHANCE = 0.35;
 const HOME_WARP = 0xffe6a8;
+const HOMECOMING = { reach: 5.2, delay: 1.2, stagger: 0.18, linger: [2, 3.5] };
+const CROWD = { step: 0.5, gap: 1, clearOfPlayer: 1.2, near: { side: 5, from: 1.4, to: 4.4 }, wide: { side: 8, from: 1, to: 7 } };
 const SUMMON_WARP = 0xffe08a;
 
 const between = (a, b) => a + Math.random() * (b - a);
@@ -46,11 +48,12 @@ function nearest(list, from) {
 export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null }) {
   const where = new Map();
   const lives = new Map();
-  let back = null;
   let pulledFor = null;
   let wantUp = false;
   let homeAt = null;
   let fighting = false;
+  let goingHome = false;
+  let exit = null;
 
   const playerHere = () => onIsland(player.position);
 
@@ -91,8 +94,8 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
   function goUp() {
     if (summon?.busy || !ready()) return false;
     wantUp = false;
+    goingHome = false;
     teleport(true, summonLines(), () => {
-      if (!playerHere()) back = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.yaw };
       placePlayer(ARRIVAL);
       warp?.(ARRIVAL, SUMMON_WARP, 1.8);
       say?.('⚔️ Đã tới Lôi Đài!');
@@ -102,22 +105,93 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
 
   function goDown() {
     if (summon?.busy || !ready()) return false;
-    const spot = back ?? deskSpot();
+    const spot = homeSpot();
+    goingHome = arena.event?.phase !== 'running';
     teleport(false, [], () => {
-      back = null;
       homeAt = null;
       fighting = false;
       const y = spot.y ?? town.nav.heightAt(spot.x, spot.z) ?? 0;
-      player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw ?? 0);
+      player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw);
       warp?.({ x: spot.x, y, z: spot.z }, HOME_WARP, 1.2);
     });
     return true;
   }
 
-  function deskSpot() {
-    const spots = town.arenaDesk?.spots;
-    const spot = spots?.[Math.floor(Math.random() * spots.length)] ?? { x: player.spawn.x, z: player.spawn.z };
-    return { x: spot.x, z: spot.z };
+  function deskFrame() {
+    const desk = town.arenaDesk;
+    return desk ? { x: desk.at.x, z: desk.at.z, out: desk.out } : { x: player.spawn.x, z: player.spawn.z, out: 1 };
+  }
+
+  function freeSpot(x, z) {
+    const nav = town.nav;
+    if (nav.bodyClear(x, z)) return { x, z };
+    const cell = nav.nearest(x, z, 8);
+    return cell < 0 ? { x, z } : nav.center(cell);
+  }
+
+  function homeSpot() {
+    const desk = deskFrame();
+    const spot = freeSpot(desk.x, desk.z + desk.out * HOMECOMING.reach);
+    return { x: spot.x, z: spot.z, yaw: desk.out > 0 ? 0 : Math.PI };
+  }
+
+  function openGround(area, desk, home) {
+    const nav = town.nav;
+    const homeCell = nav.cellIndex(home.x, home.z);
+    const reach = homeCell >= 0 ? nav.components[homeCell] : -1;
+    const spots = [];
+    for (let dz = area.from; dz <= area.to; dz += CROWD.step) {
+      for (let dx = -area.side; dx <= area.side; dx += CROWD.step) {
+        const x = desk.x + dx;
+        const z = desk.z + desk.out * dz;
+        if (Math.hypot(x - home.x, z - home.z) < CROWD.clearOfPlayer || !nav.bodyClear(x, z)) continue;
+        const cell = nav.cellIndex(x, z);
+        if (reach >= 0 && nav.components[cell] !== reach) continue;
+        spots.push({ x, z });
+      }
+    }
+    for (let i = spots.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [spots[i], spots[j]] = [spots[j], spots[i]];
+    }
+    return spots;
+  }
+
+  function crowdSpots(count) {
+    const desk = deskFrame();
+    const home = homeSpot();
+    const picked = [];
+    for (const area of [CROWD.near, CROWD.wide]) {
+      for (const spot of openGround(area, desk, home)) {
+        if (picked.length >= count) break;
+        if (picked.some((other) => Math.hypot(other.x - spot.x, other.z - spot.z) < CROWD.gap)) continue;
+        picked.push(spot);
+      }
+    }
+    while (picked.length < count) picked.push(freeSpot(desk.x + (Math.random() - 0.5) * 4, desk.z + desk.out * 2));
+    return picked.map((spot) => ({ x: spot.x, z: spot.z, facing: facingTo(spot, home) }));
+  }
+
+  function release(leaving, t) {
+    if (!leaving.length) {
+      exit = null;
+      return;
+    }
+    if (!exit) {
+      if (goingHome && playerHere()) return;
+      exit = { at: t + (goingHome ? HOMECOMING.delay : 0), slots: new Map(), spots: crowdSpots(leaving.length) };
+      goingHome = false;
+    }
+    for (const member of leaving) {
+      if (!exit.slots.has(member.id)) exit.slots.set(member.id, exit.slots.size);
+      const slot = exit.slots.get(member.id);
+      if (t < exit.at + slot * HOMECOMING.stagger) continue;
+      const spot = exit.spots[slot] ?? crowdSpots(1)[0];
+      member.leaveArena(spot, between(...HOMECOMING.linger));
+      warp?.({ x: spot.x, y: member.position.y, z: spot.z }, HOME_WARP, 0.8);
+      where.delete(member.id);
+      lives.delete(member.id);
+    }
   }
 
   function syncPlayer(event, running, now, t) {
@@ -185,14 +259,10 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
         if (!fight) liven(member, anchor, nearest(active, member.position) ?? ISLAND, t);
       });
     }
-    for (const member of villagers.values()) {
-      if (member.state !== 'arena' || (staying && order.includes(member.id))) continue;
-      const spot = deskSpot();
-      member.leaveArena(spot);
-      warp?.({ x: spot.x, y: member.position.y, z: spot.z }, HOME_WARP, 0.8);
-      where.delete(member.id);
-      lives.delete(member.id);
-    }
+    release(
+      [...villagers.values()].filter((member) => member.state === 'arena' && !(staying && order.includes(member.id))),
+      t,
+    );
   }
 
   return {
@@ -204,7 +274,7 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     },
     returnSpot() {
       if (!playerHere()) return null;
-      return back ?? deskSpot();
+      return homeSpot();
     },
     leave() {
       wantUp = false;

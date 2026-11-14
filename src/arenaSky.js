@@ -266,12 +266,12 @@ export function createArenaSky(island) {
   });
 
   const halo = haloTexture();
-  const halos = island.lamps.map(({ x, y, z, size }) => {
+  const halos = island.lamps.map(({ x, y, z, size, stage = null }) => {
     const sprite = new THREE.Sprite(additive({ map: halo, opacity: 0.6 }));
     sprite.position.set(x, y, z);
     sprite.scale.setScalar(size);
     group.add(sprite);
-    return { sprite, size, phase: rand() * Math.PI * 2 };
+    return { sprite, size, stage, phase: rand() * Math.PI * 2 };
   });
 
   const shaftMap = shaftTexture();
@@ -363,6 +363,9 @@ export function createArenaSky(island) {
 
   return {
     group,
+    showStage(stage, shown) {
+      for (const item of halos) if (item.stage === stage) item.sprite.visible = shown;
+    },
     update(t, dt, night) {
       if (Math.abs(night - tint) > 0.02) {
         tint = night;

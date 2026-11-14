@@ -287,7 +287,7 @@ export function createDistrict() {
       clickables.push(registrar.walker.group);
       obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
       const spots = REGISTRAR.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * REGISTRAR.reach }));
-      arena = { group: built.group, registrar, at, spots, stand: spots[1] };
+      arena = { group: built.group, registrar, at, out: side, spots, stand: spots[1] };
     }
   }
   const ownsArena = (object) => {
@@ -326,7 +326,7 @@ export function createDistrict() {
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
     bankDoor: bank ? bank.stand : null,
-    arenaDesk: arena ? { at: arena.at, spots: arena.spots, say: (text) => arena.registrar.bubble.show(text, 1.8, now) } : null,
+    arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text) => arena.registrar.bubble.show(text, 1.8, now) } : null,
     update(t, ctx, camera) {
       now = t;
       if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);

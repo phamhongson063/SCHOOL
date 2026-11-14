@@ -34,6 +34,7 @@ const PLATFORMS = [
   { x: 240, z: 4, r: 5, lift: STAGE_HEIGHT + 2 },
 ].map((stage) => ({ ...stage, y: ISLAND.y + stage.lift }));
 const FIGHT_GAP = 1.6;
+const SKY_GATE = { back: 60, width: 56, height: 28, top: 2.9, opacity: 0.62 };
 
 const DAIS = { tiers: [2.3, 1.75, 1.2], step: 0.32 };
 const DAIS_TOP = ISLAND.y + DAIS.tiers.length * DAIS.step;
@@ -176,42 +177,51 @@ function islandMesh() {
   }
   b.add(shapes.box(gx * 2 + 1.6, 0.16, 1.3), LACQUER, { p: [GATE.x, ISLAND.y + GATE.radius * 2 + 0.9, GATE.z], r: [0, 0, 0] });
   b.add(shapes.box(gx * 2 + 2.2, 0.1, 1.5), JADE, { p: [GATE.x, ISLAND.y + GATE.radius * 2 + 1.04, GATE.z] });
-  for (const stage of PLATFORMS) {
-    floatingRock(b, stage.x, stage.y, stage.z, stage.r + 0.2, stage.r * 1.8);
-    checker(b, stage.x, stage.y, stage.z, stage.r - 0.1, stage.r > 4 ? 1 : 0.875, MARBLE, SLATE);
-    for (let k = 0; k < 4; k++) {
-      const a = Math.PI / 4 + (k * Math.PI) / 2;
-      const x = stage.x + Math.cos(a) * (stage.r - 0.25);
-      const z = stage.z + Math.sin(a) * (stage.r - 0.25);
-      b.add(shapes.cylinder(0.12, 0.15, 2.2, 8), LACQUER, { p: [x, stage.y + 1.1, z] });
-      b.add(shapes.cone(0.26, 0.34, 8), JADE, { p: [x, stage.y + 2.38, z] });
-    }
+  return b.mesh(groundMaterial());
+}
+
+const groundMaterial = () => toonMaterial({ vertexColors: true, emissive: 0x2c2e34 });
+const glowMaterial = () => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false });
+
+function stageMesh(stage, material) {
+  const b = new Batch();
+  floatingRock(b, stage.x, stage.y, stage.z, stage.r + 0.2, stage.r * 1.8);
+  checker(b, stage.x, stage.y, stage.z, stage.r - 0.1, stage.r > 4 ? 1 : 0.875, MARBLE, SLATE);
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    const x = stage.x + Math.cos(a) * (stage.r - 0.25);
+    const z = stage.z + Math.sin(a) * (stage.r - 0.25);
+    b.add(shapes.cylinder(0.12, 0.15, 2.2, 8), LACQUER, { p: [x, stage.y + 1.1, z] });
+    b.add(shapes.cone(0.26, 0.34, 8), JADE, { p: [x, stage.y + 2.38, z] });
   }
-  return b.mesh(toonMaterial({ vertexColors: true, emissive: 0x2c2e34 }));
+  return b.mesh(material);
+}
+
+function stageGlow(stage, material) {
+  const b = new Batch();
+  b.add(shapes.torus(stage.r + 0.32, 0.07, 64), GLOW, { p: [stage.x, stage.y - 0.2, stage.z], r: [Math.PI / 2, 0, 0] });
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    b.add(shapes.sphere(0.16, 10, 8), GLOW, { p: [stage.x + Math.cos(a) * (stage.r - 0.25), stage.y + 2.0, stage.z + Math.sin(a) * (stage.r - 0.25)] });
+  }
+  return b.mesh(material, { shadow: false });
 }
 
 function glowMesh() {
   const b = new Batch();
-  for (const stage of PLATFORMS) {
-    b.add(shapes.torus(stage.r + 0.32, 0.07, 64), GLOW, { p: [stage.x, stage.y - 0.2, stage.z], r: [Math.PI / 2, 0, 0] });
-    for (let k = 0; k < 4; k++) {
-      const a = Math.PI / 4 + (k * Math.PI) / 2;
-      b.add(shapes.sphere(0.16, 10, 8), GLOW, { p: [stage.x + Math.cos(a) * (stage.r - 0.25), stage.y + 2.0, stage.z + Math.sin(a) * (stage.r - 0.25)] });
-    }
-  }
   for (let i = 0; i < RAIL_SEGMENTS; i += 4) {
     const a = (i / RAIL_SEGMENTS) * Math.PI * 2;
     b.add(shapes.sphere(0.13, 10, 8), GLOW, { p: [ISLAND.x + Math.cos(a) * RAIL_RADIUS, ISLAND.y + 1.32, ISLAND.z + Math.sin(a) * RAIL_RADIUS] });
   }
   b.add(shapes.torus(ISLAND.radius + 0.44, 0.07, 140), GLOW, { p: [ISLAND.x, ISLAND.y - 0.2, ISLAND.z], r: [Math.PI / 2, 0, 0] });
-  return b.mesh(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false }), { shadow: false });
+  return b.mesh(glowMaterial(), { shadow: false });
 }
 
-function canvasTexture(size, paint) {
+function canvasTexture(size, paint, height = size) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
-  canvas.height = size;
-  paint(canvas.getContext('2d'), size);
+  canvas.height = height;
+  paint(canvas.getContext('2d'), size, height);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -321,6 +331,86 @@ function haloTexture() {
   });
 }
 
+function skyGateTexture() {
+  return canvasTexture(
+    1024,
+    (ctx, w, h) => {
+      const glowing = (color, blur) => {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = blur;
+      };
+      const opening = ctx.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, w * 0.26);
+      opening.addColorStop(0, 'rgba(255,246,214,0.75)');
+      opening.addColorStop(0.5, 'rgba(255,226,170,0.3)');
+      opening.addColorStop(1, 'rgba(255,226,170,0)');
+      ctx.fillStyle = opening;
+      ctx.fillRect(0, 0, w, h);
+
+      glowing('rgba(255,214,160,0.9)', 28);
+      for (const cx of [0.25, 0.75]) {
+        const pillar = ctx.createLinearGradient(0, h * 0.06, 0, h);
+        pillar.addColorStop(0, '#f08a74');
+        pillar.addColorStop(0.5, '#d65a4c');
+        pillar.addColorStop(1, 'rgba(214,90,76,0)');
+        ctx.fillStyle = pillar;
+        ctx.fillRect(w * (cx - 0.015), h * 0.06, w * 0.03, h * 0.94);
+        ctx.fillStyle = '#ffe2a0';
+        for (const band of [0.24, 0.42]) ctx.fillRect(w * (cx - 0.019), h * band, w * 0.038, h * 0.012);
+      }
+
+      ctx.fillStyle = '#d65a4c';
+      ctx.fillRect(w * 0.19, h * 0.2, w * 0.62, h * 0.024);
+      ctx.fillRect(w * 0.13, h * 0.135, w * 0.74, h * 0.03);
+
+      const roof = ctx.createLinearGradient(0, h * 0.02, 0, h * 0.13);
+      roof.addColorStop(0, '#b4f0dc');
+      roof.addColorStop(1, '#4fae94');
+      ctx.fillStyle = roof;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.05, h * 0.015);
+      ctx.quadraticCurveTo(w * 0.5, h * 0.11, w * 0.95, h * 0.015);
+      ctx.lineTo(w * 0.92, h * 0.07);
+      ctx.quadraticCurveTo(w * 0.5, h * 0.155, w * 0.08, h * 0.07);
+      ctx.closePath();
+      ctx.fill();
+      glowing('rgba(255,230,170,0.9)', 10);
+      ctx.strokeStyle = '#ffe2a0';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = '#f2c96a';
+      ctx.fillRect(w * 0.465, h * 0.09, w * 0.07, h * 0.135);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#8a1a14';
+      ctx.font = `900 ${h * 0.05}px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('天', w / 2, h * 0.128);
+      ctx.fillText('門', w / 2, h * 0.188);
+
+      glowing('rgba(255,255,255,0.8)', 40);
+      ctx.fillStyle = 'rgba(255,255,255,0.32)';
+      for (let i = 0; i < 18; i++) {
+        const x = w * (0.08 + (i / 17) * 0.84);
+        const y = h * (0.66 + Math.sin(i * 2.3) * 0.06);
+        ctx.beginPath();
+        ctx.arc(x, y, h * (0.07 + ((i * 37) % 5) * 0.012), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = 'destination-in';
+      const fade = ctx.createLinearGradient(0, 0, 0, h);
+      fade.addColorStop(0, 'rgba(0,0,0,1)');
+      fade.addColorStop(0.45, 'rgba(0,0,0,1)');
+      fade.addColorStop(0.92, 'rgba(0,0,0,0)');
+      ctx.fillStyle = fade;
+      ctx.fillRect(0, 0, w, h);
+    },
+    512,
+  );
+}
+
 const additive = (options) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, ...options });
 
 let moteMap = null;
@@ -375,10 +465,10 @@ function skyLayout() {
     const a = (i / RAIL_SEGMENTS) * Math.PI * 2;
     lamps.push({ x: ISLAND.x + Math.cos(a) * RAIL_RADIUS, y: ISLAND.y + 1.32, z: ISLAND.z + Math.sin(a) * RAIL_RADIUS, size: 1.1 });
   }
-  for (const stage of PLATFORMS) {
+  for (const [index, stage] of PLATFORMS.entries()) {
     for (let k = 0; k < 4; k++) {
       const a = Math.PI / 4 + (k * Math.PI) / 2;
-      lamps.push({ x: stage.x + Math.cos(a) * (stage.r - 0.25), y: stage.y + 2.0, z: stage.z + Math.sin(a) * (stage.r - 0.25), size: 1.2 });
+      lamps.push({ x: stage.x + Math.cos(a) * (stage.r - 0.25), y: stage.y + 2.0, z: stage.z + Math.sin(a) * (stage.r - 0.25), size: 1.2, stage: index });
     }
   }
   const banners = [0.15, 0.85, 1.15, 1.85].map((turn) => {
@@ -411,6 +501,8 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
   const swirl = swirlTexture();
   const halo = haloTexture();
   let painted = null;
+  let focused = null;
+  let facing = 1;
 
   function skyBoard() {
     const holder = new THREE.Group();
@@ -439,6 +531,10 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
       paint(board);
       texture.needsUpdate = true;
     },
+    focusStage(stage, toward = 1) {
+      focused = stage;
+      facing = toward;
+    },
     region: {
       id: 'arena',
       name: 'Lôi đài',
@@ -466,6 +562,15 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         const scenery = new THREE.Group();
         const ground = islandMesh();
         scenery.add(ground, glowMesh());
+        const stageSolid = groundMaterial();
+        const stageLight = glowMaterial();
+        const stageParts = PLATFORMS.map((stage) => {
+          const part = new THREE.Group();
+          const solid = stageMesh(stage, stageSolid);
+          part.add(solid, stageGlow(stage, stageLight));
+          scenery.add(part);
+          return { stage, part, solid };
+        });
         freeze(scenery);
 
         const vortex = new THREE.Mesh(new THREE.CircleGeometry(GATE.radius - 0.05, 40), additive({ map: swirl, opacity: 0.9 }));
@@ -494,7 +599,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         const threadMotes = motes(36, 0.18, 0, beamHeight, 0xffe6a8, 0.22, 63);
         threadMotes.points.position.set(ISLAND.x, CRYSTAL_Y, ISLAND.z);
 
-        const stageRunes = PLATFORMS.map((stage) => {
+        const stageRunes = stageParts.map(({ stage }) => {
           const mesh = new THREE.Mesh(new THREE.PlaneGeometry(stage.r * 1.7, stage.r * 1.7), additive({ map: runes, opacity: 0.5, color: 0xffe6a8 }));
           mesh.rotation.x = -Math.PI / 2;
           mesh.position.set(stage.x, stage.y + 0.02, stage.z);
@@ -507,13 +612,36 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         const islandMotes = motes(140, ISLAND.radius + 6, -4, 16, 0xffe6a8, 0.35, 91);
         islandMotes.points.position.set(ISLAND.x, ISLAND.y, ISLAND.z);
 
+        const skyGate = new THREE.Group();
+        const gateFace = new THREE.Mesh(
+          new THREE.PlaneGeometry(SKY_GATE.width, SKY_GATE.height),
+          new THREE.MeshBasicMaterial({ map: skyGateTexture(), transparent: true, depthWrite: false, opacity: SKY_GATE.opacity }),
+        );
+        const gateHalo = new THREE.Mesh(new THREE.PlaneGeometry(SKY_GATE.width * 0.8, SKY_GATE.height * 1.3), additive({ map: halo, opacity: 0.4 }));
+        gateHalo.position.set(0, -SKY_GATE.height * 0.1, -0.5);
+        skyGate.add(gateHalo, gateFace);
+        skyGate.visible = false;
+
         const heaven = createArenaSky(skyLayout());
-        group.add(scenery, heaven.group, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
+        group.add(scenery, heaven.group, skyGate, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
         const look = new THREE.Vector3();
         return {
           group,
-          clickables: [ground, vortex, gateRunes, crystal, sky.face],
+          clickables: [ground, ...stageParts.map(({ solid }) => solid), vortex, gateRunes, crystal, sky.face],
           update(t, dt = 0) {
+            for (const [i, { stage, part }] of stageParts.entries()) {
+              const shown = !focused || stage === focused;
+              part.visible = shown;
+              stageRunes[i].visible = shown;
+              heaven.showStage(i, shown);
+            }
+            skyGate.visible = Boolean(focused);
+            if (focused) {
+              skyGate.position.set(focused.x, focused.y + SKY_GATE.top - SKY_GATE.height / 2, focused.z - facing * SKY_GATE.back);
+              skyGate.rotation.y = facing > 0 ? 0 : Math.PI;
+              gateFace.material.opacity = SKY_GATE.opacity + Math.sin(t * 0.8) * 0.08;
+              gateHalo.material.opacity = 0.32 + Math.sin(t * 1.3) * 0.12;
+            }
             vortex.rotation.z = -t * 1.4;
             gateRunes.rotation.z = t * 0.35;
             daisRunes.rotation.z = -t * 0.25;

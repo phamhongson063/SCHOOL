@@ -401,15 +401,16 @@ export class Villager {
     if (Number.isFinite(this.arenaFacing)) this.turnTo(this.arenaFacing, 3, dt);
   }
 
-  leaveArena(spot) {
+  leaveArena(spot, linger = between(0.5, 1.5)) {
     this.arenaGoal = null;
     this.task = null;
     this.state = 'idle';
     this.position.set(spot.x, this.town.nav.heightAt(spot.x, spot.z) ?? 0, spot.z);
+    if (Number.isFinite(spot.facing)) this.facing = spot.facing;
     this.velocity = 0;
     this.pop = 0.25;
     this.setVisible(true);
-    this.wait(between(0.5, 1.5));
+    this.wait(linger);
   }
 
   appear() {
