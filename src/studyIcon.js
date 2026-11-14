@@ -31,18 +31,3 @@ function paintBadge(ctx, size, emoji) {
   ctx.textBaseline = 'middle';
   ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
 }
-
-let studyMaterial = null;
-
-export function createStudyIcon() {
-  studyMaterial ??= badgeMaterial('📖');
-  const sprite = new THREE.Sprite(studyMaterial);
-  sprite.scale.setScalar(0.42);
-  sprite.renderOrder = 6;
-  sprite.visible = false;
-  return sprite;
-}
-
-export function blinkStudyIcons(t) {
-  if (studyMaterial) studyMaterial.opacity = 0.55 + 0.45 * Math.abs(Math.sin(t * 3.2));
-}

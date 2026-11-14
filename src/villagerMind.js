@@ -1,10 +1,12 @@
 import { between } from './random.js';
-import { CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
+import { BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
+import { absorption } from './absorption.js';
+import { minuteOfDay } from './clock.js';
 import { averageYield } from './market.js';
 import { SELF_STUDY } from './villagerData.js';
 
-const KINDS = ['farm', 'fish', 'hunt', 'study'];
+const KINDS = ['farm', 'fish', 'hunt', 'study', 'blessing'];
 
 const weighted = (entries) => {
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -16,6 +18,14 @@ const FISH_VALUE = weighted(Object.values(FISH).map((fish) => [fish.price, fish.
 const GAME_VALUE = weighted(Object.values(WILDLIFE).filter((animal) => animal.gentle).map((animal) => [animal.price, animal.count]));
 const BAIT_PER_CAST = FISHING.baitPack / FISHING.baitPerPack;
 export const AVERAGE_CASTS = (FISHING.villagerCasts[0] + FISHING.villagerCasts[1]) / 2;
+const BLESSING_ASK_SECONDS = BLESSING.quizSeconds + (FISHING.villagerAnswer[0] + FISHING.villagerAnswer[1]) / 2;
+const BLESSING_STAY = (BLESSING.villagerStay[0] + BLESSING.villagerStay[1]) / 2 / 60;
+
+function blessingMinutesLeft(minutes) {
+  const m = minuteOfDay(minutes);
+  const window = BLESSING.windows.find(([start, end]) => m >= start && m < end);
+  return window ? window[1] - m : 0;
+}
 
 export class MindBehavior {
   tasteFor(kind) {
@@ -54,6 +64,26 @@ export class MindBehavior {
 
   studyGain(need, sit) {
     return MIND.studyValue * this.diligence * sit - CERTIFY.learnFee * need;
+  }
+
+  answerOdds() {
+    const keys = certify.pool(this.id);
+    if (!keys.length) return 0;
+    return keys.reduce((sum, key) => sum + absorption.chance(this.id, key), 0) / keys.length;
+  }
+
+  blessingGain(need, stay) {
+    const correct = (this.answerOdds() * stay * 60) / BLESSING_ASK_SECONDS;
+    return (correct / CERTIFY.blessingCoinPer) * need + (correct / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
+  }
+
+  blessingOption(ctx, need) {
+    const blessing = this.town.blessing;
+    if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes)) return null;
+    const walk = this.walkMinutes(blessing.official.at);
+    const stay = Math.min(blessingMinutesLeft(ctx.minutes) - walk, BLESSING_STAY);
+    if (stay <= 0) return null;
+    return { kind: 'blessing', rate: this.blessingGain(need, stay) / (walk + stay), go: () => this.goBlessing() };
   }
 
   farmOption(need) {
@@ -112,7 +142,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

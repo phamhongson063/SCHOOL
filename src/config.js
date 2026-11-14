@@ -121,6 +121,7 @@ export const MIND = {
   studyValue: 4.5,
   internalValue: 40,
   leisureValue: 1,
+  intellectValue: 2,
   workSeconds: 5,
   castSeconds: 9,
   huntSeconds: 5,
@@ -317,12 +318,10 @@ export const HERALD = { lead: 15, every: 3 };
 
 export const BLESSING = {
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
-  recovery: 2,
   quizSeconds: 3,
   quizCloseMs: 500,
   remindBefore: 10,
   firstQuiz: 3,
-  villagerChance: 0.35,
   villagerStay: [5 * 60, 15 * 60],
 };
 

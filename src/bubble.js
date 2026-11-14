@@ -10,6 +10,10 @@ const MOOD_GAP = 4;
 const BADGE_STEP = 34;
 const NAME_GAP = 3;
 const TRIP = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fffaf0" stroke="#5f9e3a" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">🌾</text></svg>';
+const goldBadge = (emoji) =>
+  `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff6d8" stroke="#c9962f" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">${emoji}</text></svg>`;
+const STUDY = goldBadge('📖');
+const PEN = goldBadge('✍️');
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
 const MOODS = {
@@ -109,9 +113,9 @@ function seatBadge(turn) {
   return `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff6d8" stroke="#c9962f" stroke-width="2.2"/><g fill="none" stroke="#6b4a12" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${digitPaths(turn)}</g></svg>`;
 }
 
-function makeBadge(html = '') {
+function makeBadge(html = '', kind = '') {
   const el = document.createElement('div');
-  el.className = 'mood';
+  el.className = kind ? `mood ${kind}` : 'mood';
   el.innerHTML = html;
   return { el, on: false };
 }
@@ -123,7 +127,9 @@ export function createBubble() {
   const moodBadge = makeBadge();
   const turnBadge = makeBadge();
   const tripBadge = makeBadge(TRIP);
-  const badges = [moodBadge, turnBadge, tripBadge];
+  const studyBadge = makeBadge(STUDY, 'study');
+  const penBadge = makeBadge(PEN);
+  const badges = [moodBadge, turnBadge, tripBadge, studyBadge, penBadge];
   const anyBadge = () => badges.some((badge) => badge.on);
   const nameTag = document.createElement('div');
   nameTag.className = 'name-tag';
@@ -133,6 +139,8 @@ export function createBubble() {
   let mood = null;
   let turn = null;
   let trip = false;
+  let studying = false;
+  let signing = false;
   let bubbleHeight = 0;
   let until = 0;
   let shown = false;
@@ -243,6 +251,18 @@ export function createBubble() {
     toggle(tripBadge, trip);
   }
 
+  function setStudy(next) {
+    if (next === studying) return;
+    studying = next;
+    toggle(studyBadge, studying);
+  }
+
+  function setPen(next) {
+    if (next === signing) return;
+    signing = next;
+    toggle(penBadge, signing);
+  }
+
   return {
     sprite: anchor,
     get visible() {
@@ -264,6 +284,8 @@ export function createBubble() {
     setMood,
     setTurn,
     setTrip,
+    setStudy,
+    setPen,
     setName,
     update(now) {
       if (shown && now > until) hide();

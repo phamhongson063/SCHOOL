@@ -6,11 +6,8 @@ import { FISHING, ENERGY, HUNTING, CERTIFY } from './config.js';
 import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
-import { badgeMaterial } from './studyIcon.js';
 
 const SIGN_SECONDS = 2.4;
-const PEN_LIFT = 1.9;
-let penMaterial = null;
 
 export class WorkBehavior {
   nearby(radius) {
@@ -277,16 +274,7 @@ export class WorkBehavior {
   }
 
   showPen(on) {
-    if (!this.pen) {
-      if (!on) return;
-      penMaterial ??= badgeMaterial('✍️');
-      this.pen = new THREE.Sprite(penMaterial);
-      this.pen.scale.setScalar(0.42);
-      this.pen.renderOrder = 6;
-      this.pen.position.set(0, PEN_LIFT, 0);
-      this.walker.group.add(this.pen);
-    }
-    this.pen.visible = on;
+    this.bubble.setPen(on);
   }
 
   signLease(job) {

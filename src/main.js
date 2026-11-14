@@ -44,7 +44,6 @@ import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, s
 import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
 import { Town } from './villagers.js';
 import { createAwaySim } from './villagerAway.js';
-import { createStudyIcon } from './studyIcon.js';
 import { villagerProfiles } from './villagerData.js';
 import { createVillage } from './village.js';
 import { createQuarter, plazaFloor } from './quarter.js';
@@ -70,7 +69,6 @@ import { createStudy } from './study.js';
 import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
 import { createInternalDialog } from './internalDialog.js';
-import { createHallIntro } from './hallIntro.js';
 import { certify } from './certify.js';
 import { DECKS } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
@@ -611,11 +609,14 @@ player.onTarget = (point) => {
   playerBubble.setTrip(tripPending && !!point);
   tripPending = false;
 };
-function travelTo(point) {
+function travelTo(point, visit = null) {
   stopWork();
   setMode('play');
   tripPending = true;
-  player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+  if (visit === 'teacher') {
+    leaveLine();
+    goTeacher(true);
+  } else player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
   if (player.posture === 'free' && !player.lying && !player.path) tripPending = false;
 }
 
@@ -632,9 +633,9 @@ const seatWait = new SeatWaitlist(
   STUDY_HALLS.map((hall, i) => ({ deck: hall.deck, waitSpots: studyHalls[i].waitSpots, look: studyHalls[i].teacher.at, area: hallBounds(hall), entry: studyHalls[i].entry })),
 );
 const seatedAvatar = modelReady ? createModel('player', { seated: true }) : createSeatedPlayer();
-const playerStudyIcon = createStudyIcon();
-playerStudyIcon.position.set(0, modelReady ? 1.75 : 1.3, 0);
-seatedAvatar.group.add(playerStudyIcon);
+const playerSeatBubble = createBubble();
+playerSeatBubble.sprite.position.set(0, modelReady ? 1.92 : 1.55, 0);
+seatedAvatar.group.add(playerSeatBubble.sprite);
 let bookIconOn = false;
 let bookTurn = 0;
 scene.add(seatedAvatar.group);
@@ -850,6 +851,7 @@ const study = createStudy({
       lines: [`Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay. Hãy tới Trường khảo thí (${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}) gặp quan coi thi để đăng ký.`],
       place: 'Trường khảo thí',
       point: TEACHER_STAND,
+      visit: 'teacher',
       keep: true,
       expires: endOfDay(),
       tag: qualifyTag(deck),
@@ -950,7 +952,6 @@ const teacherDesk = {
   },
 };
 const internalDialog = createInternalDialog();
-const hallIntro = createHallIntro();
 const examSitting = {
   get isOpen() {
     return internalDialog.isOpen || exams.running;
@@ -1054,7 +1055,6 @@ function beginExamSitting() {
 const TEACHER_MENU = [
   { id: 'book', name: 'Đặt chỗ', icon: '🪑', art: 'scroll' },
   { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝', art: 'scroll' },
-  { id: 'about', name: 'Giới thiệu', icon: '❓', art: 'question' },
 ];
 const BOOK_REACH = 1.2;
 const BOOK_RETRIES = 3;
@@ -1237,9 +1237,13 @@ function updateLine() {
   line.open();
 }
 
-function goDo(region, target, id) {
+function goDo(region, target, id, run = false) {
   fieldTask = { region, target, action: { id }, choice: null };
-  player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), false);
+  player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), run);
+}
+
+function goTeacher(run = false) {
+  goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher', run);
 }
 
 function clickTargets() {
@@ -1268,7 +1272,7 @@ function sceneClick(clientX, clientY, run) {
   }
   if (school.isTeacher(hit.object)) {
     leaveLine();
-    goDo(teacherDesk, { stand: TEACHER_STAND, x: CX, z: TEACHER_Z }, 'teacher');
+    goTeacher();
     return true;
   }
   const classroom = studyHalls.findIndex((hall) => hall.teacher.owns(hit.object));
@@ -1276,10 +1280,6 @@ function sceneClick(clientX, clientY, run) {
     const { deck } = STUDY_HALLS[classroom];
     const { teacher } = studyHalls[classroom];
     picker.open({ title: `Lớp ${DECKS[deck].label}`, options: TEACHER_MENU, x: clientX, y: clientY, menu: true }, (option) => {
-      if (option.id === 'about') {
-        hallIntro.open(deck);
-        return;
-      }
       if (option.id === 'book') {
         bookSeat(deck, teacher);
         return;
@@ -1493,18 +1493,20 @@ let restShown = '';
 function refreshRest() {
   const lying = player.resting;
   const seated = player.posture !== 'free';
+  const blessed = blessing.blessed(PLAYER, player.position, context.minutes);
   const usable = lying || (mode === 'play' && !seated && !purse.sleeping && !town.restBlocked(player.position));
-  const key = `${lying}|${usable}|${seated}`;
+  const key = `${lying}|${usable}|${seated}|${blessed}`;
   if (key === restShown) return;
   restShown = key;
   actionBar.hidden = seated;
+  restBtn.hidden = blessed && !lying;
   restBtn.disabled = !usable;
   restBtn.setAttribute('aria-pressed', String(lying));
   setLabel(restBtn, lying ? 'Đứng dậy' : 'Nằm nghỉ');
 }
 restBtn.addEventListener('click', () => {
   if (player.resting) player.getUp();
-  else if (!town.restBlocked(player.position)) {
+  else if (!town.restBlocked(player.position) && !blessing.blessed(PLAYER, player.position, context.minutes)) {
     leaveLine();
     stopWork();
     player.lieDown();
@@ -1697,7 +1699,7 @@ function drainEnergy() {
   const studying = !!player.seat?.study;
   const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
-  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline, blessing.recoveryAt(PLAYER, player.position, context.minutes));
+  purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;
   if (!asleep) return;
   if (lodging && purse.full) {
@@ -1801,7 +1803,7 @@ renderer.setAnimationLoop((time) => {
   dust.update(t);
   stepSound.listen(camera);
   riverAmbience.update(dt);
-  playerStudyIcon.visible = !!player.seat?.study && study.focused;
+  playerSeatBubble.setStudy(!!player.seat?.study && study.focused);
   mailbox.tick();
   scheduleBoard.refresh();
   refreshRest();

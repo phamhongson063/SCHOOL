@@ -14,3 +14,6 @@
 - **Icon trên đầu nhân vật không được chồng lên nhau**: mọi icon trạng thái trên đầu (đói, lượt đặt ghế, chuyến đi...) của người chơi và dân làng phải xếp thành một hàng ngang, cách đều nhau, cả hàng canh giữa trên đầu nhân vật.
   - Thêm icon mới thì đưa vào hàng badge của `bubble.js` (giống `setMood`, `setTurn`, `setTrip`), không gắn sprite 3D riêng ở giữa đầu.
   - Lý do: trước đây badge lượt đặt ghế là sprite 3D riêng nên đè lên icon chén cơm.
+- **Mọi icon trên đầu nhân vật phải do `bubble.js` quản lý**: tên, icon trạng thái, icon đang học... đều là badge trong hàng của `bubble.js` (thêm hàm `setXxx` như `setStudy`), tuyệt đối không tạo `THREE.Sprite` hay phần tử DOM riêng gắn lên đầu người chơi/dân làng.
+  - Lý do: icon nằm ngoài `bubble.js` thì hàng badge không biết để chừa chỗ, nên bị đè lên tên và các icon khác (icon 📖 từng đè lên tên dân làng).
+- **Nghiêm cấm phân biệt nghề nghiệp của dân làng**: trong game không có khái niệm nghề nghiệp, mọi người chỉ gọi chung là dân làng. Không tạo màu tên, nhãn, icon, cách gọi hay giao diện riêng theo nghề (học sinh, nông dân...).

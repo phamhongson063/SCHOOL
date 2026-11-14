@@ -1987,39 +1987,6 @@ dialog.paper.bracket {
   display: none;
 }
 
-.hall-intro {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.hall-intro li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.hall-intro-icon {
-  flex: none;
-  width: 28px;
-  font-size: 22px;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.hall-intro strong {
-  color: var(--ink);
-  font-size: 15px;
-}
-
-.hall-intro p {
-  margin: 2px 0 0;
-  color: var(--wood);
-  font-size: 14px;
-}
-
 .paper-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4797,13 +4764,14 @@ dialog.paper.phrase-quiz.closing::backdrop {
   position: absolute;
   top: 0;
   left: 0;
-  color: #fff;
+  color: #ffe066;
   font: 700 12px/1 var(--font-ui);
   letter-spacing: 0.02em;
   white-space: nowrap;
   text-shadow:
-    0 0 2px rgba(0, 0, 0, 0.9),
-    0 1px 2px rgba(0, 0, 0, 0.8);
+    0 0 1px #1e140c,
+    0 0 1px #1e140c,
+    0 1px 2px rgba(0, 0, 0, 0.5);
   will-change: transform;
 }
 
@@ -4825,8 +4793,23 @@ dialog.paper.phrase-quiz.closing::backdrop {
   }
 }
 
+.mood.study {
+  animation: study-blink 1s ease-in-out infinite;
+}
+
+@keyframes study-blink {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .mood svg {
+  .mood svg,
+  .mood.study {
     animation: none;
   }
 }

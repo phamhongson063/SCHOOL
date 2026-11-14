@@ -15,7 +15,6 @@ import { absorption } from './absorption.js';
 import { leaveRoom } from './lodging.js';
 import { layDown, restEase } from './walk.js';
 import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
-import { createStudyIcon } from './studyIcon.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 import { RestBehavior } from './villagerRest.js';
 import { SchoolBehavior } from './villagerSchool.js';
@@ -61,14 +60,10 @@ export class Villager {
     this.glow = town.restGlow.spawn();
     town.root.add(this.glow);
     this.seated = null;
-    this.studyIcon = null;
     if (this.kind === 'student' || this.kind === 'farmer') {
       this.seated = model ? createModel(model, { seated: true }) : createStudent(profile.look);
       this.seated.group.visible = false;
       town.root.add(this.seated.group);
-      this.studyIcon = createStudyIcon();
-      this.studyIcon.position.set(0, model ? 1.62 : 1.3, 0);
-      this.seated.group.add(this.studyIcon);
       this.seatBubble = createBubble();
       this.seatBubble.sprite.position.set(0, model ? 1.85 : 1.55, 0);
       this.seatBubble.setName(this.name);
@@ -200,7 +195,6 @@ export class Villager {
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
     if (this.wantsArena()) return this.goArena();
-    if (this.wantsBlessing(ctx)) return this.goBlessing();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
@@ -581,7 +575,7 @@ export class Villager {
     if (this.task === 'internal') this.internalUpdate(t);
     this.seatBubble.update(t);
     const learning = this.studying;
-    this.studyIcon.visible = learning;
+    this.seatBubble.setStudy(learning);
     if (!this.near) return;
     if (learning && this.writing) {
       s.head.rotation.x = 0.3 + Math.sin(t * 1.3 + this.seatPhase) * 0.04;
@@ -605,7 +599,7 @@ export class Villager {
   update(t, dt) {
     this.now = t;
     this.bubble.update(t);
-    if (this.studyIcon && this.state !== 'seated') this.studyIcon.visible = false;
+    if (this.seatBubble && this.state !== 'seated') this.seatBubble.setStudy(false);
     this.showTurn(this.state === 'away' ? 0 : this.town.seatWait?.turnOf(this) ?? 0);
     switch (this.state) {
       case 'away':

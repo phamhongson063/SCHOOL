@@ -13,20 +13,8 @@ const [MART_SNACK, MART_SNACK_INFO] = Object.entries(SNACKS).sort((a, b) => a[1]
 const OFFICIAL_ATTEND = 3;
 
 export class RestBehavior {
-  wantsBlessing(ctx) {
-    const blessing = this.town.blessing;
-    if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes)) return false;
-    const session = blessing.session(ctx.minutes);
-    if (this.blessingSession !== session) {
-      this.blessingSession = session;
-      this.blessingWish = Math.random() < BLESSING.villagerChance;
-    }
-    return this.blessingWish || this.purse.energy < ENERGY.workMin;
-  }
-
   goBlessing() {
     const blessing = this.town.blessing;
-    this.blessingWish = false;
     this.task = 'blessing';
     this.lookAt = null;
     this.travel(blessing.standFor(), {
@@ -58,7 +46,6 @@ export class RestBehavior {
     this.lookAt = null;
     const settle = () => {
       if (!blessing.member(this.id, this.town.context.minutes)) return this.think();
-      if (this.purse.energy < VILLAGER.restUntil) return this.lieDown();
       this.lookAt = blessing.statueAt;
       this.wait(between(...BLESSING.villagerStay), () => this.think());
     };
@@ -123,7 +110,7 @@ export class RestBehavior {
     const activity = this.activityNow(ctx);
     const stay = this.state === 'inn' ? activity : null;
     const blessed = this.town.blessing?.blessed(this.id, this.position, ctx.minutes) ?? false;
-    this.purse.liveEnergy(ctx.minutes, activity, stay ?? this.homeSleep(), stay ?? 'idle', blessed ? BLESSING.recovery : 1);
+    this.purse.liveEnergy(ctx.minutes, activity, stay ?? this.homeSleep(), stay ?? 'idle');
     this.blessingQuiz(blessed);
     this.tired = this.purse.energy <= 0;
     if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();

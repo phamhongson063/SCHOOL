@@ -797,9 +797,6 @@ export function createBlessing(scene) {
       drop(id);
       return false;
     },
-    recoveryAt(id, position, minutes) {
-      return api.blessed(id, position, minutes) ? BLESSING.recovery : 1;
-    },
     join(id, minutes) {
       const session = active(minutes) ? sessionAt(minutes) : null;
       if (!session) return false;

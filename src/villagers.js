@@ -5,7 +5,6 @@ import { INN_STAND } from './inn.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
 import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GUARDS, HANGOUTS, NO_REST_RADIUS, PASS_SPACING, PATHS_PER_FRAME, PEDDLER, PLAYER_AVOID_RANGE, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
-import { blinkStudyIcons } from './studyIcon.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 import { SQUEEZE, squeezePast } from './squeeze.js';
@@ -553,7 +552,6 @@ export class Town {
       member.update(t, dt);
     }
     this.separate(player, dt);
-    blinkStudyIcons(t);
     this.restGlow.update(t);
   }
 }

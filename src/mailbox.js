@@ -212,9 +212,9 @@ export function createMailbox({ onTravel, onClaim = null }) {
     return id;
   }
 
-  function notify({ icon, lines, place = null, point = null, tab: where = 'system', keep = false, expires = null, attach = null, tag = null }) {
+  function notify({ icon, lines, place = null, point = null, visit = null, tab: where = 'system', keep = false, expires = null, attach = null, tag = null }) {
     const id = order;
-    mails.set(id, { id, icon, lines, place, point, tab: where, keep, expires, attach, claimed: false, tag, at: gameNow(), order: order++, read: false });
+    mails.set(id, { id, icon, lines, place, point, visit, tab: where, keep, expires, attach, claimed: false, tag, at: gameNow(), order: order++, read: false });
     if (keep) save();
     refresh();
     return id;
@@ -293,7 +293,7 @@ export function createMailbox({ onTravel, onClaim = null }) {
     }
     if (!mail || !event.target.closest('.mail-place')) return;
     setOpen(false);
-    onTravel(mail.point);
+    onTravel(mail.point, mail.visit);
   });
   button.addEventListener('click', () => setOpen(panel.hidden));
   button.addEventListener('pointerup', () => button.blur());
