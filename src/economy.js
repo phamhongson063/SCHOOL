@@ -6,6 +6,7 @@ import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { nextBlessingRate, planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
+import { NPC } from './npcIds.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -15,12 +16,12 @@ const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
 
 export const SHOPKEEPERS = [
-  { id: 'keeper', name: 'Yoshiko' },
-  { id: 'cook', name: 'Meiling' },
-  { id: 'fishmonger', name: 'Bobby' },
-  { id: 'grocer', name: 'Jessica' },
-  { id: 'chief', name: 'Youngsoo', role: 'chief' },
-  { id: 'mayor', name: 'Haruto', role: 'mayor' },
+  { id: NPC.keeper, name: 'Yoshiko' },
+  { id: NPC.cook, name: 'Meiling' },
+  { id: NPC.fishmonger, name: 'Bobby' },
+  { id: NPC.grocer, name: 'Jessica' },
+  { id: NPC.chief, name: 'Youngsoo', role: 'chief' },
+  { id: NPC.mayor, name: 'Haruto', role: 'mayor' },
 ];
 
 function load() {
@@ -215,7 +216,7 @@ function payLiving() {
   for (const keeper of SHOPKEEPERS) {
     const purse = ctx.ledger.purse(keeper.id);
     const cost = Math.min(ECONOMY.living, purse.money);
-    if (cost > 0 && purse.spend(cost)) economy.income(keeper.id === 'cook' ? 'vendor' : 'cook', cost);
+    if (cost > 0 && purse.spend(cost)) economy.income(keeper.id === NPC.cook ? NPC.vendor : NPC.cook, cost);
   }
 }
 

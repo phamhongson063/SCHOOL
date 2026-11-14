@@ -8,6 +8,7 @@ import { closable } from './dialog.js';
 import { stallCard, paintStallArt } from './stallCard.js';
 import { economy } from './economy.js';
 import { setRich } from './goldArt.js';
+import { NPC } from './npcIds.js';
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -28,9 +29,9 @@ const SHOP_KINDS = ['produce', 'game'];
 const FISH_KINDS = ['fish'];
 
 function sellerOf(item) {
-  if (item === 'rod' || item === 'bait') return 'fishmonger';
-  if (ITEMS[item]?.kind === 'snack') return 'grocer';
-  return 'keeper';
+  if (item === 'rod' || item === 'bait') return NPC.fishmonger;
+  if (ITEMS[item]?.kind === 'snack') return NPC.grocer;
+  return NPC.keeper;
 }
 
 export const martOpen = (minutes) => isOpenAt(MART, minutes);

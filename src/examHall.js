@@ -7,6 +7,7 @@ import { setRich } from './goldArt.js';
 import { economy } from './economy.js';
 import { hoursText, isOpenAt } from './clock.js';
 import { PLAYER } from './inventory.js';
+import { NPC } from './npcIds.js';
 
 export const EXAM_HOURS = { open: CERTIFY.open, close: CERTIFY.close };
 
@@ -105,7 +106,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       purse.add('intellect', CERTIFY.examIntellect);
       return;
     }
-    economy.income('teacher', fee);
+    economy.income(NPC.teacher, fee);
     mailbox.removeTag(qualifyTag(deck));
     const results = await exams.run({
       title: `Khảo thí ${DECKS[deck].title}`,

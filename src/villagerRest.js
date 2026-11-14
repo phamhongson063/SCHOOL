@@ -10,6 +10,7 @@ import { economy } from './economy.js';
 import { realSeconds } from './clock.js';
 import { blessingCloseAt, blessingStayMinutes } from './villagerMind.js';
 import { blessingScore } from './blessingRules.js';
+import { NPC } from './npcIds.js';
 
 const VENDOR_TRIES = 2;
 const [MART_SNACK, MART_SNACK_INFO] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
@@ -353,7 +354,7 @@ export class RestBehavior {
       this.wait(1.5, () => this.finishService());
       return;
     }
-    const eaten = this.feast(FOODS, 'cook');
+    const eaten = this.feast(FOODS, NPC.cook);
     this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : 'Hết tiền ăn rồi...', 2.2);
     this.wait(between(2, 4), () => this.finishService());
   }
@@ -453,7 +454,7 @@ export class RestBehavior {
     const vendor = this.town.vendor;
     vendor.hold(VENDOR.hold, this.position);
     this.lookAt = vendor.position;
-    const eaten = this.feast(VENDOR.foods, 'vendor');
+    const eaten = this.feast(VENDOR.foods, NPC.vendor);
     this.say(eaten.length ? `Ăn ${eaten.join('')} ngon quá!` : 'Hết tiền ăn rồi...', 2.2);
     this.wait(between(2, 4), () => this.think());
   }

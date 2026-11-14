@@ -1,5 +1,6 @@
 import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
 import { RELEASE, VERSION } from './version.js';
+import { migrateSaves } from './saveMigrate.js';
 
 const LOCK = 'langsch.game';
 performance.setResourceTimingBufferSize?.(1000);
@@ -54,7 +55,7 @@ function startGame() {
     loader.classList.remove('blocked');
     label.textContent = idleLabel;
   }
-  enter().then(() => import('./main.js'));
+  enter().then(migrateSaves).then(() => import('./main.js'));
   return holdWhileOpen();
 }
 
@@ -74,7 +75,7 @@ addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload();
 });
 
-if (!navigator.locks) enter().then(() => import('./main.js'));
+if (!navigator.locks) enter().then(migrateSaves).then(() => import('./main.js'));
 else {
   navigator.locks.request(LOCK, { ifAvailable: true }, (lock) => {
     if (lock) return startGame();

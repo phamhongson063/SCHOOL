@@ -12,6 +12,7 @@ import { createVillageGate, villageGateObstacles } from './countryside.js';
 import { SHOPKEEPERS } from './economy.js';
 import { buildHallPlaza, createHallLife } from './hallPlaza.js';
 import { createArenaNight } from './arenaNight.js';
+import { NPC } from './npcIds.js';
 
 const AVENUES = [104, 126, 148, 170];
 const STREET = 3;
@@ -248,7 +249,7 @@ export function createDistrict() {
   group.add(hallBuilt.group);
   clickables.push(hallBuilt.group);
   const hallAt = (p) => ({ x: hallSpot.x - p.x, z: hallSpot.front - p.z });
-  const mayor = keeperNPC(MAYOR_LOOK, null, SHOPKEEPERS.find((keeper) => keeper.id === 'mayor')?.name ?? '');
+  const mayor = keeperNPC(MAYOR_LOOK, null, SHOPKEEPERS.find((keeper) => keeper.id === NPC.mayor)?.name ?? '');
   const mayorAt = hallAt(hallBuilt.mayor);
   mayor.walker.group.position.set(mayorAt.x, hallBuilt.mayor.y, mayorAt.z);
   mayor.walker.group.rotation.y = hallSpot.turn + hallBuilt.mayor.facing;

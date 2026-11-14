@@ -6,6 +6,7 @@ import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examHall.js';
 import { SELF_STUDY } from './villagerData.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
+import { NPC } from './npcIds.js';
 
 const INTERNAL_SEAT_RETRY = 1;
 
@@ -244,7 +245,7 @@ export class SchoolBehavior {
 
   beginInternal(deck, pace) {
     if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return null;
-    economy.income('teacher', CERTIFY.internalFee, this.id);
+    economy.income(NPC.teacher, CERTIFY.internalFee, this.id);
     const keys = certify.beginInternal(this.id, deck) ?? [];
     const count = Math.max(keys.length, Math.ceil((CERTIFY.internalMinutes * 60) / pace));
     while (keys.length < count) {
@@ -353,7 +354,7 @@ export class SchoolBehavior {
       purse.add('intellect', CERTIFY.examIntellect);
       return null;
     }
-    economy.income('teacher', fee, this.id);
+    economy.income(NPC.teacher, fee, this.id);
     const keys = certify.examQuestions(this.id, deck);
     const count = Math.max(keys.length, Math.ceil((CERTIFY.examMinutes * 60) / pace));
     while (keys.length < count) {
@@ -466,14 +467,14 @@ export class SchoolBehavior {
 
   payReview() {
     if (!this.purse.spend(CERTIFY.reviewFee)) return false;
-    economy.income('teacher', CERTIFY.reviewFee, this.id);
+    economy.income(NPC.teacher, CERTIFY.reviewFee, this.id);
     absorption.note(this.id, 'study', this.town.context.day);
     return true;
   }
 
   payStudy() {
     if (!this.purse.spend(CERTIFY.learnFee)) return false;
-    economy.income('teacher', CERTIFY.learnFee, this.id);
+    economy.income(NPC.teacher, CERTIFY.learnFee, this.id);
     return true;
   }
 

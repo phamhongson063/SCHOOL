@@ -3,6 +3,7 @@ import { HOUSE } from './school.js';
 import { FARM_X } from './farm.js';
 import { DISTRICT_STREETS } from './district.js';
 import { ROAD } from './road.js';
+import { NPC } from './npcIds.js';
 
 export const SPACING = 0.62;
 export const PASS_SPACING = 0.85;
@@ -61,42 +62,58 @@ export const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này kh�
 export const BAGGED = ['Bắt được rồi!', 'Hên ghê!', 'Đem ra chợ bán thôi!'];
 export const MISSED = ['Chạy mất rồi...', 'Nhanh quá!', 'Hụt mất!'];
 
-const STUDENT_MODELS = { na: 'farmgirl', bong: 'farmgirl-blue', mit: 'aodai', su: 'aodai-blue', hen: 'vendor-indigo', ti: 'schoolboy', teo: 'schoolboy-blue' };
-
 const STUDENTS = [
-  ['ti', 'Kaito'],
-  ['teo', 'Minho'],
-  ['na', 'Mei'],
-  ['bin', 'Jake'],
-  ['mit', 'Yuna'],
-  ['bong', 'Sakura'],
-  ['su', 'Lily'],
-  ['tun', 'Haoran'],
-  ['bi', 'Riley'],
-  ['co', 'Haru'],
-  ['hen', 'Xiaoyu'],
-  ['nhim', 'Jiwoo'],
+  ['v-mbo9l42o', 'Kaito', 'schoolboy'],
+  ['v-7newhpr4', 'Minho', 'schoolboy-blue'],
+  ['v-7kg4cjjr', 'Mei', 'farmgirl'],
+  ['v-sgrj5qqz', 'Jake'],
+  ['v-uan21ofg', 'Yuna', 'aodai'],
+  ['v-qa0jrjjr', 'Sakura', 'farmgirl-blue'],
+  ['v-bnyem3h1', 'Lily', 'aodai-blue'],
+  ['v-w014att1', 'Haoran'],
+  ['v-1qbg63ix', 'Riley'],
+  ['v-0t1cnctd', 'Haru'],
+  ['v-sxoy9ccm', 'Xiaoyu', 'vendor-indigo'],
+  ['v-fz5u01pw', 'Jiwoo'],
 ];
 
 const FARMERS = [
-  { id: 'tu', name: 'Hiroshi', model: 'worker-brown', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', hairColor: 0x8a8580, old: true, iris: 0x4a2a18, hat: 0xe8d9a8, scarf: 0x2f3a4a } },
-  { id: 'ba', name: 'Wei', model: 'man', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c, scarf: 0x8a3a2a } },
-  { id: 'hai', name: 'Emily', model: 'girl', look: { shirt: 0x9a4a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xeadcae } },
-  { id: 'nam', name: 'Taeyang', model: 'man-brown', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', hairColor: 0x3a2618, iris: 0x4a2a18, hat: 0xe5d6a2, scarf: 0x4a6a9a } },
-  { id: 'sau', name: 'Walter', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xdccb94 } },
-  { id: 'bay', name: 'Soojin', model: 'girl-jade', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
-  { id: 'tam', name: 'Ryo', model: 'worker', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
-  { id: 'chin', name: 'Liang', look: { shirt: 0x7a3a2e, pants: 0x2f2a26, skin: 0xd9a479, style: 'khan', khan: 0x2f3a4a, iris: 0x4a2a18, hat: 0xe2d29c, scarf: 0x5a7a4a } },
-  { id: 'muoi', name: 'Martha', look: { shirt: 0x4a3a5a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8 } },
-  { id: 'ca', name: 'Jianguo', look: { shirt: 0x8a7a5a, pants: 0x3a3430, skin: 0xcf9a70, style: 'toc', hairColor: 0xb8b2a8, old: true, beardColor: 0xe6e2da, iris: 0x3a2214, hat: 0xdccb94, scarf: 0x7a3a2a } },
-  { id: 'thim', name: 'Akemi', look: { shirt: 0x3a6a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
-  { id: 'mo', name: 'Hyejin', look: { shirt: 0xa05a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe5d6a2, scarf: 0x34507a } },
-  { id: 'di', name: 'Fang', look: { shirt: 0x6a4a7a, pants: 0x2f2a26, skin: 0xf2c4a0, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xece0b4 } },
-  { id: 'cau', name: 'Tyler', look: { shirt: 0x4a6a9a, pants: 0x4a3a30, skin: 0xe0ad84, style: 'bachom', hairColor: 0x2a201b, iris: 0x7a4a24, hat: 0xe9dbab } },
+  { id: 'v-hsw9uzli', name: 'Hiroshi', model: 'worker-brown', look: { shirt: 0x7a5236, pants: 0x2f2a26, skin: 0xd9a479, style: 'toc', hairColor: 0x8a8580, old: true, iris: 0x4a2a18, hat: 0xe8d9a8, scarf: 0x2f3a4a } },
+  { id: 'v-h3y0b1j5', name: 'Wei', model: 'man', look: { shirt: 0x34507a, pants: 0x3a3430, skin: 0xe0ad84, style: 'khan', khan: 0x8a3a2a, iris: 0x5a3220, hat: 0xe2d29c, scarf: 0x8a3a2a } },
+  { id: 'v-p153parw', name: 'Emily', model: 'girl', look: { shirt: 0x9a4a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bui', iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'v-otd9chxx', name: 'Taeyang', model: 'man-brown', look: { shirt: 0x5a7a4a, pants: 0x4a3a30, skin: 0xe6b08a, style: 'toc', hairColor: 0x3a2618, iris: 0x4a2a18, hat: 0xe5d6a2, scarf: 0x4a6a9a } },
+  { id: 'v-e4l5gn5e', name: 'Walter', look: { shirt: 0x6a5a48, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xdccb94 } },
+  { id: 'v-2ow0byhz', name: 'Soojin', model: 'girl-jade', look: { shirt: 0xb07a3a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'v-qe1kyu4a', name: 'Ryo', model: 'worker', look: { shirt: 0x3a7a8a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'chom', iris: 0x7a4a24, hat: 0xe9dbab } },
+  { id: 'v-ot0cyhf4', name: 'Liang', look: { shirt: 0x7a3a2e, pants: 0x2f2a26, skin: 0xd9a479, style: 'khan', khan: 0x2f3a4a, iris: 0x4a2a18, hat: 0xe2d29c, scarf: 0x5a7a4a } },
+  { id: 'v-pkpyc2ke', name: 'Martha', look: { shirt: 0x4a3a5a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8 } },
+  { id: 'v-zqyh4704', name: 'Jianguo', look: { shirt: 0x8a7a5a, pants: 0x3a3430, skin: 0xcf9a70, style: 'toc', hairColor: 0xb8b2a8, old: true, beardColor: 0xe6e2da, iris: 0x3a2214, hat: 0xdccb94, scarf: 0x7a3a2a } },
+  { id: 'v-osc2h19s', name: 'Akemi', look: { shirt: 0x3a6a5a, pants: 0x2f2a26, skin: 0xf0c09a, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'v-cqiv6k5e', name: 'Hyejin', look: { shirt: 0xa05a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe5d6a2, scarf: 0x34507a } },
+  { id: 'v-imdax894', name: 'Fang', look: { shirt: 0x6a4a7a, pants: 0x2f2a26, skin: 0xf2c4a0, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'v-x03venco', name: 'Tyler', look: { shirt: 0x4a6a9a, pants: 0x4a3a30, skin: 0xe0ad84, style: 'bachom', hairColor: 0x2a201b, iris: 0x7a4a24, hat: 0xe9dbab } },
+];
+
+const NEWCOMERS = [
+  { id: 'v-sqz3dux2', name: 'Sora', kind: 'student', look: { shirt: 0x3a5a8a, pants: 0xf1ebdc, skin: 0xf0c09a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
+  { id: 'v-hula1fyg', name: 'Hana', kind: 'student', look: { shirt: 0xa0604a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e } },
+  { id: 'v-bojm575a', name: 'Daniel', kind: 'student', look: { shirt: 0xc89a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
+  { id: 'v-fwh6qovx', name: 'Eunji', kind: 'student', look: { shirt: 0x3a8a7a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'bui', hairColor: 0x2a201b, iris: 0x6a3a1e } },
+  { id: 'v-u1eheepu', name: 'Kenji', kind: 'student', look: { shirt: 0x7a5236, pants: 0xf1ebdc, skin: 0xe6b08a, style: 'bachom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
+  { id: 'v-081sseh2', name: 'Meiling', kind: 'student', look: { shirt: 0xa83a2a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e } },
+  { id: 'v-40lhd03r', name: 'Noah', kind: 'student', look: { shirt: 0x5a6a3a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
+  { id: 'v-83bas3vc', name: 'Takeshi', kind: 'farmer', look: { shirt: 0x5a4a3a, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xe2d29c } },
+  { id: 'v-jwkvwby6', name: 'Grace', kind: 'farmer', look: { shirt: 0x6a5a7a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8, scarf: 0x7a5236 } },
+  { id: 'v-i822927q', name: 'Dongwoo', kind: 'farmer', look: { shirt: 0x4a5a6a, pants: 0x3a3430, skin: 0xd9a479, style: 'khan', khan: 0x8a2a1a, iris: 0x4a2a18, hat: 0xe5d6a2 } },
+  { id: 'v-runpspd8', name: 'Yumi', kind: 'farmer', look: { shirt: 0x3a3450, pants: 0x2f2a26, skin: 0xf0c09a, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'v-0psn2cox', name: 'Henry', kind: 'farmer', look: { shirt: 0x8a6a4a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24, hat: 0xe9dbab, scarf: 0x4a6a9a } },
+  { id: 'v-ezb8w5p1', name: 'Minji', kind: 'farmer', look: { shirt: 0xb06a3a, pants: 0x2f2a26, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'v-uh3279au', name: 'Zhiwei', kind: 'farmer', look: { shirt: 0x4a7a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18, hat: 0xe2d29c } },
+  { id: 'v-qy7m2o15', name: 'Clara', kind: 'farmer', look: { shirt: 0x6a3a3a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe8d9a8, scarf: 0x9a2a1a } },
 ];
 
 export const TEACHER = {
-  id: 'teacher',
+  id: NPC.teacher,
   name: 'Shen',
   kind: 'teacher',
   model: 'scholar-ink',
@@ -105,7 +122,7 @@ export const TEACHER = {
 };
 
 export const PEDDLER = {
-  id: 'vendor',
+  id: NPC.vendor,
   name: 'Sunhee',
   kind: 'vendor',
   model: 'vendor',
@@ -118,10 +135,10 @@ export const NAGS = ['Mua xong rồi thì nhường chỗ với!', 'Xong rồi t
 
 const GUARD_LOOK = { pants: 0x2a2622, style: 'khan', khan: 0x8a2a1a, sash: 0x9a2a1a, iris: 0x4a2a18 };
 export const GUARDS = [
-  { id: 'guard-hung', name: 'Ken', shift: 'day', follower: false, exit: 0, look: { ...GUARD_LOOK, shirt: 0x5a3a24, skin: 0xe0ad84 } },
-  { id: 'guard-dung', name: 'Mason', shift: 'day', follower: true, exit: 0, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
-  { id: 'guard-luc', name: 'Jinho', shift: 'night', follower: false, exit: 1, look: { ...GUARD_LOOK, shirt: 0x3a3a3a, skin: 0xe6b08a } },
-  { id: 'guard-manh', name: 'Long', shift: 'night', follower: true, exit: 1, look: { ...GUARD_LOOK, shirt: 0x34302c, skin: 0xd9a479 } },
+  { id: NPC.guardHung, name: 'Ken', shift: 'day', follower: false, exit: 0, look: { ...GUARD_LOOK, shirt: 0x5a3a24, skin: 0xe0ad84 } },
+  { id: NPC.guardDung, name: 'Mason', shift: 'day', follower: true, exit: 0, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
+  { id: NPC.guardLuc, name: 'Jinho', shift: 'night', follower: false, exit: 1, look: { ...GUARD_LOOK, shirt: 0x3a3a3a, skin: 0xe6b08a } },
+  { id: NPC.guardManh, name: 'Long', shift: 'night', follower: true, exit: 1, look: { ...GUARD_LOOK, shirt: 0x34302c, skin: 0xd9a479 } },
 ].map((guard) => ({ ...guard, kind: 'guard', model: 'police' }));
 export const GUARD_DAY_CALLS = ['Dân binh đi tuần đây!', 'Bà con yên tâm làm ăn nhé!', 'Trật tự, trật tự nào!'];
 export const GUARD_NIGHT_CALLS = ['Cốc! Cốc! Bình an vô sự!', 'Khuya rồi, đóng cửa cẩn thận nhé!', 'Canh khuya, giữ lửa cẩn thận!'];
@@ -152,11 +169,17 @@ export function villagerProfiles() {
   const rand = makeRandom(77);
   const choose = (list) => list[Math.floor(rand() * list.length)];
   const tint = makeRandom(91);
-  const students = STUDENTS.map(([id, name]) => {
+  const students = STUDENTS.map(([id, name, model]) => {
     const look = { shirt: choose(SHIRTS), pants: choose(PANTS), skin: choose(SKINS), style: choose(STYLES), khan: choose(KHANS), iris: choose(IRISES) };
     look.hairColor = HAIRS[Math.floor(tint() * HAIRS.length)];
-    return { id, name, kind: 'student', model: STUDENT_MODELS[id], look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
+    return { id, name, kind: 'student', model, look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
   });
   const farmers = FARMERS.map((farmer) => ({ ...farmer, kind: 'farmer', diligence: 0.3 + rand() * 0.3, exit: rand() < 0.5 ? 0 : 1 }));
-  return [...students, ...farmers];
+  const later = makeRandom(131);
+  const newcomers = NEWCOMERS.map((villager) => ({
+    ...villager,
+    diligence: villager.kind === 'student' ? 0.82 + later() * 0.15 : 0.3 + later() * 0.3,
+    exit: later() < 0.5 ? 0 : 1,
+  }));
+  return [...students, ...farmers, ...newcomers];
 }

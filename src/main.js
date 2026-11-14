@@ -104,6 +104,7 @@ import { createArenaCast } from './arenaCast.js';
 import { createArenaSummon } from './arenaSummon.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
 import { arenaLines, arenaMenu, createArenaDesk } from './arenaDesk.js';
+import { NPC } from './npcIds.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -480,7 +481,7 @@ const VENDOR_MENU = {
   title: 'Gánh hàng rong',
   icon: '🏮',
   foods: VENDOR.foods,
-  seller: 'vendor',
+  seller: NPC.vendor,
   hungry: 'Cô hàng: "Ăn gì không em? Nóng hổi đây!"',
   full: 'Cô hàng: "Em còn no mà, lát đói gọi cô nghen!"',
 };

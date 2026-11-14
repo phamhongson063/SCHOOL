@@ -7,6 +7,7 @@ import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
+import { NPC } from './npcIds.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -124,7 +125,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
       showNotice(notEnough(fee));
       return false;
     }
-    economy.income('teacher', fee);
+    economy.income(NPC.teacher, fee);
     paid.add(name);
     showNotice(null);
     return true;
@@ -361,7 +362,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     const blocker = internalBlocker(id);
     if (blocker) return blocker;
     if (!purse.spend(CERTIFY.internalFee)) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
-    economy.income('teacher', CERTIFY.internalFee);
+    economy.income(NPC.teacher, CERTIFY.internalFee);
     const results = await exams.run({
       title: 'Thi nội bộ',
       deck: id,

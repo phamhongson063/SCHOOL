@@ -10,6 +10,7 @@ import { blessingScore } from './blessingRules.js';
 import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
+import { NPC } from './npcIds.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -88,7 +89,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function sleep(member, ctx, end) {
     const purse = member.purse;
-    if (purse.energy < ENERGY.low && !(isOpenAt(VENDOR, ctx.minutes) && member.feast(VENDOR.foods, 'vendor').length)) member.snack();
+    if (purse.energy < ENERGY.low && !(isOpenAt(VENDOR, ctx.minutes) && member.feast(VENDOR.foods, NPC.vendor).length)) member.snack();
     const house = estate.houseOf(member.id);
     if (house) memoOf(member).stay = null;
     const activity = house ? homeActivity(house) : nightRoom(member, ctx) ?? 'rest';
@@ -109,7 +110,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function eat(member, ctx) {
     if (member.purse.energy >= ENERGY.low) return;
-    if (!(member.wantsFood(ctx) && member.feast(FOODS, 'cook').length)) member.snack();
+    if (!(member.wantsFood(ctx) && member.feast(FOODS, NPC.cook).length)) member.snack();
   }
 
   function exams(member, ctx) {

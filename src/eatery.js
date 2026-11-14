@@ -9,6 +9,7 @@ import { closable } from './dialog.js';
 import { stallCard, paintStallArt } from './stallCard.js';
 import { economy } from './economy.js';
 import { setRich } from './goldArt.js';
+import { NPC } from './npcIds.js';
 
 const W = 6.6;
 const D = 5.8;
@@ -145,7 +146,7 @@ export function createFoodUI({ purse }) {
     title: title.textContent,
     icon: badge.textContent,
     foods: FOODS,
-    seller: 'cook',
+    seller: NPC.cook,
     hungry: 'Meiling: "Ăn gì con? Đồ ăn nóng hổi đây!"',
     full: 'Meiling: "Con còn no mà, lát đói ghé lại nghen!"',
   };
