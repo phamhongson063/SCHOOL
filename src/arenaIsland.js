@@ -55,28 +55,54 @@ export const ARRIVAL = { x: ISLAND.x + 2.5, y: ISLAND.y, z: ISLAND.z + 6.5, faci
 const inDisc = (x, z, radius) => (x - ISLAND.x) ** 2 + (z - ISLAND.z) ** 2 <= radius * radius;
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 
+const LINEUP = { radius: 4.6, gap: 0.75 };
+const AISLE = { radius: 6.5, direct: 0.7, step: 0.5 };
+const CROWD = { inner: 8.2, outer: WALK_RADIUS - 1, gap: 1.3, count: 24, gate: 3.4, arrival: 1.6 };
+
+const angleOf = (spot) => Math.atan2(spot.z - ISLAND.z, spot.x - ISLAND.x);
+const ringPoint = (angle, radius) => ({ x: ISLAND.x + Math.cos(angle) * radius, y: ISLAND.y, z: ISLAND.z + Math.sin(angle) * radius });
+
+function inCrowd(x, z) {
+  const reach = Math.hypot(x - ISLAND.x, z - ISLAND.z);
+  return reach >= CROWD.inner && reach <= CROWD.outer && Math.hypot(x - GATE.x, z - GATE.z) >= CROWD.gate;
+}
+
 export const SPECTATORS = (() => {
   const rand = makeRandom(5150);
   const spots = [];
-  const rings = [
-    { radius: 5.2, count: 7 },
-    { radius: 8.4, count: 9 },
-  ];
-  for (const { radius, count } of rings) {
-    for (let i = 0; i < count; i++) {
-      const angle = ((i + 0.5 + (rand() - 0.5) * 0.5) / count) * Math.PI * 2;
-      const reach = radius + (rand() - 0.5) * 1.4;
-      const spot = { x: ISLAND.x + Math.cos(angle) * reach, y: ISLAND.y, z: ISLAND.z + Math.sin(angle) * reach };
-      if (Math.hypot(spot.x - GATE.x, spot.z - GATE.z) < 3.4 || Math.hypot(spot.x - ARRIVAL.x, spot.z - ARRIVAL.z) < 1.6) continue;
-      spots.push({ ...spot, facing: facingTo(spot, ISLAND) });
-    }
-  }
-  for (let i = spots.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [spots[i], spots[j]] = [spots[j], spots[i]];
+  for (let tries = 0; spots.length < CROWD.count && tries < 4000; tries++) {
+    const spot = ringPoint(rand() * Math.PI * 2, CROWD.inner + rand() * (CROWD.outer - CROWD.inner));
+    if (!inCrowd(spot.x, spot.z) || Math.hypot(spot.x - ARRIVAL.x, spot.z - ARRIVAL.z) < CROWD.arrival) continue;
+    if (spots.some((other) => Math.hypot(other.x - spot.x, other.z - spot.z) < CROWD.gap)) continue;
+    spots.push({ ...spot, facing: facingTo(spot, ISLAND) });
   }
   return spots;
 })();
+
+export function lineupSpot(count, index, side) {
+  const angle = Math.PI / 2 + (index / Math.max(1, count)) * Math.PI * 2;
+  const center = ringPoint(angle, LINEUP.radius);
+  const sign = side === 'a' ? -1 : 1;
+  const spot = { x: center.x - Math.sin(angle) * sign * LINEUP.gap, y: ISLAND.y, z: center.z + Math.cos(angle) * sign * LINEUP.gap };
+  return { ...spot, facing: facingTo(spot, center) };
+}
+
+export function aislePath(from, to) {
+  const start = angleOf(from);
+  const turn = Math.atan2(Math.sin(angleOf(to) - start), Math.cos(angleOf(to) - start));
+  if (Math.abs(turn) < AISLE.direct) return [to];
+  const steps = Math.ceil(Math.abs(turn) / AISLE.step);
+  return [...Array.from({ length: steps + 1 }, (_, i) => ringPoint(start + (turn * i) / steps, AISLE.radius)), to];
+}
+
+export function crowdSpot(from, rand = Math.random) {
+  const angle = angleOf(from);
+  for (let tries = 0; tries < 8; tries++) {
+    const spot = ringPoint(angle + (rand() - 0.5) * 0.6, CROWD.inner + 0.4 + rand() * (CROWD.outer - CROWD.inner - 0.8));
+    if (inCrowd(spot.x, spot.z)) return { ...spot, facing: facingTo(spot, ISLAND) };
+  }
+  return { ...ARRIVAL };
+}
 
 export const STAGES = PLATFORMS;
 
@@ -106,7 +132,7 @@ export function wander(anchor, rand = Math.random) {
     const reach = 0.4 + rand() * 1.4;
     const x = anchor.x + Math.cos(angle) * reach;
     const z = anchor.z + Math.sin(angle) * reach;
-    if (!inDisc(x, z, WALK_RADIUS - 0.6) || inDisc(x, z, DAIS.tiers[0] + 0.6)) continue;
+    if (!inDisc(x, z, WALK_RADIUS - 0.6) || inDisc(x, z, CROWD.inner - 0.6)) continue;
     if (Math.hypot(x - GATE.x, z - GATE.z) < 2.6) continue;
     return { x, y: ISLAND.y, z };
   }

@@ -1,5 +1,5 @@
 import { nextAt, roundName } from './arena.js';
-import { onStage } from './arenaReplay.js';
+import { onStage, pairsAhead } from './arenaReplay.js';
 import { PLAYER } from './inventory.js';
 
 const FINAL_COUNT = 5;
@@ -20,14 +20,10 @@ function castInfo(event, now) {
   if (next === null) return null;
   if (event.round >= 0 && event.rounds[event.round].some((match) => onStage(match, now))) return null;
   const left = (next - now) * 60;
-  if (event.round < 0) {
-    const first = event.rounds[0];
-    return { stage: 'Khai mạc', title: roundName(first.length), left, pairs: first.map((match) => [match.a, match.b]) };
-  }
-  const round = event.rounds[event.round];
-  if (round.length === 1) return { stage: 'Chung kết đã xong', title: 'Trao thưởng', left, pairs: [], champion: round[0].winner };
-  const pairs = Array.from({ length: round.length / 2 }, (_, i) => [round[2 * i].winner, round[2 * i + 1].winner]);
-  return { stage: 'Sắp diễn ra', title: roundName(round.length / 2), left, pairs };
+  const pairs = pairsAhead(event);
+  if (event.round < 0) return { stage: 'Khai mạc', title: roundName(pairs.length), left, pairs };
+  if (!pairs) return { stage: 'Chung kết đã xong', title: 'Trao thưởng', left, pairs: [], champion: event.rounds[event.round][0].winner };
+  return { stage: 'Sắp diễn ra', title: roundName(pairs.length), left, pairs };
 }
 
 export function createArenaCast({ nameOf }) {

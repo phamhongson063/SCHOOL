@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { ARRIVAL, ISLAND, SPECTATORS, STAGES, fighterSpot, onIsland, stageOf, wander } from './arenaIsland.js';
+import { ARRIVAL, ISLAND, SPECTATORS, STAGES, aislePath, crowdSpot, fighterSpot, lineupSpot, onIsland, stageOf, wander } from './arenaIsland.js';
 import { PLAYER } from './inventory.js';
-import { onStage } from './arenaReplay.js';
+import { calledUp, onStage } from './arenaReplay.js';
 import { roundName } from './arena.js';
 import { clockText } from './clock.js';
 
@@ -15,22 +15,33 @@ const HOMECOMING = { reach: 5.2, delay: 1.2, stagger: 0.18, linger: [2, 3.5] };
 const CROWD = { step: 0.5, gap: 1, clearOfPlayer: 1.2, near: { side: 5, from: 1.4, to: 4.4 }, wide: { side: 8, from: 1, to: 7 } };
 const SUMMON_WARP = 0xffe08a;
 const EMERGE_DELAY = 0.9;
+const PACE = { in: 1.25, out: 0.8 };
+const SETTLED = { reach: 0.8, speed: 0.1 };
 
 const between = (a, b) => a + Math.random() * (b - a);
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 
 function stageSpots(event, now) {
   const spots = new Map();
+  const slots = new Map();
   const busy = [];
   const round = event.rounds[event.round];
-  if (!round) return { spots, busy };
+  if (!round) return { spots, slots, busy };
   round.forEach((match, index) => {
     if (!onStage(match, now)) return;
-    spots.set(match.a, fighterSpot(round.length, index, 'a'));
-    spots.set(match.b, fighterSpot(round.length, index, 'b'));
+    for (const side of ['a', 'b']) {
+      spots.set(match[side], fighterSpot(round.length, index, side));
+      slots.set(match[side], lineupSpot(round.length, index, side));
+    }
     busy.push(stageOf(round.length, index));
   });
-  return { spots, busy };
+  return { spots, slots, busy };
+}
+
+function lineupOf(event, now) {
+  const lineup = new Map();
+  for (const [id, call] of calledUp(event, now)) lineup.set(id, lineupSpot(call.count, call.index, call.side));
+  return lineup;
 }
 
 function nearest(list, from) {
@@ -49,6 +60,9 @@ function nearest(list, from) {
 export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null, gate = null, wake = null }) {
   const where = new Map();
   const lives = new Map();
+  const fought = new Map();
+  let walkIn = null;
+  let backAt = null;
   let pulledFor = null;
   let wantUp = false;
   let homeAt = null;
@@ -75,8 +89,13 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
   }
 
   function placePlayer(spot) {
+    player.clearPath();
     player.place(new THREE.Vector3(spot.x, spot.y, spot.z), spot.facing + Math.PI);
     player.facing = spot.facing;
+  }
+
+  function walkPlayer(spot) {
+    player.requestMove(new THREE.Vector3(spot.x, 0, spot.z), true);
   }
 
   function summonLines() {
@@ -132,6 +151,7 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
         return;
       }
       const y = spot.y ?? town.nav.heightAt(spot.x, spot.z) ?? 0;
+      player.clearPath();
       player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw);
       warp?.({ x: spot.x, y, z: spot.z }, HOME_WARP, 1.2);
     });
@@ -220,10 +240,19 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
       warp?.({ x: spot.x, y: member.position.y, z: spot.z }, HOME_WARP, 0.8);
       where.delete(member.id);
       lives.delete(member.id);
+      fought.delete(member.id);
     }
   }
 
-  function syncPlayer(event, running, now, t) {
+  function settle() {
+    if (!walkIn || walkIn.faced) return;
+    const { spot } = walkIn;
+    if (Math.hypot(player.position.x - spot.x, player.position.z - spot.z) > SETTLED.reach || player.velocity.length() > SETTLED.speed) return;
+    walkIn.faced = true;
+    player.facing = spot.facing;
+  }
+
+  function syncPlayer(event, running, now, t, lineup) {
     const entrant = running && event.entrants.includes(PLAYER);
     if (entrant && pulledFor !== event.at) {
       pulledFor = event.at;
@@ -235,17 +264,35 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     if (live && playerHere() && !summon?.busy) {
       const round = event.rounds[event.round];
       const index = round.indexOf(live);
-      const spot = fighterSpot(round.length, index, live.a === PLAYER ? 'a' : 'b');
+      const side = live.a === PLAYER ? 'a' : 'b';
+      const spot = fighterSpot(round.length, index, side);
       if (!fighting && ready()) {
         fighting = true;
+        walkIn = null;
+        backAt = lineupSpot(round.length, index, side);
         placePlayer(spot);
         warp?.(spot, undefined, 0.6);
       }
     } else if (fighting) {
       fighting = false;
-      placePlayer(ARRIVAL);
-      warp?.(ARRIVAL, undefined, 0.6);
+      const back = backAt ?? ARRIVAL;
+      backAt = null;
+      placePlayer(back);
+      warp?.(back, undefined, 0.6);
+      if (playerHere() && !summon?.busy) {
+        const out = crowdSpot(back);
+        player.requestMove(new THREE.Vector3(out.x, 0, out.z), false);
+      }
     }
+    const call = lineup.get(PLAYER);
+    if (call && running && playerHere() && !fighting && !summon?.busy) {
+      const key = `${event.at}:${event.round}`;
+      if (walkIn?.key !== key && ready()) {
+        walkIn = { key, spot: call, faced: false };
+        walkPlayer(call);
+      }
+    } else if (!call) walkIn = null;
+    settle();
     if (!running && playerHere()) {
       homeAt ??= t + HOME_DELAY;
       if (t >= homeAt) goDown();
@@ -265,27 +312,41 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     member.arenaFacing = facingTo(member.position, focus);
   }
 
-  function syncVillagers(event, running, now, t) {
+  function moveVillager(member, spot, kind) {
+    if (kind === 'fight') {
+      member.placeArena(spot);
+      warp?.(spot, undefined, 0.6);
+      return;
+    }
+    const back = fought.get(member.id);
+    if (back) {
+      member.placeArena(back);
+      warp?.(back, undefined, 0.6);
+    }
+    member.walkArena(aislePath(member.position, spot), spot.facing, kind === 'line' ? PACE.in : PACE.out);
+  }
+
+  function syncVillagers(event, running, now, t, lineup) {
     const villagers = new Map(town.members.map((member) => [member.id, member]));
     const staying = running || (event?.phase === 'done' && homeAt !== null && t < homeAt);
-    const { spots, busy: active } = running ? stageSpots(event, now) : { spots: new Map(), busy: [] };
+    const { spots, slots, busy: active } = running ? stageSpots(event, now) : { spots: new Map(), slots: new Map(), busy: [] };
     const order = event?.entrants.filter((id) => villagers.has(id)) ?? [];
     if (staying) {
       order.forEach((id, i) => {
         const member = villagers.get(id);
         const fight = spots.get(id);
+        const line = lineup.get(id);
         const anchor = SPECTATORS[i % SPECTATORS.length];
-        const spot = fight ?? anchor;
+        const spot = fight ?? line ?? anchor;
         const key = `${spot.x},${spot.z}`;
         if (member.state !== 'arena') {
           member.enterArena(spot);
           warp?.(spot);
-        } else if (where.get(id) !== key) {
-          member.placeArena(spot);
-          warp?.(spot, undefined, 0.6);
-        }
+        } else if (where.get(id) !== key) moveVillager(member, spot, fight ? 'fight' : line ? 'line' : 'crowd');
         where.set(id, key);
-        if (!fight) liven(member, anchor, nearest(active, member.position) ?? ISLAND, t);
+        if (fight) fought.set(id, slots.get(id));
+        else fought.delete(id);
+        if (!fight && !line) liven(member, anchor, nearest(active, member.position) ?? ISLAND, t);
       });
     }
     release(
@@ -333,9 +394,10 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
       finishEmerge(t);
       const event = arena.event;
       const running = event?.phase === 'running';
-      if (event) syncPlayer(event, running, now, t);
+      const lineup = running ? lineupOf(event, now) : new Map();
+      if (event) syncPlayer(event, running, now, t, lineup);
       else if (playerHere()) goDown();
-      syncVillagers(event, running, now, t);
+      syncVillagers(event, running, now, t, lineup);
     },
   };
 }

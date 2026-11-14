@@ -372,8 +372,17 @@ export class Villager {
     this.facing = spot.facing;
     this.arenaFacing = spot.facing;
     this.arenaGoal = null;
+    this.arenaPath = null;
+    this.arenaPace = null;
     this.velocity = 0;
     this.pop = 0.25;
+  }
+
+  walkArena(path, facing, pace) {
+    this.arenaPath = path.slice(1);
+    this.arenaGoal = path[0] ?? null;
+    this.arenaPace = pace;
+    this.arenaFacing = facing;
   }
 
   arenaStep(dt) {
@@ -383,7 +392,7 @@ export class Villager {
       const dz = goal.z - this.position.z;
       const gap = Math.hypot(dx, dz);
       if (gap > 0.08) {
-        const speed = this.walkSpeed * 0.55;
+        const speed = this.walkSpeed * (this.arenaPace ?? 0.55);
         const step = Math.min(gap, speed * dt);
         this.position.x += (dx / gap) * step;
         this.position.z += (dz / gap) * step;
@@ -391,7 +400,10 @@ export class Villager {
         this.turnTo(Math.atan2(dx, dz), 6, dt);
         return;
       }
-      this.arenaGoal = null;
+      this.arenaGoal = this.arenaPath?.shift() ?? null;
+      if (this.arenaGoal) return;
+      this.arenaPath = null;
+      this.arenaPace = null;
     }
     this.velocity = 0;
     if (Number.isFinite(this.arenaFacing)) this.turnTo(this.arenaFacing, 3, dt);
@@ -399,6 +411,8 @@ export class Villager {
 
   leaveArena(spot, linger = between(0.5, 1.5)) {
     this.arenaGoal = null;
+    this.arenaPath = null;
+    this.arenaPace = null;
     this.task = null;
     this.state = 'idle';
     this.position.set(spot.x, this.town.nav.heightAt(spot.x, spot.z) ?? 0, spot.z);

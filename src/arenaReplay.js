@@ -1,6 +1,6 @@
 import { ARENA } from './config.js';
 import { PLAYER } from './inventory.js';
-import { matchMinutes, turnSeconds } from './arena.js';
+import { matchMinutes, nextAt, turnSeconds } from './arena.js';
 
 export const SKILLS = [
   { name: 'Kiếm khí', icon: '🗡️', color: 0x4f8dff },
@@ -30,6 +30,28 @@ export function onStage(match, now) {
   if (match.live || match.a === PLAYER || match.b === PLAYER) return match.live;
   if (!match.turns.length || match.startAt === null) return false;
   return now >= match.startAt && now < match.startAt + matchMinutes(match);
+}
+
+export function pairsAhead(event) {
+  if (event?.phase !== 'running') return null;
+  if (event.round < 0) return event.rounds[0].map((match) => [match.a, match.b]);
+  const round = event.rounds[event.round];
+  if (round.length === 1) return null;
+  return Array.from({ length: round.length / 2 }, (_, i) => [round[2 * i].winner, round[2 * i + 1].winner]);
+}
+
+export function calledUp(event, now) {
+  const called = new Map();
+  const next = nextAt(event);
+  if (next === null || now >= next) return called;
+  if (event.round >= 0 && event.rounds[event.round].some((match) => onStage(match, now))) return called;
+  const pairs = pairsAhead(event) ?? [];
+  pairs.forEach(([a, b], index) => {
+    if (!a || !b) return;
+    called.set(a, { count: pairs.length, index, side: 'a' });
+    called.set(b, { count: pairs.length, index, side: 'b' });
+  });
+  return called;
 }
 
 export function replayState(match, now) {
