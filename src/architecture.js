@@ -1900,6 +1900,417 @@ export function createBank({ seed = 1, width = 8.4, depth = 8 } = {}) {
   };
 }
 
+const ARENA_ART = {
+  wall: 0xe8d6b0,
+  sand: 0xdccfb0,
+  stoneLight: 0xcbc4b2,
+  beast: 0x5f8a74,
+  carpet: 0xb3281a,
+  stageWood: 0x7a3a22,
+  water: 0x4f9aa0,
+  rocks: [0x8d877b, 0x9e988b, 0x7a756c],
+  moss: [0x5f8a3e, 0x4f7a36],
+  blossoms: [0xf6b3c8, 0xf9cad8, 0xee93b0, 0xfde4ec],
+  pines: [0x2f5f3a, 0x3d7346, 0x356a40],
+  banners: [0xc8261a, 0xe8b84a],
+  steel: 0xc8ccd0,
+};
+
+function balustrade(kit, x0, z0, x1, z1) {
+  const b = kit.body;
+  const alongX = z0 === z1;
+  const len = alongX ? x1 - x0 : z1 - z0;
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  const size = (l, t) => (alongX ? [l, t] : [t, l]);
+  const [bw, bd] = size(len + 0.1, 0.32);
+  b.add(shapes.box(bw, 0.14, bd), PAL.stoneDark, { p: [cx, 0.07, cz] });
+  const [pw, pd] = size(len, 0.08);
+  b.add(shapes.box(pw, 0.36, pd), PAL.stone, { p: [cx, 0.36, cz] });
+  const [rw, rd] = size(len + 0.06, 0.22);
+  b.add(shapes.box(rw, 0.1, rd), ARENA_ART.stoneLight, { p: [cx, 0.6, cz] });
+  const count = Math.max(1, Math.round(len / 1.1));
+  for (let i = 0; i <= count; i++) {
+    const t = i / count;
+    const x = alongX ? x0 + len * t : cx;
+    const z = alongX ? cz : z0 + len * t;
+    b.add(shapes.box(0.2, 0.74, 0.2), PAL.stone, { p: [x, 0.37, z] });
+    b.add(shapes.sphere(0.12, 8, 6), ARENA_ART.stoneLight, { p: [x, 0.8, z] });
+  }
+  block(kit, x0 - 0.16, z0 - 0.16, x1 + 0.16, z1 + 0.16, 0.9);
+}
+
+function arenaGate(kit, z, half) {
+  const b = kit.body;
+  const span = half * 2 + 0.9;
+  for (const side of [-1, 1]) {
+    const x = side * half;
+    b.add(shapes.box(0.62, 0.3, 0.62), PAL.stoneDark, { p: [x, 0.15, z] });
+    b.add(shapes.box(0.42, 3.3, 0.42), PAL.lacquer, { p: [x, 1.95, z] });
+    b.add(shapes.box(0.48, 0.08, 0.48), PAL.gold, { p: [x, 0.36, z] });
+    b.limb([x, 1.95, z + 0.16], [x - side * 0.55, 2.36, z + 0.16], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    block(kit, x - 0.32, z - 0.32, x + 0.32, z + 0.32, 3.6);
+  }
+  b.add(shapes.box(span, 0.22, 0.26), PAL.lacquer, { p: [0, 2.45, z] });
+  b.add(shapes.box(span - 0.2, 0.05, 0.28), PAL.gold, { p: [0, 2.32, z] });
+  b.add(shapes.box(span, 0.26, 0.3), PAL.lacquer, { p: [0, 3.25, z] });
+  b.add(shapes.box(span - 0.1, 0.05, 0.32), PAL.gold, { p: [0, 3.4, z] });
+  const ridgeY = 3.95;
+  const run = 0.85;
+  const slope = 0.42;
+  const tint = PAL.roofTints[1];
+  for (const facing of [1, -1]) roofPitch(kit, { x0: -span / 2 - 0.3, x1: span / 2 + 0.3, ridgeZ: z, ridgeY, run, slope, facing, tint, tileEnds: facing > 0 });
+  ridgeCrest(kit, -span / 2, span / 2, z, ridgeY, 'disc');
+  for (const side of [-1, 1]) eaveTip(kit, side * (span / 2 + 0.3), ridgeY - run * slope, z + run, side);
+}
+
+function guardianBeast(kit, x, z, { paw = 1, horn = false, scale = 1 } = {}) {
+  const b = kit.body;
+  const tone = ARENA_ART.beast;
+  const dark = shade(tone, 0.72);
+  const light = shade(tone, 1.2);
+  const reach = 0.46 * scale;
+  b.add(shapes.box(0.82 * scale, 0.62, 0.92 * scale), PAL.stoneDark, { p: [x, 0.31, z] });
+  b.add(shapes.box(0.92 * scale, 0.1, 1.02 * scale), PAL.stone, { p: [x, 0.66, z] });
+  b.add(shapes.box(0.92 * scale, 0.1, 1.02 * scale), PAL.stone, { p: [x, 0.05, z] });
+  b.group(
+    [x, 0.71, z],
+    [0, 0, 0],
+    () => {
+      b.add(shapes.box(0.66, 0.08, 0.8), dark, { p: [0, 0.04, 0] });
+      b.add(shapes.sphere(0.3, 10, 8), tone, { p: [0, 0.32, -0.16], s: [1, 0.95, 1.15] });
+      for (const s of [-1, 1]) b.add(shapes.sphere(0.15, 8, 6), tone, { p: [s * 0.2, 0.2, -0.2], s: [0.8, 1, 1.3] });
+      b.add(shapes.sphere(0.25, 10, 8), tone, { p: [0, 0.55, 0.06], s: [1, 1.25, 0.95] });
+      for (const s of [-1, 1]) {
+        const lift = s === paw ? 0.1 : 0;
+        b.limb([s * 0.14, 0.5, 0.14], [s * 0.15, 0.1 + lift, 0.24], 0.07, tone, { seg: 6 });
+        b.add(shapes.sphere(0.085, 8, 6), light, { p: [s * 0.15, 0.08 + lift, 0.3], s: [1, 0.7, 1.2] });
+      }
+      b.add(shapes.sphere(0.12, 10, 8), PAL.gold, { p: [paw * 0.16, 0.12, 0.38] });
+      b.add(shapes.ico(0.3, 1), dark, { p: [0, 0.9, 0.08], s: [1.1, 1, 0.85], flat: true });
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 6) * Math.PI;
+        b.add(shapes.sphere(0.07, 6, 4), dark, { p: [Math.cos(a) * 0.3, 0.88 + Math.sin(a) * 0.26, 0.12] });
+      }
+      b.add(shapes.sphere(0.22, 10, 8), tone, { p: [0, 0.92, 0.2] });
+      b.add(shapes.sphere(0.12, 8, 6), light, { p: [0, 0.85, 0.38], s: [1.3, 0.9, 1] });
+      b.add(shapes.sphere(0.04, 6, 4), PAL.ink, { p: [0, 0.89, 0.49] });
+      b.add(shapes.box(0.16, 0.035, 0.04), 0x8a2a1c, { p: [0, 0.78, 0.44] });
+      for (const s of [-1, 1]) {
+        b.add(shapes.sphere(0.05, 8, 6), PAL.gold, { p: [s * 0.09, 0.99, 0.37] });
+        b.add(shapes.sphere(0.024, 6, 4), PAL.ink, { p: [s * 0.09, 0.99, 0.415] });
+        b.add(shapes.box(0.12, 0.03, 0.05), dark, { p: [s * 0.09, 1.06, 0.37], r: [0, 0, -s * 0.3] });
+        b.add(shapes.cone(0.05, 0.12, 5), dark, { p: [s * 0.17, 1.1, 0.16], r: [0, 0, -s * 0.4] });
+      }
+      if (horn) {
+        b.add(shapes.cone(0.05, 0.32, 6), PAL.gold, { p: [0, 1.22, 0.16], r: [-0.4, 0, 0] });
+        for (let k = 0; k < 4; k++) b.add(shapes.cone(0.04, 0.12, 4), PAL.gold, { p: [0, 0.62 - k * 0.1, -0.42 + k * 0.05], r: [-1.2, 0, 0], flat: true });
+      }
+      b.add(shapes.tube([new THREE.Vector3(0, 0.3, -0.42), new THREE.Vector3(0, 0.6, -0.56), new THREE.Vector3(0, 0.86, -0.46)], 0.05, 10), tone);
+      b.add(shapes.ico(0.13, 0), dark, { p: [0, 0.9, -0.42], flat: true });
+    },
+    scale,
+  );
+  block(kit, x - reach, z - reach - 0.05, x + reach, z + reach + 0.05, 2);
+}
+
+function fightingStage(kit, cx, cz, half) {
+  const b = kit.body;
+  const top = 0.85;
+  const size = half * 2;
+  b.add(shapes.box(size + 0.4, 0.3, size + 0.4), PAL.stoneDark, { p: [cx, 0.15, cz] });
+  b.add(shapes.box(size, top - 0.4, size), ARENA_ART.stageWood, { p: [cx, 0.3 + (top - 0.4) / 2, cz] });
+  b.add(shapes.box(size + 0.12, 0.1, size + 0.12), PAL.woodMid, { p: [cx, top - 0.05, cz] });
+  b.add(shapes.box(size + 0.14, 0.04, size + 0.14), PAL.gold, { p: [cx, top - 0.12, cz] });
+  b.add(shapes.box(size - 0.3, 0.012, size - 0.3), PAL.gold, { p: [cx, top + 0.006, cz] });
+  b.add(shapes.box(size - 0.5, 0.02, size - 0.5), ARENA_ART.carpet, { p: [cx, top + 0.012, cz] });
+  b.add(shapes.cylinder(0.62, 0.62, 0.02, 24), PAL.gold, { p: [cx, top + 0.024, cz] });
+  b.add(shapes.cylinder(0.52, 0.52, 0.02, 24), ARENA_ART.carpet, { p: [cx, top + 0.03, cz] });
+  b.add(new THREE.CircleGeometry(0.4, 16, 0, Math.PI), PAL.ink, { p: [cx, top + 0.042, cz], r: [-Math.PI / 2, 0, 0] });
+  b.add(new THREE.CircleGeometry(0.4, 16, Math.PI, Math.PI), PAL.cream, { p: [cx, top + 0.042, cz], r: [-Math.PI / 2, 0, 0] });
+  b.add(new THREE.CircleGeometry(0.2, 12), PAL.cream, { p: [cx + 0.2, top + 0.046, cz], r: [-Math.PI / 2, 0, 0] });
+  b.add(new THREE.CircleGeometry(0.2, 12), PAL.ink, { p: [cx - 0.2, top + 0.046, cz], r: [-Math.PI / 2, 0, 0] });
+  for (const dx of [-half * 0.55, 0, half * 0.55]) {
+    b.add(shapes.cylinder(0.16, 0.16, 0.04, 12), PAL.gold, { p: [cx + dx, (0.3 + top) / 2, cz + half + 0.01], r: [Math.PI / 2, 0, 0] });
+  }
+  const posts = [];
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const x = cx + sx * (half - 0.12);
+      const z = cz + sz * (half - 0.12);
+      posts.push([x, z]);
+      b.add(shapes.cylinder(0.09, 0.11, 1.5, 8), PAL.lacquer, { p: [x, top + 0.75, z] });
+      b.add(shapes.sphere(0.13, 8, 6), PAL.gold, { p: [x, top + 1.58, z] });
+    }
+  }
+  const [bl, fl, br, fr] = posts;
+  for (const y of [top + 0.6, top + 1.1]) {
+    for (const [a, c] of [[bl, br], [bl, fl], [br, fr]]) b.limb([a[0], y, a[1]], [c[0], y, c[1]], 0.025, PAL.lacquer, { capsule: false, seg: 4 });
+  }
+  for (const [k, dz] of [0.75, 0.45].entries()) {
+    const h = (top * (k + 1)) / 3;
+    b.add(shapes.box(1.4, h, 0.32), PAL.stone, { p: [cx, h / 2, cz + half + dz] });
+  }
+  const backZ = cz - half + 0.15;
+  for (const side of [-1, 1]) b.add(shapes.box(0.12, 2.6, 0.12), PAL.woodDark, { p: [cx + side * 1.3, top + 1.3, backZ] });
+  textSign(kit, cx, top + 2.15, backZ + 0.08, 2.4, 0.62, { text: 'Lôi Đài' });
+  for (const [i, side] of [-1, 1].entries()) {
+    const x = cx + side * (half + 0.35);
+    const z = cz - half - 0.1;
+    b.add(shapes.cylinder(0.06, 0.07, 4.4, 8), PAL.woodDark, { p: [x, 2.2, z] });
+    b.add(shapes.cone(0.08, 0.26, 6), PAL.gold, { p: [x, 4.53, z] });
+    b.add(shapes.box(0.7, 0.06, 0.06), PAL.gold, { p: [x - side * 0.32, 4.15, z] });
+    b.add(shapes.box(0.56, 1.8, 0.03), ARENA_ART.banners[i], { p: [x - side * 0.32, 3.2, z] });
+    for (let k = 0; k < 4; k++) b.add(shapes.cone(0.07, 0.16, 4), ARENA_ART.banners[1 - i], { p: [x - side * (0.12 + k * 0.14), 2.22, z], r: [Math.PI, 0, 0], flat: true });
+    block(kit, x - 0.12, z - 0.12, x + 0.12, z + 0.12, 4.4);
+  }
+  block(kit, cx - half - 0.2, cz - half - 0.2, cx + half + 0.2, cz + half + 0.95, 1.2);
+}
+
+function rockery(kit, cx, cz, r) {
+  const b = kit.body;
+  const rand = kit.rand;
+  b.add(shapes.cylinder(r + 0.05, r + 0.15, 0.3, 24), PAL.stoneDark, { p: [cx, 0.15, cz] });
+  b.add(shapes.cylinder(r - 0.05, r - 0.05, 0.02, 24), ARENA_ART.water, { p: [cx, 0.31, cz] });
+  b.add(shapes.torus(r, 0.12, 24), PAL.stone, { p: [cx, 0.34, cz], r: [Math.PI / 2, 0, 0] });
+  const peaks = [
+    [0.1, -0.3, 0.5, 2.6],
+    [-0.6, 0.05, 0.42, 1.7],
+    [0.65, 0.2, 0.38, 1.3],
+    [-0.2, 0.55, 0.28, 0.8],
+    [0.75, -0.6, 0.3, 1.0],
+  ];
+  const tops = peaks.map(([dx, dz, w, h]) => {
+    const top = { x: cx + dx, y: 0.3, z: cz + dz };
+    for (let k = 0; k < 3; k++) {
+      const size = w * (1 - k * 0.26);
+      const stretch = (h * 0.22) / size + 0.5;
+      top.x = cx + dx + (rand() - 0.5) * 0.14;
+      top.z = cz + dz + (rand() - 0.5) * 0.14;
+      const y = 0.3 + h * (0.2 + k * 0.3);
+      b.add(shapes.ico(size, 0), pick(rand, ARENA_ART.rocks), { p: [top.x, y, top.z], s: [1, stretch, 0.9], r: [rand() * 0.2, rand() * 3, rand() * 0.2], flat: true });
+      top.y = y + size * stretch * 0.8;
+    }
+    return top;
+  });
+  for (const [i, [, , w, h]] of peaks.entries()) {
+    if (i % 2 === 0) b.add(shapes.ico(w * 0.4, 0), pick(rand, ARENA_ART.moss), { p: [tops[i].x + w * 0.3, 0.3 + h * 0.55, tops[i].z + w * 0.3], s: [1.2, 0.5, 1.2], flat: true });
+  }
+  for (const top of [tops[1], tops[2]]) {
+    b.limb([top.x, top.y - 0.1, top.z], [top.x + 0.12, top.y + 0.2, top.z], 0.03, PAL.trunk, { capsule: false, seg: 4 });
+    b.add(shapes.ico(0.17, 0), pick(rand, ARENA_ART.pines), { p: [top.x + 0.14, top.y + 0.25, top.z], s: [1.5, 0.6, 1.3], flat: true });
+  }
+  const summit = tops[0];
+  for (let k = 0; k < 3; k++) {
+    const y = summit.y + k * 0.17;
+    const w = 0.16 - k * 0.03;
+    b.add(shapes.box(w, 0.1, w), PAL.cream, { p: [summit.x, y + 0.05, summit.z] });
+    b.add(shapes.cone(w * 1.1, 0.08, 4), PAL.ridge, { p: [summit.x, y + 0.14, summit.z], r: [0, Math.PI / 4, 0] });
+  }
+  b.add(shapes.cone(0.02, 0.12, 4), PAL.gold, { p: [summit.x, summit.y + 0.58, summit.z] });
+  b.add(shapes.box(0.2, 1.5, 0.03), 0xdff3f5, { p: [cx + 0.18, 1.05, cz + 0.2] });
+  b.add(shapes.ico(0.14, 0), 0xf2fbfc, { p: [cx + 0.18, 0.34, cz + 0.28], s: [1.4, 0.5, 1], flat: true });
+  for (const [dx, dz, hex, turn] of [[-0.9, 0.9, 0xe8762a, 0.4], [0.9, 1.0, 0xf2f0e8, 2.1], [1.3, -0.2, 0xd8321e, 3.6]]) {
+    b.add(shapes.sphere(0.1, 8, 6), hex, { p: [cx + dx, 0.33, cz + dz], s: [0.5, 0.35, 1.2], r: [0, turn, 0] });
+  }
+  for (const [dx, dz] of [[-1.2, 0.4], [-1.0, -0.8], [1.25, 0.75]]) {
+    b.add(shapes.cylinder(0.2, 0.2, 0.012, 10), 0x4f8f3e, { p: [cx + dx, 0.326, cz + dz] });
+    b.add(shapes.cone(0.07, 0.12, 6), 0xef8fb4, { p: [cx + dx + 0.06, 0.39, cz + dz] });
+  }
+  block(kit, cx - r - 0.2, cz - r - 0.2, cx + r + 0.2, cz + r + 0.2, 3);
+}
+
+function blossomTree(kit, x, z, scale = 1) {
+  const b = kit.body;
+  const rand = kit.rand;
+  const s = scale;
+  const trunk = [[x, 0, z], [x + 0.25 * s, 1.2 * s, z - 0.1 * s], [x - 0.15 * s, 2.2 * s, z + 0.15 * s], [x + 0.1 * s, 2.9 * s, z]];
+  for (let i = 0; i < trunk.length - 1; i++) b.limb(trunk[i], trunk[i + 1], 0.2 * s * (1 - i * 0.22), 0x5a3a2a, { capsule: false, seg: 7, radiusEnd: 0.2 * s * (1 - (i + 1) * 0.22) });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + rand();
+    b.limb(trunk[2], [x + Math.cos(a) * 1.2 * s, (2.7 + rand() * 0.5) * s, z + Math.sin(a) * 1.2 * s], 0.08 * s, 0x5a3a2a, { capsule: false, seg: 5, radiusEnd: 0.04 * s });
+  }
+  for (let i = 0; i < 10; i++) {
+    const a = rand() * Math.PI * 2;
+    const d = Math.sqrt(rand()) * 1.4 * s;
+    b.add(shapes.ico((0.5 + rand() * 0.3) * s, 1), pick(rand, ARENA_ART.blossoms), { p: [x + Math.cos(a) * d, (2.9 + rand() * 0.9) * s, z + Math.sin(a) * d], s: [1, 0.8, 1], flat: true });
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = rand() * Math.PI * 2;
+    const d = 0.4 + rand() * 1.5 * s;
+    b.add(shapes.cylinder(0.07, 0.07, 0.01, 6), pick(rand, ARENA_ART.blossoms), { p: [x + Math.cos(a) * d, 0.05, z + Math.sin(a) * d] });
+  }
+  block(kit, x - 0.3, z - 0.3, x + 0.3, z + 0.3, 3);
+}
+
+function pineTree(kit, x, z, scale = 1) {
+  const b = kit.body;
+  const rand = kit.rand;
+  const s = scale;
+  const trunk = [[x, 0, z], [x - 0.2 * s, 1.1 * s, z + 0.1 * s], [x + 0.3 * s, 2.0 * s, z - 0.1 * s], [x + 0.1 * s, 3.0 * s, z + 0.1 * s]];
+  for (let i = 0; i < trunk.length - 1; i++) b.limb(trunk[i], trunk[i + 1], 0.2 * s * (1 - i * 0.25), PAL.trunk, { capsule: false, seg: 7, radiusEnd: 0.2 * s * (1 - (i + 1) * 0.25) });
+  const pads = [
+    [-0.9, 1.9, 0.2, 0.7, 1],
+    [1.0, 2.4, -0.2, 0.75, 2],
+    [0.2, 3.25, 0.1, 0.85, 3],
+    [-0.5, 2.8, -0.5, 0.55, 2],
+    [0.6, 1.5, 0.5, 0.5, 1],
+  ];
+  for (const [dx, y, dz, r, from] of pads) {
+    const end = [x + dx * s, y * s, z + dz * s];
+    b.limb(trunk[from], end, 0.07 * s, PAL.trunk, { capsule: false, seg: 5, radiusEnd: 0.04 * s });
+    b.add(shapes.ico(r * s, 1), pick(rand, ARENA_ART.pines), { p: [end[0], end[1] + 0.12 * s, end[2]], s: [1.4, 0.42, 1.1], r: [0, rand() * 3, 0], flat: true });
+  }
+  block(kit, x - 0.3, z - 0.3, x + 0.3, z + 0.3, 3);
+}
+
+function stoneLantern(kit, x, z) {
+  const b = kit.body;
+  b.add(shapes.box(0.5, 0.12, 0.5), PAL.stoneDark, { p: [x, 0.06, z] });
+  b.add(shapes.cylinder(0.1, 0.13, 0.8, 6), PAL.stone, { p: [x, 0.52, z], flat: true });
+  b.add(shapes.box(0.42, 0.08, 0.42), PAL.stone, { p: [x, 0.96, z] });
+  kit.lamps.add(shapes.box(0.24, 0.24, 0.24), 0xffd89a, { p: [x, 1.12, z] });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(shapes.box(0.05, 0.26, 0.05), PAL.stone, { p: [x + sx * 0.15, 1.12, z + sz * 0.15] });
+  b.add(shapes.cone(0.38, 0.3, 4), ARENA_ART.stoneLight, { p: [x, 1.4, z], r: [0, Math.PI / 4, 0], flat: true });
+  b.add(shapes.sphere(0.06, 6, 4), PAL.stone, { p: [x, 1.6, z] });
+  kit.lights.push({ position: new THREE.Vector3(x, 1.12, z), tint: 0xffd89a });
+  block(kit, x - 0.27, z - 0.27, x + 0.27, z + 0.27, 1.7);
+}
+
+function warDrum(kit, x, z, floor) {
+  const b = kit.body;
+  for (const side of [-1, 1]) b.add(shapes.box(0.1, 1.3, 0.1), PAL.woodDark, { p: [x + side * 0.55, floor + 0.65, z] });
+  b.add(shapes.box(1.2, 0.08, 0.12), PAL.woodDark, { p: [x, floor + 0.3, z] });
+  b.add(shapes.cylinder(0.48, 0.48, 0.55, 16), PAL.lacquer, { p: [x, floor + 0.95, z], r: [Math.PI / 2, 0, 0] });
+  b.add(shapes.cylinder(0.43, 0.43, 0.57, 16), PAL.cream, { p: [x, floor + 0.95, z], r: [Math.PI / 2, 0, 0] });
+  for (const dz of [-0.27, 0.27]) b.add(shapes.torus(0.46, 0.025, 16), PAL.gold, { p: [x, floor + 0.95, z + dz] });
+  for (const side of [-1, 1]) b.limb([x + side * 0.2, floor + 0.3, z + 0.4], [x + side * 0.1, floor + 0.85, z + 0.33], 0.025, PAL.woodMid, { capsule: false, seg: 4 });
+}
+
+function weaponRack(kit, x, z, floor) {
+  const b = kit.body;
+  for (const side of [-1, 1]) b.add(shapes.box(0.1, 1.9, 0.1), PAL.woodDark, { p: [x + side * 0.8, floor + 0.95, z] });
+  for (const y of [0.35, 1.5]) b.add(shapes.box(1.8, 0.08, 0.1), PAL.woodDark, { p: [x, floor + y, z] });
+  for (let i = 0; i < 5; i++) {
+    const px = x - 0.6 + i * 0.3;
+    b.limb([px, floor + 0.1, z + 0.08], [px, floor + 2.3, z + 0.02], 0.025, PAL.woodMid, { capsule: false, seg: 5 });
+    b.add(shapes.cone(0.045, 0.25, 5), ARENA_ART.steel, { p: [px, floor + 2.42, z + 0.02] });
+    b.add(shapes.sphere(0.05, 6, 4), PAL.lacquer, { p: [px, floor + 2.25, z + 0.02] });
+    if (i === 2) b.add(shapes.torus(0.14, 0.025, 8, Math.PI), ARENA_ART.steel, { p: [px + 0.12, floor + 2.15, z + 0.02], r: [0, 0, -Math.PI / 2] });
+  }
+}
+
+function registrationDesk(kit, x, z) {
+  const b = kit.body;
+  b.add(shapes.box(2.2, 0.72, 0.5), PAL.lacquer, { p: [x, 0.36, z] });
+  b.add(shapes.box(2.3, 0.06, 0.6), PAL.woodDark, { p: [x, 0.75, z] });
+  b.add(shapes.box(2.24, 0.05, 0.54), PAL.gold, { p: [x, 0.05, z] });
+  textSign(kit, x, 0.42, z + 0.27, 1.2, 0.36, { text: 'Ghi Danh', bg: PAL.ink, fg: PAL.gold });
+  b.add(shapes.cylinder(0.05, 0.05, 0.5, 8), PAL.cream, { p: [x - 0.55, 0.81, z], r: [0, 0, Math.PI / 2] });
+  b.add(shapes.box(0.5, 0.01, 0.34), PAL.cream, { p: [x - 0.1, 0.785, z + 0.02] });
+  b.add(shapes.box(0.16, 0.03, 0.12), PAL.ink, { p: [x + 0.35, 0.795, z] });
+  b.add(shapes.cylinder(0.05, 0.05, 0.14, 8), PAL.jade, { p: [x + 0.7, 0.85, z - 0.05] });
+  for (const dx of [-0.02, 0.02]) b.add(shapes.cylinder(0.008, 0.008, 0.26, 4), PAL.woodMid, { p: [x + 0.7 + dx, 0.98, z - 0.05] });
+  block(kit, x - 1.15, z - 0.3, x + 1.15, z + 0.3, 1);
+}
+
+function arenaHall(kit, { half, front, back }) {
+  const b = kit.body;
+  const T = 0.25;
+  const plinth = 0.4;
+  const g = 3.4;
+  const wallTop = g + 0.9;
+  const lip = 0.24;
+  const slope = 0.55;
+  const tint = PAL.roofTints[2];
+  const inner = half - T;
+  const depth = front - back;
+  b.add(shapes.box(half * 2 + 0.5, plinth, depth + 0.45), PAL.stone, { p: [0, plinth / 2, (front + back) / 2 - 0.025] });
+  b.add(shapes.box(half * 2 + 0.56, 0.08, depth + 0.51), PAL.stoneDark, { p: [0, plinth - 0.06, (front + back) / 2 - 0.025] });
+  b.add(shapes.box(half * 2 - 2 * T, 0.04, depth - T), PAL.woodMid, { p: [0, plinth + 0.02, (front + back + T) / 2] });
+  for (const [k, dz] of [0.5, 0.31].entries()) {
+    const h = (plinth * (k + 1)) / 2;
+    b.add(shapes.box(2.4, h, 0.32), PAL.stone, { p: [0, h / 2, front + dz] });
+  }
+  const ridgeZ = (front + back) / 2;
+  const ridgeY = wallTop + (depth / 2) * slope;
+  for (const side of [-1, 1]) gableWall(kit, ARENA_ART.wall, side * (half - T / 2), front, back, wallTop + lip, ridgeY + lip, T);
+  plaster(kit, ARENA_ART.wall, half * 2 - 2 * T, wallTop, T, 0, wallTop / 2, back + T / 2);
+  const posts = [-(inner - 0.15), -1.3, 1.3, inner - 0.15];
+  for (const x of posts) lacquerColumn(kit, x, front, g, plinth);
+  b.add(shapes.box(half * 2 - 2 * T, 0.3, 0.3), PAL.lacquer, { p: [0, g - 0.15, front] });
+  b.add(shapes.box(half * 2 - 2 * T, 0.05, 0.32), PAL.gold, { p: [0, g - 0.32, front] });
+  for (const x of posts) {
+    for (const side of [-1, 1]) {
+      if (Math.abs(x + side * 0.5) > inner) continue;
+      b.limb([x, g - 0.95, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    }
+  }
+  for (const [x0, x1] of [[-inner, -1.45], [1.45, inner]]) lattice(kit, x0, x1, g, wallTop, front);
+  b.add(shapes.box(2.9, wallTop - g, 0.1), PAL.woodDark, { p: [0, (g + wallTop) / 2, front - 0.05] });
+  textSign(kit, 0, g + 0.45, front + 0.06, 2.6, 0.62, { text: 'Thượng Võ' });
+  const couplets = [['Văn', 'Võ', 'Song', 'Toàn'], ['Đức', 'Tài', 'Kiêm', 'Bị']];
+  for (const [k, side] of [-1, 1].entries()) {
+    textSign(kit, side * (inner - 0.15), 1.95, front + 0.2, 0.3, 1.7, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
+    silkLantern(kit, side * 2.6, g - 0.32, front + 0.1, PAL.lanterns[k], 1.2);
+  }
+  const run = depth / 2 + 1.2;
+  roofPitch(kit, { x0: -half - 0.35, x1: half + 0.35, ridgeZ, ridgeY, run, slope, facing: 1, tint, tileEnds: true });
+  roofPitch(kit, { x0: -half - 0.35, x1: half + 0.35, ridgeZ, ridgeY, run: depth / 2 + 0.4, slope, facing: -1, tint });
+  ridgeCrest(kit, -half + T, half - T, ridgeZ, ridgeY, 'dragons');
+  for (const [x, side] of [[-half - 0.35, -1], [half + 0.35, 1]]) eaveTip(kit, x, ridgeY - run * slope, ridgeZ + run, side);
+  textSign(kit, 0, 2.4, back + T + 0.04, 1.8, 0.56, { text: 'Võ Đức', bg: PAL.ink, fg: PAL.gold });
+  warDrum(kit, -(inner - 1.0), back + 1.4, plinth);
+  weaponRack(kit, inner - 1.3, back + T + 0.25, plinth);
+  block(kit, -half - 0.25, back - 0.25, half + 0.25, front + 0.2, 4);
+  block(kit, -1.2, front + 0.2, 1.2, front + 0.66, 0.5);
+}
+
+export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
+  const kit = createKit(seed);
+  const b = kit.body;
+  const edge = width / 2 - 0.25;
+  const front = -0.3;
+  const back = -depth;
+  const hall = { half: 4.2, front: -6.6, back: back + 0.3 };
+  const stage = { x: -4.7, z: -3.3, half: 1.9 };
+  const pond = { x: 4.7, z: -3.3, r: 1.9 };
+  const gateHalf = 1.9;
+  const keeperZ = -5.5;
+
+  const ground = new Batch();
+  ground.add(shapes.box(edge * 2, 0.04, front - back), ARENA_ART.sand, { p: [0, 0.02, (front + back) / 2] });
+  for (let z = front - 0.45; z > keeperZ + 1.3; z -= 0.75) ground.add(shapes.box(1.9, 0.05, 0.62), PAL.stone, { p: [0, 0.045, z] });
+
+  arenaGate(kit, front, gateHalf);
+  balustrade(kit, -edge, front, -gateHalf - 0.45, front);
+  balustrade(kit, gateHalf + 0.45, front, edge, front);
+  for (const side of [-1, 1]) balustrade(kit, side * edge, back + 0.2, side * edge, front);
+
+  for (const side of [-1, 1]) guardianBeast(kit, side * 2.75, 0.6, { paw: -side });
+  for (const side of [-1, 1]) guardianBeast(kit, side * 2.05, -5.85, { paw: -side, horn: true, scale: 0.85 });
+
+  fightingStage(kit, stage.x, stage.z, stage.half);
+  rockery(kit, pond.x, pond.z, pond.r);
+  for (const side of [-1, 1]) for (const z of [-1.9, -3.5]) stoneLantern(kit, side * 1.55, z);
+
+  blossomTree(kit, -6.3, -8.9, 1.05);
+  pineTree(kit, 6.3, -8.9, 1.1);
+  pineTree(kit, -7.25, -0.85, 0.8);
+  blossomTree(kit, 7.25, -0.85, 0.85);
+
+  arenaHall(kit, hall);
+  registrationDesk(kit, 0, keeperZ + 0.55);
+
+  return {
+    group: assemble(kit),
+    floor: ground.mesh(vertexMaterial(), { shadow: false }),
+    obstacles: kit.obstacles,
+    door: { x: 0, z: keeperZ },
+    plaque: { x: 0, y: 2.84, z: front + 0.19 },
+  };
+}
+
 const FISH_TONES = [0xa8b0a0, 0x7a8a3a, 0x8a96a0, 0x6a7078, 0xc0a070];
 
 function fishShape(kit, x, y, z, len, color, rotation = [0, 0, 0]) {

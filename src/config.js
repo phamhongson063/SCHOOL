@@ -285,7 +285,7 @@ export const ABSORB = {
 export const ARENA = {
   deck: 'n2',
   size: 8,
-  starts: [9 * 60 + 57, 8 * 60 + 45, 19 * 60 + 45],
+  starts: [10 * 60 + 21, 8 * 60 + 45, 19 * 60 + 45],
   lead: 30,
   opening: 0.25,
   breather: 15,

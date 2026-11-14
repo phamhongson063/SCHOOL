@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, freeze, shapes } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
-import { createShophouse, createBank, shophousePots } from './architecture.js';
+import { createShophouse, createBank, createArenaCompound, shophousePots } from './architecture.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { ARENA, LODGE_ROOMS } from './config.js';
@@ -25,11 +25,11 @@ const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
 const ROW = { x0: 102, x1: 179 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
-const ARENA_PICK = 'north:3';
+const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
 const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const ARENA_SIGN = { bg: 0x2a1a3a, fg: '#ffe08a', border: 0xc9a24a };
-const EMPTY_PICKS = new Set(['south:4', 'north:2']);
+const EMPTY_PICKS = new Set(['south:4']);
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
@@ -70,19 +70,23 @@ function layout() {
     { side: 'south', front: MAIN.z1 + 1.6, xs: [...spread(ROW.x0, plaza.x0 - 1, 3), ...spread(plaza.x1 + 1, ROW.x1, 3)] },
   ];
   const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
+  const arenaXs = [];
   for (const row of rows) {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
       const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
       if (EMPTY_PICKS.has(`${row.side}:${index}`)) return;
+      if (ARENA_LOT.picks.includes(`${row.side}:${index}`)) {
+        arenaXs.push(x);
+        if (arenaXs.length < ARENA_LOT.picks.length) return;
+        house.arena = true;
+        house.x = arenaXs.reduce((sum, value) => sum + value, 0) / arenaXs.length;
+        house.width = ARENA_LOT.width;
+      }
       const lodge = LODGE_PICKS[`${row.side}:${index}`];
       if (lodge) {
         house.lodge = lodge;
         house.stories = LODGE_LOOKS[LODGE_ROOMS[lodge].tier].stories;
-      }
-      if (`${row.side}:${index}` === ARENA_PICK) {
-        house.arena = true;
-        house.stories = 2;
       }
       if (`${row.side}:${index}` === BANK_PICK) {
         house.bank = true;
@@ -211,6 +215,7 @@ export function createDistrict() {
   const obstacles = [];
   for (const block of blocks) {
     for (const house of block.houses) {
+      if (house.arena) continue;
       obstacles.push(footprint(house, house.width));
       if (!house.bank) obstacles.push(...shophousePots(house.width).map((box) => place(house, box)));
     }
@@ -271,13 +276,16 @@ export function createDistrict() {
   for (const block of blocks) {
     for (const house of block.houses) {
       if (!house.arena) continue;
-      const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
-      built.group.position.set(house.x, 0, house.front);
-      built.group.rotation.y = house.turn;
+      const built = createArenaCompound({ seed: house.seed, width: house.width, depth: ARENA_LOT.depth });
+      obstacles.push(...built.obstacles.map((box) => place(house, box)));
+      for (const node of [built.group, built.floor]) {
+        node.position.set(house.x, 0, house.front);
+        node.rotation.y = house.turn;
+      }
       const sign = plaqueBoard(['LÔI ĐÀI', ARENA.starts.map(clockText).join(' · ')], ARENA_SIGN);
       sign.mesh.position.set(built.plaque.x, built.plaque.y, built.plaque.z);
       built.group.add(sign.mesh);
-      group.add(built.group);
+      group.add(built.floor, built.group);
       clickables.push(built.group);
       const side = house.north ? 1 : -1;
       const at = { x: house.x + side * built.door.x, z: house.front + side * built.door.z };
