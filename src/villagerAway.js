@@ -141,7 +141,7 @@ export function createAwaySim({ town, contextAt }) {
     eat(member, ctx);
     if (ctx.martOpen && member.wantsMart()) member.buySnacks();
     exams(member, ctx);
-    if (town.arena?.consider(member.id)) town.arena.register(member.id);
+    if (town.arena?.consider(member.id, ctx.minutes)) town.arena.register(member.id);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);

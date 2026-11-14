@@ -28,6 +28,7 @@ const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
 const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const EMPTY_PICKS = new Set(['south:4']);
+const PLAZA_LOT = 'south:2';
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
@@ -69,11 +70,16 @@ function layout() {
   ];
   const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
   const arenaXs = [];
+  let plazaWest = plaza.x0;
   for (const row of rows) {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
       const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
       if (EMPTY_PICKS.has(`${row.side}:${index}`)) return;
+      if (`${row.side}:${index}` === PLAZA_LOT) {
+        plazaWest = (row.xs[index - 1] + x) / 2;
+        return;
+      }
       if (ARENA_LOT.picks.includes(`${row.side}:${index}`)) {
         arenaXs.push(x);
         if (arenaXs.length < ARENA_LOT.picks.length) return;
@@ -95,6 +101,7 @@ function layout() {
       blocks[block].houses.push(house);
     });
   }
+  plaza.x0 = plazaWest;
   return { blocks, plaza };
 }
 
@@ -350,7 +357,8 @@ export function createDistrict() {
           return { kind: 'lodge', id: lodge.id, index: `lodge:${lodge.id}`, x: lodge.look.x, z: lodge.look.z, stand: lodge.stand };
         },
         actionFor(target) {
-          if (target.kind === 'arena') return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: options.arenaMenu(), menu: true } };
+          const arenaOptions = target.kind === 'arena' ? options.arenaMenu() : null;
+          if (arenaOptions) return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: arenaOptions, menu: true } };
           return { id: 'visit', hint: 'hand' };
         },
         topOf(target) {

@@ -263,7 +263,7 @@ export const ECONOMY = {
   houseTax: 0.0001,
   buyback: 0.8,
   thrift: 0.6,
-  arenaCut: 0.5,
+  arenaCut: 0.2,
   offline: { sampleDays: 3, minSample: 120 },
 };
 
@@ -315,7 +315,7 @@ export const ARENA = {
   reward: { base: 1, perWin: 1, champion: 1 },
   champions: 30,
   rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
-  npc: { minCertified: 20, reserve: 40, eager: 0.6 },
+  npc: { reserve: 10, eager: 0.15, rethink: 5 },
 };
 
 export const HERALD = { lead: 15, every: 3 };

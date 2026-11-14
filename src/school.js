@@ -32,7 +32,6 @@ export const HOUSE = {
   ],
 };
 export const ENCLOSURE = { x0: -22, x1: 22, front: 28, back: -42 };
-export const CROSS_WALLS = [28, -12];
 export const SIDE_GATES = [-8.5, 9.5];
 export const PLAZA = { x0: -13, z0: 45, x1: 14, z1: 63, x: 0.5, z: 54, rise: 0.2 };
 export const POND = { x: 0.5, z: 18, half: 4 };
@@ -169,9 +168,8 @@ function walls(world) {
     for (let x = x0; x <= x1; x++) if (!open(x)) world.fill(x, 0, z, x, 2, z, 'brick');
   };
   row(back, () => false);
-  const kvcRow = Math.floor(KHUE_VAN_CAC.z);
   const sideGate = (x) => SIDE_GATES.some((g) => x >= Math.floor(g - 1) && x < Math.ceil(g + 1));
-  for (const z of CROSS_WALLS) row(z, (x) => (x >= -2 && x <= 2) || (z === kvcRow && sideGate(x)));
+  row(Math.floor(KHUE_VAN_CAC.z), (x) => (x >= -2 && x <= 2) || sideGate(x));
   world.fill(x0, 0, back, x0, 2, front, 'brick');
   world.fill(x1, 0, back, x1, 2, front, 'brick');
 }

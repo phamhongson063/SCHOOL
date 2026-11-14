@@ -12,6 +12,11 @@ export const EXAM_HOURS = { open: CERTIFY.open, close: CERTIFY.close };
 
 export const examOpen = (minutes) => isOpenAt(EXAM_HOURS, minutes);
 
+export const EXAM_SPAN = CERTIFY.examMinutes + 2;
+export const INTERNAL_SPAN = CERTIFY.internalMinutes + 2;
+
+const CLASH_REASONS = { soon: 'Sắp tới giờ lôi đài, không kịp thi.', running: 'Lôi đài đang diễn ra, thi sau nhé.' };
+
 export function unitLabel(key) {
   const card = unitOf(key);
   if (!card) return key;
@@ -34,7 +39,7 @@ function examLines(deck, result) {
   return lines;
 }
 
-export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister }) {
+export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister, arenaClash = () => null }) {
   const dialog = document.getElementById('examDialog');
   const note = document.getElementById('examNote');
   const list = document.getElementById('examList');
@@ -42,6 +47,8 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
 
   function blocker(deck, now) {
     if (!examOpen(now)) return `Trường khảo thí chỉ mở cửa ${hoursText(EXAM_HOURS)}.`;
+    const clash = arenaClash(now, EXAM_SPAN);
+    if (clash) return CLASH_REASONS[clash];
     if (certify.examTaken(PLAYER, deck)) return 'Hôm nay bạn đã khảo thí lớp này rồi.';
     if (certify.finished(PLAYER, deck)) return 'Bạn đã học hết bộ này.';
     if (!certify.qualified(PLAYER, deck)) return 'Bạn chưa đủ điều kiện: cần đậu thi nội bộ ở phòng học trước.';

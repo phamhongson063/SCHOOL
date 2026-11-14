@@ -103,6 +103,7 @@ export class PlayerController {
     this.workSpot = new THREE.Vector2();
     this.working = false;
     this.workBlend = 0;
+    this.cloaked = false;
     this.distance = 5;
     this.distanceScale = 1;
     this.running = false;
@@ -200,6 +201,13 @@ export class PlayerController {
     this.velocity.set(0, 0, 0);
     this.yaw = yaw;
     this.facing = Math.atan2(-Math.sin(yaw), -Math.cos(yaw));
+    this.working = false;
+    this.workBlend = 0;
+  }
+
+  cloak(on) {
+    this.cloaked = on;
+    this.shadow?.setVisible(!on);
   }
 
   setEnabled(on) {
@@ -617,7 +625,7 @@ export class PlayerController {
     const lift = LOOK_ABOVE * Math.min(1, this.cameraDistance / 4);
     this.camera.lookAt(pivot.x, pivot.y + lift, pivot.z);
     const show = this.cameraDistance > 0.9;
-    this.avatar.group.visible = show && !seated;
+    this.avatar.group.visible = show && !seated && !this.cloaked;
     if (this.seating) this.seating.model.group.visible = show && seated;
   }
 

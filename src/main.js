@@ -93,6 +93,7 @@ import { worldKey } from './saveKeys.js';
 import { createArena } from './arena.js';
 import { ISLAND_BOUNDS, createArenaIsland, islandBlocksView, islandFloor, islandNavFloor, onIsland, watchSpot } from './arenaIsland.js';
 import { createArenaTrip } from './arenaTrip.js';
+import { createTownGate } from './arenaGate.js';
 import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
 import { createArenaDuel } from './arenaDuel.js';
@@ -311,20 +312,21 @@ regions.add(
 );
 regions.add(fieldMart.region);
 for (const region of countryside.regions()) regions.add(region);
-regions.add(
-  district.region({
-    rentLodge: (id) => lodgeDesk.rent(id),
-    bank,
-    openBank: () => bankUI.open(),
-    arenaMenu: () => arenaMenu(arena),
-    openArena: (choice) => arenaDesk.act(choice),
-    minutes: () => gameNow(),
-  }),
-);
+const districtRegion = district.region({
+  rentLodge: (id) => lodgeDesk.rent(id),
+  bank,
+  openBank: () => bankUI.open(),
+  arenaMenu: () => arenaMenu(arena),
+  openArena: (choice) => openArena(choice),
+  minutes: () => gameNow(),
+});
+regions.add(districtRegion);
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
 const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, overview: () => mode === 'overview', shown: () => onIsland(player.position) });
 regions.add(arenaIsland.region);
+const townGate = district.arenaDesk ? createTownGate({ desk: district.arenaDesk, isOpen: () => arena.event?.phase === 'running', onEnter: () => arenaTrip?.enter() ?? null }) : null;
+if (townGate) regions.add(townGate.region);
 for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
     estate,
@@ -617,6 +619,10 @@ function travelTo(point, visit = null) {
   if (visit === 'teacher') {
     leaveLine();
     goTeacher(true);
+  } else if (visit === 'arena' && district.arenaDesk) {
+    leaveLine();
+    const { at } = district.arenaDesk;
+    goDo(districtRegion, { kind: 'arena', id: 'arena', index: 'arena', x: at.x, z: at.z, stand: district.arenaStand }, 'visit', true);
   } else player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
   if (player.posture === 'free' && !player.lying && !player.path) tripPending = false;
 }
@@ -678,7 +684,7 @@ town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
 const arenaFx = createArenaFx(scene);
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }) });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!') });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -694,7 +700,7 @@ function portraitOf(id) {
 const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage), onWatch: watchStage });
 const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave(), veil: (keep) => (keep ? town.veil(keep) : town.unveil()), focus: (stage, toward) => arenaIsland.focusStage(stage, toward) });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
-const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration), onBracket: () => bracketDialog.open() });
+const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration) });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
   mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
@@ -839,12 +845,13 @@ town.wildlife = mountain.wildlife;
 
 const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
 const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
-const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3), onRegister: (deck) => goExamSeat(deck) });
+const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3), onRegister: (deck) => goExamSeat(deck), arenaClash: (now, span) => arena.clash(PLAYER, now, span) });
 const endOfDay = () => (dayOf(context.minutes) + 1) * DAY_MINUTES;
 const study = createStudy({
   purse,
   music: studyMusic,
   exams,
+  arenaClash: (span) => arena.clash(PLAYER, gameNow(), span),
   onQualified(deck) {
     mailbox.removeTag(qualifyTag(deck));
     mailbox.notify({
@@ -1644,6 +1651,41 @@ function heraldEvents() {
   broadcast.show(due.map(heraldText).join('   ✦   '));
 }
 
+const ARENA_CALL = 'arenaCall';
+let arenaCallFor = null;
+function callArena() {
+  const event = arena.event;
+  const open = event?.phase === 'open' && district.arenaDesk;
+  if (arenaCallFor !== null && (!open || event.at !== arenaCallFor)) {
+    mailbox.removeTag(ARENA_CALL);
+    arenaCallFor = null;
+  }
+  if (!open || arenaCallFor === event.at) return;
+  arenaCallFor = event.at;
+  mailbox.notify({
+    icon: '⚔️',
+    lines: [`Lôi đài ${clockText(event.at)} đang mở ghi danh. Bạn hãy tới quầy lôi đài gặp người đăng ký.`],
+    place: 'Lôi đài · Xóm Bàn Cờ',
+    point: district.arenaStand,
+    visit: 'arena',
+    tag: ARENA_CALL,
+  });
+}
+
+const arenaPointer = new THREE.Vector3();
+function openArena(choice) {
+  const options = choice ? null : arenaMenu(arena);
+  if (!options) {
+    arenaDesk.act(choice);
+    return;
+  }
+  const { at } = district.arenaDesk;
+  arenaPointer.set(at.x, 2.2, at.z).project(camera);
+  const x = ((arenaPointer.x + 1) / 2) * window.innerWidth;
+  const y = ((1 - arenaPointer.y) / 2) * window.innerHeight;
+  picker.open({ title: 'Lôi đài', options, menu: true, x, y }, (option) => arenaDesk.act(option.id));
+}
+
 function remindBlessing() {
   const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
   if (blessingMailKey && next?.key !== blessingMailKey && blessing.session(context.minutes) !== blessingMailKey) dropBlessingMail();
@@ -1889,7 +1931,7 @@ renderer.setAnimationLoop((time) => {
   streetLamps.update(t);
   river.update(dt, context.minutes);
   clouds.update(dt, night);
-  player.held = kanjiQuiz.open || arenaTrip.fighting;
+  player.held = kanjiQuiz.open || arenaTrip.fighting || arenaTrip.emerging;
   player.update(dt);
   arenaDuel.frame(camera);
   placeBubble();
@@ -1909,6 +1951,7 @@ renderer.setAnimationLoop((time) => {
   updateBlessingQuiz(dt);
   updateBlessingRewards();
   remindBlessing();
+  callArena();
   announceBlessing();
   heraldEvents();
   catchFireflies(t, dt);

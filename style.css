@@ -4908,7 +4908,7 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 .rank-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto minmax(28px, auto);
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(64px, auto);
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
@@ -4943,7 +4943,7 @@ dialog.paper.phrase-quiz.closing::backdrop {
 }
 
 .rank-worth .gold-icon {
-  height: 0.84em;
+  height: 0.756em;
   margin-right: 0;
   vertical-align: -0.1em;
 }
@@ -4981,7 +4981,7 @@ dialog.paper.phrase-quiz.closing::backdrop {
 
 @media (max-width: 600px) {
   .rank-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto minmax(26px, auto);
+    grid-template-columns: 30px minmax(0, 1fr) auto minmax(56px, auto);
     gap: 4px;
     padding: 6px 8px;
     font-size: 14px;

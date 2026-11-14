@@ -6,6 +6,9 @@ import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
+import { INTERNAL_SPAN } from './examHall.js';
+
+const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
 const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
@@ -33,7 +36,7 @@ function el(tag, className, text) {
   return node;
 }
 
-export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null }) {
+export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null, arenaClash = () => null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -347,6 +350,8 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   function internalBlocker(id) {
     const refusal = internalRefusal(id);
     if (refusal) return refusal;
+    const clash = arenaClash(INTERNAL_SPAN);
+    if (clash) return ARENA_CLASH[clash];
     if (purse.money < CERTIFY.internalFee) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
     return null;
   }

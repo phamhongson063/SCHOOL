@@ -5,7 +5,7 @@ import { economy } from './economy.js';
 
 export class ErrandBehavior {
   wantsArena() {
-    return !!this.town.arenaDesk && !!this.town.arena?.consider(this.id);
+    return !!this.town.arenaDesk && !!this.town.arena?.consider(this.id, this.town.context.minutes);
   }
 
   goArena() {

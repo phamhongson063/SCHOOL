@@ -34,7 +34,7 @@ function sizeAt(at) {
 
 export const capacityOf = (event) => event.size ?? sizeAt(event.at);
 
-const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], considered: [], pot: 0, rounds: [], round: -1, places: [] });
+const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
 
 function slotOf(now) {
   const day = dayOf(now);
@@ -83,7 +83,7 @@ function validEvent(raw) {
     DECKS[raw.deck] &&
     isIdList(raw.entrants) &&
     isIdList(raw.drafted) &&
-    isIdList(raw.considered) &&
+    (raw.away === undefined || isIdList(raw.away)) &&
     Number.isFinite(raw.pot) &&
     Number.isInteger(raw.round) &&
     Array.isArray(raw.rounds) &&
@@ -318,6 +318,7 @@ export function createArena({ ledger, roster = () => [] }) {
   const store = createStore(KEY, () => ({ version: DATA_VERSION, savedAt: Date.now(), ...state }));
   if (purged) store.save();
   const finished = [];
+  const thought = new Map();
 
   function eventOf(at, now) {
     if (at === null || (state.event && state.event.at > at)) return null;
@@ -426,6 +427,16 @@ export function createArena({ ledger, roster = () => [] }) {
     return event.rounds[event.round]?.find((match) => match.live && sideOf(match, id)) ?? null;
   }
 
+  function prizeShare(event, id) {
+    const strength = new Map(roster().map((who) => [who, certify.certifiedCount(who, event.deck) + 1]));
+    const power = (who) => strength.get(who) ?? certify.certifiedCount(who, event.deck) + 1;
+    const rivals = event.entrants.filter((who) => who !== id);
+    const taken = new Set([id, ...rivals]);
+    const hopefuls = roster().filter((who) => !taken.has(who)).sort((a, b) => power(b) - power(a));
+    const field = [...rivals, ...hopefuls].slice(0, capacityOf(event) - 1);
+    return power(id) / field.reduce((sum, who) => sum + power(who), power(id));
+  }
+
   function blocked(id) {
     const event = state.event;
     if (event?.phase !== 'open') return 'closed';
@@ -440,8 +451,9 @@ export function createArena({ ledger, roster = () => [] }) {
       const event = eventOf(slotOf(now), now);
       if (!event) return;
       const before = signature(event);
-      if (event.phase === 'open' && now >= event.at) begin(event, event.at, present);
-      if (event.phase === 'running') advance(event, now, present);
+      const here = (id) => present(id) && !event.away?.includes(id);
+      if (event.phase === 'open' && now >= event.at) begin(event, event.at, here);
+      if (event.phase === 'running') advance(event, now, here);
       if (signature(event) !== before) store.save();
     },
     version: DATA_VERSION,
@@ -469,16 +481,46 @@ export function createArena({ ledger, roster = () => [] }) {
       store.save();
       return true;
     },
-    consider(id) {
+    consider(id, now) {
       const event = state.event;
-      if (isHuman(id) || event?.phase !== 'open' || event.considered.includes(id) || !roster().includes(id)) return false;
-      event.considered.push(id);
-      store.save();
+      if (isHuman(id) || event?.phase !== 'open' || blocked(id) || !roster().includes(id)) return false;
       const { npc } = ARENA;
-      if (blocked(id) || certify.certifiedCount(id, event.deck) < npc.minCertified) return false;
-      return ledger.purse(id).money >= ARENA.fee + npc.reserve && Math.random() < npc.eager;
+      if (now < (thought.get(id) ?? -Infinity) + npc.rethink) return false;
+      thought.set(id, now);
+      if (ledger.purse(id).money < ARENA.fee + npc.reserve) return false;
+      const prize = ledger.purse(ARENA_POOL).money + event.pot;
+      return prize * prizeShare(event, id) > ARENA.fee && Math.random() < npc.eager;
     },
     liveMatch,
+    clash(id, now, span) {
+      const event = state.event;
+      if (!event?.entrants.includes(id)) return null;
+      if (event.phase === 'open') return now + span > event.at ? 'soon' : null;
+      if (event.phase === 'running' && !exitOf(event, id) && !event.away?.includes(id)) return 'running';
+      return null;
+    },
+    mayEnter(id) {
+      const event = state.event;
+      return event?.phase === 'running' && event.entrants.includes(id);
+    },
+    away(id) {
+      return !!state.event?.away?.includes(id);
+    },
+    leave(id, now) {
+      const event = state.event;
+      if (event?.phase !== 'running' || !event.entrants.includes(id)) return;
+      event.away ??= [];
+      if (!event.away.includes(id)) event.away.push(id);
+      const match = liveMatch(id);
+      if (match) forfeit(match, id, now);
+      store.save();
+    },
+    back(id) {
+      const event = state.event;
+      if (!event?.away?.includes(id)) return;
+      event.away = event.away.filter((other) => other !== id);
+      store.save();
+    },
     question(id, now) {
       const match = liveMatch(id);
       if (!match) return null;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, shapes, shade, toonMaterial, canvasTexture } from './toon.js';
 import { makeRandom } from './random.js';
-import { STAIRS, HOUSE, KHUE_VAN_CAC, STELES, ENCLOSURE, POND, VU, STELE_SHEDS, CROSS_WALLS, SIDE_GATES, THUONG_DIEN } from './school.js';
+import { STAIRS, HOUSE, KHUE_VAN_CAC, STELES, ENCLOSURE, POND, VU, STELE_SHEDS, SIDE_GATES, THUONG_DIEN } from './school.js';
 import { ROAD } from './road.js';
 
 const C = {
@@ -634,39 +634,6 @@ const WALL_H = 2.6;
 const COPING_TILE = 0x5e3d2e;
 const BALUSTER = 0xcfcac0;
 const GLAZE = 0x5f8a6a;
-const INNER_GATES = CROSS_WALLS.filter((z) => z !== Math.floor(KHUE_VAN_CAC.z)).map((z) => z + 0.5);
-
-function tamQuan(b, z) {
-  const pier = (x, h) => {
-    b.add(shapes.box(1.15, 0.25, 1.15), C.stone, { p: [x, 0.12, z] });
-    b.add(shapes.box(0.9, h, 0.9), C.ochre, { p: [x, h / 2, z] });
-    b.add(shapes.box(1.05, 0.22, 1.05), C.stone, { p: [x, h, z] });
-  };
-  pier(-2.5, 4);
-  pier(3.5, 4);
-  pier(-6.5, 3.1);
-  pier(7.5, 3.1);
-  b.add(shapes.box(5.2, 0.45, 0.5), C.lacquer, { p: [0.5, 3.6, z] });
-  const roofs = [];
-  const main = tiledRoof({ cx: 0.5, cz: z, hx: 4.9, hz: 2.0, ridge: 3.2, eaveY: 4.3, height: 1.35, lift: 0.55, falloff: 1.5 });
-  ridgeDecor(b, main, { scale: 0.55, dragons: true });
-  hipRidges(b, main, 0.08);
-  roofs.push(main.geometry);
-  for (const side of [-1, 1]) {
-    const cx = side < 0 ? -4.5 : 5.5;
-    b.add(shapes.box(3.1, 2.8, 0.7), C.ochre, { p: [cx, 1.4, z] });
-    for (const face of [-1, 1]) {
-      b.add(shapes.box(1.7, 2.2, 0.06), C.lacquerDark, { p: [cx, 1.1, z + face * 0.37] });
-      b.add(shapes.box(0.04, 2.2, 0.08), C.beam, { p: [cx, 1.1, z + face * 0.38] });
-    }
-    b.add(shapes.box(3.6, 0.3, 0.8), C.lacquer, { p: [cx, 2.95, z] });
-    const wing = tiledRoof({ cx, cz: z, hx: 2.6, hz: 1.5, ridge: 1.5, eaveY: 3.35, height: 0.9, lift: 0.35, falloff: 1.0 });
-    ridgeDecor(b, wing, { scale: 0.35, dragons: false });
-    hipRidges(b, wing, 0.06);
-    roofs.push(wing.geometry);
-  }
-  return roofs;
-}
 
 function longRoof(cx, cz, length, depth, eaveY, height) {
   const roof = hipRoof({ cx: 0, cz: 0, hx: length / 2, hz: depth / 2, ridge: length / 2 - depth / 2, eaveY, height, lift: 0.35, falloff: 1.2, thickness: 0.14, rings: 6, tile: 0.9, curve: 1 });
@@ -689,11 +656,6 @@ function compound(b, bricks) {
   sideWall(left, back + 0.25, front + 0.75);
   sideWall(right, back + 0.25, front + 0.75);
   const roofs = [];
-  for (const z of INNER_GATES) {
-    rowWall(left, -6.95, z);
-    rowWall(7.95, right, z);
-    roofs.push(...tamQuan(b, z));
-  }
   const [westGate, eastGate] = SIDE_GATES;
   rowWall(left, westGate - 1.9, KHUE_VAN_CAC.z);
   rowWall(westGate + 1.9, KHUE_VAN_CAC.x - KHUE_VAN_CAC.half - 0.5, KHUE_VAN_CAC.z);

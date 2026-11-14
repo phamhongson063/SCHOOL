@@ -5,11 +5,19 @@ import { coins } from './format.js';
 import { clockText } from './clock.js';
 import { PLAYER } from './inventory.js';
 
-export const arenaMenu = (arena) => [
-  { id: 'join', name: ARENA.fee > 0 ? `Ghi danh · ${coins(ARENA.fee)}` : 'Ghi danh', icon: '⚔️', art: 'scroll' },
-  { id: 'bracket', name: 'Sơ đồ', icon: '🗺️', art: 'scroll', here: true },
-  { id: 'prize', name: `Quỹ thưởng ${coins(arena.prize)}`, icon: '🏆', info: true },
-];
+function entrantsRow(event) {
+  if (event?.phase !== 'open') return [];
+  return [{ id: 'entrants', name: `Đã ghi danh ${event.entrants.length}/${capacityOf(event)}`, icon: '👥', info: true }];
+}
+
+export function arenaMenu(arena) {
+  if (arena.event?.phase === 'running') return null;
+  return [
+    { id: 'join', name: ARENA.fee > 0 ? `Ghi danh · ${coins(ARENA.fee)}` : 'Ghi danh', icon: '⚔️', art: 'scroll' },
+    { id: 'prize', name: `Quỹ thưởng ${coins(arena.prize)}`, icon: '🏆', info: true },
+    ...entrantsRow(arena.event),
+  ];
+}
 
 function refusal(arena, reason, now) {
   const event = arena.event;
@@ -38,7 +46,7 @@ export function arenaLines(event, nameOf) {
   return lines;
 }
 
-export function createArenaDesk({ arena, minutes, greet = null, onBracket = null }) {
+export function createArenaDesk({ arena, minutes, greet = null }) {
   function join() {
     const reason = arena.blocked(PLAYER);
     if (!reason && arena.register(PLAYER)) greet?.('Ghi danh xong, nhớ có mặt đúng giờ!');
@@ -48,7 +56,7 @@ export function createArenaDesk({ arena, minutes, greet = null, onBracket = null
   return {
     act(choice) {
       if (choice === 'join') join();
-      else if (choice === 'bracket') onBracket?.();
+      else if (arena.event?.phase === 'running') greet?.(refusal(arena, 'closed', minutes()));
     },
   };
 }

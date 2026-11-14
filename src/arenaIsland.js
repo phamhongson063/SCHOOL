@@ -13,13 +13,13 @@ const TILE = 2;
 const TILE_DEPTH = 0.12;
 const RIM_DEPTH = 0.2;
 const SINK = -0.12;
-const MARBLE = 0xf2efe6;
+export const MARBLE = 0xf2efe6;
 const SLATE = 0x3e4a58;
-const JADE = 0x5fb8a0;
+export const JADE = 0x5fb8a0;
 const ROCK = 0x8a8273;
 const ROCK_DARK = 0x5e5850;
-const LACQUER = 0x9a2418;
-const GILT = 0xd8b45a;
+export const LACQUER = 0x9a2418;
+export const GILT = 0xd8b45a;
 const GLOW = 0xffd36e;
 const SPIRIT = 0x9ad8ff;
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
@@ -265,7 +265,7 @@ function canvasTexture(size, paint, height = size) {
   return texture;
 }
 
-function runeTexture() {
+export function runeTexture() {
   return canvasTexture(512, (ctx, size) => {
     const c = size / 2;
     ctx.strokeStyle = '#bfe8ff';
@@ -309,7 +309,7 @@ function runeTexture() {
   });
 }
 
-function swirlTexture() {
+export function swirlTexture() {
   return canvasTexture(256, (ctx, size) => {
     const c = size / 2;
     const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
@@ -449,7 +449,7 @@ function skyGateTexture() {
   );
 }
 
-const additive = (options) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, ...options });
+export const additive = (options) => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, ...options });
 
 let moteMap = null;
 
@@ -466,7 +466,7 @@ function moteTexture() {
   return moteMap;
 }
 
-function motes(count, spread, low, high, color, size, seed) {
+export function motes(count, spread, low, high, color, size, seed) {
   const rand = makeRandom(seed);
   const positions = new Float32Array(count * 3);
   const speeds = new Float32Array(count);

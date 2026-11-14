@@ -14,6 +14,7 @@ const HOME_WARP = 0xffe6a8;
 const HOMECOMING = { reach: 5.2, delay: 1.2, stagger: 0.18, linger: [2, 3.5] };
 const CROWD = { step: 0.5, gap: 1, clearOfPlayer: 1.2, near: { side: 5, from: 1.4, to: 4.4 }, wide: { side: 8, from: 1, to: 7 } };
 const SUMMON_WARP = 0xffe08a;
+const EMERGE_DELAY = 0.9;
 
 const between = (a, b) => a + Math.random() * (b - a);
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
@@ -45,7 +46,7 @@ function nearest(list, from) {
   return best;
 }
 
-export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null }) {
+export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null, gate = null, wake = null }) {
   const where = new Map();
   const lives = new Map();
   let pulledFor = null;
@@ -54,6 +55,9 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
   let fighting = false;
   let goingHome = false;
   let exit = null;
+  let emerge = null;
+  let clockNow = 0;
+  let clockT = 0;
 
   const playerHere = () => onIsland(player.position);
 
@@ -91,11 +95,13 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     summon.run({ ceremony, lines }, move);
   }
 
-  function goUp() {
+  function goUp(ceremony = true) {
+    if (ceremony) wake?.();
     if (summon?.busy || !ready()) return false;
     wantUp = false;
     goingHome = false;
-    teleport(true, summonLines(), () => {
+    teleport(ceremony, ceremony ? summonLines() : [], () => {
+      arena.back(PLAYER);
       placePlayer(ARRIVAL);
       warp?.(ARRIVAL, SUMMON_WARP, 1.8);
       say?.('⚔️ Đã tới Lôi Đài!');
@@ -103,18 +109,41 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     return true;
   }
 
-  function goDown() {
+  function stepOut() {
+    const { inside, exit: out, look } = gate.spot;
+    const y = town.nav.heightAt(inside.x, inside.z) ?? 0;
+    player.place(new THREE.Vector3(inside.x, y, inside.z), facingTo(look, inside));
+    player.facing = facingTo(inside, out);
+    player.cloak(true);
+    gate.burst();
+    emerge = { at: clockT + EMERGE_DELAY, out };
+  }
+
+  function goDown(byGate = false) {
     if (summon?.busy || !ready()) return false;
     const spot = homeSpot();
     goingHome = arena.event?.phase !== 'running';
     teleport(false, [], () => {
       homeAt = null;
       fighting = false;
+      if (byGate && gate && arena.event?.phase === 'running') {
+        arena.leave(PLAYER, clockNow);
+        stepOut();
+        return;
+      }
       const y = spot.y ?? town.nav.heightAt(spot.x, spot.z) ?? 0;
       player.place(new THREE.Vector3(spot.x, y, spot.z), spot.yaw);
       warp?.({ x: spot.x, y, z: spot.z }, HOME_WARP, 1.2);
     });
     return true;
+  }
+
+  function finishEmerge(t) {
+    if (!emerge || t < emerge.at) return;
+    const { out } = emerge;
+    emerge = null;
+    player.cloak(false);
+    player.requestMove(new THREE.Vector3(out.x, 0, out.z));
   }
 
   function deskFrame() {
@@ -198,10 +227,10 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     const entrant = running && event.entrants.includes(PLAYER);
     if (entrant && pulledFor !== event.at) {
       pulledFor = event.at;
-      wantUp = !playerHere();
+      wantUp = !playerHere() && !arena.away(PLAYER);
     }
     const live = arena.liveMatch(PLAYER);
-    if (live && !playerHere()) wantUp = true;
+    if (live && !playerHere() && !arena.away(PLAYER)) wantUp = true;
     if (wantUp && !playerHere()) goUp();
     if (live && playerHere() && !summon?.busy) {
       const round = event.rounds[event.round];
@@ -272,13 +301,22 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     get here() {
       return playerHere();
     },
+    get emerging() {
+      return !!emerge;
+    },
     returnSpot() {
       if (!playerHere()) return null;
       return homeSpot();
     },
     leave() {
       wantUp = false;
-      goDown();
+      goDown(true);
+    },
+    enter() {
+      if (!arena.mayEnter(PLAYER)) return 'Chỉ người ghi danh mới được qua cổng.';
+      if (playerHere()) return null;
+      goUp(false);
+      return null;
     },
     cheer(stage) {
       for (const member of town.members) {
@@ -290,6 +328,9 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
       }
     },
     update(now, t) {
+      clockNow = now;
+      clockT = t;
+      finishEmerge(t);
       const event = arena.event;
       const running = event?.phase === 'running';
       if (event) syncPlayer(event, running, now, t);

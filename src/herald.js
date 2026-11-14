@@ -2,8 +2,8 @@ import { ARENA, BLESSING, HERALD } from './config.js';
 import { DAY_MINUTES, dayOf } from './clock.js';
 
 const EVENTS = [
-  { kind: 'blessing', starts: () => BLESSING.windows.map(([start]) => start) },
-  { kind: 'arena', starts: () => ARENA.starts },
+  { kind: 'blessing', starts: () => BLESSING.windows.map(([start]) => start), lead: HERALD.lead },
+  { kind: 'arena', starts: () => ARENA.starts, lead: ARENA.lead },
 ];
 
 function nextAt(now, starts) {
@@ -19,7 +19,7 @@ function nextAt(now, starts) {
 }
 
 export function heralds(now) {
-  return EVENTS.map(({ kind, starts }) => ({ kind, at: nextAt(now, starts()) }))
-    .filter(({ at }) => at !== null && at - now <= HERALD.lead)
-    .map((item) => ({ ...item, left: Math.max(1, Math.ceil(item.at - now)), beat: `${item.at}:${Math.floor((HERALD.lead - (item.at - now)) / HERALD.every)}` }));
+  return EVENTS.map(({ kind, starts, lead }) => ({ kind, lead, at: nextAt(now, starts()) }))
+    .filter(({ at, lead }) => at !== null && at - now <= lead)
+    .map(({ lead, ...item }) => ({ ...item, left: Math.max(1, Math.ceil(item.at - now)), beat: `${item.at}:${Math.floor((lead - (item.at - now)) / HERALD.every)}` }));
 }

@@ -2,7 +2,7 @@ import { between } from './random.js';
 import { CERTIFY } from './config.js';
 import { certify } from './certify.js';
 import { DECK_IDS } from './studyDecks.js';
-import { examOpen } from './examHall.js';
+import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examHall.js';
 import { SELF_STUDY } from './villagerData.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
@@ -104,6 +104,7 @@ export class SchoolBehavior {
   }
 
   wantsInternal(deck) {
+    if (this.town.arena?.clash(this.id, this.town.context.minutes, INTERNAL_SPAN)) return false;
     return !certify.learnLeft(this.id, deck).length && this.canTakeInternal(deck) && !!this.town.queues[`teacher:${deck}`];
   }
 
@@ -309,6 +310,7 @@ export class SchoolBehavior {
 
   examDeckWanted(ctx) {
     if (!this.seated || ctx.night || !examOpen(ctx.minutes)) return null;
+    if (this.town.arena?.clash(this.id, ctx.minutes, EXAM_SPAN)) return null;
     if (this.purse.intellect < CERTIFY.examIntellect || this.purse.money < CERTIFY.examFee) return null;
     return DECK_IDS.find((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck)) ?? null;
   }
