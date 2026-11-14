@@ -11,6 +11,7 @@ import { roomTier } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
 import { SHOPKEEPERS } from './economy.js';
 import { buildHallPlaza, createHallLife } from './hallPlaza.js';
+import { createArenaNight } from './arenaNight.js';
 
 const AVENUES = [104, 126, 148, 170];
 const STREET = 3;
@@ -121,11 +122,7 @@ function mergeByMaterial(root) {
   });
   const meshes = [];
   for (const [material, parts] of buckets) {
-    if (parts.length === 1 && material.map) {
-      parts[0].geometry.dispose();
-      continue;
-    }
-    const merged = mergeGeometries(parts.map((part) => part.geometry), false);
+    const merged = parts.length === 1 ? parts[0].geometry : mergeGeometries(parts.map((part) => part.geometry), false);
     if (merged) {
       const mesh = new THREE.Mesh(merged, material);
       mesh.castShadow = parts[0].shadow;
@@ -139,7 +136,7 @@ function mergeByMaterial(root) {
         meshes.push(mesh);
       }
     }
-    for (const part of parts) if (merged) part.geometry.dispose();
+    if (merged && parts.length > 1) for (const part of parts) part.geometry.dispose();
   }
   return meshes;
 }
@@ -278,7 +275,13 @@ export function createDistrict() {
       clickables.push(registrar.walker.group);
       obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
       const spots = REGISTRAR.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * REGISTRAR.reach }));
-      arena = { group: built.group, registrar, at, out: side, spots, stand: spots[1] };
+      const lamps = createArenaNight({
+        lights: built.group.userData.lights,
+        desk: built.desk,
+        toWorld: (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z }),
+        layer: ABOVE_PAVING,
+      });
+      arena = { group: built.group, registrar, at, out: side, spots, stand: spots[1], lamps };
     }
   }
   const ownsArena = (object) => {
@@ -312,7 +315,7 @@ export function createDistrict() {
   const root = new THREE.Group();
   root.add(group);
   if (bank) root.add(bank.teller.walker.group);
-  if (arena) root.add(arena.registrar.walker.group);
+  if (arena) root.add(arena.registrar.walker.group, arena.lamps.group);
   root.add(hall.mayor.walker.group, hallLife.group);
   const pending = [...blocks];
   let now = 0;
@@ -329,12 +332,16 @@ export function createDistrict() {
     update(t, ctx, camera) {
       now = t;
       if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);
-      if (arena) animateKeeper(arena.registrar, t, camera.position.distanceTo(arena.registrar.walker.group.position) < TELLER_DISTANCE);
+      if (arena) {
+        animateKeeper(arena.registrar, t, camera.position.distanceTo(arena.registrar.walker.group.position) < TELLER_DISTANCE);
+        arena.lamps.update(t);
+      }
       animateKeeper(hall.mayor, t, camera.position.distanceTo(hall.mayor.walker.group.position) < TELLER_DISTANCE);
       hallLife.update(t, ctx.minutes, camera);
     },
     setNight(k) {
       hallLife.setNight(k);
+      arena?.lamps.setNight(k);
     },
     region(options) {
       return {

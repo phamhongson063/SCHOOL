@@ -2275,13 +2275,15 @@ export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
   blossomTree(kit, 7.25, -0.85, 0.85);
 
   arenaHall(kit, hall);
-  registrationDesk(kit, 0, keeperZ + 0.55);
+  const desk = { x: 0, z: keeperZ + 0.55 };
+  registrationDesk(kit, desk.x, desk.z);
 
   return {
     group: assemble(kit),
     floor: ground.mesh(vertexMaterial(), { shadow: false }),
     obstacles: kit.obstacles,
     door: { x: 0, z: keeperZ },
+    desk,
   };
 }
 

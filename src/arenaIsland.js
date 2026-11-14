@@ -41,6 +41,8 @@ const FINAL_STAGE = PLATFORMS.at(-1);
 const RING_STAGES = PLATFORMS.slice(0, -1);
 const FIGHT_GAP = 1.6;
 const SKY_GATE = { back: 60, width: 56, height: 28, top: 2.9, opacity: 0.62 };
+const ORB_HEIGHT = 2.0;
+const ORB_LIGHT = { intensity: 14, reach: 2.4, boost: 0.35, pulse: 0.08, speed: 1.6 };
 
 const DAIS = { tiers: [2.3, 1.75, 1.2], step: 0.32 };
 const DAIS_TOP = ISLAND.y + DAIS.tiers.length * DAIS.step;
@@ -266,7 +268,7 @@ function stageGlow(stage, material) {
   b.add(shapes.torus(stage.r + 0.32, 0.07, 64), GLOW, { p: [stage.x, stage.y - 0.2, stage.z], r: [Math.PI / 2, 0, 0] });
   for (let k = 0; k < 4; k++) {
     const a = Math.PI / 4 + (k * Math.PI) / 2;
-    b.add(shapes.sphere(0.16, 10, 8), GLOW, { p: [stage.x + Math.cos(a) * (stage.r - 0.25), stage.y + 2.0, stage.z + Math.sin(a) * (stage.r - 0.25)] });
+    b.add(shapes.sphere(0.16, 10, 8), GLOW, { p: [stage.x + Math.cos(a) * (stage.r - 0.25), stage.y + ORB_HEIGHT, stage.z + Math.sin(a) * (stage.r - 0.25)] });
   }
   return b.mesh(material, { shadow: false });
 }
@@ -688,7 +690,8 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         skyGate.visible = false;
 
         const heaven = createArenaSky(skyLayout());
-        group.add(scenery, heaven.group, skyGate, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
+        const orbLight = new THREE.PointLight(GLOW, 0, 0, 2);
+        group.add(orbLight, scenery, heaven.group, skyGate, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
         const look = new THREE.Vector3();
         return {
           group,
@@ -721,7 +724,17 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
             gateMotes.update(dt);
             islandMotes.update(dt);
             heaven.showBackdrop(!overview());
-            heaven.update(t, dt, Math.min(1, Math.max(0, night())));
+            const dark = Math.min(1, Math.max(0, night()));
+            heaven.update(t, dt, dark);
+            const pulse = 1 + ORB_LIGHT.pulse * Math.sin(t * ORB_LIGHT.speed);
+            stageLight.color.setScalar(1 + ORB_LIGHT.boost * dark * pulse);
+            if (focused && dark > 0.02) {
+              orbLight.position.set(focused.x, focused.y + ORB_HEIGHT, focused.z);
+              orbLight.distance = focused.r * ORB_LIGHT.reach;
+              orbLight.intensity = ORB_LIGHT.intensity * dark * pulse;
+            } else {
+              orbLight.intensity = 0;
+            }
           },
         };
       },

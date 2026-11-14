@@ -12,6 +12,8 @@ const POP_LIFT = 1.1;
 const HEAD_LIFT = 2.4;
 const POP_EVERY = 5;
 const FLASH_FADE = 1.6;
+const DISC_Y = 0.1;
+const RUNE_Y = 0.11;
 
 function glowTexture(paint) {
   const canvas = document.createElement('canvas');
@@ -147,11 +149,11 @@ export function createRegen({ scene, camera, purse }) {
 
   const aura = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), glowMaterial(auraTexture(), GOLD));
   aura.rotation.x = -Math.PI / 2;
-  aura.position.y = 0.04;
+  aura.position.y = DISC_Y;
   aura.renderOrder = 5;
   const rune = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), glowMaterial(runeTexture(), GOLD));
   rune.rotation.x = -Math.PI / 2;
-  rune.position.y = 0.05;
+  rune.position.y = RUNE_Y;
   rune.renderOrder = 5;
   const pillarGeometry = new THREE.CylinderGeometry(0.9, 1.05, PILLAR_HEIGHT, 32, 1, true);
   pillarGeometry.translate(0, PILLAR_HEIGHT / 2, 0);
@@ -328,11 +330,11 @@ export function createRestGlow() {
       const group = new THREE.Group();
       const disc = new THREE.Mesh(auraGeometry, aura);
       disc.rotation.x = -Math.PI / 2;
-      disc.position.y = 0.04;
+      disc.position.y = DISC_Y;
       disc.renderOrder = 5;
       const ring = new THREE.Mesh(runeGeometry, rune);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.05;
+      ring.position.y = RUNE_Y;
       ring.renderOrder = 5;
       const beam = new THREE.Mesh(pillarGeometry, pillar);
       beam.renderOrder = 5;
