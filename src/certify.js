@@ -18,7 +18,7 @@ function shuffle(list) {
   return list;
 }
 
-const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, tries: 0 });
+const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, exams: 0, examPassed: false, tries: 0 });
 
 function cleanDeck(raw, id) {
   const deck = blankDeck();
@@ -41,6 +41,9 @@ function cleanDeck(raw, id) {
   deck.viewed = keys(raw.viewed);
   deck.qualified = pastDay(raw.qualified) ? raw.qualified : null;
   deck.examDay = pastDay(raw.examDay) ? raw.examDay : null;
+  const legacyExams = deck.examDay === null ? 0 : CERTIFY.examTries;
+  deck.exams = Number.isInteger(raw.exams) && raw.exams >= 0 ? Math.min(raw.exams, CERTIFY.examTries) : legacyExams;
+  deck.examPassed = raw.examPassed === true;
   deck.tries = Number.isInteger(raw.tries) && raw.tries >= 0 ? raw.tries : 0;
   return deck;
 }
@@ -116,6 +119,10 @@ function deckState(actor, deck) {
 
 const learnKeys = (state) => state.batch.filter((key) => !state.carry.includes(key));
 
+const examsToday = (state) => (state.examDay === state.day ? state.exams : 0);
+
+const examClosed = (state) => state.examDay === state.day && (state.examPassed || state.exams >= CERTIFY.examTries);
+
 function revoke(state, key) {
   delete state.certified[key];
   delete state.weak[key];
@@ -173,7 +180,7 @@ export const certify = {
   },
   learnLeft(actor, deck) {
     const state = deckState(actor, deck);
-    if (state.examDay === state.day) return [];
+    if (examClosed(state)) return [];
     return learnKeys(state).filter((key) => (state.counts[key] ?? 0) < CERTIFY.remember);
   },
   remember(actor, deck, key) {
@@ -227,8 +234,13 @@ export const certify = {
     return state.qualified === state.day || learnKeys(state).length === 0;
   },
   examTaken(actor, deck) {
-    const state = deckState(actor, deck);
-    return state.examDay === state.day;
+    return examClosed(deckState(actor, deck));
+  },
+  retaking(actor, deck) {
+    return examsToday(deckState(actor, deck)) > 0;
+  },
+  examFee(actor, deck) {
+    return this.retaking(actor, deck) ? CERTIFY.retakeFee : CERTIFY.examFee;
   },
   beginInternal(actor, deck) {
     if (!this.internalReady(actor, deck)) return null;
@@ -323,7 +335,10 @@ export const certify = {
     } else {
       for (const key of passedFresh) if (!state.carry.includes(key)) state.carry.push(key);
     }
+    state.exams = examsToday(state) + 1;
     state.examDay = state.day;
+    state.examPassed = passed;
+    if (!passed) state.qualified = null;
     changed(actor);
     return { passed, right, total, score, certified, carried: passed ? [] : passedFresh, failed, revoked };
   },

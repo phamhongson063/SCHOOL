@@ -849,25 +849,40 @@ town.wildlife = mountain.wildlife;
 
 const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
 const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
-const examHall = createExamHall({ purse, exams, mailbox, minutes: () => context.minutes, say: (text) => sayPlayer(text, 3), onRegister: (deck) => goExamSeat(deck), arenaClash: (now, span) => arena.clash(PLAYER, now, span) });
+const examHall = createExamHall({
+  purse,
+  exams,
+  mailbox,
+  minutes: () => context.minutes,
+  say: (text) => sayPlayer(text, 3),
+  onRegister: (deck) => goExamSeat(deck),
+  onRetakeReady(deck) {
+    const { label, unit } = DECKS[deck];
+    sendQualifyMail(deck, `Bạn rớt khảo thí lớp ${label} nhưng không có ${unit} mới nào cần học lại, được thi lại ngay hôm nay với lệ phí ${coins(CERTIFY.retakeFee)} + ${CERTIFY.examIntellect} 💡 trí lực.`);
+  },
+  arenaClash: (now, span) => arena.clash(PLAYER, now, span),
+});
 const endOfDay = () => (dayOf(context.minutes) + 1) * DAY_MINUTES;
+function sendQualifyMail(deck, reason) {
+  mailbox.removeTag(qualifyTag(deck));
+  mailbox.notify({
+    icon: '📝',
+    lines: [`${reason} Hãy tới Trường khảo thí (${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}) gặp quan coi thi để đăng ký.`],
+    place: 'Trường khảo thí',
+    point: TEACHER_STAND,
+    visit: 'teacher',
+    keep: true,
+    expires: endOfDay(),
+    tag: qualifyTag(deck),
+  });
+}
 const study = createStudy({
   purse,
   music: studyMusic,
   exams,
   arenaClash: (span) => arena.clash(PLAYER, gameNow(), span),
   onQualified(deck) {
-    mailbox.removeTag(qualifyTag(deck));
-    mailbox.notify({
-      icon: '📝',
-      lines: [`Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay. Hãy tới Trường khảo thí (${hoursText({ open: CERTIFY.open, close: CERTIFY.close })}) gặp quan coi thi để đăng ký.`],
-      place: 'Trường khảo thí',
-      point: TEACHER_STAND,
-      visit: 'teacher',
-      keep: true,
-      expires: endOfDay(),
-      tag: qualifyTag(deck),
-    });
+    sendQualifyMail(deck, `Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay.`);
   },
   onSitOver() {
     const seat = player.seat;

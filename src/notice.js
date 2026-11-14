@@ -31,6 +31,7 @@ function paint(ctx, w, h, day) {
   const rows = [
     ['Mở cửa', hoursText({ open: CERTIFY.open, close: CERTIFY.close })],
     ['Lệ phí', `${CERTIFY.examFee} đồng + ${CERTIFY.examIntellect} trí lực`],
+    ['Thi lại', `${CERTIFY.retakeFee} đồng + ${CERTIFY.examIntellect} trí lực`],
     ['Đậu', `≥ ${Math.round(CERTIFY.pass * 100)}%`],
   ];
   ctx.font = `600 28px ${FONT}`;

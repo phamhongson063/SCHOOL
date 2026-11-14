@@ -34,12 +34,12 @@ function examLines(deck, result) {
   const list = (keys) => keys.map(unitLabel).join(', ');
   if (result.certified.length) lines.push(`🎓 Cấp chứng chỉ ${result.certified.length} ${info.unit}: ${list(result.certified)}.`);
   if (result.failed.length) lines.push(`⛔ Dừng thi vì sai ${info.unit} bắt buộc. Cần học lại: ${list(result.failed)}.`);
-  if (result.carried.length) lines.push(`↻ Giữ tư cách khảo thí ngày mai: ${list(result.carried)}.`);
+  if (result.carried.length) lines.push(`↻ Giữ tư cách khảo thí: ${list(result.carried)}.`);
   if (result.revoked.length) lines.push(`⚠ Bị thu hồi chứng chỉ: ${list(result.revoked)}.`);
   return lines;
 }
 
-export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister, arenaClash = () => null }) {
+export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister, onRetakeReady, arenaClash = () => null }) {
   const dialog = document.getElementById('examDialog');
   const note = document.getElementById('examNote');
   const list = document.getElementById('examList');
@@ -53,13 +53,14 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
     if (certify.finished(PLAYER, deck)) return 'Bạn đã học hết bộ này.';
     if (!certify.qualified(PLAYER, deck)) return 'Bạn chưa đủ điều kiện: cần đậu thi nội bộ ở phòng học trước.';
     if (purse.intellect < CERTIFY.examIntellect) return `Bạn không đủ điều kiện: cần ${CERTIFY.examIntellect} 💡 trí lực (đang có ${purse.intellect}).`;
-    if (purse.money < CERTIFY.examFee) return `Bạn không đủ tiền lệ phí ${coins(CERTIFY.examFee)}.`;
+    const fee = certify.examFee(PLAYER, deck);
+    if (purse.money < fee) return `Bạn không đủ tiền lệ phí ${coins(fee)}.`;
     return null;
   }
 
   function render() {
     const now = minutes();
-    setRich(note, `Lệ phí mỗi lần: ${coins(CERTIFY.examFee)} + ${CERTIFY.examIntellect} 💡 trí lực. Bạn đang có ${purse.intellect} 💡.`);
+    setRich(note, `Lệ phí: ${coins(CERTIFY.examFee)}, thi lại ${coins(CERTIFY.retakeFee)} + ${CERTIFY.examIntellect} 💡 trí lực. Bạn đang có ${purse.intellect} 💡.`);
     list.replaceChildren(
       ...DECK_IDS.map((deck) => {
         const row = document.createElement('div');
@@ -98,12 +99,13 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       say?.(reason);
       return;
     }
+    const fee = certify.examFee(PLAYER, deck);
     if (!purse.take('intellect', CERTIFY.examIntellect)) return;
-    if (!purse.spend(CERTIFY.examFee)) {
+    if (!purse.spend(fee)) {
       purse.add('intellect', CERTIFY.examIntellect);
       return;
     }
-    economy.income('teacher', CERTIFY.examFee);
+    economy.income('teacher', fee);
     mailbox.removeTag(qualifyTag(deck));
     const results = await exams.run({
       title: `Khảo thí ${DECKS[deck].title}`,
@@ -116,6 +118,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
     });
     const result = certify.gradeExam(PLAYER, deck, results);
     mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true });
+    if (!result.passed && !certify.examTaken(PLAYER, deck) && certify.qualified(PLAYER, deck)) onRetakeReady?.(deck);
     say?.(result.passed ? '🎓 Đậu khảo thí! Xem kết quả trong hộp thư nhé.' : '📄 Đã có kết quả khảo thí, xem hộp thư nhé.');
   }
 

@@ -311,8 +311,14 @@ export class SchoolBehavior {
   examDeckWanted(ctx) {
     if (!this.seated || ctx.night || !examOpen(ctx.minutes)) return null;
     if (this.town.arena?.clash(this.id, ctx.minutes, EXAM_SPAN)) return null;
-    if (this.purse.intellect < CERTIFY.examIntellect || this.purse.money < CERTIFY.examFee) return null;
-    return DECK_IDS.find((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck)) ?? null;
+    if (this.purse.intellect < CERTIFY.examIntellect) return null;
+    return DECK_IDS.find((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck) && this.affordsExam(deck)) ?? null;
+  }
+
+  affordsExam(deck) {
+    const fee = certify.examFee(this.id, deck);
+    if (!certify.retaking(this.id, deck)) return this.purse.money >= fee;
+    return !this.frugal() && this.purse.money >= fee + CERTIFY.retakeReserve;
   }
 
   goExam() {
@@ -341,12 +347,13 @@ export class SchoolBehavior {
   beginExam(deck, pace) {
     const purse = this.purse;
     const ready = deck && certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck);
+    const fee = certify.examFee(this.id, deck);
     if (!ready || !purse.take('intellect', CERTIFY.examIntellect)) return null;
-    if (!purse.spend(CERTIFY.examFee)) {
+    if (!purse.spend(fee)) {
       purse.add('intellect', CERTIFY.examIntellect);
       return null;
     }
-    economy.income('teacher', CERTIFY.examFee, this.id);
+    economy.income('teacher', fee, this.id);
     const keys = certify.examQuestions(this.id, deck);
     const count = Math.max(keys.length, Math.ceil((CERTIFY.examMinutes * 60) / pace));
     while (keys.length < count) {
