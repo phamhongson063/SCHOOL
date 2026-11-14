@@ -4988,6 +4988,10 @@ dialog.paper.phrase-quiz.closing::backdrop {
   }
 }
 
+#hallDialog .sched-x {
+  margin-left: auto;
+}
+
 .hall-list {
   gap: 6px;
 }

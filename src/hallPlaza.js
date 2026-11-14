@@ -35,9 +35,9 @@ function blockBox(obstacles, minX, minZ, maxX, maxZ, maxY = 1) {
 function flowerBed(b, rand, obstacles, x, z, w, d) {
   b.add(rounded(w, 0.42, d, 0.08), STONE, { p: [x, 0.21, z] });
   b.add(rounded(w + 0.1, 0.06, d + 0.1, 0.03), STONE_DARK, { p: [x, 0.44, z] });
-  b.add(shapes.box(w - 0.24, 0.02, d - 0.24), 0x4a3324, { p: [x, 0.46, z] });
+  b.add(shapes.box(w - 0.24, 0.02, d - 0.24), 0x4a3324, { p: [x, 0.48, z] });
   b.add(rounded(w - 0.6, 0.55, 0.5, 0.2), HEDGE[1], { p: [x, 0.74, z] });
-  b.add(rounded(0.5, 0.55, d - 0.6, 0.2), HEDGE[0], { p: [x, 0.74, z] });
+  b.add(rounded(0.5, 0.61, d - 0.6, 0.2), HEDGE[0], { p: [x, 0.77, z] });
   for (let i = 0; i < 26; i++) {
     const px = x + (rand() - 0.5) * (w - 0.4);
     const pz = z + (rand() - 0.5) * (d - 0.4);
@@ -94,7 +94,7 @@ export function buildHallPlaza(b, rand, plaza, hallFront, obstacles) {
   const fz = fountain.z;
   b.add(shapes.box(3.2, 0.03, fz - FOUNTAIN.ring - plaza.z0), PATH, { p: [mid, 0.015, (plaza.z0 + fz - FOUNTAIN.ring) / 2] });
   b.add(shapes.box(3.2, 0.03, steps - (fz + FOUNTAIN.ring)), PATH, { p: [mid, 0.015, (steps + fz + FOUNTAIN.ring) / 2] });
-  b.add(new THREE.RingGeometry(FOUNTAIN.r - 0.05, FOUNTAIN.ring + 0.05, 40).rotateX(-Math.PI / 2), PATH, { p: [fx, 0.03, fz] });
+  b.add(new THREE.RingGeometry(FOUNTAIN.r - 0.05, FOUNTAIN.ring + 0.05, 40).rotateX(-Math.PI / 2), PATH, { p: [fx, 0.036, fz] });
   b.add(shapes.cylinder(FOUNTAIN.r, FOUNTAIN.r + 0.1, FOUNTAIN.rim, 32), STONE, { p: [fx, FOUNTAIN.rim / 2, fz] });
   b.add(shapes.torus(FOUNTAIN.r - 0.08, 0.12, 32), STONE_DARK, { p: [fx, FOUNTAIN.rim, fz], r: [Math.PI / 2, 0, 0] });
   b.add(shapes.cylinder(FOUNTAIN.r - 0.18, FOUNTAIN.r - 0.18, 0.04, 32), 0x3f7f96, { p: [fx, FOUNTAIN.rim - 0.08, fz] });

@@ -2390,7 +2390,7 @@ export function createTownHall({ seed = 1 } = {}) {
   const floorLine = 3.55;
 
   b.add(shapes.box(wingEdge * 2 + 0.8, plinth, porch - back + 0.2), CIVIC.stone, { p: [0, plinth / 2, (porch + back) / 2] });
-  b.add(shapes.box(wingEdge * 2 + 0.9, 0.08, porch - back + 0.3), CIVIC.stoneDark, { p: [0, plinth - 0.04, (porch + back) / 2] });
+  b.add(shapes.box(wingEdge * 2 + 0.9, 0.08, porch - back + 0.3), CIVIC.stoneDark, { p: [0, plinth - 0.05, (porch + back) / 2] });
   for (let k = 0; k < 3; k++) {
     const h = (plinth * (3 - k)) / 3;
     b.add(shapes.box(6.4 + k * 0.4, h, 0.36), CIVIC.stone, { p: [0, h / 2, porch + 0.18 + k * 0.36] });
