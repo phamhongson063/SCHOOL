@@ -27,6 +27,14 @@ const MOODS = {
     '</svg>',
 };
 
+const NAME_COLORS = ['#ffe066', '#7ee8a8', '#7cc8ff', '#ff9ccf', '#ffb36b', '#c9a6ff', '#6fe3e0', '#c6f06b', '#ff8f8f', '#f4efe6'];
+
+export function nameColor(id) {
+  let hash = 0;
+  for (const char of String(id)) hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+  return NAME_COLORS[hash % NAME_COLORS.length];
+}
+
 const active = new Set();
 const head = new THREE.Vector3();
 const screen = new THREE.Vector3();
@@ -230,9 +238,10 @@ export function createBubble() {
     toggle(turnBadge, turn !== null);
   }
 
-  function setName(next) {
+  function setName(next, color = null) {
     name = next ?? '';
     nameTag.textContent = name;
+    nameTag.style.color = color ?? '';
     nameHeight = 0;
     if (!name) {
       nameTag.remove();

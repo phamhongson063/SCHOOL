@@ -1,11 +1,12 @@
-import { AWAY, BANK, CERTIFY, ENERGY, FISHING, FOODS, HUNTING, MIND, QUIZ, ROUTINE, VENDOR, VILLAGER, WILDLIFE } from './config.js';
-import { dayOf, isOpenAt } from './clock.js';
+import { AWAY, BANK, BLESSING, CERTIFY, ENERGY, FISHING, FOODS, HUNTING, MIND, QUIZ, ROUTINE, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
 import { energyRate, homeActivity } from './stamina.js';
 import { between } from './random.js';
-import { AVERAGE_CASTS } from './villagerMind.js';
-import { simulate } from './villagerSchool.js';
+import { AVERAGE_CASTS, BLESSING_STAY } from './villagerMind.js';
+import { economy } from './economy.js';
+import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 
@@ -35,6 +36,29 @@ function shuffled(list) {
 }
 
 const hasRoom = (crew, member, cap) => crew.has(member) || crew.size < cap;
+
+function blessingWindow(from, to) {
+  for (const day of [dayOf(from) - 1, dayOf(from)]) {
+    for (const [index, [start, end]] of BLESSING.windows.entries()) {
+      const open = day * DAY_MINUTES + start;
+      const close = day * DAY_MINUTES + end;
+      if (open < to && close > from) return { session: `${day}:${index}`, open, close };
+    }
+  }
+  return null;
+}
+
+function blessingAnswers(member, minutes) {
+  let left = minutes * 60 - BLESSING.firstQuiz;
+  let correct = 0;
+  while (left > 0) {
+    left -= between(...FISHING.villagerAnswer);
+    if (left < 0) break;
+    if (member.answerPool()) correct += 1;
+    left -= BLESSING.quizSeconds;
+  }
+  return correct;
+}
 
 export function createAwaySim({ town, contextAt }) {
   const { farm, market, river, bank, estate } = town;
@@ -90,7 +114,7 @@ export function createAwaySim({ town, contextAt }) {
     const deck = member.examDeckWanted(ctx);
     if (deck) {
       const keys = member.beginExam(deck, CERTIFY.seconds[deck] * between(0.4, 0.8));
-      if (keys) certify.gradeExam(member.id, deck, simulate(member, keys));
+      if (keys) certify.gradeExam(member.id, deck, simulateExam(member, deck, keys));
     }
     for (const other of DECK_IDS) {
       if (!member.wantsInternal(other)) continue;
@@ -168,11 +192,28 @@ export function createAwaySim({ town, contextAt }) {
     return slots.study.get(member) === deck || slots.seats[deck] > 0 ? deck : null;
   }
 
+  function takeSeat(member, deck, slots) {
+    if (slots.study.get(member) === deck) return;
+    slots.study.set(member, deck);
+    slots.seats[deck] -= 1;
+  }
+
+  function reviewDeck(member, ctx, slots) {
+    if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
+    const deck = member.reviewDeckWanted(ctx);
+    return deck && (slots.study.get(member) === deck || slots.seats[deck] > 0) ? deck : null;
+  }
+
+  function review(member, ctx, deck, slots) {
+    takeSeat(member, deck, slots);
+    if (!member.payReview()) return AWAY.walk;
+    member.drillWeak(deck, CERTIFY.sitSeconds);
+    memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
+    return AWAY.walk + SIT;
+  }
+
   function study(member, ctx, deck, slots) {
-    if (slots.study.get(member) !== deck) {
-      slots.study.set(member, deck);
-      slots.seats[deck] -= 1;
-    }
+    takeSeat(member, deck, slots);
     if (!member.payStudy()) return AWAY.walk;
     let words = 0;
     for (let at = VIEW; at <= SIT && words < CERTIFY.sitWords && certify.learnLeft(member.id, deck).length; at += VIEW) {
@@ -182,9 +223,30 @@ export function createAwaySim({ town, contextAt }) {
     return AWAY.walk + SIT;
   }
 
-  function choose(member, ctx, slots) {
+  function blessingPlan(member, clock, end) {
+    const window = blessingWindow(clock, end);
+    if (!window || memoOf(member).blessing === window.session || town.blessing?.member(member.id, window.open)) return null;
+    const from = Math.max(clock + AWAY.walk, window.open);
+    const stay = Math.min(window.close - from, BLESSING_STAY);
+    return stay > 0 ? { window, from, stay } : null;
+  }
+
+  function bless(member, clock, { window, from }) {
+    memoOf(member).blessing = window.session;
+    const minutes = Math.min(window.close - from, between(...BLESSING.villagerStay) / 60);
+    const correct = blessingAnswers(member, minutes);
+    const money = Math.floor(correct / CERTIFY.blessingCoinPer);
+    const intellect = Math.floor(correct / CERTIFY.blessingIntellectPer);
+    if (money > 0) economy.reward(member.purse, money);
+    if (intellect > 0) member.purse.addIntellect(intellect);
+    return from - clock + minutes;
+  }
+
+  function choose(member, ctx, slots, clock, end) {
     const need = member.moneyNeed();
     const options = [];
+    const blessing = blessingPlan(member, clock, end);
+    if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
     const job = farm.jobFor(member, member.seedChoice());
     if (job) options.push({ kind: 'farm', as: 'walk', rate: member.farmGain(need, job) / (AWAY.walk + FARM), run: () => tend(member, job) });
     if (canFish(member, slots)) {
@@ -194,6 +256,8 @@ export function createAwaySim({ town, contextAt }) {
     if (canHunt(member, slots)) options.push({ kind: 'hunt', as: 'walk', rate: member.huntGain(need) / (AWAY.walk + HUNT), run: () => hunt(member, slots) });
     const deck = studyDeck(member, ctx, slots);
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
+    const reviewing = reviewDeck(member, ctx, slots);
+    if (reviewing) options.push({ kind: 'study', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {
@@ -207,11 +271,11 @@ export function createAwaySim({ town, contextAt }) {
   function work(member, ctx, minutes, slots) {
     const memo = memoOf(member);
     const end = ctx.minutes + minutes;
-    const used = { walk: 0, study: 0 };
+    const used = { walk: 0, study: 0, idle: 0 };
     if (memo.busyUntil > ctx.minutes) used[memo.busyAs] += Math.min(memo.busyUntil, end) - ctx.minutes;
     let clock = Math.max(ctx.minutes, memo.busyUntil);
     while (clock < end && member.purse.energy >= ENERGY.workMin) {
-      const option = choose(member, ctx, slots);
+      const option = choose(member, ctx, slots, clock, end);
       if (!option) break;
       const spent = option.run();
       used[option.as] += Math.min(spent, end - clock);

@@ -329,6 +329,7 @@ export function createDistrict() {
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
     bankDoor: bank ? bank.stand : null,
+    arenaStand: arena ? arena.stand : null,
     arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text, duration = 1.8) => arena.registrar.bubble.show(text, duration, now) } : null,
     update(t, ctx, camera) {
       now = t;

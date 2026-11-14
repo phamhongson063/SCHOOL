@@ -26,7 +26,7 @@ function deckStatus(deck) {
   const learning = batch.filter((item) => !item.ready);
   const done = learning.filter((item) => item.count >= CERTIFY.remember).length;
   if (done < learning.length) return `Đang học ${done}/${learning.length}`;
-  if (certify.needsInternal(PLAYER, deck)) return 'Chờ thi nội bộ';
+  if (certify.needsInternal(PLAYER, deck)) return certify.internalTriesLeft(PLAYER, deck) ? 'Chờ thi nội bộ' : 'Hết lượt thi nội bộ hôm nay';
   return 'Đủ điều kiện khảo thí';
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
-import { buildWorld, populate, stairHeight, CX, TEACHER_STAND, TEACHER_Z } from './school.js';
+import { buildWorld, populate, stairHeight, CX, HOUSE, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer, createWalker } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
@@ -63,8 +63,9 @@ import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
-import { buildStudyHall, createStudyHall, hallBounds, STUDY_HALLS } from './studyHall.js';
-import { createInn, INN_STAND, INN_DOOR } from './inn.js';
+import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
+import { createMapLabels } from './mapLabels.js';
+import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
@@ -1451,7 +1452,44 @@ function setMode(next) {
     camera.updateProjectionMatrix();
     player.setEnabled(true);
   }
+  if (mode === 'overview') refreshHomeLabel();
+  mapLabels.setShown(mode === 'overview');
   refreshUI();
+}
+
+const mapLabels = createMapLabels({
+  camera,
+  onPick: (stand) => {
+    setMode('play');
+    player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
+  },
+});
+const midRiver = river.spots[Math.floor(river.spots.length / 2)]?.stand ?? null;
+for (const [name, at, stand, lift] of [
+  ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND, 9],
+  ...STUDY_HALLS.map((hall) => {
+    const { out } = hallBounds(hall);
+    return [`Phòng học ${DECKS[hall.deck].label}`, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
+  }),
+  ['Tượng thần', blessing.statueAt, blessing.official.stand, 8],
+  ['Tiệm buôn', village.places.shop],
+  ['Hàng cá', village.places.fish],
+  ['Quán ăn', village.places.eatery],
+  ['Siêu thị', quarter.martStand],
+  ['Ngân hàng', district.bankDoor],
+  ['Nhà Lý trưởng', village.places.chief],
+  ['Lôi đài', district.arenaStand],
+  ['Bến sông Hoài', midRiver, midRiver, 3],
+  ['Quán trọ', INN, INN_STAND],
+]) {
+  mapLabels.add(name, at, stand ?? at, lift);
+}
+const homeLabel = mapLabels.add('Nhà của bạn');
+
+function refreshHomeLabel() {
+  const house = estate.houseOf(PLAYER);
+  const door = house ? town.places.homes.get(house.id) ?? null : null;
+  mapLabels.move(homeLabel, door, door);
 }
 
 let savedFog = null;
@@ -1893,5 +1931,6 @@ renderer.setAnimationLoop((time) => {
   }
   marker.update(t);
   if (!study.dimmed) renderer.render(scene, camera);
+  mapLabels.update();
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });

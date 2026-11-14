@@ -5,7 +5,7 @@ const ANSWER_PAUSE_MS = 1200;
 export function createExams({ quiz, sounds = null }) {
   let running = false;
 
-  async function run({ title, deck, keys, icon, minSeconds = 0, more = null }) {
+  async function run({ title, deck, keys, icon, minSeconds = 0, more = null, stops = null }) {
     running = true;
     const results = [];
     const endAt = performance.now() + minSeconds * 1000;
@@ -28,7 +28,9 @@ export function createExams({ quiz, sounds = null }) {
           choices: deck === 'n2' ? 4 : 0,
           onAnswer: (right) => (right ? sounds?.correct() : sounds?.wrong()),
         });
-        results.push({ key, correct: !!correct });
+        const result = { key, correct: !!correct };
+        results.push(result);
+        if (stops?.(result)) break;
       }
     } finally {
       running = false;

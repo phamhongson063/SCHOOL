@@ -73,6 +73,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   let studying = false;
   let dimmed = false;
   let paid = new Set();
+  let weakDrilled = false;
   let sitSeconds = 0;
   let sitWords = 0;
 
@@ -94,7 +95,10 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     if (certify.finished(PLAYER, deckId)) return 'Bạn đã học hết bộ này.';
     if (certify.examTaken(PLAYER, deckId)) return 'Hôm nay bạn đã khảo thí lớp này. Mai quay lại học tiếp nhé.';
     if (left) return `Hôm nay còn ${left} ${deck.unit} cần học.`;
-    if (certify.needsInternal(PLAYER, deckId)) return 'Đã học xong. Hãy gặp cô giáo cuối lớp để thi nội bộ.';
+    if (certify.needsInternal(PLAYER, deckId)) {
+      if (!certify.internalTriesLeft(PLAYER, deckId)) return `Hôm nay bạn đã thi nội bộ đủ ${CERTIFY.internalTries} lần. Mai quay lại thi tiếp nhé.`;
+      return 'Đã học xong. Hãy gặp cô giáo cuối lớp để thi nội bộ.';
+    }
     return 'Bạn đã đủ điều kiện khảo thí. Hãy tới Trường khảo thí đăng ký nhé.';
   }
 
@@ -106,7 +110,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     status.textContent = statusText();
     learnInfo.textContent = learning.length ? `${done}/${learning.length}` : '—';
     reviewInfo.textContent = `🎓 ${certified}`;
-    learnPick.disabled = learning.length === 0;
+    learnPick.disabled = learning.length === 0 || certify.examTaken(PLAYER, deckId);
     reviewPick.disabled = certified === 0;
   }
 
@@ -261,7 +265,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
       .map((item) => item.key);
 
   function beginLearn() {
-    if (!pay('learn')) return;
+    if (certify.examTaken(PLAYER, deckId) || !pay('learn')) return;
     if (!certify.learnLeft(PLAYER, deckId).length) {
       browse(learnedToday(), 'learn');
       return;
@@ -282,8 +286,14 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     modeChip.textContent = `${pos + 1}/${order.length}`;
   }
 
-  function beginReview() {
-    if (!pay('review')) return;
+  async function beginReview() {
+    if (exams.running || !pay('review')) return;
+    if (!weakDrilled) {
+      weakDrilled = true;
+      const keys = certify.reviewQuestions(PLAYER, deckId);
+      if (keys.length) certify.gradeReview(PLAYER, deckId, await exams.run({ title: 'Ôn từ yếu', deck: deckId, keys, icon: '📖' }));
+      if (!seated) return;
+    }
     browse(shuffle(certify.certified(PLAYER, deckId)), 'review');
   }
 
@@ -330,6 +340,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     if (!certify.needsInternal(PLAYER, id)) return 'Con đủ điều kiện khảo thí hôm nay rồi.';
     const left = certify.learnLeft(PLAYER, id).length;
     if (left) return `Con học nốt ${left} ${unit} hôm nay rồi hẵng đến thi nhé.`;
+    if (!certify.internalTriesLeft(PLAYER, id)) return `Hôm nay con thi nội bộ đủ ${CERTIFY.internalTries} lần rồi, mai quay lại nhé.`;
     return null;
   }
 
@@ -349,7 +360,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     const results = await exams.run({
       title: 'Thi nội bộ',
       deck: id,
-      keys: certify.internalQuestions(PLAYER, id),
+      keys: certify.beginInternal(PLAYER, id) ?? [],
       icon: '📝',
       minSeconds: CERTIFY.internalMinutes * 60,
       more: (last) => certify.internalExtra(PLAYER, id, last),
@@ -462,6 +473,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
       useDeck(id);
       seated = true;
       paid = new Set();
+      weakDrilled = false;
       sitSeconds = 0;
       sitWords = 0;
       showNotice(null);

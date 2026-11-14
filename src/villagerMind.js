@@ -19,7 +19,7 @@ const GAME_VALUE = weighted(Object.values(WILDLIFE).filter((animal) => animal.ge
 const BAIT_PER_CAST = FISHING.baitPack / FISHING.baitPerPack;
 export const AVERAGE_CASTS = (FISHING.villagerCasts[0] + FISHING.villagerCasts[1]) / 2;
 const BLESSING_ASK_SECONDS = BLESSING.quizSeconds + (FISHING.villagerAnswer[0] + FISHING.villagerAnswer[1]) / 2;
-const BLESSING_STAY = (BLESSING.villagerStay[0] + BLESSING.villagerStay[1]) / 2 / 60;
+export const BLESSING_STAY = (BLESSING.villagerStay[0] + BLESSING.villagerStay[1]) / 2 / 60;
 
 function blessingMinutesLeft(minutes) {
   const m = minuteOfDay(minutes);
@@ -64,6 +64,12 @@ export class MindBehavior {
 
   studyGain(need, sit) {
     return MIND.studyValue * this.diligence * sit - CERTIFY.learnFee * need;
+  }
+
+  reviewGain(need, sit, deck) {
+    const fresh = this.studiedToday() ? 0 : MIND.reviewValue * sit;
+    const weak = certify.reviewQuestions(this.id, deck).length * MIND.weakValue;
+    return (fresh + weak) * this.diligence - CERTIFY.reviewFee * need;
   }
 
   answerOdds() {
@@ -140,9 +146,19 @@ export class MindBehavior {
     return { kind: 'study', rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
   }
 
+  reviewOption(ctx, need) {
+    if (!this.seated || this.now < this.studyRestAt) return null;
+    const deck = this.reviewDeckWanted(ctx);
+    const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
+    if (!seat) return null;
+    const sit = CERTIFY.sitSeconds / 60;
+    const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
+    return { kind: 'study', rate: (this.reviewGain(need, sit, deck) / (this.walkMinutes(seat.spot) + sit)) * crowd, go: () => this.goReview(deck) };
+  }
+
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.blessingOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

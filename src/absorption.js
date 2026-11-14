@@ -83,6 +83,10 @@ export const absorption = {
     entry.facts[fact] = true;
     store.save();
   },
+  noted(id, fact, day) {
+    const entry = entries[id];
+    return !!entry && entry.day === day && entry.facts[fact] === true;
+  },
   chance(id, key) {
     return chanceOf(holdOf(id, key));
   },

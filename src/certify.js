@@ -18,7 +18,7 @@ function shuffle(list) {
   return list;
 }
 
-const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null });
+const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, tries: 0 });
 
 function cleanDeck(raw, id) {
   const deck = blankDeck();
@@ -41,6 +41,7 @@ function cleanDeck(raw, id) {
   deck.viewed = keys(raw.viewed);
   deck.qualified = pastDay(raw.qualified) ? raw.qualified : null;
   deck.examDay = pastDay(raw.examDay) ? raw.examDay : null;
+  deck.tries = Number.isInteger(raw.tries) && raw.tries >= 0 ? raw.tries : 0;
   return deck;
 }
 
@@ -106,6 +107,7 @@ function deckState(actor, deck) {
     state.counts = {};
     state.viewed = [];
     state.qualified = null;
+    state.tries = 0;
     fill(state, deck);
     store.save();
   }
@@ -171,6 +173,7 @@ export const certify = {
   },
   learnLeft(actor, deck) {
     const state = deckState(actor, deck);
+    if (state.examDay === state.day) return [];
     return learnKeys(state).filter((key) => (state.counts[key] ?? 0) < CERTIFY.remember);
   },
   remember(actor, deck, key) {
@@ -212,8 +215,11 @@ export const certify = {
     const state = deckState(actor, deck);
     return learnKeys(state).length > 0 && state.qualified !== state.day;
   },
+  internalTriesLeft(actor, deck) {
+    return Math.max(0, CERTIFY.internalTries - deckState(actor, deck).tries);
+  },
   internalReady(actor, deck) {
-    return this.needsInternal(actor, deck) && this.learnLeft(actor, deck).length === 0;
+    return this.needsInternal(actor, deck) && this.learnLeft(actor, deck).length === 0 && !this.examTaken(actor, deck) && this.internalTriesLeft(actor, deck) > 0;
   },
   qualified(actor, deck) {
     const state = deckState(actor, deck);
@@ -224,8 +230,11 @@ export const certify = {
     const state = deckState(actor, deck);
     return state.examDay === state.day;
   },
-  internalQuestions(actor, deck) {
+  beginInternal(actor, deck) {
+    if (!this.internalReady(actor, deck)) return null;
     const state = deckState(actor, deck);
+    state.tries += 1;
+    changed(actor);
     const fresh = learnKeys(state);
     return shuffle([...fresh, ...oldKeys(state, totalQuestions(deck) - fresh.length)]);
   },
@@ -257,6 +266,25 @@ export const certify = {
     const state = deckState(actor, deck);
     const fresh = [...state.batch];
     return shuffle([...fresh, ...oldKeys(state, totalQuestions(deck) - fresh.length)]);
+  },
+  reviewQuestions(actor, deck, seconds = CERTIFY.sitSeconds) {
+    const state = deckState(actor, deck);
+    const weak = shuffle(Object.keys(state.weak).filter((key) => state.certified[key] !== undefined));
+    return weak.slice(0, Math.floor(seconds / CERTIFY.seconds[deck]));
+  },
+  gradeReview(actor, deck, results) {
+    const state = deckState(actor, deck);
+    const cleared = [];
+    for (const [key, correct] of answersByKey(results)) {
+      if (!correct || state.certified[key] === undefined || state.weak[key] === undefined) continue;
+      delete state.weak[key];
+      cleared.push(key);
+    }
+    if (cleared.length) changed(actor);
+    return { cleared };
+  },
+  examStops(actor, deck, { key, correct }) {
+    return !correct && deckState(actor, deck).batch.includes(key);
   },
   examExtra(actor, deck, last = null) {
     const state = deckState(actor, deck);

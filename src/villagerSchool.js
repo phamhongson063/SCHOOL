@@ -7,23 +7,23 @@ import { SELF_STUDY } from './villagerData.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 
-const INTERNAL_TRIES = 3;
 const INTERNAL_SEAT_RETRY = 1;
 
 export const simulate = (member, keys) => keys.map((key) => ({ key, correct: absorption.answer(member.id, key) }));
 
-export class SchoolBehavior {
-  internalTriesLeft(deck) {
-    const day = this.town.context.day;
-    if (this.internalDay !== day) {
-      this.internalDay = day;
-      this.internalTries = {};
-    }
-    return INTERNAL_TRIES - (this.internalTries[deck] ?? 0);
+export function simulateExam(member, deck, keys) {
+  const results = [];
+  for (const key of keys) {
+    const result = { key, correct: absorption.answer(member.id, key) };
+    results.push(result);
+    if (certify.examStops(member.id, deck, result)) break;
   }
+  return results;
+}
 
+export class SchoolBehavior {
   canTakeInternal(deck) {
-    return certify.internalReady(this.id, deck) && this.purse.money >= CERTIFY.internalFee && this.internalTriesLeft(deck) > 0;
+    return certify.internalReady(this.id, deck) && this.purse.money >= CERTIFY.internalFee;
   }
 
   hallRoom(deck) {
@@ -48,8 +48,8 @@ export class SchoolBehavior {
     return best;
   }
 
-  studySeatFor(deck) {
-    if (!deck || this.purse.money < CERTIFY.learnFee) return null;
+  studySeatFor(deck, fee = CERTIFY.learnFee) {
+    if (!deck || this.purse.money < fee) return null;
     const seats = this.town.studySeats;
     const wait = this.town.seatWait;
     return seats.nearestFree(this.position, this, (seat) => seat.deck === deck && seats.restLeft(seat, this, this.now) <= 0 && (!wait || wait.openTo(seat, this, this.now)));
@@ -114,7 +114,43 @@ export class SchoolBehavior {
     this.lineUp(this.town.queues[`teacher:${deck}`], () => this.takeInternal());
   }
 
+  studiedToday(ctx = this.town.context) {
+    return absorption.noted(this.id, 'study', ctx.day);
+  }
+
+  reviewDeckWanted(ctx = this.town.context) {
+    if (this.purse.money < CERTIFY.reviewFee) return null;
+    const studied = this.studiedToday(ctx);
+    let best = null;
+    let bestScore = -Infinity;
+    for (const deck of DECK_IDS) {
+      if (!certify.certifiedCount(this.id, deck) || certify.learnLeft(this.id, deck).length) continue;
+      const weak = certify.reviewQuestions(this.id, deck).length;
+      if (!weak && studied) continue;
+      const score = weak + this.hallRoom(deck) + Math.random() * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = deck;
+      }
+    }
+    return best;
+  }
+
+  goReview(deck) {
+    this.reviewing = true;
+    const wait = this.town.seatWait;
+    const entry = wait && !wait.inside(deck, this.position) ? wait.entry(deck) : null;
+    if (!entry) {
+      this.pickStudySeat(deck);
+      return;
+    }
+    this.cancel();
+    this.task = 'selfstudy';
+    this.travel(entry, { then: () => this.pickStudySeat(deck), fail: () => this.quitSelfStudy() });
+  }
+
   goSelfStudy(deck = this.studyDeckWanted()) {
+    this.reviewing = false;
     if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;
@@ -132,10 +168,10 @@ export class SchoolBehavior {
 
   pickStudySeat(deck) {
     const seats = this.town.studySeats;
-    const seat = this.studySeatFor(deck);
+    const seat = this.studySeatFor(deck, this.reviewing ? CERTIFY.reviewFee : CERTIFY.learnFee);
     this.cancel();
     if (!seat) {
-      if (this.canWaitForSeat(deck)) this.waitForSeat(deck);
+      if (!this.reviewing && this.canWaitForSeat(deck)) this.waitForSeat(deck);
       else this.quitSelfStudy();
       return;
     }
@@ -161,6 +197,7 @@ export class SchoolBehavior {
   }
 
   quitSelfStudy() {
+    this.reviewing = false;
     this.town.studySeats.unreserve(this.targetSeat, this);
     this.targetSeat = null;
     this.task = null;
@@ -207,8 +244,7 @@ export class SchoolBehavior {
   beginInternal(deck, pace) {
     if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return null;
     economy.income('teacher', CERTIFY.internalFee, this.id);
-    this.internalTries[deck] = (this.internalTries[deck] ?? 0) + 1;
-    const keys = certify.internalQuestions(this.id, deck);
+    const keys = certify.beginInternal(this.id, deck) ?? [];
     const count = Math.max(keys.length, Math.ceil((CERTIFY.internalMinutes * 60) / pace));
     while (keys.length < count) {
       const key = certify.internalExtra(this.id, deck, keys.at(-1) ?? null);
@@ -328,18 +364,18 @@ export class SchoolBehavior {
       this.rise(() => this.think(), between(0.5, 2));
       return;
     }
-    this.examKeys = keys;
-    this.examUntil = this.now + keys.length * pace;
+    this.examResults = simulateExam(this, deck, keys);
+    this.examUntil = this.now + this.examResults.length * pace;
     this.studying = true;
   }
 
   examUpdate(t) {
-    if (!this.examKeys || t < this.examUntil) return;
+    if (!this.examResults || t < this.examUntil) return;
     const deck = this.examDeck;
-    const keys = this.examKeys;
+    const results = this.examResults;
     this.examDeck = null;
-    this.examKeys = null;
-    const result = certify.gradeExam(this.id, deck, simulate(this, keys));
+    this.examResults = null;
+    const result = certify.gradeExam(this.id, deck, results);
     this.say(result.passed ? '🎓' : '📄', 2.4);
     this.rise(() => {
       this.task = null;
@@ -349,6 +385,18 @@ export class SchoolBehavior {
 
   selfStudyUpdate(t) {
     const ctx = this.town.context;
+    if (this.reviewing) {
+      if (t < this.studyUntil && !this.needsSleep(ctx)) return;
+      this.reviewing = false;
+      this.drillWeak(this.seatRef.deck, t - this.studyMark);
+      this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
+      this.studyRestAt = t + SELF_STUDY.cooldown;
+      this.rise(() => {
+        this.task = null;
+        this.think();
+      }, between(0.3, 1.5));
+      return;
+    }
     const done = this.learnTick(t);
     const sitOver = t >= this.studyUntil || this.sitWords >= CERTIFY.sitWords;
     if (!sitOver && !this.needsSleep(ctx) && !done) return;
@@ -378,7 +426,8 @@ export class SchoolBehavior {
     this.velocity = 0;
     this.state = 'seated';
     if (this.seatRef.study) {
-      if (!this.payStudy()) {
+      if (!(this.reviewing ? this.payReview() : this.payStudy())) {
+        this.reviewing = false;
         this.task = null;
         this.rise(() => this.think(), between(0.3, 1.5));
         return;
@@ -399,6 +448,18 @@ export class SchoolBehavior {
       return;
     }
     this.rise(() => this.think(), between(1, 3));
+  }
+
+  drillWeak(deck, seconds) {
+    const keys = certify.reviewQuestions(this.id, deck, seconds / between(0.4, 0.8));
+    if (keys.length) certify.gradeReview(this.id, deck, simulate(this, keys));
+  }
+
+  payReview() {
+    if (!this.purse.spend(CERTIFY.reviewFee)) return false;
+    economy.income('teacher', CERTIFY.reviewFee, this.id);
+    absorption.note(this.id, 'study', this.town.context.day);
+    return true;
   }
 
   payStudy() {

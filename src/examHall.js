@@ -28,7 +28,7 @@ function examLines(deck, result) {
   const lines = [`Kết quả khảo thí ${info.label}: ${result.right}/${result.total} câu đúng (${pct}%) — ${result.passed ? 'ĐẬU' : 'RỚT'}.`];
   const list = (keys) => keys.map(unitLabel).join(', ');
   if (result.certified.length) lines.push(`🎓 Cấp chứng chỉ ${result.certified.length} ${info.unit}: ${list(result.certified)}.`);
-  if (result.failed.length) lines.push(`✗ Cần học lại: ${list(result.failed)}.`);
+  if (result.failed.length) lines.push(`⛔ Dừng thi vì sai ${info.unit} bắt buộc. Cần học lại: ${list(result.failed)}.`);
   if (result.carried.length) lines.push(`↻ Giữ tư cách khảo thí ngày mai: ${list(result.carried)}.`);
   if (result.revoked.length) lines.push(`⚠ Bị thu hồi chứng chỉ: ${list(result.revoked)}.`);
   return lines;
@@ -105,6 +105,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       icon: '🎓',
       minSeconds: CERTIFY.examMinutes * 60,
       more: (last) => certify.examExtra(PLAYER, deck, last),
+      stops: (result) => certify.examStops(PLAYER, deck, result),
     });
     const result = certify.gradeExam(PLAYER, deck, results);
     mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true });
