@@ -4,7 +4,7 @@ import { makeRandom } from './random.js';
 import { createArenaSky } from './arenaSky.js';
 
 export const ISLAND = { x: 240, z: 30, y: 70, radius: 14 };
-export const ISLAND_BOUNDS = { x0: 208, z0: -6, x1: 272, z1: 52 };
+export const ISLAND_BOUNDS = { x0: 208, z0: -6, x1: 272, z1: 57 };
 
 const WALK_RADIUS = ISLAND.radius - 0.9;
 const RAIL_RADIUS = ISLAND.radius - 0.35;
@@ -31,8 +31,14 @@ const PLATFORMS = [
   { x: 259, z: 19, r: 3.5, lift: STAGE_HEIGHT },
   { x: 221, z: 41, r: 3.5, lift: STAGE_HEIGHT },
   { x: 259, z: 41, r: 3.5, lift: STAGE_HEIGHT },
+  { x: 213, z: 8, r: 3.5, lift: STAGE_HEIGHT },
+  { x: 267, z: 8, r: 3.5, lift: STAGE_HEIGHT },
+  { x: 213, z: 52, r: 3.5, lift: STAGE_HEIGHT },
+  { x: 267, z: 52, r: 3.5, lift: STAGE_HEIGHT },
   { x: 240, z: 4, r: 5, lift: STAGE_HEIGHT + 2 },
 ].map((stage) => ({ ...stage, y: ISLAND.y + stage.lift }));
+const FINAL_STAGE = PLATFORMS.at(-1);
+const RING_STAGES = PLATFORMS.slice(0, -1);
 const FIGHT_GAP = 1.6;
 const SKY_GATE = { back: 60, width: 56, height: 28, top: 2.9, opacity: 0.62 };
 
@@ -75,8 +81,8 @@ export const SPECTATORS = (() => {
 export const STAGES = PLATFORMS;
 
 export function stageOf(roundSize, index) {
-  if (roundSize <= 1) return PLATFORMS[4];
-  return PLATFORMS[index % 4];
+  if (roundSize <= 1) return FINAL_STAGE;
+  return RING_STAGES[index % RING_STAGES.length];
 }
 
 export function fighterSpot(roundSize, index, side) {

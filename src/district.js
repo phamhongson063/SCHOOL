@@ -329,7 +329,7 @@ export function createDistrict() {
     lodges: lodges.map(({ id, stand }) => ({ id, stand })),
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
     bankDoor: bank ? bank.stand : null,
-    arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text) => arena.registrar.bubble.show(text, 1.8, now) } : null,
+    arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text, duration = 1.8) => arena.registrar.bubble.show(text, duration, now) } : null,
     update(t, ctx, camera) {
       now = t;
       if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);
@@ -348,15 +348,16 @@ export function createDistrict() {
           if (!lodge) return null;
           return { kind: 'lodge', id: lodge.id, index: `lodge:${lodge.id}`, x: lodge.look.x, z: lodge.look.z, stand: lodge.stand };
         },
-        actionFor() {
+        actionFor(target) {
+          if (target.kind === 'arena') return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: options.arenaMenu, menu: true } };
           return { id: 'visit', hint: 'hand' };
         },
         topOf(target) {
           return new THREE.Vector3(target.x, 3.6, target.z);
         },
-        act(action, target) {
+        act(action, target, choice) {
           if (target.kind === 'arena') {
-            options.openArena();
+            options.openArena(choice);
             return null;
           }
           if (target.kind === 'bank') {

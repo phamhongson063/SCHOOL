@@ -9,7 +9,7 @@ import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 
 const KEY = worldKey('arena');
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 const PHASES = ['open', 'running', 'done'];
 const SIDES = ['a', 'b'];
 const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
@@ -453,6 +453,11 @@ export function createArena({ ledger, roster = () => [] }) {
     },
     get champions() {
       return state.champions;
+    },
+    get prize() {
+      const event = state.event;
+      if (event?.phase === 'running') return event.pot;
+      return ledger.purse(ARENA_POOL).money + (event?.phase === 'open' ? event.pot : 0);
     },
     blocked,
     register(id) {

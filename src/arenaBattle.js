@@ -35,6 +35,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
   const views = { a: sideView(hud.querySelector('.battle-side.a')), b: sideView(hud.querySelector('.battle-side.b')) };
   const round = hud.querySelector('.battle-round');
   const word = hud.querySelector('.battle-word');
+  const turnLabel = hud.querySelector('.battle-turn');
   const quizBox = hud.querySelector('.battle-quiz');
   const quizKind = hud.querySelector('.battle-kind');
   const quizOptions = hud.querySelector('.battle-options');
@@ -169,7 +170,8 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
     const shown = match.turns[Math.max(0, state.index)];
     const set = state.live ? match.set ?? 1 : shown?.set ?? 1;
     const inSet = state.live ? match.turns.filter((item) => (item.set ?? 1) === set).length + (match.pending ? 1 : 0) : match.turns.slice(0, state.index + 1).filter((item) => (item.set ?? 1) === set).length;
-    setText(round, `${roundName(size)}${(match.need ?? 1) > 1 ? ` · Hiệp ${set}` : ''} · Lượt ${Math.max(1, inSet)}`);
+    setText(round, roundName(size));
+    setText(turnLabel, `${(match.need ?? 1) > 1 ? `Hiệp ${set} · ` : ''}Lượt ${Math.max(1, inSet)}`);
     const question = showQuiz(focus, state);
     setText(word, question ? question.word : state.live ? wordOf(match.pending ?? match.turns.at(-1)?.key) : wordOf(match.turns[state.index]?.key));
   }

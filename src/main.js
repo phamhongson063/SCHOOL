@@ -99,7 +99,7 @@ import { createArenaDuel } from './arenaDuel.js';
 import { createArenaCast } from './arenaCast.js';
 import { createArenaSummon } from './arenaSummon.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
-import { arenaLines, createArenaDesk } from './arenaDesk.js';
+import { ARENA_MENU, arenaLines, createArenaDesk } from './arenaDesk.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -316,7 +316,8 @@ regions.add(
     rentLodge: (id) => lodgeDesk.rent(id),
     bank,
     openBank: () => bankUI.open(),
-    openArena: () => arenaDesk.open(),
+    arenaMenu: ARENA_MENU,
+    openArena: (choice) => arenaDesk.act(choice),
     minutes: () => gameNow(),
   }),
 );
@@ -681,7 +682,7 @@ function portraitOf(id) {
 const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage) });
 const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave(), veil: (keep) => (keep ? town.veil(keep) : town.unveil()), focus: (stage, toward) => arenaIsland.focusStage(stage, toward) });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
-const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text) => district.arenaDesk?.say(text), onBracket: () => bracketDialog.open() });
+const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration), onBracket: () => bracketDialog.open(), onAbout: (title, rows) => hallIntro.show(title, rows) });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
   mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
@@ -1334,7 +1335,12 @@ function sceneClick(clientX, clientY, run) {
       fieldTask = { region, target, action, choice };
       player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), run);
     };
-    if (action.choices) picker.open({ ...action.choices, x: clientX, y: clientY }, (option) => go(option.id));
+    const pick = (option) => {
+      if (!option.here) return go(option.id);
+      const reply = region.act(action.id, target, option.id);
+      if (reply) sayPlayer(reply, 1.8);
+    };
+    if (action.choices) picker.open({ ...action.choices, x: clientX, y: clientY }, pick);
     else go();
     return true;
   }

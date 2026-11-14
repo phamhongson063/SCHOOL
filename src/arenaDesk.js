@@ -1,18 +1,21 @@
 import { ARENA } from './config.js';
 import { capacityOf, exitOf, nextStart, roundName } from './arena.js';
 import { END_REASONS } from './arenaBoard.js';
-import { closable } from './dialog.js';
 import { coins } from './format.js';
-import { setRich } from './goldArt.js';
 import { clockText } from './clock.js';
 import { PLAYER } from './inventory.js';
 
-function message(arena, now) {
+export const ARENA_MENU = [
+  { id: 'join', name: 'Ghi danh', icon: '⚔️', art: 'scroll' },
+  { id: 'bracket', name: 'Sơ đồ', icon: '🗺️', art: 'scroll', here: true },
+  { id: 'about', name: 'Giới thiệu', icon: '❓', art: 'question', here: true },
+];
+
+const feeText = () => (ARENA.fee > 0 ? coins(ARENA.fee) : 'Miễn phí');
+
+function refusal(arena, reason, now) {
   const event = arena.event;
-  const reason = arena.blocked(PLAYER);
-  const count = event ? `${event.entrants.length}/${capacityOf(event)}` : '';
-  if (!reason) return `Khai mạc ${clockText(event.at)} · Lệ phí ${coins(ARENA.fee)} · ${count}`;
-  if (reason === 'joined') return `Ngươi đã ghi danh. Khai mạc ${clockText(event.at)} · ${count}`;
+  if (reason === 'joined') return `Ngươi đã ghi danh. Khai mạc ${clockText(event.at)} · ${event.entrants.length}/${capacityOf(event)}`;
   if (reason === 'full') return `Lôi đài đã đủ ${capacityOf(event)} người.`;
   if (reason === 'money') return `Ngươi không đủ ${coins(ARENA.fee)} lệ phí.`;
   if (event?.phase === 'running') return 'Lôi đài đang tranh tài.';
@@ -37,37 +40,25 @@ export function arenaLines(event, nameOf) {
   return lines;
 }
 
-export function createArenaDesk({ arena, minutes, greet = null, onBracket = null }) {
-  const dialog = document.getElementById('arenaDialog');
-  const text = document.getElementById('arenaText');
-  const join = document.getElementById('arenaJoin');
-  const bracket = document.getElementById('arenaBracket');
-  closable(dialog);
-
-  function render() {
-    setRich(text, message(arena, minutes()));
-    join.hidden = !!arena.blocked(PLAYER);
-    bracket.hidden = !arena.event?.rounds.length;
+export function createArenaDesk({ arena, minutes, greet = null, onBracket = null, onAbout = null }) {
+  function join() {
+    const reason = arena.blocked(PLAYER);
+    if (!reason && arena.register(PLAYER)) greet?.('Ghi danh xong, nhớ có mặt đúng giờ!');
+    else greet?.(refusal(arena, reason, minutes()), 3);
   }
 
-  bracket.addEventListener('click', () => {
-    dialog.close();
-    onBracket?.();
-  });
-
-  join.addEventListener('click', () => {
-    if (arena.register(PLAYER)) greet?.('Ghi danh xong, nhớ có mặt đúng giờ!');
-    render();
-  });
+  function about() {
+    onAbout?.('Lôi đài', [
+      { icon: '⚔️', art: 'scroll', name: 'Ghi danh', text: `Lệ phí ${feeText()}` },
+      { icon: '🏆', name: 'Quỹ thưởng', text: coins(arena.prize) },
+    ]);
+  }
 
   return {
-    get isOpen() {
-      return dialog.open;
-    },
-    open() {
-      greet?.('Muốn tranh tài lôi đài à?');
-      render();
-      dialog.showModal();
+    act(choice) {
+      if (choice === 'join') join();
+      else if (choice === 'bracket') onBracket?.();
+      else if (choice === 'about') about();
     },
   };
 }

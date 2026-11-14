@@ -34,11 +34,16 @@ export function createHallIntro() {
     return item;
   }
 
+  function show(heading, rows) {
+    title.textContent = heading;
+    list.replaceChildren(...rows.map(row));
+    dialog.showModal();
+  }
+
   return {
+    show,
     open(deck) {
-      title.textContent = `Lớp ${DECKS[deck].label}`;
-      list.replaceChildren(...topics().map(row));
-      dialog.showModal();
+      show(`Lớp ${DECKS[deck].label}`, topics());
     },
   };
 }
