@@ -1,12 +1,12 @@
-import { ARENA } from './config.js';
+import { ARENA, DAYLIGHT } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
-import { economy } from './economy.js';
+import { ARENA_POOL, economy } from './economy.js';
 import { DECKS } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
-import { DAY_MINUTES, dayOf } from './clock.js';
+import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 
 const KEY = worldKey('arena');
 const DATA_VERSION = 3;
@@ -18,7 +18,6 @@ const other = (side) => (side === 'a' ? 'b' : 'a');
 const isHuman = (id) => id === PLAYER;
 const sideOf = (match, id) => (match.a === id ? 'a' : match.b === id ? 'b' : null);
 const signature = (event) => `${event.phase}:${event.round}:${event.rounds[event.round]?.filter((match) => match.winner).length ?? 0}`;
-const loserOf = (match) => (match.winner === match.a ? match.b : match.a);
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -28,7 +27,14 @@ function shuffle(list) {
   return list;
 }
 
-const blankEvent = (at) => ({ at, phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], considered: [], pot: 0, rounds: [], round: -1, places: [] });
+function sizeAt(at) {
+  const minute = minuteOfDay(at);
+  return minute >= DAYLIGHT.sunrise && minute < DAYLIGHT.sunset ? ARENA.size.day : ARENA.size.night;
+}
+
+export const capacityOf = (event) => event.size ?? sizeAt(event.at);
+
+const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], considered: [], pot: 0, rounds: [], round: -1, places: [] });
 
 function slotOf(now) {
   const day = dayOf(now);
@@ -107,6 +113,8 @@ export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.
 export const matchMinutes = (match) => match.turns.reduce((sum, turn) => sum + turnSeconds(turn), 0) / 60;
 
 const endOf = (match) => match.endAt ?? match.startAt + matchMinutes(match);
+
+const freeAt = (match) => (match.reason === 'bye' ? match.endAt : endOf(match) + ARENA.breather / 60);
 
 export function nextAt(event) {
   if (event?.phase !== 'running') return null;
@@ -263,27 +271,42 @@ function nextPairs(round) {
   return Array.from({ length: round.length / 2 }, (_, i) => newMatch(round[2 * i].winner, round[2 * i + 1].winner, need));
 }
 
+function startMatch(match, at, present, deck) {
+  match.startAt = at;
+  if (!match.a || !match.b) {
+    match.winner = match.a ?? match.b;
+    match.reason = 'bye';
+    match.endAt = at;
+    return;
+  }
+  const human = [match.a, match.b].find(isHuman);
+  if (human) {
+    if (present(human)) match.live = true;
+    else forfeit(match, human, at);
+    return;
+  }
+  simulate(match, deck);
+  match.endAt = at + matchMinutes(match);
+}
+
 function startRound(event, at, present) {
   const index = event.round + 1;
   if (index > 0) event.rounds[index] = nextPairs(event.rounds[index - 1]);
   event.round = index;
-  for (const match of event.rounds[index]) {
-    match.startAt = at;
-    if (!match.a || !match.b) {
-      match.winner = match.a ?? match.b;
-      match.reason = 'bye';
-      match.endAt = at;
-      continue;
-    }
-    const human = [match.a, match.b].find(isHuman);
-    if (human) {
-      if (present(human)) match.live = true;
-      else forfeit(match, human, at);
-      continue;
-    }
-    simulate(match, event.deck);
-    match.endAt = at + matchMinutes(match);
-  }
+  event.rounds[index].forEach((match, i) => {
+    if (i < ARENA.stages || !match.a || !match.b) startMatch(match, at, present, event.deck);
+  });
+}
+
+function startWaiting(event, now, present) {
+  const round = event.rounds[event.round];
+  round.forEach((match, i) => {
+    if (match.startAt !== null || i < ARENA.stages) return;
+    const before = round[i - ARENA.stages];
+    if (!before.winner) return;
+    const at = freeAt(before);
+    if (now >= at) startMatch(match, Number.isFinite(now) ? Math.max(at, now) : at, present, event.deck);
+  });
 }
 
 export function createArena({ ledger, roster = () => [] }) {
@@ -316,7 +339,7 @@ export function createArena({ ledger, roster = () => [] }) {
     const ready = pool.filter((id) => certify.certifiedCount(id, event.deck) > 0);
     const rest = pool.filter((id) => !ready.includes(id));
     for (const id of [...ready, ...rest]) {
-      if (event.entrants.length >= ARENA.size) break;
+      if (event.entrants.length >= capacityOf(event)) break;
       event.entrants.push(id);
       event.drafted.push(id);
     }
@@ -325,28 +348,32 @@ export function createArena({ ledger, roster = () => [] }) {
   function placesOf(event) {
     const final = event.rounds.at(-1)?.[0];
     if (!final?.winner) return [];
-    const places = [
-      { rank: 1, id: final.winner },
-      { rank: 2, id: loserOf(final) },
-    ];
-    const semis = event.rounds.length >= 2 ? event.rounds.at(-2) : [];
-    for (const match of semis) places.push({ rank: 3, id: loserOf(match) });
-    return places.filter((place) => place.id);
+    const matches = event.rounds.flat();
+    const { base, perWin, champion } = ARENA.reward;
+    return event.entrants.map((id) => {
+      const mine = matches.filter((match) => sideOf(match, id));
+      const lost = mine.find((match) => match.winner && match.winner !== id);
+      const rank = id === final.winner ? 1 : lost ? event.rounds.find((round) => round.includes(lost)).length + 1 : null;
+      const fought = mine.some((match) => match.a && match.b && match.forfeit !== id);
+      const wins = mine.filter((match) => match.winner === id).length;
+      const weight = fought ? base + perWin * wins + (rank === 1 ? champion : 0) : 0;
+      return { rank, id, weight };
+    }).filter((place) => place.rank !== null);
   }
 
   function finish(event) {
+    const places = placesOf(event);
+    const total = places.reduce((sum, place) => sum + place.weight, 0);
     let paid = 0;
-    event.places = placesOf(event).map(({ rank, id }) => {
-      const prize = ARENA.places.find((place) => place.rank === rank);
-      const money = Math.floor(event.pot * (prize?.share ?? 0));
-      const intellect = prize?.intellect ?? 0;
-      const purse = ledger.purse(id);
-      if (money > 0) economy.reward(purse, money);
-      if (intellect > 0) purse.addIntellect(intellect);
-      paid += money;
-      return { rank, id, money, intellect };
-    });
-    if (event.pot - paid > 0) economy.collect(event.pot - paid);
+    event.places = places
+      .map(({ rank, id, weight }) => {
+        const money = total > 0 ? Math.floor((event.pot * weight) / total) : 0;
+        if (money > 0) economy.reward(ledger.purse(id), money);
+        paid += money;
+        return { rank, id, money };
+      })
+      .sort((a, b) => a.rank - b.rank);
+    if (event.pot - paid > 0) ledger.purse(ARENA_POOL).earn(event.pot - paid);
     const champion = event.places.find((place) => place.rank === 1);
     if (champion) state.champions = [{ at: event.at, id: champion.id }, ...state.champions].slice(0, ARENA.champions);
     event.phase = 'done';
@@ -361,6 +388,9 @@ export function createArena({ ledger, roster = () => [] }) {
       for (const listener of finished) listener(event);
       return;
     }
+    const pool = ledger.purse(ARENA_POOL);
+    const prize = pool.money;
+    if (prize > 0 && pool.spend(prize)) event.pot += prize;
     draw(event);
     event.phase = 'running';
     event.firstAt = at + ARENA.opening;
@@ -375,6 +405,7 @@ export function createArena({ ledger, roster = () => [] }) {
     while (event.phase === 'running') {
       const round = event.rounds[event.round];
       for (const match of round) if (match.live && now >= match.startAt + LIVE_MINUTES) forfeit(match, [match.a, match.b].find(isHuman), Number.isFinite(now) ? now : match.startAt + LIVE_MINUTES);
+      startWaiting(event, now, present);
       const next = nextAt(event);
       if (next === null || now < next) return;
       if (round.length === 1) finish(event);
@@ -398,7 +429,7 @@ export function createArena({ ledger, roster = () => [] }) {
     const event = state.event;
     if (event?.phase !== 'open') return 'closed';
     if (event.entrants.includes(id)) return 'joined';
-    if (event.entrants.length >= ARENA.size) return 'full';
+    if (event.entrants.length >= capacityOf(event)) return 'full';
     if (ledger.purse(id).money < ARENA.fee) return 'money';
     return null;
   }

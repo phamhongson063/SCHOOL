@@ -103,6 +103,30 @@ export function onIsland(position) {
   return position.y > ISLAND.y - 10 && position.x >= ISLAND_BOUNDS.x0 && position.x <= ISLAND_BOUNDS.x1 && position.z >= ISLAND_BOUNDS.z0 && position.z <= ISLAND_BOUNDS.z1;
 }
 
+const VIEW_CLEARANCE = 0.35;
+const RAIL_BAND = { inner: RAIL_RADIUS - 0.3, outer: RAIL_RADIUS + 0.3, top: ISLAND.y + 1.45 };
+const GATE_REACH = GATE.radius + GATE.tube + 1.1;
+const GATE_TOP = ISLAND.y + GATE.radius * 2 + 1.3;
+const GATE_HOLE = { y: ISLAND.y + GATE.radius + 0.35, radius: GATE.radius - 0.15 };
+
+function underRock(x, y, z, cx, top, cz, radius, depth) {
+  return (x - cx) ** 2 + (z - cz) ** 2 <= radius * radius && y < top + VIEW_CLEARANCE && y > top - depth - 1.2;
+}
+
+function inGate(x, y, z) {
+  if (Math.abs(x - GATE.x) > GATE_REACH || Math.abs(z - GATE.z) > 0.95 || y < ISLAND.y || y > GATE_TOP + VIEW_CLEARANCE) return false;
+  return Math.hypot(x - GATE.x, y - GATE_HOLE.y) >= GATE_HOLE.radius;
+}
+
+export function islandBlocksView(x, y, z) {
+  if (x < ISLAND_BOUNDS.x0 || x > ISLAND_BOUNDS.x1 || z < ISLAND_BOUNDS.z0 || z > ISLAND_BOUNDS.z1) return false;
+  const reach = Math.hypot(x - ISLAND.x, z - ISLAND.z);
+  if (reach >= RAIL_BAND.inner && reach <= RAIL_BAND.outer && y < RAIL_BAND.top && y > ISLAND.y - 1) return true;
+  if (underRock(x, y, z, ISLAND.x, ISLAND.y, ISLAND.z, ISLAND.radius + 0.5, 18)) return true;
+  if (inGate(x, y, z)) return true;
+  return PLATFORMS.some((stage) => underRock(x, y, z, stage.x, stage.y, stage.z, stage.r + 0.5, stage.r * 1.8));
+}
+
 export function islandFloor(x, z) {
   if (inDisc(x, z, WALK_RADIUS)) return ISLAND.y;
   for (const stage of PLATFORMS) if ((x - stage.x) ** 2 + (z - stage.z) ** 2 <= (stage.r - 0.3) ** 2) return stage.y;
@@ -488,7 +512,7 @@ function skyLayout() {
   };
 }
 
-export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night = () => 0, overview = () => false }) {
+export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night = () => 0, overview = () => false, shown = () => true }) {
   const obstacles = obstacleBoxes();
   const canvas = document.createElement('canvas');
   canvas.width = boardSize.width;
@@ -540,6 +564,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
       name: 'Lôi đài',
       bounds: ISLAND_BOUNDS,
       staticNav: true,
+      shown,
       obstacles,
       target(hit) {
         if (hit.object.userData.board) return { kind: 'board', id: 'board', index: 'board', x: ISLAND.x, z: ISLAND.z, stand: BOARD_STAND };

@@ -6,8 +6,7 @@ import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './sce
 import { createShophouse, createBank, createArenaCompound, shophousePots } from './architecture.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
-import { ARENA, LODGE_ROOMS } from './config.js';
-import { clockText } from './clock.js';
+import { LODGE_ROOMS } from './config.js';
 import { roomTier } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
 
@@ -28,7 +27,6 @@ const BANK_PICK = 'south:0';
 const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
 const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
-const ARENA_SIGN = { bg: 0x2a1a3a, fg: '#ffe08a', border: 0xc9a24a };
 const EMPTY_PICKS = new Set(['south:4']);
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
@@ -282,9 +280,6 @@ export function createDistrict() {
         node.position.set(house.x, 0, house.front);
         node.rotation.y = house.turn;
       }
-      const sign = plaqueBoard(['LÔI ĐÀI', ARENA.starts.map(clockText).join(' · ')], ARENA_SIGN);
-      sign.mesh.position.set(built.plaque.x, built.plaque.y, built.plaque.z);
-      built.group.add(sign.mesh);
       group.add(built.floor, built.group);
       clickables.push(built.group);
       const side = house.north ? 1 : -1;

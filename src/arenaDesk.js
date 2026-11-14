@@ -1,5 +1,5 @@
 import { ARENA } from './config.js';
-import { exitOf, nextStart, roundName } from './arena.js';
+import { capacityOf, exitOf, nextStart, roundName } from './arena.js';
 import { END_REASONS } from './arenaBoard.js';
 import { closable } from './dialog.js';
 import { coins } from './format.js';
@@ -10,10 +10,10 @@ import { PLAYER } from './inventory.js';
 function message(arena, now) {
   const event = arena.event;
   const reason = arena.blocked(PLAYER);
-  const count = event ? `${event.entrants.length}/${ARENA.size}` : '';
+  const count = event ? `${event.entrants.length}/${capacityOf(event)}` : '';
   if (!reason) return `Khai mạc ${clockText(event.at)} · Lệ phí ${coins(ARENA.fee)} · ${count}`;
   if (reason === 'joined') return `Ngươi đã ghi danh. Khai mạc ${clockText(event.at)} · ${count}`;
-  if (reason === 'full') return `Lôi đài đã đủ ${ARENA.size} người.`;
+  if (reason === 'full') return `Lôi đài đã đủ ${capacityOf(event)} người.`;
   if (reason === 'money') return `Ngươi không đủ ${coins(ARENA.fee)} lệ phí.`;
   if (event?.phase === 'running') return 'Lôi đài đang tranh tài.';
   const start = nextStart(now);
@@ -25,12 +25,12 @@ export function arenaLines(event, nameOf) {
   const lines = [];
   const place = event.places.find((item) => item.id === PLAYER);
   const exit = exitOf(event, PLAYER);
-  if (place) {
-    const prizes = [place.money > 0 ? coins(place.money) : null, place.intellect > 0 ? `${place.intellect} 💡` : null].filter(Boolean);
-    lines.push(`Lôi đài ${clockText(event.at)}: ngươi đạt hạng ${place.rank}${prizes.length ? `, nhận ${prizes.join(' + ')}` : ''}.`);
+  const prize = place?.money > 0 ? `, nhận ${coins(place.money)}` : '';
+  if (place && place.rank <= 3) {
+    lines.push(`Lôi đài ${clockText(event.at)}: ngươi đạt hạng ${place.rank}${prize}.`);
   } else if (exit) {
     const reason = END_REASONS[exit.reason];
-    lines.push(`Lôi đài ${clockText(event.at)}: ngươi dừng bước ở ${roundName(exit.round)}${reason ? ` (${reason.toLowerCase()})` : ''}.`);
+    lines.push(`Lôi đài ${clockText(event.at)}: ngươi dừng bước ở ${roundName(exit.round)}${reason ? ` (${reason.toLowerCase()})` : ''}${prize}.`);
   }
   const champion = event.places.find((item) => item.rank === 1);
   if (champion && champion.id !== PLAYER) lines.push(`🏆 Vô địch: ${nameOf(champion.id)}.`);

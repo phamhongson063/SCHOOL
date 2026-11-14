@@ -1940,30 +1940,6 @@ function balustrade(kit, x0, z0, x1, z1) {
   block(kit, x0 - 0.16, z0 - 0.16, x1 + 0.16, z1 + 0.16, 0.9);
 }
 
-function arenaGate(kit, z, half) {
-  const b = kit.body;
-  const span = half * 2 + 0.9;
-  for (const side of [-1, 1]) {
-    const x = side * half;
-    b.add(shapes.box(0.62, 0.3, 0.62), PAL.stoneDark, { p: [x, 0.15, z] });
-    b.add(shapes.box(0.42, 3.3, 0.42), PAL.lacquer, { p: [x, 1.95, z] });
-    b.add(shapes.box(0.48, 0.08, 0.48), PAL.gold, { p: [x, 0.36, z] });
-    b.limb([x, 1.95, z + 0.16], [x - side * 0.55, 2.36, z + 0.16], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
-    block(kit, x - 0.32, z - 0.32, x + 0.32, z + 0.32, 3.6);
-  }
-  b.add(shapes.box(span, 0.22, 0.26), PAL.lacquer, { p: [0, 2.45, z] });
-  b.add(shapes.box(span - 0.2, 0.05, 0.28), PAL.gold, { p: [0, 2.32, z] });
-  b.add(shapes.box(span, 0.26, 0.3), PAL.lacquer, { p: [0, 3.25, z] });
-  b.add(shapes.box(span - 0.1, 0.05, 0.32), PAL.gold, { p: [0, 3.4, z] });
-  const ridgeY = 3.95;
-  const run = 0.85;
-  const slope = 0.42;
-  const tint = PAL.roofTints[1];
-  for (const facing of [1, -1]) roofPitch(kit, { x0: -span / 2 - 0.3, x1: span / 2 + 0.3, ridgeZ: z, ridgeY, run, slope, facing, tint, tileEnds: facing > 0 });
-  ridgeCrest(kit, -span / 2, span / 2, z, ridgeY, 'disc');
-  for (const side of [-1, 1]) eaveTip(kit, side * (span / 2 + 0.3), ridgeY - run * slope, z + run, side);
-}
-
 function guardianBeast(kit, x, z, { paw = 1, horn = false, scale = 1 } = {}) {
   const b = kit.body;
   const tone = ARENA_ART.beast;
@@ -2275,16 +2251,15 @@ export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
   const hall = { half: 4.2, front: -6.6, back: back + 0.3 };
   const stage = { x: -4.7, z: -3.3, half: 1.9 };
   const pond = { x: 4.7, z: -3.3, r: 1.9 };
-  const gateHalf = 1.9;
+  const entrance = 2.35;
   const keeperZ = -5.5;
 
   const ground = new Batch();
   ground.add(shapes.box(edge * 2, 0.04, front - back), ARENA_ART.sand, { p: [0, 0.02, (front + back) / 2] });
   for (let z = front - 0.45; z > keeperZ + 1.3; z -= 0.75) ground.add(shapes.box(1.9, 0.05, 0.62), PAL.stone, { p: [0, 0.045, z] });
 
-  arenaGate(kit, front, gateHalf);
-  balustrade(kit, -edge, front, -gateHalf - 0.45, front);
-  balustrade(kit, gateHalf + 0.45, front, edge, front);
+  balustrade(kit, -edge, front, -entrance, front);
+  balustrade(kit, entrance, front, edge, front);
   for (const side of [-1, 1]) balustrade(kit, side * edge, back + 0.2, side * edge, front);
 
   for (const side of [-1, 1]) guardianBeast(kit, side * 2.75, 0.6, { paw: -side });
@@ -2307,7 +2282,6 @@ export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
     floor: ground.mesh(vertexMaterial(), { shadow: false }),
     obstacles: kit.obstacles,
     door: { x: 0, z: keeperZ },
-    plaque: { x: 0, y: 2.84, z: front + 0.19 },
   };
 }
 

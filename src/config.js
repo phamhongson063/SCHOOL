@@ -258,6 +258,7 @@ export const ECONOMY = {
   houseTax: 0.0001,
   buyback: 0.8,
   thrift: 0.6,
+  arenaCut: 0.5,
   offline: { sampleDays: 3, minSample: 120 },
 };
 
@@ -284,8 +285,9 @@ export const ABSORB = {
 
 export const ARENA = {
   deck: 'n2',
-  size: 8,
-  starts: [10 * 60 + 21, 8 * 60 + 45, 19 * 60 + 45],
+  size: { day: 16, night: 8 },
+  stages: 4,
+  starts: [10 * 60 + 44],
   lead: 30,
   opening: 0.25,
   breather: 15,
@@ -305,11 +307,7 @@ export const ARENA = {
   combo: { step: 0.2, max: 3 },
   rage: { below: 0.3, boost: 1.5 },
   guard: 0.5,
-  places: [
-    { rank: 1, share: 0, intellect: 0 },
-    { rank: 2, share: 0, intellect: 0 },
-    { rank: 3, share: 0, intellect: 0 },
-  ],
+  reward: { base: 1, perWin: 1, champion: 1 },
   champions: 30,
   rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
   npc: { minCertified: 20, reserve: 40, eager: 0.6 },
@@ -362,7 +360,7 @@ export const BANK = {
 };
 
 export const ATM = {
-  fee: 2,
+  fee: 0,
   minWithdraw: 10,
   detour: 40,
   spots: [

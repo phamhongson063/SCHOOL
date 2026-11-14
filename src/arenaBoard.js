@@ -1,5 +1,5 @@
 import { ARENA } from './config.js';
-import { nextAt, nextStart, roundName } from './arena.js';
+import { capacityOf, nextAt, nextStart, roundName } from './arena.js';
 import { onStage } from './arenaReplay.js';
 import { closable } from './dialog.js';
 import { clockText } from './clock.js';
@@ -67,7 +67,7 @@ function fit(ctx, text, width) {
 function headline(event, now) {
   if (!event) return `Lôi đài ${clockText(nextStart(now))}`;
   const time = `Lôi đài ${clockText(event.at)}`;
-  if (event.phase === 'open') return `${time} · Ghi danh ${event.entrants.length}/${ARENA.size}`;
+  if (event.phase === 'open') return `${time} · Ghi danh ${event.entrants.length}/${capacityOf(event)}`;
   if (event.phase === 'done') return `${time} · Đã kết thúc`;
   return `${time} · ${waitText(event, now) ?? roundName(event.rounds[event.round].length)}`;
 }
@@ -149,9 +149,10 @@ export function drawBracket(ctx, { width, height }, event, { nameOf, now, palett
   const columns = Math.log2(first) + 2;
   const margin = (palette.ornate ? 56 : 24) * s;
   const boxW = Math.min(220 * s, (width - margin * 2) / columns - 18 * s);
-  const boxH = 42 * s;
   const top = (palette.ornate ? 150 : 110) * s;
   const area = height - top - (palette.ornate ? 50 : 20) * s;
+  const boxH = Math.min(42 * s, (area / (first * 2)) * 0.84);
+  const nameSize = Math.min(22 * s, boxH * 0.52);
   const colX = (k) => margin + (k * (width - margin * 2 - boxW)) / (columns - 1);
   const ys = [];
   for (let k = 0; k < columns; k++) {
@@ -201,7 +202,7 @@ export function drawBracket(ctx, { width, height }, event, { nameOf, now, palett
       }
       const name = slot.id ? nameOf(slot.id) : '';
       const label = slot.id === PLAYER ? 'Bạn' : name;
-      ctx.font = `${slot.state === 'win' ? 'bold ' : ''}${22 * s}px ${font}`;
+      ctx.font = `${slot.state === 'win' ? 'bold ' : ''}${nameSize}px ${font}`;
       ctx.fillStyle = slot.state === 'win' ? palette.win : slot.state === 'lose' ? palette.dim : slot.state === 'live' ? palette.live : palette.text;
       ctx.textAlign = 'left';
       const shown = fit(ctx, `${label}${slot.forfeit ? ' (vắng)' : ''}`, boxW - 20 * s);

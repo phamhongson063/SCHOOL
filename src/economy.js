@@ -7,6 +7,7 @@ import { worldKey } from './saveKeys.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
+export const ARENA_POOL = 'arenaPool';
 const CHECK_MS = 5000;
 const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
@@ -47,6 +48,13 @@ function pay(id, value) {
   if (whole > 0) ctx.ledger.purse(id).earn(whole);
 }
 
+function payEarner(id, value) {
+  const cut = value * ECONOMY.arenaCut;
+  pay(ARENA_POOL, cut);
+  pay(id, value - cut);
+  return cut;
+}
+
 function charge(purse, value) {
   const taken = Math.min(Math.floor(value), purse.money);
   if (taken > 0 && purse.spend(taken)) pay(FUND, taken);
@@ -57,7 +65,7 @@ function workers() {
 }
 
 function flowOf(id) {
-  if (!id || id === PLAYER || id === FUND || workers().some((worker) => worker.id === id)) return null;
+  if (!id || id === PLAYER || id === FUND || id === ARENA_POOL || workers().some((worker) => worker.id === id)) return null;
   state.flows[id] ??= { earn: 0, tax: 0, spent: 0, to: {} };
   return state.flows[id];
 }
@@ -94,7 +102,7 @@ function payWages() {
   const fund = ctx.ledger.purse(FUND);
   for (const worker of workers()) {
     const wage = Math.min(ECONOMY.wages[worker.role] ?? 0, fund.money);
-    if (wage > 0 && fund.spend(wage)) ctx.ledger.purse(worker.id).earn(wage);
+    if (wage > 0 && fund.spend(wage)) payEarner(worker.id, wage);
   }
 }
 
@@ -211,9 +219,9 @@ export const economy = {
     if (!ctx || !(price > 0)) return;
     const keep = price * (ECONOMY.keep[seller] ?? 0);
     const tax = price * ECONOMY.vat;
-    pay(seller, keep);
+    const cut = payEarner(seller, keep);
     pay(FUND, tax);
-    trackSpend(payer, price, { [seller]: keep, [FUND]: tax });
+    trackSpend(payer, price, { [seller]: keep - cut, [ARENA_POOL]: cut, [FUND]: tax });
     store.save();
   },
   collect(value, payer = null, spent = value) {
@@ -225,10 +233,12 @@ export const economy = {
   withhold(gross, payee = null) {
     if (!ctx || !(gross > 0)) return gross;
     const tax = gross * ECONOMY.vat;
+    const cut = (gross - tax) * ECONOMY.arenaCut;
     pay(FUND, tax);
-    trackEarn(payee, gross - tax, tax);
+    pay(ARENA_POOL, cut);
+    trackEarn(payee, gross - tax - cut, tax + cut);
     store.save();
-    return gross - tax;
+    return gross - tax - cut;
   },
   dailyFlow(id) {
     const flow = state.flows[id];

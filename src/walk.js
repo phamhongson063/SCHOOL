@@ -72,6 +72,7 @@ export class PlayerController {
     this.shadow = shadow;
     this.surfaceAt = null;
     this.terrainAt = null;
+    this.viewBlocked = null;
     this.posture = 'free';
     this.held = false;
     this.seat = null;
@@ -645,6 +646,7 @@ export class PlayerController {
       const pz = origin.z + dir.z * d;
       if (this.world.blocksView(Math.floor(px), Math.floor(py), Math.floor(pz), this.hiddenLayers)) return Math.max(0.3, d - 0.35);
       if (this.terrainAt && py < this.terrainAt(px, pz) + TERRAIN_CLEARANCE) return Math.max(0.3, d - 0.35);
+      if (this.viewBlocked?.(px, py, pz)) return Math.max(0.3, d - 0.35);
     }
     return maxDistance;
   }

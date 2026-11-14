@@ -91,7 +91,7 @@ import { haltStores } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { createArena } from './arena.js';
-import { ISLAND_BOUNDS, createArenaIsland, islandFloor, islandNavFloor } from './arenaIsland.js';
+import { ISLAND_BOUNDS, createArenaIsland, islandBlocksView, islandFloor, islandNavFloor, onIsland } from './arenaIsland.js';
 import { createArenaTrip } from './arenaTrip.js';
 import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
@@ -224,6 +224,7 @@ const player = new PlayerController({
 });
 player.surfaceAt = (x, z) => islandFloor(x, z) ?? stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
 player.terrainAt = terrainHeight;
+player.viewBlocked = islandBlocksView;
 
 const ledger = new Ledger();
 const purse = ledger.purse(PLAYER);
@@ -321,7 +322,7 @@ regions.add(
 );
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
-const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, overview: () => mode === 'overview' });
+const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, overview: () => mode === 'overview', shown: () => onIsland(player.position) });
 regions.add(arenaIsland.region);
 for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
@@ -1535,7 +1536,7 @@ function cullRooms() {
   setCharacterShadows(false);
   for (const region of regions.regions) {
     const group = region.handle?.group;
-    if (group) group.visible = rooms.seesBox(regionBox(region));
+    if (group) group.visible = (region.shown?.() ?? true) && rooms.seesBox(regionBox(region));
   }
 }
 
