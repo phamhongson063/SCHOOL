@@ -120,6 +120,19 @@ function revoke(state, key) {
   if (!state.batch.includes(key) && !state.queue.includes(key)) state.queue.push(key);
 }
 
+function gradeOld(state, key, correct) {
+  if (correct) {
+    delete state.weak[key];
+    return false;
+  }
+  if (state.weak[key] === undefined) {
+    state.weak[key] = state.day;
+    return false;
+  }
+  revoke(state, key);
+  return true;
+}
+
 function totalQuestions(deck) {
   return Math.floor((CERTIFY.examMinutes * 60) / CERTIFY.seconds[deck]);
 }
@@ -130,6 +143,17 @@ function oldKeys(state, count) {
   const weak = shuffle(certified.filter((key) => state.weak[key]));
   const rest = shuffle(certified.filter((key) => !state.weak[key]));
   return [...weak, ...rest].slice(0, count);
+}
+
+function pickExtra(pool, last) {
+  const choices = pool.length > 1 ? pool.filter((key) => key !== last) : pool;
+  return choices.length ? choices[Math.floor(Math.random() * choices.length)] : null;
+}
+
+function answersByKey(results) {
+  const answers = new Map();
+  for (const { key, correct } of results) answers.set(key, (answers.get(key) ?? true) && correct);
+  return answers;
 }
 
 export const certify = {
@@ -205,12 +229,16 @@ export const certify = {
     const fresh = learnKeys(state);
     return shuffle([...fresh, ...oldKeys(state, totalQuestions(deck) - fresh.length)]);
   },
+  internalExtra(actor, deck, last = null) {
+    const state = deckState(actor, deck);
+    return pickExtra([...learnKeys(state), ...Object.keys(state.certified)], last);
+  },
   gradeInternal(actor, deck, results) {
     const state = deckState(actor, deck);
     const fresh = learnKeys(state);
     const failed = [];
     const revoked = [];
-    for (const { key, correct } of results) {
+    for (const [key, correct] of answersByKey(results)) {
       if (fresh.includes(key)) {
         if (!correct) {
           state.counts[key] = 0;
@@ -218,12 +246,7 @@ export const certify = {
         }
         continue;
       }
-      if (!state.certified[key]) continue;
-      if (correct) delete state.weak[key];
-      else {
-        revoke(state, key);
-        revoked.push(key);
-      }
+      if (state.certified[key] && gradeOld(state, key, correct)) revoked.push(key);
     }
     const passed = results.length > 0 && results.every((result) => result.correct);
     if (passed) state.qualified = state.day;
@@ -237,9 +260,7 @@ export const certify = {
   },
   examExtra(actor, deck, last = null) {
     const state = deckState(actor, deck);
-    const pool = [...state.batch, ...Object.keys(state.certified)];
-    const choices = pool.length > 1 ? pool.filter((key) => key !== last) : pool;
-    return choices.length ? choices[Math.floor(Math.random() * choices.length)] : null;
+    return pickExtra([...state.batch, ...Object.keys(state.certified)], last);
   },
   gradeExam(actor, deck, results) {
     const state = deckState(actor, deck);
@@ -247,13 +268,8 @@ export const certify = {
     const failed = [];
     const passedFresh = [];
     const revoked = [];
-    let right = 0;
-    const answers = new Map();
-    for (const { key, correct } of results) {
-      if (correct) right += 1;
-      answers.set(key, (answers.get(key) ?? true) && correct);
-    }
-    for (const [key, correct] of answers) {
+    const right = results.filter((result) => result.correct).length;
+    for (const [key, correct] of answersByKey(results)) {
       if (fresh.includes(key)) {
         if (correct) passedFresh.push(key);
         else {
@@ -263,12 +279,7 @@ export const certify = {
         }
         continue;
       }
-      if (!state.certified[key]) continue;
-      if (correct) delete state.weak[key];
-      else {
-        revoke(state, key);
-        revoked.push(key);
-      }
+      if (state.certified[key] && gradeOld(state, key, correct)) revoked.push(key);
     }
     const total = results.length;
     const score = total ? right / total : 0;

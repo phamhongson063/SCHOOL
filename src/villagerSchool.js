@@ -204,16 +204,24 @@ export class SchoolBehavior {
     this.wait(between(1, 2));
   }
 
-  beginInternal(deck) {
+  beginInternal(deck, pace) {
     if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return null;
     economy.income('teacher', CERTIFY.internalFee, this.id);
     this.internalTries[deck] = (this.internalTries[deck] ?? 0) + 1;
-    return certify.internalQuestions(this.id, deck);
+    const keys = certify.internalQuestions(this.id, deck);
+    const count = Math.max(keys.length, Math.ceil((CERTIFY.internalMinutes * 60) / pace));
+    while (keys.length < count) {
+      const key = certify.internalExtra(this.id, deck, keys.at(-1) ?? null);
+      if (!key) break;
+      keys.push(key);
+    }
+    return keys;
   }
 
   startInternal() {
     const deck = this.internalDeck;
-    const keys = this.beginInternal(deck);
+    const pace = CERTIFY.seconds[deck] * between(0.4, 0.8);
+    const keys = this.beginInternal(deck, pace);
     if (!keys) {
       this.internalDeck = null;
       this.rise(() => {
@@ -223,7 +231,7 @@ export class SchoolBehavior {
       return;
     }
     this.internalKeys = keys;
-    this.internalUntil = this.now + this.internalKeys.length * CERTIFY.seconds[deck] * between(0.4, 0.8);
+    this.internalUntil = this.now + this.internalKeys.length * pace;
     this.studying = true;
   }
 

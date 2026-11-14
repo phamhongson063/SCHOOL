@@ -192,6 +192,7 @@ export const CERTIFY = {
   sitWords: 2,
   seatRest: 5 * 60,
   internalFee: 4,
+  internalMinutes: 5,
   examFee: 10,
   examIntellect: 20,
   starterIntellect: 20,
@@ -277,11 +278,11 @@ export const ABSORB = {
   tired: 0.1,
   debt: 0.05,
   guess: 0.25,
-  fade: 0.25,
+  fade: 0.1,
   ceiling: 0.99,
   forget: 0.3,
-  grasp: { certified: 1, studied: 0.95, weak: 0.7, seen: 0.35, new: 0 },
-  think: { sure: 0.15, slow: 0.8, guess: [0.55, 1], jitter: [0.85, 1.15] },
+  grasp: { certified: 1, studied: 0.95, weak: 0.85, seen: 0.35, new: 0 },
+  think: { sure: 0.07, slow: 0.8, guess: [0.55, 1], jitter: [0.85, 1.15] },
 };
 
 export const ARENA = {

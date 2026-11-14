@@ -156,22 +156,35 @@ function decal(map, color, opacity = 1) {
   return mesh;
 }
 
+const SHARED_MAPS = [GLOW, CORE, SPARK, RING, RUNE, COLUMN];
+const LABEL_SPARES = 4;
+const labelPool = [];
+
+const blankLabel = () => canvasTexture(512, 128, () => {});
+
 function labelTexture(text, color) {
-  return canvasTexture(512, 128, (ctx) => {
-    ctx.font = '600 58px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-    ctx.letterSpacing = '1px';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-    ctx.shadowColor = 'rgba(10, 4, 20, 0.45)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    ctx.fillText(text, 256, 64, 496);
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 0;
-    ctx.fillText(text, 256, 64, 496);
-  });
+  const texture = labelPool.pop() ?? blankLabel();
+  const ctx = texture.image.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  paintLabel(ctx, text, color);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function paintLabel(ctx, text, color) {
+  ctx.font = '600 58px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  ctx.letterSpacing = '1px';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.shadowColor = 'rgba(10, 4, 20, 0.45)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(text, 256, 64, 496);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 0;
+  ctx.fillText(text, 256, 64, 496);
 }
 
 const chestOf = (at) => new THREE.Vector3(at.x, at.y + CHEST, at.z);
@@ -196,7 +209,7 @@ export function createArenaFx(scene) {
   function dispose(effect) {
     for (const object of effect.objects) {
       root.remove(object);
-      if (effect.ownsMap) object.material.map.dispose();
+      if (effect.ownsMap) labelPool.push(object.material.map);
       object.material.dispose();
     }
   }
@@ -278,6 +291,20 @@ export function createArenaFx(scene) {
   }
 
   return {
+    async warmUp(renderer, compile) {
+      while (labelPool.length < LABEL_SPARES) labelPool.push(blankLabel());
+      const samples = [sprite(GLOW, 0xffffff), decal(RUNE, 0xffffff)];
+      for (const sample of samples) root.add(sample);
+      try {
+        for (const map of [...SHARED_MAPS, ...labelPool]) renderer.initTexture(map);
+        await compile();
+      } finally {
+        for (const sample of samples) {
+          root.remove(sample);
+          sample.material.dispose();
+        }
+      }
+    },
     beam(at, color = 0xbfe8ff, size = 1) {
       const base = new THREE.Vector3(at.x, at.y, at.z);
       const column = new THREE.Mesh(columnGeometry, material(THREE.MeshBasicMaterial, COLUMN, color, 0.85, { side: THREE.DoubleSide }));

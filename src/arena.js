@@ -159,9 +159,11 @@ function pickKey(match, deck, tier = 'normal') {
   const pool = [...new Set([...mine, ...theirs])];
   if (!pool.length) return null;
   const asked = new Set(match.asked);
+  const source = match.asked.length % 2 === 0 ? mine : theirs;
+  const own = source.size ? [...source] : pool;
   const weak = (key) => certify.familiarity(match.a, key) === 'weak' || certify.familiarity(match.b, key) === 'weak';
-  const preferred = tier === 'easy' ? pool.filter((key) => mine.has(key) && theirs.has(key)) : tier === 'hard' ? pool.filter((key) => mine.has(key) !== theirs.has(key) || weak(key)) : pool;
-  for (const list of [preferred.filter((key) => !asked.has(key)), pool.filter((key) => !asked.has(key)), pool]) {
+  const preferred = tier === 'easy' ? pool.filter((key) => mine.has(key) && theirs.has(key)) : tier === 'hard' ? own.filter((key) => mine.has(key) !== theirs.has(key) || weak(key)) : own;
+  for (const list of [preferred.filter((key) => !asked.has(key)), own.filter((key) => !asked.has(key)), pool.filter((key) => !asked.has(key)), pool]) {
     if (list.length) return list[Math.floor(Math.random() * list.length)];
   }
   return null;

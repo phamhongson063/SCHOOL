@@ -1568,7 +1568,7 @@ function cullRooms() {
 const dialogs = [...document.querySelectorAll('dialog')];
 const bagPanel = document.getElementById('bagPanel');
 const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dialog) => dialog.open);
-const scenePopups = [() => fishing.active && kanjiQuiz.open];
+const scenePopups = [() => fishing.active && kanjiQuiz.open, () => arenaDuel.open];
 const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
 const blessingReminded = new Set();
@@ -1741,7 +1741,7 @@ if (purse.sleeping) showSleep(true);
 
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
-await regions.warmUp(() => renderer.compileAsync(scene, camera)).catch(() => {});
+await regions.warmUp(() => arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera))).catch(() => {});
 await loadingStep(0.97);
 
 let shownNight = -1;

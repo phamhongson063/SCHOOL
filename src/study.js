@@ -346,7 +346,14 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     if (blocker) return blocker;
     if (!purse.spend(CERTIFY.internalFee)) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
     economy.income('teacher', CERTIFY.internalFee);
-    const results = await exams.run({ title: 'Thi nội bộ', deck: id, keys: certify.internalQuestions(PLAYER, id), icon: '📝' });
+    const results = await exams.run({
+      title: 'Thi nội bộ',
+      deck: id,
+      keys: certify.internalQuestions(PLAYER, id),
+      icon: '📝',
+      minSeconds: CERTIFY.internalMinutes * 60,
+      more: (last) => certify.internalExtra(PLAYER, id, last),
+    });
     const graded = certify.gradeInternal(PLAYER, id, results);
     const right = results.filter((result) => result.correct).length;
     if (deckId === id && !start.hidden) paintStart();

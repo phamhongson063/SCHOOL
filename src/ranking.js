@@ -63,8 +63,17 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
     return rows;
   }
 
+  const certsOf = (id) => certify.certifiedTotal(id);
+
+  function certsBaseFor(day) {
+    if (board?.certsBase?.day === day) return board.certsBase;
+    const rows = board?.certs ?? people.map(({ id }) => ({ id, score: certsOf(id) }));
+    return { day, rows: rows.map(({ id, score }) => ({ id, score })) };
+  }
+
   function snapshot({ slot, at }) {
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings((id) => certify.certifiedTotal(id), board?.certs), arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version };
+    const certsBase = certsBaseFor(dayOf(at));
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}

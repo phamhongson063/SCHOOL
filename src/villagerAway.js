@@ -94,7 +94,7 @@ export function createAwaySim({ town, contextAt }) {
     }
     for (const other of DECK_IDS) {
       if (!member.wantsInternal(other)) continue;
-      const keys = member.beginInternal(other);
+      const keys = member.beginInternal(other, CERTIFY.seconds[other] * between(0.4, 0.8));
       if (keys) certify.gradeInternal(member.id, other, simulate(member, keys));
     }
   }
