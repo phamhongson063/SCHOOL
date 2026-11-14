@@ -1,13 +1,14 @@
-import { AWAY, ECONOMY, VILLAGER } from './config.js';
-import { atGameTime, dayOf, gameMinutesOf, DAY_MINUTES } from './clock.js';
+import { ARENA, AWAY, BLESSING, ECONOMY, VILLAGER } from './config.js';
+import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
+import { planDay, pruneBook, record, sumBook } from './townhall.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
-export const ARENA_POOL = 'arenaPool';
+const ARENA_POOL = 'arenaPool';
 const CHECK_MS = 5000;
 const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
@@ -18,6 +19,7 @@ export const SHOPKEEPERS = [
   { id: 'fishmonger', name: 'Bobby' },
   { id: 'grocer', name: 'Jessica' },
   { id: 'chief', name: 'Youngsoo', role: 'chief' },
+  { id: 'mayor', name: 'Haruto', role: 'mayor' },
 ];
 
 function load() {
@@ -31,10 +33,12 @@ function load() {
         seen: Number.isFinite(saved.seen) ? saved.seen : null,
         observed: Number.isFinite(saved.observed) ? saved.observed : 0,
         flows: saved.flows && typeof saved.flows === 'object' ? saved.flows : {},
+        book: saved.book && typeof saved.book === 'object' ? saved.book : {},
+        plans: saved.plans && typeof saved.plans === 'object' ? saved.plans : {},
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {} };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {} };
 }
 
 let ctx = null;
@@ -53,16 +57,31 @@ function pay(id, value) {
   if (whole > 0) ctx.ledger.purse(id).earn(whole);
 }
 
+const today = () => dayOf(gameNow());
+
+function deposit(value, kind) {
+  if (!(value > 0)) return;
+  pay(FUND, value);
+  record(state.book, today(), 'in', kind, value);
+}
+
+function withdraw(value, kind) {
+  const amount = Math.min(Math.floor(value), ctx.ledger.purse(FUND).money);
+  if (!(amount > 0) || !ctx.ledger.purse(FUND).spend(amount)) return 0;
+  record(state.book, today(), 'out', kind, amount);
+  return amount;
+}
+
 function payEarner(id, value) {
-  const cut = value * ECONOMY.arenaCut;
-  pay(ARENA_POOL, cut);
+  const cut = value * ECONOMY.incomeTax;
+  deposit(cut, 'levy');
   pay(id, value - cut);
   return cut;
 }
 
-function charge(purse, value) {
+function charge(purse, value, kind) {
   const taken = Math.min(Math.floor(value), purse.money);
-  if (taken > 0 && purse.spend(taken)) pay(FUND, taken);
+  if (taken > 0 && purse.spend(taken)) deposit(taken, kind);
 }
 
 function workers() {
@@ -70,7 +89,7 @@ function workers() {
 }
 
 function flowOf(id) {
-  if (!id || id === PLAYER || id === FUND || id === ARENA_POOL || workers().some((worker) => worker.id === id)) return null;
+  if (!id || id === PLAYER || id === FUND || workers().some((worker) => worker.id === id)) return null;
   state.flows[id] ??= { earn: 0, tax: 0, spent: 0, to: {} };
   return state.flows[id];
 }
@@ -103,21 +122,48 @@ function observe(minutes) {
   }
 }
 
+const dailyWages = () => workers().reduce((sum, worker) => sum + (ECONOMY.wages[worker.role] ?? 0), 0);
+
 function payWages() {
-  const fund = ctx.ledger.purse(FUND);
   for (const worker of workers()) {
-    const wage = Math.min(ECONOMY.wages[worker.role] ?? 0, fund.money);
-    if (wage > 0 && fund.spend(wage)) payEarner(worker.id, wage);
+    const wage = withdraw(ECONOMY.wages[worker.role] ?? 0, 'wage');
+    if (wage > 0) payEarner(worker.id, wage);
   }
 }
 
 function collectTaxes() {
   for (const id of ctx.people()) {
     const purse = ctx.ledger.purse(id);
-    charge(purse, ECONOMY.pollTax);
+    charge(purse, ECONOMY.pollTax, 'poll');
     const house = ctx.estate.houseOf(id);
-    if (house) charge(purse, Math.round(house.price * ECONOMY.houseTax));
+    if (house) charge(purse, Math.round(house.price * ECONOMY.houseTax), 'house');
   }
+}
+
+function planFor(day) {
+  const plan = planDay({
+    fund: ctx.ledger.purse(FUND).money,
+    wages: dailyWages(),
+    windows: BLESSING.windows.length,
+    starts: ARENA.starts.length,
+    blessingCost: BLESSING.cost,
+  });
+  withdraw(plan.blessingSpend, 'blessing');
+  state.plans[day] = { blessings: plan.blessings, arenaPrize: plan.arenaPrize, reserve: plan.reserve };
+  for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
+  pruneBook(state.book, day);
+}
+
+function latestPlan() {
+  const days = Object.keys(state.plans).map(Number);
+  return days.length ? state.plans[Math.max(...days)] : null;
+}
+
+const planOf = (day) => state.plans[day] ?? latestPlan();
+
+export function blessingSlots(day) {
+  const picks = planOf(day)?.blessings ?? BLESSING.windows.map((_, index) => index);
+  return picks.map((index) => ({ index, start: BLESSING.windows[index][0], end: BLESSING.windows[index][1] }));
 }
 
 function payLiving() {
@@ -146,19 +192,28 @@ function manageSavings() {
   }
 }
 
-function settleDay() {
+function settleDay(day) {
   payWages();
   collectTaxes();
   payLiving();
   sellDistressedHouses();
   manageSavings();
+  planFor(day);
 }
 
 function settleThrough(t) {
-  const today = dayOf(t);
-  if (state.day === null) state.day = today;
-  for (let day = state.day; day < today; day++) settleDay();
-  state.day = today;
+  const now = dayOf(t);
+  if (state.day === null) state.day = now;
+  for (let day = state.day; day < now; day++) settleDay(day + 1);
+  state.day = now;
+  if (!state.plans[now]) planFor(now);
+}
+
+function mergeArenaPool() {
+  const pool = ctx.ledger.purse(ARENA_POOL);
+  const money = pool.money;
+  if (money > 0 && pool.spend(money)) ctx.ledger.purse(FUND).earn(money);
+  delete state.owed[ARENA_POOL];
 }
 
 function stepAway(t, to) {
@@ -215,8 +270,9 @@ export const economy = {
     if (!state.seeded) {
       state.seeded = true;
       pay(FUND, ECONOMY.fundSeed);
-      store.save();
     }
+    mergeArenaPool();
+    store.save();
     await update(progress);
     setInterval(() => update(), CHECK_MS);
   },
@@ -225,13 +281,13 @@ export const economy = {
     const keep = price * (ECONOMY.keep[seller] ?? 0);
     const tax = price * ECONOMY.vat;
     const cut = payEarner(seller, keep);
-    pay(FUND, tax);
-    trackSpend(payer, price, { [seller]: keep - cut, [ARENA_POOL]: cut, [FUND]: tax });
+    deposit(tax, 'vat');
+    trackSpend(payer, price, { [seller]: keep - cut, [FUND]: tax + cut });
     store.save();
   },
-  collect(value, payer = null, spent = value) {
+  collect(value, payer = null, spent = value, kind = 'vat') {
     if (!ctx || !(value > 0)) return;
-    pay(FUND, value);
+    deposit(value, kind);
     trackSpend(payer, spent, { [FUND]: value });
     store.save();
   },
@@ -243,10 +299,10 @@ export const economy = {
       return whole;
     }
     const tax = gross * ECONOMY.vat;
-    const cut = (gross - tax) * ECONOMY.arenaCut;
+    const cut = (gross - tax) * ECONOMY.incomeTax;
     const net = gross - tax - cut;
-    pay(FUND, tax);
-    pay(ARENA_POOL, cut);
+    deposit(tax, 'vat');
+    deposit(cut, 'levy');
     const whole = settle(purse.id, net);
     if (whole > 0) purse.earn(whole);
     trackEarn(purse.id, net, tax + cut);
@@ -263,11 +319,30 @@ export const economy = {
     purse.earn(amount);
     if (ctx) trackEarn(purse.id, amount);
   },
-  payOut(value, purse) {
-    if (!ctx || !(value > 0)) return false;
-    if (!ctx.ledger.purse(FUND).spend(value)) return false;
+  payOut(value, purse, kind = 'buyback') {
+    if (!ctx || !(value > 0) || ctx.ledger.purse(FUND).money < value) return false;
+    if (!withdraw(value, kind)) return false;
     purse.earn(value);
+    store.save();
     return true;
+  },
+  arenaPrize(at = gameNow()) {
+    return planOf(dayOf(at))?.arenaPrize ?? 0;
+  },
+  sponsorArena(at) {
+    if (!ctx) return 0;
+    const paid = withdraw(economy.arenaPrize(at), 'arena');
+    if (paid > 0) store.save();
+    return paid;
+  },
+  get treasury() {
+    return ctx ? ctx.ledger.purse(FUND).money : 0;
+  },
+  reserve(day = today()) {
+    return planOf(day)?.reserve ?? 0;
+  },
+  book(fromDay, toDay = fromDay) {
+    return sumBook(state.book, fromDay, toDay);
   },
   refund(seller, value) {
     if (!ctx || !(value > 0)) return;

@@ -5,7 +5,7 @@ import { gameId } from './inventory.js';
 import { energyRate, homeActivity } from './stamina.js';
 import { between } from './random.js';
 import { AVERAGE_CASTS, BLESSING_STAY } from './villagerMind.js';
-import { economy } from './economy.js';
+import { blessingSlots, economy } from './economy.js';
 import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
@@ -39,7 +39,7 @@ const hasRoom = (crew, member, cap) => crew.has(member) || crew.size < cap;
 
 function blessingWindow(from, to) {
   for (const day of [dayOf(from) - 1, dayOf(from)]) {
-    for (const [index, [start, end]] of BLESSING.windows.entries()) {
+    for (const { index, start, end } of blessingSlots(day)) {
       const open = day * DAY_MINUTES + start;
       const close = day * DAY_MINUTES + end;
       if (open < to && close > from) return { session: `${day}:${index}`, open, close };

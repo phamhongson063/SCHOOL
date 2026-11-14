@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Batch, freeze, shapes } from './toon.js';
+import { Batch, freeze } from './toon.js';
 import { makeRandom } from './random.js';
-import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
-import { createShophouse, createBank, createArenaCompound, shophousePots } from './architecture.js';
+import { groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
+import { createShophouse, createBank, createArenaCompound, createTownHall, shophousePots } from './architecture.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
 import { roomTier } from './lodging.js';
 import { createVillageGate, villageGateObstacles } from './countryside.js';
+import { SHOPKEEPERS } from './economy.js';
+import { buildHallPlaza, createHallLife } from './hallPlaza.js';
 
 const AVENUES = [104, 126, 148, 170];
 const STREET = 3;
@@ -20,7 +22,6 @@ const PLAZA_BLOCK = 1;
 const BOUNDS = { x0: 100, z0: 4, x1: 185, z1: 64 };
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
-const STALL_CLOTHS = [0xc0281a, 0x2f7ab8, 0xd8a030, 0x3a8a5a];
 const ROW = { x0: 102, x1: 179 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
@@ -32,6 +33,9 @@ const PLAZA_LOT = 'south:2';
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
+const HALL = { depth: 9.5, seed: 919 };
+const MAYOR_LOOK = { shirt: 0x24346a, pants: 0x1f2a3a, skin: 0xe0b088, style: 'toc', hairColor: 0x2a2420, iris: 0x3a2214 };
+const MAYOR_LINES = ['Chào ngươi, sổ sách của làng đây.', 'Thu chi minh bạch, làng mới vững.', 'Ngươi muốn xem ngân khố à?'];
 const LODGE_LOOKS = {
   cheap: { stories: 1, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
   cozy: { stories: 1, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
@@ -152,47 +156,9 @@ function buildBlock(block) {
   return mergeByMaterial(root);
 }
 
-function stall(b, x, z, cloth) {
-  b.add(shapes.box(2.2, 0.08, 1.1), 0x7a5232, { p: [x, 0.8, z] });
-  b.add(shapes.box(2.1, 0.7, 0.06), 0x6a4428, { p: [x, 0.42, z + 0.5] });
-  for (const dx of [-1.05, 1.05]) {
-    for (const dz of [-0.5, 0.5]) b.add(shapes.cylinder(0.05, 0.05, 2.2, 6), 0x5a3a22, { p: [x + dx, 1.1, z + dz] });
-  }
-  b.add(shapes.box(2.6, 0.06, 1.5), cloth, { p: [x, 2.25, z], r: [0.12, 0, 0] });
-  for (let k = 0; k < 4; k++) {
-    const goods = [0xd8321e, 0xf2b630, 0x6aa242, 0xe0622a][k];
-    b.add(shapes.cylinder(0.22, 0.16, 0.14, 10), 0xb08a5a, { p: [x - 0.75 + k * 0.5, 0.91, z] });
-    b.add(shapes.sphere(0.13, 8, 6), goods, { p: [x - 0.75 + k * 0.5, 1.0, z], s: [1, 0.6, 1] });
-  }
-}
-
 function plazaMesh(plaza, obstacles, rand) {
   const b = new Batch();
-  const cx = (plaza.x0 + plaza.x1) / 2;
-  const cz = (plaza.z0 + plaza.z1) / 2;
-  b.add(shapes.cylinder(0.95, 1.02, 0.72, 18), 0xb3ab99, { p: [cx, 0.36, cz] });
-  b.add(shapes.cylinder(0.74, 0.74, 0.04, 18), 0x2f4f52, { p: [cx, 0.62, cz] });
-  for (const side of [-1, 1]) b.add(shapes.box(0.14, 2.2, 0.14), 0x6a4428, { p: [cx + side * 0.95, 1.1, cz] });
-  b.add(shapes.cylinder(0.06, 0.06, 2.1, 8), 0x4a2c1e, { p: [cx, 1.85, cz], r: [0, 0, Math.PI / 2] });
-  for (const side of [-1, 1]) b.add(shapes.box(2.5, 0.07, 0.95), 0x8a4a2e, { p: [cx, 2.52, cz + side * 0.4], r: [side * 0.55, 0, 0] });
-  obstacles.push({ minX: cx - 1.05, maxX: cx + 1.05, minZ: cz - 1.05, maxZ: cz + 1.05, minY: 0, maxY: 3 });
-  const stalls = [
-    [cx - 5.5, cz - 5],
-    [cx + 5.5, cz - 5],
-    [cx - 5.5, cz + 5],
-    [cx + 5.5, cz + 5],
-  ];
-  stalls.forEach(([x, z], i) => {
-    stall(b, x, z, STALL_CLOTHS[i]);
-    obstacles.push({ minX: x - 1.15, maxX: x + 1.15, minZ: z - 0.6, maxZ: z + 0.6, minY: 0, maxY: 2.4 });
-  });
-  for (const [x, z] of [
-    [plaza.x0 + 1.5, plaza.z1 - 2],
-    [plaza.x1 - 2.5, plaza.z1 - 2],
-  ]) {
-    roundTree(b, rand, { x, z, h: 4 });
-    obstacles.push({ minX: x + 0.2, maxX: x + 0.8, minZ: z + 0.2, maxZ: z + 0.8, minY: 0, maxY: 4 });
-  }
+  buildHallPlaza(b, rand, plaza, plaza.z1 - HALL.depth, obstacles);
   return b.mesh();
 }
 
@@ -277,6 +243,21 @@ export function createDistrict() {
       };
     }
   }
+  const hallSpot = { ...frame('south', (plaza.x0 + plaza.x1) / 2, plaza.z1 - HALL.depth) };
+  const hallBuilt = createTownHall({ seed: HALL.seed });
+  obstacles.push(...hallBuilt.obstacles.map((box) => place(hallSpot, box)));
+  hallBuilt.group.position.set(hallSpot.x, 0, hallSpot.front);
+  hallBuilt.group.rotation.y = hallSpot.turn;
+  group.add(hallBuilt.group);
+  clickables.push(hallBuilt.group);
+  const hallAt = (p) => ({ x: hallSpot.x - p.x, z: hallSpot.front - p.z });
+  const mayor = keeperNPC(MAYOR_LOOK, null, SHOPKEEPERS.find((keeper) => keeper.id === 'mayor')?.name ?? '');
+  const mayorAt = hallAt(hallBuilt.mayor);
+  mayor.walker.group.position.set(mayorAt.x, hallBuilt.mayor.y, mayorAt.z);
+  mayor.walker.group.rotation.y = hallSpot.turn + hallBuilt.mayor.facing;
+  clickables.push(mayor.walker.group);
+  const hall = { group: hallBuilt.group, mayor, look: mayorAt, stand: hallAt(hallBuilt.door) };
+  const hallLife = createHallLife({ plaza, hallFront: hallSpot.front, built: hallBuilt, toWorld: hallAt, turn: hallSpot.turn });
   let arena = null;
   for (const block of blocks) {
     for (const house of block.houses) {
@@ -304,6 +285,10 @@ export function createDistrict() {
     for (let node = object; node; node = node.parent) if (node === arena?.group || node === arena?.registrar.walker.group) return true;
     return false;
   };
+  const ownsHall = (object) => {
+    for (let node = object; node; node = node.parent) if (node === hall.group || node === hall.mayor.walker.group) return true;
+    return false;
+  };
   const ownsBank = (object) => {
     for (let node = object; node; node = node.parent) if (node === bank?.group || node === bank?.teller.walker.group) return true;
     return false;
@@ -328,6 +313,7 @@ export function createDistrict() {
   root.add(group);
   if (bank) root.add(bank.teller.walker.group);
   if (arena) root.add(arena.registrar.walker.group);
+  root.add(hall.mayor.walker.group, hallLife.group);
   const pending = [...blocks];
   let now = 0;
 
@@ -337,11 +323,18 @@ export function createDistrict() {
     bankDesk: bank ? { line: bank.line, look: bank.look } : null,
     bankDoor: bank ? bank.stand : null,
     arenaStand: arena ? arena.stand : null,
+    hallStand: hall.stand,
+    hallLook: hall.look,
     arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text, duration = 1.8) => arena.registrar.bubble.show(text, duration, now) } : null,
     update(t, ctx, camera) {
       now = t;
       if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);
       if (arena) animateKeeper(arena.registrar, t, camera.position.distanceTo(arena.registrar.walker.group.position) < TELLER_DISTANCE);
+      animateKeeper(hall.mayor, t, camera.position.distanceTo(hall.mayor.walker.group.position) < TELLER_DISTANCE);
+      hallLife.update(t, ctx.minutes, camera);
+    },
+    setNight(k) {
+      hallLife.setNight(k);
     },
     region(options) {
       return {
@@ -351,6 +344,7 @@ export function createDistrict() {
         staticNav: true,
         target(hit) {
           if (ownsArena(hit.object)) return { kind: 'arena', id: 'arena', index: 'arena', x: arena.at.x, z: arena.at.z, stand: arena.stand };
+          if (ownsHall(hit.object)) return { kind: 'hall', id: 'hall', index: 'hall', x: hall.look.x, z: hall.look.z, stand: hall.stand };
           if (ownsBank(hit.object)) return { kind: 'bank', id: 'bank', index: 'bank', x: bank.look.x, z: bank.look.z, stand: bank.stand };
           const lodge = lodgeOf(hit.object);
           if (!lodge) return null;
@@ -359,6 +353,7 @@ export function createDistrict() {
         actionFor(target) {
           const arenaOptions = target.kind === 'arena' ? options.arenaMenu() : null;
           if (arenaOptions) return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: arenaOptions, menu: true } };
+          if (target.kind === 'hall') return { id: 'visit', hint: 'hand', choices: { title: 'Tòa thị chính', options: options.hallMenu(), menu: true } };
           return { id: 'visit', hint: 'hand' };
         },
         topOf(target) {
@@ -367,6 +362,11 @@ export function createDistrict() {
         act(action, target, choice) {
           if (target.kind === 'arena') {
             options.openArena(choice);
+            return null;
+          }
+          if (target.kind === 'hall') {
+            hall.mayor.bubble.show(MAYOR_LINES[Math.floor(Math.random() * MAYOR_LINES.length)], 1.8, now);
+            options.openHall(choice);
             return null;
           }
           if (target.kind === 'bank') {

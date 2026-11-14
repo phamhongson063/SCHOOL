@@ -675,6 +675,24 @@
       </div>
     </div>
   </dialog>
+  <dialog id="hallDialog" class="paper wide bank rank" aria-labelledby="hallTitle">
+    <div class="paper-body">
+      <header class="sched-head bank-head">
+        <span class="rank-emblem" aria-hidden="true">🏛️</span>
+        <h2 id="hallTitle">Tòa thị chính</h2>
+        <span class="bank-coins"><span class="bank-coin" data-art="silver"></span><span id="hallMoney"></span></span>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="bank-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="today" aria-selected="true">Hôm nay</button>
+        <button type="button" role="tab" data-tab="week" aria-selected="false">7 ngày</button>
+        <button type="button" role="tab" data-tab="plan" aria-selected="false">Lịch</button>
+      </div>
+      <div class="bank-panel">
+        <div id="hallList" class="rank-list hall-list"></div>
+      </div>
+    </div>
+  </dialog>
   <dialog id="kanjiDialog" class="paper kanji" aria-label="Cá cắn câu" tabindex="-1">
     <div class="quiz-body">
       <header class="quiz-head">

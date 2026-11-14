@@ -2,7 +2,8 @@ import { between } from './random.js';
 import { BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
-import { minuteOfDay } from './clock.js';
+import { dayOf, minuteOfDay } from './clock.js';
+import { blessingSlots } from './economy.js';
 import { averageYield } from './market.js';
 import { SELF_STUDY } from './villagerData.js';
 
@@ -23,8 +24,8 @@ export const BLESSING_STAY = (BLESSING.villagerStay[0] + BLESSING.villagerStay[1
 
 function blessingMinutesLeft(minutes) {
   const m = minuteOfDay(minutes);
-  const window = BLESSING.windows.find(([start, end]) => m >= start && m < end);
-  return window ? window[1] - m : 0;
+  const slot = blessingSlots(dayOf(minutes)).find(({ start, end }) => m >= start && m < end);
+  return slot ? slot.end - m : 0;
 }
 
 export class MindBehavior {

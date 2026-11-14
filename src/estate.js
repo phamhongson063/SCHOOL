@@ -43,7 +43,7 @@ export function createEstate({ houses }) {
     const house = list.find((item) => item.id === houseId);
     if (!house || house.owner || houseOf(owner)) return null;
     if (!purse.spend(house.price)) return null;
-    economy.collect(house.price);
+    economy.collect(house.price, null, house.price, 'estate');
     house.owner = owner;
     save();
     return house;

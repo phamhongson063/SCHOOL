@@ -75,6 +75,7 @@ import { DECKS } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
+import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
 import { economy, SHOPKEEPERS } from './economy.js';
 import { loadingStep, loadingDone, hasEntered } from './loading.js';
@@ -260,6 +261,7 @@ const foodUI = createFoodUI({ purse });
 const bank = createBank({ ledger, estate, now: gameNow });
 const bankUI = createBankUI({ bank, purse });
 const atmUI = createAtmUI({ bank, purse });
+const hallUI = createHallUI({ economy, now: gameNow });
 const VENUES = {
   shop: { isOpen: shopOpen, ui: shopUI },
   fish: { isOpen: fishShopOpen, ui: fishShopUI },
@@ -318,6 +320,8 @@ const districtRegion = district.region({
   openBank: () => bankUI.open(),
   arenaMenu: () => arenaMenu(arena),
   openArena: (choice) => openArena(choice),
+  hallMenu: () => hallMenu(economy),
+  openHall: (choice) => hallUI.open(choice),
   minutes: () => gameNow(),
 });
 regions.add(districtRegion);
@@ -1490,6 +1494,7 @@ for (const [name, at, stand, lift] of [
   ['Hàng cá', village.places.fish],
   ['Ngân hàng', district.bankDoor],
   ['Lôi đài', district.arenaStand],
+  ['Tòa thị chính', district.hallLook, district.hallStand, 12],
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
   ['Bến sông Hoài', midRiver, midRiver, 3],
@@ -1881,6 +1886,7 @@ renderer.setAnimationLoop((time) => {
     for (const hall of studyHalls) hall.setNight(night);
     inn.setNight(night);
     village.setNight(night);
+    district.setNight(night);
     river.setNight(night);
     streetLamps.setNight(night);
   }

@@ -1,7 +1,7 @@
 import { ARENA, DAYLIGHT } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
-import { ARENA_POOL, economy } from './economy.js';
+import { economy } from './economy.js';
 import { DECKS } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -375,7 +375,7 @@ export function createArena({ ledger, roster = () => [] }) {
         return { rank, id, money };
       })
       .sort((a, b) => a.rank - b.rank);
-    if (event.pot - paid > 0) ledger.purse(ARENA_POOL).earn(event.pot - paid);
+    if (event.pot - paid > 0) economy.collect(event.pot - paid, null, event.pot - paid, 'arena');
     const champion = event.places.find((place) => place.rank === 1);
     if (champion) state.champions = [{ at: event.at, id: champion.id }, ...state.champions].slice(0, ARENA.champions);
     event.phase = 'done';
@@ -390,9 +390,7 @@ export function createArena({ ledger, roster = () => [] }) {
       for (const listener of finished) listener(event);
       return;
     }
-    const pool = ledger.purse(ARENA_POOL);
-    const prize = pool.money;
-    if (prize > 0 && pool.spend(prize)) event.pot += prize;
+    event.pot += economy.sponsorArena(event.at);
     draw(event);
     event.phase = 'running';
     event.firstAt = at + ARENA.opening;
@@ -470,7 +468,7 @@ export function createArena({ ledger, roster = () => [] }) {
     get prize() {
       const event = state.event;
       if (event?.phase === 'running') return event.pot;
-      return ledger.purse(ARENA_POOL).money + (event?.phase === 'open' ? event.pot : 0);
+      return economy.arenaPrize(event?.phase === 'open' ? event.at : undefined) + (event?.phase === 'open' ? event.pot : 0);
     },
     blocked,
     register(id) {
@@ -488,7 +486,7 @@ export function createArena({ ledger, roster = () => [] }) {
       if (now < (thought.get(id) ?? -Infinity) + npc.rethink) return false;
       thought.set(id, now);
       if (ledger.purse(id).money < ARENA.fee + npc.reserve) return false;
-      const prize = ledger.purse(ARENA_POOL).money + event.pot;
+      const prize = economy.arenaPrize(event.at) + event.pot;
       return prize * prizeShare(event, id) > ARENA.fee && Math.random() < npc.eager;
     },
     liveMatch,

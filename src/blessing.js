@@ -8,6 +8,7 @@ import { PLAZA } from './school.js';
 import { plazaFloor, PLAZA_ZONE } from './quarter.js';
 import { keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
+import { blessingSlots } from './economy.js';
 
 const STONE = 0xb3ab99;
 const STONE_DARK = 0x8a8273;
@@ -657,7 +658,7 @@ function createAura(statueMaterial) {
 
 const windowIndexAt = (minutes) => {
   const m = minuteOfDay(minutes);
-  return BLESSING.windows.findIndex(([start, end]) => m >= start && m < end);
+  return blessingSlots(dayOf(minutes)).find(({ start, end }) => m >= start && m < end)?.index ?? -1;
 };
 
 function strengthAt(minutes) {
@@ -675,16 +676,17 @@ function sessionAt(minutes) {
 
 function upcomingWindow(minutes, lead) {
   const m = minuteOfDay(minutes);
-  const index = BLESSING.windows.findIndex(([start]) => m >= start - lead && m < start);
-  if (index < 0) return null;
-  const [start, end] = BLESSING.windows[index];
-  return { key: `${dayOf(minutes)}:${index}`, hours: `${clockText(start)}–${clockText(end)}` };
+  const slot = blessingSlots(dayOf(minutes)).find(({ start }) => m >= start - lead && m < start);
+  if (!slot) return null;
+  return { key: `${dayOf(minutes)}:${slot.index}`, hours: `${clockText(slot.start)}–${clockText(slot.end)}` };
 }
 
 function nextWindowText(minutes) {
   const m = minuteOfDay(minutes);
-  const [start, end] = BLESSING.windows.find(([open]) => open > m) ?? BLESSING.windows[0];
-  return `${clockText(start)}–${clockText(end)}`;
+  const day = dayOf(minutes);
+  const slot = blessingSlots(day).find(({ start }) => start > m) ?? blessingSlots(day + 1)[0];
+  if (!slot) return `${clockText(BLESSING.windows[0][0])}–${clockText(BLESSING.windows[0][1])}`;
+  return `${clockText(slot.start)}–${clockText(slot.end)}`;
 }
 
 const inBed = (x, z) => [...CORNER_BEDS, ...EDGE_BEDS].some((bed) => Math.abs(x - bed.x) < bed.hx + 0.5 && Math.abs(z - bed.z) < bed.hz + 0.5);

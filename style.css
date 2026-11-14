@@ -4988,6 +4988,88 @@ dialog.paper.phrase-quiz.closing::backdrop {
   }
 }
 
+.hall-list {
+  gap: 6px;
+}
+
+.hall-list .bank-ribbon {
+  margin: 6px auto 2px;
+}
+
+.hall-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #e8d8b4;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: var(--bark);
+  font: 600 15px/1.3 var(--font-ui);
+}
+
+.hall-row.total {
+  background: #f6ead0;
+  font-weight: 800;
+}
+
+.hall-icon {
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+.hall-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-money {
+  justify-self: end;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.hall-money .gold-icon {
+  height: 0.756em;
+  margin-right: 0;
+  vertical-align: -0.1em;
+}
+
+.hall-money.in {
+  color: #2e6e46;
+}
+
+.hall-money.out {
+  color: #b3261a;
+}
+
+.hall-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 4px;
+}
+
+.hall-time {
+  padding: 4px 10px;
+  border: 1px solid #e8d8b4;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: var(--bark);
+  font: 700 13px/1.2 var(--font-ui);
+}
+
+@media (max-width: 600px) {
+  .hall-row {
+    gap: 6px;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+}
+
 .stall-tabs {
   grid-template-columns: none;
   grid-auto-flow: column;

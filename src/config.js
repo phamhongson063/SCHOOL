@@ -256,14 +256,14 @@ export const FIREFLY = {
 export const ECONOMY = {
   vat: 0.1,
   keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3, grocer: 0.3 },
-  wages: { guard: 12, teacher: 10, chief: 15 },
+  wages: { guard: 12, teacher: 10, chief: 15, mayor: 20 },
   fundSeed: 5000,
   living: 12,
   pollTax: 2,
   houseTax: 0.0001,
   buyback: 0.8,
   thrift: 0.6,
-  arenaCut: 0.2,
+  incomeTax: 0.2,
   offline: { sampleDays: 3, minSample: 120 },
 };
 
@@ -320,7 +320,16 @@ export const ARENA = {
 
 export const HERALD = { lead: 15, every: 3 };
 
+export const TOWNHALL = {
+  reserveDays: 5,
+  spend: 0.2,
+  blessingShare: 0.5,
+  blessingMin: 2,
+  history: 14,
+};
+
 export const BLESSING = {
+  cost: 15,
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
   quizSeconds: 3,
   quizCloseMs: 500,

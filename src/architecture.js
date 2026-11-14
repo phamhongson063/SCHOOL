@@ -2285,6 +2285,207 @@ export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
   };
 }
 
+const CIVIC = {
+  wall: 0xf4f1ea,
+  trim: 0xe2ddd2,
+  coping: 0x8c9198,
+  frame: 0x2b2f38,
+  glass: 0x9fbccc,
+  stone: 0xd8d4cc,
+  stoneDark: 0xb2ada3,
+  navy: 0x24346a,
+  wood: 0x7a5232,
+  flag: 0xc8261a,
+  brass: 0xc9a24a,
+};
+
+function civicWindow(kit, x, y0, y1, w, z) {
+  const b = kit.body;
+  kit.panes.add(shapes.box(w, y1 - y0, 0.04), CIVIC.glass, { p: [x, (y0 + y1) / 2, z] });
+  for (const side of [-1, 1]) b.add(shapes.box(0.07, y1 - y0 + 0.07, 0.08), CIVIC.frame, { p: [x + (side * w) / 2, (y0 + y1) / 2, z + 0.01] });
+  for (const y of [y0, (y0 + y1) / 2 + 0.25, y1]) b.add(shapes.box(w + 0.07, 0.06, 0.08), CIVIC.frame, { p: [x, y, z + 0.01] });
+  b.add(shapes.box(0.05, y1 - y0, 0.07), CIVIC.frame, { p: [x, (y0 + y1) / 2, z + 0.01] });
+  b.add(rbox(w + 0.3, 0.08, 0.22, 0.02), CIVIC.trim, { p: [x, y0 - 0.06, z + 0.08] });
+}
+
+function curtainWall(kit, x0, x1, y0, y1, z, cols, rows) {
+  const b = kit.body;
+  kit.panes.add(shapes.box(x1 - x0, y1 - y0, 0.04), CIVIC.glass, { p: [(x0 + x1) / 2, (y0 + y1) / 2, z] });
+  for (let i = 0; i <= cols; i++) b.add(shapes.box(i % cols === 0 ? 0.14 : 0.08, y1 - y0, 0.1), CIVIC.frame, { p: [x0 + ((x1 - x0) * i) / cols, (y0 + y1) / 2, z + 0.03] });
+  for (let j = 0; j <= rows; j++) b.add(shapes.box(x1 - x0, j % rows === 0 ? 0.14 : 0.07, 0.1), CIVIC.frame, { p: [(x0 + x1) / 2, y0 + ((y1 - y0) * j) / rows, z + 0.03] });
+}
+
+function civicFlag(kit, x, z, height) {
+  const b = kit.body;
+  b.add(shapes.cylinder(0.16, 0.2, 0.2, 10), CIVIC.stoneDark, { p: [x, 0.1, z] });
+  b.add(shapes.cylinder(0.035, 0.05, height, 8), 0xd8dce0, { p: [x, height / 2 + 0.2, z] });
+  b.add(shapes.sphere(0.07, 8, 6), CIVIC.brass, { p: [x, height + 0.24, z] });
+  block(kit, x - 0.22, z - 0.22, x + 0.22, z + 0.22, height);
+  return { x: x + 0.04, y: height - 0.32, z };
+}
+
+function paintHallSign(ctx, w, h) {
+  ctx.fillStyle = cssHex(CIVIC.navy);
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#f4efe2';
+  ctx.lineWidth = h * 0.05;
+  ctx.strokeRect(h * 0.1, h * 0.1, w - h * 0.2, h - h * 0.2);
+  ctx.fillStyle = '#fbf8f0';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let size = h * 0.5;
+  ctx.font = `700 ${size}px ${LATIN_FONT}`;
+  const width = ctx.measureText('TÒA THỊ CHÍNH').width;
+  if (width > w * 0.86) size *= (w * 0.86) / width;
+  ctx.font = `700 ${size}px ${LATIN_FONT}`;
+  ctx.fillText('TÒA THỊ CHÍNH', w / 2, h * 0.54);
+}
+
+function civicLamp(kit, x, z) {
+  const b = kit.body;
+  const pole = 3.4;
+  b.add(shapes.cylinder(0.16, 0.2, 0.3, 10), CIVIC.frame, { p: [x, 0.15, z] });
+  b.add(shapes.cylinder(0.055, 0.07, pole, 10), CIVIC.frame, { p: [x, pole / 2 + 0.3, z] });
+  b.add(rbox(0.5, 0.06, 0.5, 0.02), CIVIC.frame, { p: [x, pole + 0.32, z] });
+  kit.lamps.add(rbox(0.36, 0.5, 0.36, 0.05), 0xfff1c8, { p: [x, pole + 0.6, z] });
+  b.add(rbox(0.56, 0.08, 0.56, 0.03), CIVIC.frame, { p: [x, pole + 0.89, z] });
+  kit.lights.push({ position: new THREE.Vector3(x, pole + 0.6, z), tint: 0xffe2a8 });
+  block(kit, x - 0.22, z - 0.22, x + 0.22, z + 0.22, pole + 1);
+}
+
+function clockFace(kit, x, y, z, r) {
+  const b = kit.body;
+  b.add(shapes.cylinder(r + 0.12, r + 0.12, 0.08, 28), CIVIC.frame, { p: [x, y, z], r: [Math.PI / 2, 0, 0] });
+  kit.lamps.add(shapes.cylinder(r, r, 0.1, 28), 0xfbf8f0, { p: [x, y, z + 0.01], r: [Math.PI / 2, 0, 0] });
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    const long = k % 3 === 0;
+    b.add(shapes.box(long ? 0.07 : 0.04, long ? 0.2 : 0.12, 0.02), CIVIC.frame, { p: [x + Math.sin(a) * r * 0.82, y + Math.cos(a) * r * 0.82, z + 0.07], r: [0, 0, -a] });
+  }
+  return { x, y, z: z + 0.09, r };
+}
+
+function receptionDesk(kit, x, z, floor) {
+  const b = kit.body;
+  b.add(rbox(2.4, 0.95, 0.6, 0.05), CIVIC.wood, { p: [x, floor + 0.475, z] });
+  b.add(rbox(2.56, 0.07, 0.72, 0.03), CIVIC.wall, { p: [x, floor + 0.98, z] });
+  b.add(shapes.box(2.2, 0.06, 0.02), CIVIC.brass, { p: [x, floor + 0.7, z + 0.31] });
+  b.add(shapes.box(0.5, 0.01, 0.36), 0xfbf8f0, { p: [x - 0.4, floor + 1.02, z], r: [0, 0.12, 0] });
+  b.add(shapes.cylinder(0.06, 0.06, 0.16, 8), CIVIC.navy, { p: [x + 0.7, floor + 1.09, z - 0.08] });
+  b.add(shapes.box(0.34, 0.05, 0.24), CIVIC.navy, { p: [x + 0.25, floor + 1.04, z - 0.05] });
+}
+
+export function createTownHall({ seed = 1 } = {}) {
+  const kit = createKit(seed);
+  const b = kit.body;
+  const plinth = 0.45;
+  const back = -9.3;
+  const core = 3;
+  const wingEdge = 7.4;
+  const wingFront = -0.8;
+  const glassZ = -2.4;
+  const porch = 0.1;
+  const wingTop = 6.4;
+  const coreTop = 7.6;
+  const floorLine = 3.55;
+
+  b.add(shapes.box(wingEdge * 2 + 0.8, plinth, porch - back + 0.2), CIVIC.stone, { p: [0, plinth / 2, (porch + back) / 2] });
+  b.add(shapes.box(wingEdge * 2 + 0.9, 0.08, porch - back + 0.3), CIVIC.stoneDark, { p: [0, plinth - 0.04, (porch + back) / 2] });
+  for (let k = 0; k < 3; k++) {
+    const h = (plinth * (3 - k)) / 3;
+    b.add(shapes.box(6.4 + k * 0.4, h, 0.36), CIVIC.stone, { p: [0, h / 2, porch + 0.18 + k * 0.36] });
+  }
+
+  b.add(rbox(core * 2, coreTop - plinth, glassZ - back, 0.06), CIVIC.wall, { p: [0, (coreTop + plinth) / 2, (glassZ + back) / 2] });
+  curtainWall(kit, -core + 0.1, core - 0.1, plinth, coreTop - 0.9, glassZ + 0.02, 4, 3);
+  kit.panes.add(shapes.box(1.7, 2.6, 0.05), 0xc8dce4, { p: [0, plinth + 1.3, glassZ + 0.08] });
+  b.add(shapes.box(0.06, 2.6, 0.08), CIVIC.frame, { p: [0, plinth + 1.3, glassZ + 0.12] });
+  for (const side of [-1, 1]) b.add(shapes.box(0.04, 0.5, 0.06), 0xc8ccd4, { p: [side * 0.14, plinth + 1.2, glassZ + 0.16] });
+
+  for (const side of [-1, 1]) {
+    const x0 = side * core;
+    const x1 = side * wingEdge;
+    const cx = (x0 + x1) / 2;
+    const w = Math.abs(x1 - x0);
+    b.add(rbox(w, wingTop - plinth, wingFront - back, 0.06), CIVIC.wall, { p: [cx, (wingTop + plinth) / 2, (wingFront + back) / 2] });
+    b.add(rbox(w + 0.2, 0.24, wingFront - back + 0.2, 0.04), CIVIC.coping, { p: [cx, wingTop + 0.1, (wingFront + back) / 2] });
+    b.add(rbox(w + 0.06, 0.12, 0.16, 0.03), CIVIC.trim, { p: [cx, floorLine, wingFront + 0.05] });
+    b.add(rbox(w + 0.06, 0.34, 0.14, 0.03), CIVIC.stoneDark, { p: [cx, plinth + 0.17, wingFront + 0.04] });
+    const bays = 3;
+    for (let k = 0; k < bays; k++) {
+      const x = x0 + ((x1 - x0) * (k + 0.5)) / bays;
+      civicWindow(kit, x, plinth + 0.75, floorLine - 0.5, 0.9, wingFront + 0.02);
+      civicWindow(kit, x, floorLine + 0.55, wingTop - 0.55, 0.9, wingFront + 0.02);
+    }
+    for (let k = 0; k <= bays; k++) {
+      const x = x0 + ((x1 - x0) * k) / bays;
+      b.add(rbox(0.2, wingTop - plinth, 0.2, 0.04), CIVIC.trim, { p: [x, (wingTop + plinth) / 2, wingFront + 0.08] });
+    }
+  }
+
+  for (const side of [-1, 1]) {
+    for (const z of [-3.4, -6.6]) {
+      for (const [y0, y1] of [[plinth + 0.75, floorLine - 0.5], [floorLine + 0.55, wingTop - 0.55]]) {
+        kit.panes.add(shapes.box(0.04, y1 - y0, 0.9), CIVIC.glass, { p: [side * (wingEdge + 0.03), (y0 + y1) / 2, z] });
+        b.add(shapes.box(0.08, y1 - y0 + 0.1, 1.0), CIVIC.frame, { p: [side * (wingEdge - 0.02), (y0 + y1) / 2, z] });
+        b.add(shapes.box(0.06, 0.05, 0.9), CIVIC.frame, { p: [side * (wingEdge + 0.04), (y0 + y1) / 2 + 0.25, z] });
+      }
+    }
+  }
+
+  for (const x of [-2.7, -0.95, 0.95, 2.7]) {
+    b.add(rbox(0.46, 0.2, 0.46, 0.04), CIVIC.stoneDark, { p: [x, plinth + 0.1, porch - 0.25] });
+    b.add(rbox(0.32, coreTop - 0.9 - plinth, 0.32, 0.06), CIVIC.wall, { p: [x, (coreTop - 0.9 + plinth) / 2, porch - 0.25] });
+  }
+  const beamZ = (glassZ + porch) / 2;
+  b.add(rbox(core * 2 + 0.6, 0.9, porch - glassZ + 0.2, 0.06), CIVIC.wall, { p: [0, coreTop - 0.45, beamZ] });
+  b.add(rbox(core * 2 + 0.8, 0.22, porch - glassZ + 0.4, 0.04), CIVIC.coping, { p: [0, coreTop + 0.08, beamZ - 0.05] });
+  b.add(rbox(core * 2 + 0.2, 0.24, glassZ - back + 0.2, 0.04), CIVIC.coping, { p: [0, coreTop + 0.08, (glassZ + back) / 2] });
+  b.add(rbox(4.96, 0.76, 0.08, 0.03), CIVIC.frame, { p: [0, coreTop - 0.45, porch + 0.12] });
+  paintedPanel(kit, 4.8, 0.62, paintHallSign, { glow: 0.9, p: [0, coreTop - 0.45, porch + 0.17] });
+  for (const x of [-5.9, -4.4, 4.4, 5.9]) {
+    b.add(rbox(0.34, 0.12, 0.22, 0.03), CIVIC.frame, { p: [x, plinth + 0.06, wingFront + 0.3] });
+    kit.lamps.add(rbox(0.24, 0.03, 0.12, 0.01), 0xfff1c8, { p: [x, plinth + 0.13, wingFront + 0.3] });
+  }
+  for (const x of [-1.9, 0, 1.9]) kit.lamps.add(rbox(0.5, 0.04, 0.5, 0.02), 0xfff6dc, { p: [x, coreTop - 0.92, beamZ] });
+
+  const towerZ = -5.6;
+  const towerHalf = 1.35;
+  const towerTop = coreTop + 4.2;
+  b.add(rbox(towerHalf * 2, towerTop - coreTop, towerHalf * 2, 0.06), CIVIC.wall, { p: [0, (towerTop + coreTop) / 2, towerZ] });
+  for (const sx of [-1, 1]) {
+    b.add(rbox(0.22, towerTop - coreTop, 0.22, 0.04), CIVIC.trim, { p: [sx * towerHalf, (towerTop + coreTop) / 2, towerZ + towerHalf] });
+  }
+  kit.panes.add(shapes.box(0.5, 1.8, 0.04), CIVIC.glass, { p: [0, coreTop + 1.25, towerZ + towerHalf + 0.02] });
+  b.add(shapes.box(0.6, 0.06, 0.08), CIVIC.frame, { p: [0, coreTop + 2.17, towerZ + towerHalf + 0.03] });
+  const clock = clockFace(kit, 0, towerTop - 1.05, towerZ + towerHalf + 0.03, 0.82);
+  b.add(rbox(towerHalf * 2 + 0.4, 0.26, towerHalf * 2 + 0.4, 0.05), CIVIC.coping, { p: [0, towerTop + 0.13, towerZ] });
+  b.add(rbox(1.5, 0.7, 1.5, 0.05), CIVIC.wall, { p: [0, towerTop + 0.61, towerZ] });
+  b.add(rbox(1.8, 0.16, 1.8, 0.04), CIVIC.coping, { p: [0, towerTop + 1.04, towerZ] });
+  b.add(shapes.cylinder(0.035, 0.045, 2.4, 8), 0xd8dce0, { p: [0, towerTop + 2.3, towerZ] });
+  b.add(shapes.sphere(0.07, 8, 6), CIVIC.brass, { p: [0, towerTop + 3.54, towerZ] });
+  const flags = [{ x: 0.04, y: towerTop + 3.1, z: towerZ }];
+
+  receptionDesk(kit, 0, -1.05, plinth);
+  for (const side of [-1, 1]) {
+    martPlanter(kit, side * 4.4, porch + 0.75);
+    flags.push(civicFlag(kit, side * 6.3, porch + 0.85, 5.6));
+    civicLamp(kit, side * (wingEdge + 0.9), porch + 0.6);
+  }
+
+  block(kit, -wingEdge - 0.4, back - 0.1, wingEdge + 0.4, porch + 0.1, coreTop);
+  block(kit, -3.4, porch + 0.1, 3.4, porch + 1.2, 0.5);
+  return {
+    group: assemble(kit),
+    obstacles: kit.obstacles,
+    door: { x: 0, z: porch + 1.55 },
+    mayor: { x: 0, y: plinth, z: -1.75, facing: 0 },
+    clock,
+    flags,
+    glow: { x: 0, y: 4.2, z: porch + 3.2 },
+  };
+}
+
 const FISH_TONES = [0xa8b0a0, 0x7a8a3a, 0x8a96a0, 0x6a7078, 0xc0a070];
 
 function fishShape(kit, x, y, z, len, color, rotation = [0, 0, 0]) {
