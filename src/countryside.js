@@ -10,7 +10,7 @@ const ROAD_MID = 35;
 const HEDGE_GAP = 1.7;
 const HEDGES = [
   { id: 'west', z: 17.5, x0: -62, x1: -23.5, gaps: [[-53.5, -47]], bounds: { x0: -64, z0: 10, x1: -20, z1: 25 } },
-  { id: 'north', z: 17.5, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 10, x1: 101, z1: 25 } },
+  { id: 'north', z: 17.5, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 16.5, x1: 101, z1: 25 } },
   { id: 'south', z: 53.5, x0: 51, x1: 99, gaps: [], bounds: { x0: 48, z0: 48, x1: 101, z1: 59 } },
 ];
 const GATE_BOUNDS = { x0: -150, z0: 30, x1: -104, z1: 38.4 };

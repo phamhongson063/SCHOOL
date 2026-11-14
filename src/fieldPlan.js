@@ -113,6 +113,42 @@ export const FIELDS = [
       { id: 'tay-14', x: -114.2, z: 41.5, holes: 10, seed: 2169 },
     ],
   },
+  {
+    id: 'north',
+    region: 'northFarm',
+    name: 'Ruộng Sau Làng',
+    seed: 939,
+    bounds: { x0: 36, z0: 3.5, x1: 95, z1: 16.3 },
+    soil: [
+      { x0: 43.5, z0: 5.3, x1: 64.6, z1: 15.9, seed: 65 },
+      { x0: 67.5, z0: 5.3, x1: 88.6, z1: 15.9, seed: 66 },
+    ],
+    paths: [
+      { x0: 41.4, z0: 5, x1: 43.4, z1: 16.3, radius: 0.5 },
+      { x0: 64.8, z0: 5, x1: 67.2, z1: 16.3, radius: 0.5 },
+    ],
+    jars: [
+      { x: 42.4, z: 4.4 },
+      { x: 66, z: 4.4 },
+    ],
+    trees: [
+      [38.5, 6],
+      [92, 14],
+      [92.5, 6.5],
+    ],
+    beds: [
+      { id: 'sau-1', x: 44, z: 15, heading: Math.PI / 2, holes: 10, seed: 3000 },
+      { id: 'sau-2', x: 44, z: 12.8, heading: Math.PI / 2, holes: 10, seed: 3013 },
+      { id: 'sau-3', x: 44, z: 10.6, heading: Math.PI / 2, holes: 10, seed: 3026 },
+      { id: 'sau-4', x: 44, z: 8.4, heading: Math.PI / 2, holes: 10, seed: 3039 },
+      { id: 'sau-5', x: 44, z: 6.2, heading: Math.PI / 2, holes: 10, seed: 3052 },
+      { id: 'sau-6', x: 68, z: 15, heading: Math.PI / 2, holes: 10, seed: 3065 },
+      { id: 'sau-7', x: 68, z: 12.8, heading: Math.PI / 2, holes: 10, seed: 3078 },
+      { id: 'sau-8', x: 68, z: 10.6, heading: Math.PI / 2, holes: 10, seed: 3091 },
+      { id: 'sau-9', x: 68, z: 8.4, heading: Math.PI / 2, holes: 10, seed: 3104 },
+      { id: 'sau-10', x: 68, z: 6.2, heading: Math.PI / 2, holes: 10, seed: 3117 },
+    ],
+  },
 ];
 
 const LEGACY_ORDER = [

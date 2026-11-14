@@ -363,7 +363,7 @@ function tintOf(plant) {
 
 function yawOf(spot, plant) {
   if (!CROPS[plant.crop]?.aligned) return spot.yaw;
-  return spot.yaw > Math.PI ? 0 : Math.PI;
+  return Math.atan2(spot.ux, spot.uz) + (spot.yaw > Math.PI ? 0 : Math.PI);
 }
 
 function modelKey(stage, crop, variety) {
