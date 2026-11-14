@@ -16,4 +16,7 @@
   - Lý do: trước đây badge lượt đặt ghế là sprite 3D riêng nên đè lên icon chén cơm.
 - **Mọi icon trên đầu nhân vật phải do `bubble.js` quản lý**: tên, icon trạng thái, icon đang học... đều là badge trong hàng của `bubble.js` (thêm hàm `setXxx` như `setStudy`), tuyệt đối không tạo `THREE.Sprite` hay phần tử DOM riêng gắn lên đầu người chơi/dân làng.
   - Lý do: icon nằm ngoài `bubble.js` thì hàng badge không biết để chừa chỗ, nên bị đè lên tên và các icon khác (icon 📖 từng đè lên tên dân làng).
+- **Mọi hoạt động và luật mới phải có giả lập khi người chơi offline**: khi thêm hoạt động (sự kiện, việc làm, mua bán, thi cử...) hay luật mới, phải cho nó chạy tiếp trong lúc bù thời gian vắng mặt (`createAwaySim` trong `villagerAway.js`, gọi từ `catchUp` của `economy.js`), cho kết quả tương đương lúc người chơi online.
+  - Quyết định của dân làng khi offline phải dùng chung hàm luật với lúc online (ví dụ `arena.consider`, `examDeckWanted`), không viết luật riêng cho offline.
+  - Lý do: thế giới phải tiếp tục sống khi người chơi thoát game; thiếu giả lập thì vào lại thấy làng đứng yên hoặc lệch so với lúc online.
 - **Nghiêm cấm phân biệt nghề nghiệp của dân làng**: trong game không có khái niệm nghề nghiệp, mọi người chỉ gọi chung là dân làng. Không tạo màu tên, nhãn, icon, cách gọi hay giao diện riêng theo nghề (học sinh, nông dân...).

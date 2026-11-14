@@ -123,6 +123,16 @@ export function createAwaySim({ town, contextAt }) {
     }
   }
 
+  function signUp(member, ctx) {
+    const arena = town.arena;
+    if (!town.arenaDesk || !arena?.consider(member.id, ctx.minutes)) return;
+    const memo = memoOf(member);
+    const arrive = Math.max(ctx.minutes, memo.busyUntil) + AWAY.walk;
+    memo.busyUntil = arrive;
+    memo.busyAs = 'walk';
+    if (arrive < arena.event.at) arena.register(member.id);
+  }
+
   function banking(member, ctx) {
     const since = member.bankAt === null ? Infinity : ctx.minutes - member.bankAt;
     if (!bank || since < BANK.npc.urgentGap) return;
@@ -141,7 +151,7 @@ export function createAwaySim({ town, contextAt }) {
     eat(member, ctx);
     if (ctx.martOpen && member.wantsMart()) member.buySnacks();
     exams(member, ctx);
-    if (town.arena?.consider(member.id, ctx.minutes)) town.arena.register(member.id);
+    signUp(member, ctx);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);
