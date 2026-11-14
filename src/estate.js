@@ -113,7 +113,7 @@ export function createChiefUI({ estate, purse, nameOf }) {
             label: `Bán lại ${amount(estate.buybackOf(house))}`,
             run: () => {
               const sold = estate.sellBack(PLAYER, purse);
-              note.textContent = sold ? `Ông Lý trưởng: "Làng đã mua lại nhà số ${sold.id}."` : 'Ông Lý trưởng: "Quỹ làng chưa đủ tiền mua lại, con chờ ít bữa nhé."';
+              note.textContent = sold ? `Youngsoo: "Làng đã mua lại nhà số ${sold.id}."` : 'Youngsoo: "Quỹ làng chưa đủ tiền mua lại, con chờ ít bữa nhé."';
               render();
             },
           });
@@ -142,7 +142,7 @@ export function createChiefUI({ estate, purse, nameOf }) {
     },
     open() {
       const mine = estate.houseOf(PLAYER);
-      note.textContent = mine ? `Ông Lý trưởng: "Con đã có nhà số ${mine.id} rồi đó."` : 'Ông Lý trưởng: "Muốn mua nhà thì chọn căn nào ưng ý nhé."';
+      note.textContent = mine ? `Youngsoo: "Con đã có nhà số ${mine.id} rồi đó."` : 'Youngsoo: "Muốn mua nhà thì chọn căn nào ưng ý nhé."';
       render();
       dialog.showModal();
     },

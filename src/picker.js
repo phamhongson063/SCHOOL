@@ -17,9 +17,9 @@ export function createPicker() {
   }
 
   function option(item) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'picker-option';
+    const button = document.createElement(item.info ? 'div' : 'button');
+    if (!item.info) button.type = 'button';
+    button.className = item.info ? 'picker-option picker-info' : 'picker-option';
     if (item.label) button.setAttribute('aria-label', item.label);
     const icon = document.createElement('span');
     icon.className = 'picker-option-icon';
@@ -29,6 +29,7 @@ export function createPicker() {
     name.className = 'picker-option-label';
     setRich(name, item.name);
     button.append(icon, name);
+    if (item.info) return button;
     button.addEventListener('click', () => {
       const pick = onPick;
       close();

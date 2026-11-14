@@ -9,7 +9,7 @@ import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 
 const KEY = worldKey('arena');
-const DATA_VERSION = 4;
+const DATA_VERSION = 1;
 const PHASES = ['open', 'running', 'done'];
 const SIDES = ['a', 'b'];
 const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
@@ -335,10 +335,9 @@ export function createArena({ ledger, roster = () => [] }) {
 
   function draft(event) {
     const taken = new Set(event.entrants);
-    const pool = shuffle(roster().filter((id) => !isHuman(id) && !taken.has(id)));
-    const ready = pool.filter((id) => certify.certifiedCount(id, event.deck) > 0);
-    const rest = pool.filter((id) => !ready.includes(id));
-    for (const id of [...ready, ...rest]) {
+    const count = new Map(roster().map((id) => [id, certify.certifiedCount(id, event.deck)]));
+    const pool = shuffle(roster().filter((id) => !isHuman(id) && !taken.has(id))).sort((a, b) => count.get(b) - count.get(a));
+    for (const id of pool) {
       if (event.entrants.length >= capacityOf(event)) break;
       event.entrants.push(id);
       event.drafted.push(id);

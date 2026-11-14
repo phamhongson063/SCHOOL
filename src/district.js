@@ -349,7 +349,7 @@ export function createDistrict() {
           return { kind: 'lodge', id: lodge.id, index: `lodge:${lodge.id}`, x: lodge.look.x, z: lodge.look.z, stand: lodge.stand };
         },
         actionFor(target) {
-          if (target.kind === 'arena') return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: options.arenaMenu, menu: true } };
+          if (target.kind === 'arena') return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: options.arenaMenu(), menu: true } };
           return { id: 'visit', hint: 'hand' };
         },
         topOf(target) {

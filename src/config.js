@@ -287,14 +287,14 @@ export const ARENA = {
   deck: 'n2',
   size: { day: 16, night: 8 },
   stages: 8,
-  starts: [11 * 60 + 7],
+  starts: Array.from({ length: 12 }, (_, i) => (2 * i + 1) * 60),
   lead: 30,
   opening: 0.25,
   breather: 15,
   pause: 1.5,
   setPause: 4,
   grace: 2,
-  fee: 0,
+  fee: 2,
   hp: 140,
   hit: 18,
   speed: 0.6,
@@ -312,6 +312,8 @@ export const ARENA = {
   rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
   npc: { minCertified: 20, reserve: 40, eager: 0.6 },
 };
+
+export const HERALD = { lead: 15, every: 3 };
 
 export const BLESSING = {
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),

@@ -79,9 +79,7 @@ export function createMarket() {
     const amount = Math.min(have, count);
     if (amount <= 0 || !SELLABLE.has(ITEMS[item]?.kind)) return 0;
     if (!purse.take(item, amount)) return 0;
-    const earned = Math.floor(economy.withhold(amount * priceOf(item), purse.id));
-    purse.earn(earned);
-    return earned;
+    return economy.sale(purse, amount * priceOf(item));
   }
 
   function sellAll(purse, kinds) {
@@ -172,8 +170,10 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
     const have = purse.count(item);
     const price = priceOf(item);
     const sellSome = (count) => () => {
+      const before = purse.count(item);
       const earned = market.sell(purse, item, count);
-      if (earned) say(`Bán ${Math.min(count, have)} ${info.unit} ${info.name.toLowerCase()} được ${coins(earned)}.`);
+      const sold = before - purse.count(item);
+      if (sold > 0) say(`Bán ${sold} ${info.unit} ${info.name.toLowerCase()} được ${coins(earned)}.`);
       render();
     };
     return stallCard({
@@ -265,7 +265,7 @@ export function createShopUI({ market, purse }) {
     market,
     purse,
     ids: { dialog: 'shopDialog', list: 'shopList', money: 'shopMoney', note: 'shopNote' },
-    greeting: 'Bà chủ: "Mua gì bán gì cứ tự nhiên nghen!"',
+    greeting: 'Yoshiko: "Mua gì bán gì cứ tự nhiên nghen!"',
     sellItems: () => [...Object.keys(CROPS), ...Object.keys(WILDLIFE).map(gameId).filter((item) => ITEMS[item] && purse.count(item) > 0)],
     buyItems: () => [
       ...Object.keys(CROPS)
@@ -281,7 +281,7 @@ export function createMartUI({ market, purse }) {
     market,
     purse,
     ids: { dialog: 'martDialog', list: 'martList', money: 'martMoney', note: 'martNote' },
-    greeting: 'Chị chủ siêu thị: "Đồ ăn đóng gói tiện mang theo nè!"',
+    greeting: 'Jessica: "Đồ ăn đóng gói tiện mang theo nè!"',
     sellItems: () => [],
     buyItems: () => Object.entries(SNACKS).map(([id, snack]) => [snackId(id), `+${snack.energy} năng lượng`]),
   });
@@ -292,7 +292,7 @@ export function createFishShopUI({ market, purse }) {
     market,
     purse,
     ids: { dialog: 'fishShopDialog', list: 'fishShopList', money: 'fishShopMoney', note: 'fishShopNote' },
-    greeting: 'Chú hàng cá: "Cá tươi rói đây, bán mua gì cứ nói!"',
+    greeting: 'Bobby: "Cá tươi rói đây, bán mua gì cứ nói!"',
     sellItems: () => Object.keys(FISH).map(fishId),
     buyItems: () => [
       ['bait', `mỗi gói ${FISHING.baitPerPack} lần câu`, { unit: 'gói' }],

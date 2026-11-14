@@ -3,7 +3,7 @@ import { comboOf, roundName } from './arena.js';
 import { fighterSpot, stageOf } from './arenaIsland.js';
 import { onStage, replayState, resolveAt, skillOf } from './arenaReplay.js';
 import { plainText, unitOf } from './studyDecks.js';
-import { KIND_LABELS, LETTERS, buildQuestion, pickOf, seeded } from './arenaQuestion.js';
+import { LETTERS, buildQuestion, pickOf, seeded } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
 
 const LATE_MINUTES = 1.5 / 60;
@@ -37,7 +37,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
   const word = hud.querySelector('.battle-word');
   const turnLabel = hud.querySelector('.battle-turn');
   const quizBox = hud.querySelector('.battle-quiz');
-  const quizKind = hud.querySelector('.battle-kind');
+  const quizHint = hud.querySelector('.battle-kind');
   const quizOptions = hud.querySelector('.battle-options');
   let quiz = null;
   const popover = typeof hud.showPopover === 'function';
@@ -133,7 +133,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
       });
       quizOptions.replaceChildren(...chips.map((item) => item.chip));
       quiz = { id, question, picks, chips, shown: '' };
-      setText(quizKind, `${KIND_LABELS[question.kind]}${question.hint ? ` · ${question.hint}` : ''}`);
+      setText(quizHint, question.hint ?? '');
     }
     const answered = SIDES.filter((side) => state.elapsed >= ARENA.read + turn[side].seconds);
     const resolved = state.index < state.resolved;

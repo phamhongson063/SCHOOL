@@ -146,8 +146,8 @@ export function createFoodUI({ purse }) {
     icon: badge.textContent,
     foods: FOODS,
     seller: 'cook',
-    hungry: 'Bà chủ quán: "Ăn gì con? Đồ ăn nóng hổi đây!"',
-    full: 'Bà chủ quán: "Con còn no mà, lát đói ghé lại nghen!"',
+    hungry: 'Meiling: "Ăn gì con? Đồ ăn nóng hổi đây!"',
+    full: 'Meiling: "Con còn no mà, lát đói ghé lại nghen!"',
   };
   let menu = EATERY_MENU;
 

@@ -5,13 +5,11 @@ import { coins } from './format.js';
 import { clockText } from './clock.js';
 import { PLAYER } from './inventory.js';
 
-export const ARENA_MENU = [
-  { id: 'join', name: 'Ghi danh', icon: '⚔️', art: 'scroll' },
+export const arenaMenu = (arena) => [
+  { id: 'join', name: ARENA.fee > 0 ? `Ghi danh · ${coins(ARENA.fee)}` : 'Ghi danh', icon: '⚔️', art: 'scroll' },
   { id: 'bracket', name: 'Sơ đồ', icon: '🗺️', art: 'scroll', here: true },
-  { id: 'about', name: 'Giới thiệu', icon: '❓', art: 'question', here: true },
+  { id: 'prize', name: `Quỹ thưởng ${coins(arena.prize)}`, icon: '🏆', info: true },
 ];
-
-const feeText = () => (ARENA.fee > 0 ? coins(ARENA.fee) : 'Miễn phí');
 
 function refusal(arena, reason, now) {
   const event = arena.event;
@@ -40,25 +38,17 @@ export function arenaLines(event, nameOf) {
   return lines;
 }
 
-export function createArenaDesk({ arena, minutes, greet = null, onBracket = null, onAbout = null }) {
+export function createArenaDesk({ arena, minutes, greet = null, onBracket = null }) {
   function join() {
     const reason = arena.blocked(PLAYER);
     if (!reason && arena.register(PLAYER)) greet?.('Ghi danh xong, nhớ có mặt đúng giờ!');
     else greet?.(refusal(arena, reason, minutes()), 3);
   }
 
-  function about() {
-    onAbout?.('Lôi đài', [
-      { icon: '⚔️', art: 'scroll', name: 'Ghi danh', text: `Lệ phí ${feeText()}` },
-      { icon: '🏆', name: 'Quỹ thưởng', text: coins(arena.prize) },
-    ]);
-  }
-
   return {
     act(choice) {
       if (choice === 'join') join();
       else if (choice === 'bracket') onBracket?.();
-      else if (choice === 'about') about();
     },
   };
 }

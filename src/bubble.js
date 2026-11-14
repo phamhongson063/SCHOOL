@@ -8,6 +8,7 @@ const TAIL = 9;
 const MOOD_DROP = 0.3;
 const MOOD_GAP = 4;
 const BADGE_STEP = 34;
+const NAME_GAP = 3;
 const TRIP = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fffaf0" stroke="#5f9e3a" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">🌾</text></svg>';
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
@@ -28,6 +29,7 @@ const screen = new THREE.Vector3();
 const low = new THREE.Vector3();
 let layer = null;
 let blocked = () => false;
+let namesShown = true;
 
 function speechLayer() {
   if (layer) return layer;
@@ -62,6 +64,10 @@ function inScene(object) {
 
 export function setBubbleOcclusion(test) {
   blocked = test;
+}
+
+export function setNamesShown(on) {
+  namesShown = on;
 }
 
 export function updateBubbles(camera, now) {
@@ -119,6 +125,11 @@ export function createBubble() {
   const tripBadge = makeBadge(TRIP);
   const badges = [moodBadge, turnBadge, tripBadge];
   const anyBadge = () => badges.some((badge) => badge.on);
+  const nameTag = document.createElement('div');
+  nameTag.className = 'name-tag';
+  let name = '';
+  let nameHeight = 0;
+  const needed = () => shown || anyBadge() || !!name;
   let mood = null;
   let turn = null;
   let trip = false;
@@ -143,12 +154,24 @@ export function createBubble() {
         hiddenBehind = blocked(camera.position, head);
       }
       visible &&= !hiddenBehind;
+      const named = visible && namesShown && !!name;
       element.hidden = !visible || !shown;
+      nameTag.hidden = !named;
       for (const badge of badges) badge.el.hidden = !visible || !badge.on;
       if (!visible) return;
       const x = Math.round(((screen.x + 1) / 2) * window.innerWidth);
-      const y = Math.round(((1 - screen.y) / 2) * window.innerHeight - TAIL);
       const depth = String(1000 - Math.round(distance * 10));
+      low.set(head.x, head.y - MOOD_DROP, head.z).project(camera);
+      const lowX = Math.round(((low.x + 1) / 2) * window.innerWidth);
+      let top = Math.round(((1 - low.y) / 2) * window.innerHeight);
+      if (named) {
+        nameTag.style.transform = `translate(${lowX}px, ${top}px) translate(-50%, -100%)`;
+        nameTag.style.zIndex = depth;
+        nameHeight ||= nameTag.offsetHeight;
+        top -= nameHeight + NAME_GAP;
+      }
+      let y = Math.round(((1 - screen.y) / 2) * window.innerHeight - TAIL);
+      if (named) y = Math.min(y, top - TAIL);
       if (shown) {
         element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
         element.style.zIndex = depth;
@@ -156,13 +179,8 @@ export function createBubble() {
       }
       const lit = badges.filter((badge) => badge.on);
       if (!lit.length) return;
-      let badgeX = x;
-      let badgeY = y - bubbleHeight - MOOD_GAP;
-      if (!shown) {
-        low.set(head.x, head.y - MOOD_DROP, head.z).project(camera);
-        badgeX = Math.round(((low.x + 1) / 2) * window.innerWidth);
-        badgeY = Math.round(((1 - low.y) / 2) * window.innerHeight);
-      }
+      const badgeX = shown ? x : lowX;
+      const badgeY = shown ? y - bubbleHeight - MOOD_GAP : top;
       lit.forEach((badge, i) => {
         const offset = (i - (lit.length - 1) / 2) * BADGE_STEP;
         badge.el.style.transform = `translate(${badgeX + offset}px, ${badgeY}px) translate(-50%, -100%)`;
@@ -174,14 +192,14 @@ export function createBubble() {
   function hide() {
     shown = false;
     element.remove();
-    if (!anyBadge()) active.delete(record);
+    if (!needed()) active.delete(record);
   }
 
   function toggle(badge, on) {
     badge.on = on;
     if (!on) {
       badge.el.remove();
-      if (!shown && !anyBadge()) active.delete(record);
+      if (!needed()) active.delete(record);
       return;
     }
     badge.el.hidden = true;
@@ -202,6 +220,21 @@ export function createBubble() {
     turn = next;
     if (turn !== null) turnBadge.el.innerHTML = seatBadge(turn);
     toggle(turnBadge, turn !== null);
+  }
+
+  function setName(next) {
+    name = next ?? '';
+    nameTag.textContent = name;
+    nameHeight = 0;
+    if (!name) {
+      nameTag.remove();
+      if (!needed()) active.delete(record);
+      return;
+    }
+    nameTag.hidden = true;
+    if (!nameTag.isConnected) speechLayer().append(nameTag);
+    checkAt = 0;
+    active.add(record);
   }
 
   function setTrip(next) {
@@ -231,6 +264,7 @@ export function createBubble() {
     setMood,
     setTurn,
     setTrip,
+    setName,
     update(now) {
       if (shown && now > until) hide();
     },

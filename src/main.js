@@ -18,6 +18,7 @@ import { Ambience } from './ambience.js';
 import { StudyMusic } from './studyMusic.js';
 import { createTargetMarker } from './targetMarker.js';
 import { createBroadcast } from './broadcast.js';
+import { heralds } from './herald.js';
 import { createUiSounds } from './uiSound.js';
 import { RegionManager } from './regions.js';
 import { createPicker } from './picker.js';
@@ -29,14 +30,14 @@ import { createFarm, FARM_X } from './farm.js';
 import { createFireflies, createFireflyLamp } from './fireflies.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
-import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
+import { createBubble, updateBubbles, setBubbleOcclusion, setNamesShown } from './bubble.js';
 import { ITEMS, Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { createMailbox } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
-import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText } from './clock.js';
+import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText } from './clock.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
@@ -99,7 +100,7 @@ import { createArenaDuel } from './arenaDuel.js';
 import { createArenaCast } from './arenaCast.js';
 import { createArenaSummon } from './arenaSummon.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
-import { ARENA_MENU, arenaLines, createArenaDesk } from './arenaDesk.js';
+import { arenaLines, arenaMenu, createArenaDesk } from './arenaDesk.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -316,7 +317,7 @@ regions.add(
     rentLodge: (id) => lodgeDesk.rent(id),
     bank,
     openBank: () => bankUI.open(),
-    arenaMenu: ARENA_MENU,
+    arenaMenu: () => arenaMenu(arena),
     openArena: (choice) => arenaDesk.act(choice),
     minutes: () => gameNow(),
   }),
@@ -498,7 +499,16 @@ function visitVendor() {
   player.requestMove(new THREE.Vector3(vendor.position.x + dx * keep, 0, vendor.position.z + dz * keep), false);
 }
 
+let watchTrip = null;
+
 player.onArrive = () => {
+  const watch = watchTrip;
+  watchTrip = null;
+  if (watch && Math.hypot(watch.spot.x - player.position.x, watch.spot.z - player.position.z) <= 0.8) {
+    player.faceToward(watch.stage.x, watch.stage.z);
+    player.faceTarget(watch.stage, { then: () => {} });
+    return;
+  }
   if (vendorVisit) {
     vendorVisit = false;
     visitVendor();
@@ -682,7 +692,7 @@ function portraitOf(id) {
 const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage), onWatch: watchStage });
 const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave(), veil: (keep) => (keep ? town.veil(keep) : town.unveil()), focus: (stage, toward) => arenaIsland.focusStage(stage, toward) });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
-const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration), onBracket: () => bracketDialog.open(), onAbout: (title, rows) => hallIntro.show(title, rows) });
+const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration), onBracket: () => bracketDialog.open() });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
   mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
@@ -693,6 +703,7 @@ const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping
 function watchStage(stage) {
   if (arenaTrip.fighting || purse.sleeping) return;
   const spot = watchSpot(stage);
+  watchTrip = { stage, spot };
   player.requestMove(new THREE.Vector3(spot.x, 0, spot.z), true);
 }
 
@@ -1577,6 +1588,17 @@ function announceBlessing() {
   broadcast.show('Sự kiện chúc phúc đã bắt đầu! Hãy tới quảng trường chúc phúc để nhận chúc phúc.');
 }
 
+const heraldBeats = new Map();
+const heraldText = ({ kind, at, left }) => (kind === 'arena' ? `Lôi đài ${clockText(at)} sắp khai mạc, còn ${left} phút!` : `Chúc phúc ${clockText(at)} sắp bắt đầu, còn ${left} phút!`);
+
+function heraldEvents() {
+  if (!hasEntered()) return;
+  const due = heralds(context.minutes);
+  if (!due.some((item) => heraldBeats.get(item.kind) !== item.beat)) return;
+  for (const item of due) heraldBeats.set(item.kind, item.beat);
+  broadcast.show(due.map(heraldText).join('   ✦   '));
+}
+
 function remindBlessing() {
   const next = blessing.upcoming(context.minutes, BLESSING.remindBefore);
   if (blessingMailKey && next?.key !== blessingMailKey && blessing.session(context.minutes) !== blessingMailKey) dropBlessingMail();
@@ -1826,6 +1848,7 @@ renderer.setAnimationLoop((time) => {
   player.update(dt);
   arenaDuel.frame(camera);
   placeBubble();
+  setNamesShown(mode !== 'overview');
   updateBubbles(camera, t);
   regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);
   for (const effect of Object.values(effects)) effect.update(dt);
@@ -1842,6 +1865,7 @@ renderer.setAnimationLoop((time) => {
   updateBlessingRewards();
   remindBlessing();
   announceBlessing();
+  heraldEvents();
   catchFireflies(t, dt);
   updateLamp(t);
   if (servingVendor) {

@@ -13,11 +13,11 @@ const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
 
 export const SHOPKEEPERS = [
-  { id: 'keeper', name: 'Bà chủ tạp hoá' },
-  { id: 'cook', name: 'Bà chủ quán' },
-  { id: 'fishmonger', name: 'Chú hàng cá' },
-  { id: 'grocer', name: 'Chị chủ siêu thị' },
-  { id: 'chief', name: 'Ông Lý trưởng', role: 'chief' },
+  { id: 'keeper', name: 'Yoshiko' },
+  { id: 'cook', name: 'Meiling' },
+  { id: 'fishmonger', name: 'Bobby' },
+  { id: 'grocer', name: 'Jessica' },
+  { id: 'chief', name: 'Youngsoo', role: 'chief' },
 ];
 
 function load() {
@@ -41,10 +41,15 @@ let ctx = null;
 const state = load();
 const store = createStore(KEY, () => state);
 
-function pay(id, value) {
+function settle(id, value) {
   const total = (state.owed[id] ?? 0) + value;
   const whole = Math.floor(total);
   state.owed[id] = total - whole;
+  return whole;
+}
+
+function pay(id, value) {
+  const whole = settle(id, value);
   if (whole > 0) ctx.ledger.purse(id).earn(whole);
 }
 
@@ -230,15 +235,23 @@ export const economy = {
     trackSpend(payer, spent, { [FUND]: value });
     store.save();
   },
-  withhold(gross, payee = null) {
-    if (!ctx || !(gross > 0)) return gross;
+  sale(purse, gross) {
+    if (!(gross > 0)) return 0;
+    if (!ctx) {
+      const whole = Math.floor(gross);
+      purse.earn(whole);
+      return whole;
+    }
     const tax = gross * ECONOMY.vat;
     const cut = (gross - tax) * ECONOMY.arenaCut;
+    const net = gross - tax - cut;
     pay(FUND, tax);
     pay(ARENA_POOL, cut);
-    trackEarn(payee, gross - tax - cut, tax + cut);
+    const whole = settle(purse.id, net);
+    if (whole > 0) purse.earn(whole);
+    trackEarn(purse.id, net, tax + cut);
     store.save();
-    return gross - tax - cut;
+    return whole;
   },
   dailyFlow(id) {
     const flow = state.flows[id];

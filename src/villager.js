@@ -54,6 +54,7 @@ export class Villager {
     this.skipDt = 0;
     this.bubble = createBubble();
     this.bubble.sprite.position.set(0, 2.05, 0);
+    this.bubble.setName(this.name);
     this.walker.group.add(this.bubble.sprite);
     this.shadow = createBlobShadow(town.root);
     this.shadow.setVisible(false);
@@ -70,6 +71,7 @@ export class Villager {
       this.seated.group.add(this.studyIcon);
       this.seatBubble = createBubble();
       this.seatBubble.sprite.position.set(0, model ? 1.85 : 1.55, 0);
+      this.seatBubble.setName(this.name);
       this.seated.group.add(this.seatBubble.sprite);
     }
     this.fx = null;

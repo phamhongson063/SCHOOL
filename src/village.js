@@ -7,6 +7,7 @@ import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
+import { SHOPKEEPERS } from './economy.js';
 import { SHOP, CHIEF, EATERY, FISH_SHOP, LODGE_ROOMS, FLUORESCENT } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
 import { coins } from './format.js';
@@ -269,11 +270,14 @@ function decor() {
   return { group, walks, obstacles, lights };
 }
 
-export function keeperNPC(look, model) {
+const shopkeeperName = (id) => SHOPKEEPERS.find((keeper) => keeper.id === id)?.name ?? '';
+
+export function keeperNPC(look, model, name = '') {
   const walker = model && hasModel(model) ? createModel(model) : createWalker(look);
   walker.group.rotation.order = 'YXZ';
   const bubble = createBubble();
   bubble.sprite.position.set(0, 2.05, 0);
+  bubble.setName(name);
   walker.group.add(bubble.sprite);
   return { walker, bubble, phase: Math.random() * Math.PI * 2 };
 }
@@ -340,7 +344,7 @@ export function createVillage() {
   obstacles.push(...market.obstacles.map(marketFrame.box));
   const counter = marketFrame.toWorld(market.counter);
   const keeperAt = marketFrame.toWorld(market.keeper);
-  const keeper = keeperNPC(KEEPER_LOOK, 'granny');
+  const keeper = keeperNPC(KEEPER_LOOK, 'granny', shopkeeperName('keeper'));
   keeper.walker.group.position.set(keeperAt.x, 0, keeperAt.z);
   keeper.walker.group.rotation.y = marketFrame.facing(market.keeper.facing ?? 0);
   const marketSign = plaqueBoard(['TIỆM BUÔN'], { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e });
@@ -352,7 +356,7 @@ export function createVillage() {
   obstacles.push(...chief.obstacles.map(chiefFrame.box));
   const desk = chiefFrame.toWorld(chief.desk);
   const chiefAt = chiefFrame.toWorld(chief.chief);
-  const chiefNPC = keeperNPC(CHIEF_LOOK, 'scholar');
+  const chiefNPC = keeperNPC(CHIEF_LOOK, 'scholar', shopkeeperName('chief'));
   chiefNPC.walker.group.position.set(chiefAt.x, 0, chiefAt.z);
   chiefNPC.walker.group.rotation.y = chiefFrame.facing(chief.chief.facing ?? 0);
   const chiefSign = plaqueBoard(['NHÀ LÝ TRƯỞNG'], { bg: 0x1c1310, fg: '#f2c14e', border: 0xa12a1c });
@@ -364,7 +368,7 @@ export function createVillage() {
   obstacles.push(...eatery.obstacles.map(eateryFrame.box));
   const eateryCounter = eateryFrame.toWorld(eatery.counter);
   const cookAt = eateryFrame.toWorld(eatery.keeper);
-  const cook = keeperNPC(COOK_LOOK, 'granny-navy');
+  const cook = keeperNPC(COOK_LOOK, 'granny-navy', shopkeeperName('cook'));
   cook.walker.group.position.set(cookAt.x, 0, cookAt.z);
   cook.walker.group.rotation.y = eateryFrame.facing(eatery.keeper.facing ?? 0);
   const eaterySign = plaqueBoard(['QUÁN ĂN'], { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e });
@@ -379,7 +383,7 @@ export function createVillage() {
   obstacles.push(...fishShop.obstacles.map(fishFrame.box));
   const fishCounter = fishFrame.toWorld(fishShop.counter);
   const fishmongerAt = fishFrame.toWorld(fishShop.keeper);
-  const fishmonger = keeperNPC(FISHMONGER_LOOK, null);
+  const fishmonger = keeperNPC(FISHMONGER_LOOK, null, shopkeeperName('fishmonger'));
   fishmonger.walker.group.position.set(fishmongerAt.x, 0, fishmongerAt.z);
   fishmonger.walker.group.rotation.y = fishFrame.facing(fishShop.keeper.facing);
   const fishSign = plaqueBoard(['HÀNG CÁ'], { bg: 0x1f4a6a, fg: '#f4efe2', border: 0xf2c14e });
