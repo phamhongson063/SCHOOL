@@ -91,7 +91,7 @@ import { haltStores } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { createArena } from './arena.js';
-import { ISLAND_BOUNDS, createArenaIsland, islandBlocksView, islandFloor, islandNavFloor, onIsland } from './arenaIsland.js';
+import { ISLAND_BOUNDS, createArenaIsland, islandBlocksView, islandFloor, islandNavFloor, onIsland, watchSpot } from './arenaIsland.js';
 import { createArenaTrip } from './arenaTrip.js';
 import { createArenaFx } from './arenaFx.js';
 import { createArenaBattle } from './arenaBattle.js';
@@ -679,7 +679,7 @@ function portraitOf(id) {
   portraits.set(id, img.getAttribute('src'));
   return portraits.get(id);
 }
-const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage) });
+const arenaBattle = createArenaBattle({ arena, fx: arenaFx, nameOf, portraitOf, here: () => arenaTrip.here, cast: createArenaCast({ nameOf }), hidden: () => arenaDuel.open, onHit: (stage) => arenaTrip.cheer(stage), onWatch: watchStage });
 const arenaDuel = createArenaDuel({ arena, nameOf, portraitOf, now: () => gameNow(), sounds: uiSounds, onTurn: () => arenaBattle.played(), onLeave: () => arenaTrip.leave(), veil: (keep) => (keep ? town.veil(keep) : town.unveil()), focus: (stage, toward) => arenaIsland.focusStage(stage, toward) });
 const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() });
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration), onBracket: () => bracketDialog.open(), onAbout: (title, rows) => hallIntro.show(title, rows) });
@@ -689,6 +689,12 @@ arena.onFinish((event) => {
 });
 if (arena.purged) mailbox.removeWhere((mail) => mail.tag === 'arena' || mail.icon === '⚔️');
 const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping;
+
+function watchStage(stage) {
+  if (arenaTrip.fighting || purse.sleeping) return;
+  const spot = watchSpot(stage);
+  player.requestMove(new THREE.Vector3(spot.x, 0, spot.z), true);
+}
 
 function updateArena(dt) {
   arena.tick(gameNow(), { present: arenaPresent });

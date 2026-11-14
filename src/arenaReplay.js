@@ -3,12 +3,12 @@ import { PLAYER } from './inventory.js';
 import { matchMinutes, turnSeconds } from './arena.js';
 
 export const SKILLS = [
-  { name: 'Kiếm khí', icon: '🗡️', color: 0xe8f4ff },
-  { name: 'Lôi kích', icon: '⚡', color: 0x9ad8ff },
-  { name: 'Hỏa phù', icon: '🔥', color: 0xff8a3a },
-  { name: 'Băng tiễn', icon: '❄️', color: 0xbfe8ff },
-  { name: 'Phong nhận', icon: '🌀', color: 0xa8f0b0 },
-  { name: 'Kim quang', icon: '✨', color: 0xffe08a },
+  { name: 'Kiếm khí', icon: '🗡️', color: 0x4f8dff },
+  { name: 'Lôi kích', icon: '⚡', color: 0x9b5cff },
+  { name: 'Hỏa phù', icon: '🔥', color: 0xff5a1f },
+  { name: 'Băng tiễn', icon: '❄️', color: 0x1fb8f0 },
+  { name: 'Phong nhận', icon: '🌀', color: 0x22c66e },
+  { name: 'Kim quang', icon: '✨', color: 0xffb21c },
 ];
 
 function hash(text) {

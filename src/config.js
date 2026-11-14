@@ -287,7 +287,7 @@ export const ARENA = {
   deck: 'n2',
   size: { day: 16, night: 8 },
   stages: 8,
-  starts: [10 * 60 + 54],
+  starts: [11 * 60 + 7],
   lead: 30,
   opening: 0.25,
   breather: 15,

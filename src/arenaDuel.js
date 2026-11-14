@@ -232,10 +232,7 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     const choice = await pickPhase(buttons, asked.seconds);
     setState(cards.me, choice.button ? '✓' : '⌛', choice.button ? 'ok' : 'wait');
     const foeLeft = asked.rival.seconds - (performance.now() - choice.started) / 1000;
-    if (foeLeft > 0) {
-      log.textContent = `Chờ ${label(foeId)} chọn…`;
-      await wait(foeLeft * 1000);
-    }
+    if (foeLeft > 0) await wait(foeLeft * 1000);
     clearTimeout(foeReady);
     const correct = choice.button?.dataset.value === quiz.answer;
     const wrongs = buttons.filter((button) => button.dataset.value !== quiz.answer);

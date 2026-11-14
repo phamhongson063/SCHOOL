@@ -92,6 +92,14 @@ export function fighterSpot(roundSize, index, side) {
   return { ...spot, facing: facingTo(spot, stage) };
 }
 
+export function watchSpot(stage) {
+  const dx = stage.x - ISLAND.x;
+  const dz = stage.z - ISLAND.z;
+  const reach = WALK_RADIUS - 1.2;
+  const scale = reach / (Math.hypot(dx, dz) || 1);
+  return { x: ISLAND.x + dx * scale, y: ISLAND.y, z: ISLAND.z + dz * scale };
+}
+
 export function wander(anchor, rand = Math.random) {
   for (let tries = 0; tries < 6; tries++) {
     const angle = rand() * Math.PI * 2;

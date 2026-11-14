@@ -30,7 +30,7 @@ const setText = (node, text) => {
   if (node.textContent !== text) node.textContent = text;
 };
 
-export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, hidden = () => false, onHit = null }) {
+export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, hidden = () => false, onHit = null, onWatch = null }) {
   const hud = document.getElementById('battleHud');
   const views = { a: sideView(hud.querySelector('.battle-side.a')), b: sideView(hud.querySelector('.battle-side.b')) };
   const round = hud.querySelector('.battle-round');
@@ -44,6 +44,11 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
   const fired = new Set();
   let eventAt = null;
   let open = false;
+  let watching = null;
+
+  hud.addEventListener('click', () => {
+    if (open && watching) onWatch?.(watching);
+  });
 
   function toggle(node, visible) {
     node.classList.toggle('shown', visible);
@@ -75,7 +80,7 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
     const rival = other(striker);
     const skill = skillOf(`${key}:${turnIndex}:${striker}`);
     const color = `#${skill.color.toString(16).padStart(6, '0')}`;
-    fx.beam(spot(striker), skill.color, 0.45);
+    fx.charge(spot(striker), skill.color);
     fx.cast(spot(striker), spot(rival), skill.color, move.damage >= ARENA.hit * CRITICAL ? 1.6 : 1);
     fx.label(spot(striker), `${skill.icon} ${skill.name}`, { color, size: 0.95 });
     if (move.combo >= 2) fx.label(spot(striker), `Liên kích ×${comboOf(move.combo).toFixed(1)}`, { color: '#ffe08a', delay: 0.2, lift: 0.5, size: 0.8 });
@@ -224,10 +229,11 @@ export function createArenaBattle({ arena, fx, nameOf, portraitOf, here, cast, h
         const distance = mine ? -1 : Math.hypot(stage.x - position.x, stage.z - position.z);
         if (distance < best) {
           best = distance;
-          focus = { key, match, size: current.length };
+          focus = { key, match, size: current.length, stage };
         }
       });
       const visible = !!focus && !quiet;
+      watching = visible ? focus.stage : null;
       show(visible);
       if (visible) render(focus, now);
     },
