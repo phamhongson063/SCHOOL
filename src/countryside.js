@@ -4,6 +4,7 @@ import { makeRandom } from './random.js';
 import { GROUND_LAYER, tileRoofMeshes } from './scenery.js';
 import { plaqueBoard } from './village.js';
 import { terrainHeight } from './terrain.js';
+import { FIELD_OF } from './fieldPlan.js';
 
 const ROAD_MID = 35;
 const HEDGE_GAP = 1.7;
@@ -12,24 +13,14 @@ const HEDGES = [
   { id: 'north', z: 17.5, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 10, x1: 101, z1: 25 } },
   { id: 'south', z: 53.5, x0: 51, x1: 99, gaps: [], bounds: { x0: 48, z0: 48, x1: 101, z1: 59 } },
 ];
-const RICE = { x0: -148, z0: 40, x1: -113, z1: 63, cols: 4, rows: 3, dike: 0.5, spacing: 0.6 };
-const RICE_BOUNDS = { x0: -150, z0: 30, x1: -104, z1: 66 };
-const RICE_CYCLE = 24;
-const RICE_STAGES = [
-  [0, 0x9ad472],
-  [8, 0x5fae48],
-  [15, 0x6aa842],
-  [19, 0xd9b84a],
-  [22, 0xc9a65a],
-  [24, 0x9ad472],
-];
+const GATE_BOUNDS = { x0: -150, z0: 30, x1: -104, z1: 38.4 };
 const WEST_GATE = -118;
 const SIGNS = [
   { region: 'west', x: -47.6, z: 31.3, toward: Math.PI, text: 'Lên núi' },
   { region: 'north', x: 35.6, z: 38.7, toward: Math.PI, text: 'Lên núi' },
   { region: 'south', x: 51.2, z: 37.4, toward: 0, text: 'Bến sông' },
-  { region: 'rice', x: -73.6, z: 38.2, toward: 0, text: 'Ruộng rau' },
-  { region: 'rice', x: -113.6, z: 38.4, toward: 0, text: 'Ruộng lúa' },
+  { region: 'gate', x: -73.6, z: 38.2, toward: 0, text: 'Ruộng rau' },
+  { region: 'gate', x: -113.6, z: 38.4, toward: 0, text: FIELD_OF.west.name },
   { region: 'north', x: 101.5, z: 31.3, toward: Math.PI / 2, text: 'Xóm Bàn Cờ' },
 ];
 
@@ -127,85 +118,6 @@ export function createVillageGate(x) {
   return [b.mesh(), ...meshes];
 }
 
-function riceStageColor(day, target) {
-  const t = ((day % RICE_CYCLE) + RICE_CYCLE) % RICE_CYCLE;
-  for (let i = 0; i < RICE_STAGES.length - 1; i++) {
-    const [a, ca] = RICE_STAGES[i];
-    const [b, cb] = RICE_STAGES[i + 1];
-    if (t < a || t >= b) continue;
-    return target.setHex(ca).lerp(new THREE.Color(cb), (t - a) / (b - a));
-  }
-  return target.setHex(RICE_STAGES[0][1]);
-}
-
-function riceField() {
-  const { x0, z0, x1, z1, cols, rows, dike, spacing } = RICE;
-  const w = (x1 - x0) / cols;
-  const d = (z1 - z0) / rows;
-  const plots = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) plots.push({ x0: x0 + c * w + dike / 2, z0: z0 + r * d + dike / 2, x1: x0 + (c + 1) * w - dike / 2, z1: z0 + (r + 1) * d - dike / 2 });
-  }
-  const waterParts = plots.map((p) => new THREE.PlaneGeometry(p.x1 - p.x0, p.z1 - p.z0).rotateX(-Math.PI / 2).translate((p.x0 + p.x1) / 2, 0, (p.z0 + p.z1) / 2));
-  const water = new THREE.Mesh(
-    mergePlanes(waterParts),
-    toonMaterial({ color: 0x7fa592, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
-  );
-  water.position.y = 0.03;
-  water.renderOrder = GROUND_LAYER.field;
-  water.receiveShadow = true;
-
-  const b = new Batch();
-  const dikeColor = 0x8a6a48;
-  for (let c = 0; c <= cols; c++) b.add(shapes.box(dike, 0.22, z1 - z0 + dike), dikeColor, { p: [x0 + c * w, 0.11, (z0 + z1) / 2] });
-  for (let r = 0; r <= rows; r++) b.add(shapes.box(x1 - x0 + dike, 0.22, dike), dikeColor, { p: [(x0 + x1) / 2, 0.11, z0 + r * d] });
-  const dikes = b.mesh();
-
-  const spots = [];
-  const rand = makeRandom(4747);
-  for (const p of plots) {
-    for (let z = p.z0 + spacing / 2; z < p.z1; z += spacing) {
-      for (let x = p.x0 + spacing / 2; x < p.x1; x += spacing) spots.push([x + (rand() - 0.5) * 0.12, z + (rand() - 0.5) * 0.12, 0.8 + rand() * 0.4, rand() * Math.PI]);
-    }
-  }
-  const tuft = new THREE.ConeGeometry(0.1, 0.6, 5).translate(0, 0.3, 0);
-  const material = toonMaterial({ muted: true, color: 0x5fae48 });
-  const rice = new THREE.InstancedMesh(tuft, material, spots.length);
-  const dummy = new THREE.Object3D();
-  spots.forEach(([x, z, s, turn], i) => {
-    dummy.position.set(x, 0, z);
-    dummy.rotation.set(0, turn, 0);
-    dummy.scale.set(s, s, s);
-    dummy.updateMatrix();
-    rice.setMatrixAt(i, dummy.matrix);
-  });
-  rice.instanceMatrix.needsUpdate = true;
-  rice.computeBoundingSphere();
-  rice.receiveShadow = true;
-  return { meshes: [water, dikes, rice], material };
-}
-
-function mergePlanes(parts) {
-  const positions = [];
-  const normals = [];
-  const uvs = [];
-  const index = [];
-  let offset = 0;
-  for (const part of parts) {
-    positions.push(...part.attributes.position.array);
-    normals.push(...part.attributes.normal.array);
-    uvs.push(...part.attributes.uv.array);
-    for (const i of part.index.array) index.push(i + offset);
-    offset += part.attributes.position.count;
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(index);
-  return geometry;
-}
-
 export function createCountryside() {
   const rand = makeRandom(3838);
   const obstacles = [];
@@ -239,8 +151,7 @@ export function createCountryside() {
   }
   for (const [id, batch] of signBatches) groupFor(id).add(batch.mesh());
 
-  const rice = riceField();
-  groupFor('rice').add(...rice.meshes, ...createVillageGate(WEST_GATE));
+  groupFor('gate').add(...createVillageGate(WEST_GATE));
   obstacles.push(...villageGateObstacles(WEST_GATE));
 
   for (const group of groups.values()) {
@@ -250,26 +161,19 @@ export function createCountryside() {
     freeze(group);
   }
 
-  const color = new THREE.Color();
-  let shownDay = null;
   const bounds = {
     west: HEDGES[0].bounds,
     north: HEDGES[1].bounds,
     south: HEDGES[2].bounds,
-    rice: RICE_BOUNDS,
+    gate: GATE_BOUNDS,
   };
 
   return {
     obstacles,
-    update(day) {
-      if (day === shownDay) return;
-      shownDay = day;
-      rice.material.color.copy(riceStageColor(day, color));
-    },
     regions() {
       return [...groups.entries()].map(([id, group]) => ({
         id: `country-${id}`,
-        name: id === 'rice' ? 'Ruộng lúa' : 'Lũy tre',
+        name: id === 'gate' ? 'Cổng làng' : 'Lũy tre',
         bounds: bounds[id],
         staticNav: true,
         load() {

@@ -27,6 +27,7 @@ import { createHarvesting } from './harvesting.js';
 import { createClearing } from './clearing.js';
 import { createQuiz } from './quiz.js';
 import { createFarm, FARM_X } from './farm.js';
+import { FIELDS } from './fieldPlan.js';
 import { createFireflies, createFireflyLamp } from './fireflies.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
@@ -201,8 +202,8 @@ const fieldMusic = new Music(['assets/music/field.ogg', 'assets/music/field.m4a'
 const blessingTracks = ['blessing-1', 'blessing-2'].map((name) => new Music([`assets/music/${name}.ogg`, `assets/music/${name}.m4a`]));
 let blessingTrack = null;
 const riverAmbience = new Ambience({ bed: 'assets/music/river', volume: 0.3 });
-const FIELD_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice']);
-const QUIET_REGIONS = new Set(['farm', 'bancoFarm', 'country-rice', 'river', 'mountain']);
+const FIELD_REGIONS = new Set([...FIELDS.map((field) => field.region), 'country-gate']);
+const QUIET_REGIONS = new Set([...FIELD_REGIONS, 'river', 'mountain']);
 let soundRegion = null;
 function updateSoundscape(focus) {
   const village = soundRegion !== null && !QUIET_REGIONS.has(soundRegion);
@@ -1973,7 +1974,6 @@ renderer.setAnimationLoop((time) => {
   regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);
   for (const effect of Object.values(effects)) effect.update(dt);
   fishing.update();
-  countryside.update(context.day);
   mountain.update(dt, { camera, night, rest: context.night, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
   const focus = mode === 'overview' ? orbit.target : player.position;

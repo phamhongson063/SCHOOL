@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { canvasTexture, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
+import { bedPoint } from './fieldPlan.js';
 
 const PROFILE = [
   [-1, 0],
@@ -26,44 +27,35 @@ const hash = (x, z) => {
   return s - Math.floor(s);
 };
 
-export function bedShape(seed, { height = 0.22, halfWidth = 0.47 } = {}) {
-  const rand = makeRandom(seed);
-  const p = Array.from({ length: 5 }, () => rand() * Math.PI * 2);
-  const skew = (rand() - 0.5) * 0.08;
-  return {
-    offset: (z) => Math.sin(z * 0.23 + p[0]) * 0.035 + Math.sin(z * 0.71 + p[1]) * 0.015 + skew * Math.sin(z * 0.05 + p[4]),
-    height: (z) => height + Math.sin(z * 0.55 + p[2]) * 0.022 + Math.sin(z * 1.7 + p[3]) * 0.01,
-    halfWidth: (z) => halfWidth + Math.sin(z * 0.4 + p[3]) * 0.03 + Math.sin(z * 1.3 + p[0]) * 0.012,
-  };
-}
-
-function rings(z0, z1, step) {
-  const list = ENDS.map(([back, h, w]) => ({ z: z0 - back, h, w }));
-  const count = Math.max(1, Math.round((z1 - z0) / step));
-  for (let i = 0; i <= count; i++) list.push({ z: z0 + ((z1 - z0) * i) / count, h: 1, w: 1 });
-  for (const [back, h, w] of [...ENDS].reverse()) list.push({ z: z1 + back, h, w });
+function rings(s0, s1, step) {
+  const list = ENDS.map(([back, h, w]) => ({ s: s0 - back, h, w }));
+  const count = Math.max(1, Math.round((s1 - s0) / step));
+  for (let i = 0; i <= count; i++) list.push({ s: s0 + ((s1 - s0) * i) / count, h: 1, w: 1 });
+  for (const [back, h, w] of [...ENDS].reverse()) list.push({ s: s1 + back, h, w });
   return list;
 }
 
-export function bedsGeometry(beds, z0, z1, step = 0.5) {
+export function bedsGeometry(beds, step = 0.5) {
   const positions = [];
   const colors = [];
   const indices = [];
   const color = new THREE.Color();
-  for (const { x, shape } of beds) {
+  for (const bed of beds) {
+    const { shape, s0, length, ux, uz } = bed;
     const start = positions.length / 3;
-    const list = rings(z0, z1, step);
+    const list = rings(s0, s0 + length, step);
     for (const ring of list) {
-      const cx = x + shape.offset(ring.z);
-      const h = shape.height(ring.z) * ring.h;
-      const w = shape.halfWidth(ring.z) * ring.w;
+      const u = ring.s - s0;
+      const center = shape.offset(ring.s);
+      const h = shape.height(ring.s) * ring.h;
+      const w = shape.halfWidth(ring.s) * ring.w;
       for (const [px, py] of PROFILE) {
-        const vx = cx + px * w;
-        const vz = ring.z + (py > 0 && py < 1 ? (hash(vx, ring.z) - 0.5) * 0.04 : 0);
-        const vy = py * h + (py > 0.5 ? (hash(ring.z, vx) - 0.5) * 0.02 : 0);
-        positions.push(vx, vy, vz);
-        const patch = 0.5 + 0.5 * Math.sin(vx * 1.9 + ring.z * 0.8) * Math.sin(ring.z * 0.37 - vx);
-        color.copy(SOIL_DARK).lerp(SOIL_LIGHT, Math.min(1, hash(vx, ring.z) * 0.45 + patch * 0.35 + py * 0.2));
+        const { x, z } = bedPoint(bed, u, center + px * w);
+        const slip = py > 0 && py < 1 ? (hash(x, z) - 0.5) * 0.04 : 0;
+        const vy = py * h + (py > 0.5 ? (hash(z, x) - 0.5) * 0.02 : 0);
+        positions.push(x + ux * slip, vy, z + uz * slip);
+        const patch = 0.5 + 0.5 * Math.sin(x * 1.9 + z * 0.8) * Math.sin(z * 0.37 - x);
+        color.copy(SOIL_DARK).lerp(SOIL_LIGHT, Math.min(1, hash(x, z) * 0.45 + patch * 0.35 + py * 0.2));
         colors.push(color.r, color.g, color.b);
       }
     }

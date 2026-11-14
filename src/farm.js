@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Batch, shapes, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
-import { bedShape, bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
+import { bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
+import { BEDS, FIELDS, FIELD_OF, FIRST_SPOT, SPOT_BED, bedHead, bedPlace, bedPoint, bedsOf, fieldObstacles, fieldOf, layoutSpots, leasePrice, leasesFromSave, leasesToSave, signPoint, spotAt, spotsFromSave, spotsToSave, standFor, standsAt } from './fieldPlan.js';
 import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
@@ -15,8 +16,13 @@ import { badgeMaterial } from './studyIcon.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 
-const STORAGE_KEY = worldKey('farm');
-const LEASE_KEY = worldKey('farmLeases');
+export { FARM_X, FIELD_TREES } from './fieldPlan.js';
+
+const STORAGE_KEY = worldKey('fieldPlots');
+const LEASE_KEY = worldKey('fieldLeases');
+const LEGACY_KEY = worldKey('farm');
+const LEGACY_LEASE_KEY = worldKey('farmLeases');
+const readJson = (key) => JSON.parse(localStorage.getItem(key) ?? 'null');
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
 const SHAPED_FROM = 3;
@@ -32,103 +38,35 @@ function plantTop(spot) {
   const height = crop.stageHeight(spot.stage, varietyOf(spot).height);
   return spot.stage < SHAPED_FROM ? height : height + crop.crown;
 }
-const BED = { height: 0.22, width: 0.84, pitch: 2.2 };
-const BEDS_PER_SIDE = 13;
-const FIRST_BEDS = 11;
-const PER_BED = 10;
-const SPACING = 2;
-const FRONT = 39.5;
-const BACK = FRONT + PER_BED * SPACING;
-export const FARM_X = -70;
-const PATH = { x0: -2.1 + FARM_X, x1: 2.3 + FARM_X };
-const SIDES = [
-  { first: -2.6 + FARM_X, dir: -1 },
-  { first: 3.6 + FARM_X, dir: 1 },
-];
-const columns = ({ first, dir }) => Array.from({ length: BEDS_PER_SIDE }, (_, k) => first + dir * k * BED.pitch);
-const BED_XS = [...SIDES.flatMap((side) => columns(side).slice(0, FIRST_BEDS)), ...SIDES.flatMap((side) => columns(side).slice(FIRST_BEDS))];
-const BEDS = BED_XS.map((x, i) => ({ x, shape: bedShape(700 + i * 13, { height: BED.height }) }));
-const BANCO = { x: 163, front: 39.4, count: 9, beds: 5 };
-const BANCO_BEDS = Array.from({ length: BANCO.beds }, (_, k) => ({
-  x: BANCO.x + (k - (BANCO.beds - 1) / 2) * BED.pitch,
-  shape: bedShape(1700 + k * 13, { height: BED.height }),
-}));
-const BANCO_BACK = BANCO.front + BANCO.count * SPACING;
-const BANCO_STREET = 37.1;
-const BANCO_BOUNDS = { x0: BANCO.x - 7, z0: BANCO.front - 2.5, x1: BANCO.x + 7, z1: BANCO_BACK + 2 };
-const FIELDS = {
-  farm: { beds: BEDS, front: FRONT, back: BACK, count: PER_BED },
-  banco: { beds: BANCO_BEDS, front: BANCO.front, back: BANCO_BACK, count: BANCO.count },
-};
-const ALL_BEDS = Object.entries(FIELDS).flatMap(([field, info]) => info.beds.map((bed) => ({ ...bed, field, front: info.front, count: info.count })));
-const SPOT_BED = ALL_BEDS.flatMap((bed, index) => Array(bed.count).fill(index));
-const fieldOf = (index) => ALL_BEDS[SPOT_BED[index]].field;
-const FIELD_NAMES = { farm: 'Ruộng rau màu', banco: 'Ruộng Bàn Cờ' };
-const BED_NUMBERS = ALL_BEDS.map((bed) => ALL_BEDS.filter((other) => other.field === bed.field && other.x < bed.x).length + 1);
-const bedHead = (bed) => {
-  const head = ALL_BEDS[bed];
-  return { x: head.x + head.shape.offset(head.front), z: head.front - 1 };
-};
-const standsAt = (bed, at) => {
-  if (!at) return false;
-  const { x, shape, front, count } = ALL_BEDS[bed];
-  const z = Math.min(Math.max(at.z, front), front + count * SPACING);
-  return Math.abs(at.x - x - shape.offset(z)) <= BED.pitch && at.z >= front - 1.5 && at.z <= front + count * SPACING + 1.5;
-};
 const CLODS = [0x6b4428, 0x7d5532, 0x8a5c38, 0x5c3920];
 const WEEDS = [0x6fae3f, 0x5a9a36, 0x86c75a];
-const BOUNDS = { x0: -32 + FARM_X, z0: 38.5, x1: 33 + FARM_X, z1: 64 };
-export const FIELD_TREES = [
-  [-32, 58],
-  [-20, 64],
-  [-6, 65],
-  [9, 64.5],
-  [24, 63.5],
-  [33, 57],
-].map(([x, z]) => [x + FARM_X, z]);
-const JAR_CENTER = 0.5 + FARM_X;
-const JAR_OUTER = BED_XS.reduce((m, x) => Math.max(m, Math.abs(x - JAR_CENTER)), 0) + 1.6;
-const JARS = [JAR_CENTER - JAR_OUTER, JAR_CENTER + JAR_OUTER].map((x) => ({ x, z: FRONT - 0.9 }));
 
-const bedBox = (x, z0, z1) => ({ minX: x - BED.width / 2, minZ: z0, maxX: x + BED.width / 2, maxZ: z1, minY: 0, maxY: 1.6 });
-
-function fieldObstacles() {
-  const boxes = [];
-  const block = (x0, z0, x1, z1) => boxes.push({ minX: x0, minZ: z0, maxX: x1, maxZ: z1, minY: 0, maxY: 1.6 });
-  for (const { x } of BEDS) boxes.push(bedBox(x, FRONT, BACK));
-  for (const { x, z } of JARS) block(x - 0.45, z - 0.45, x + 0.45, z + 0.45);
-  for (const [x, z] of FIELD_TREES) block(x + 0.2, z + 0.2, x + 0.8, z + 0.8);
-  return boxes;
-}
-
-const ROAD_EDGE = 36.6;
 const bedOf = (index) => SPOT_BED[index];
 const LEASE_CHOICE = 'lease:';
-const leaseOptions = (renew = false) =>
+const leaseOptions = (bed, renew = false) =>
   FARMING.leases.map((offer, i) => ({
     id: `${LEASE_CHOICE}${i}`,
     icon: '📜',
     art: 'scroll',
-    name: `${renew ? '+' : ''}${offer.days} ngày · ${coins(offer.price)}`,
-    label: `${renew ? 'Gia hạn' : 'Thuê'} ${offer.days} ngày, ${coins(offer.price)}`,
+    name: `${renew ? '+' : ''}${offer.days} ngày · ${coins(leasePrice(offer, bed))}`,
+    label: `${renew ? 'Gia hạn' : 'Thuê'} ${offer.days} ngày, ${coins(leasePrice(offer, bed))}`,
   }));
 
 class Leases {
-  constructor(count) {
-    this.beds = Array.from({ length: count }, () => null);
+  constructor() {
+    this.beds = BEDS.map(() => null);
     try {
-      const saved = JSON.parse(localStorage.getItem(LEASE_KEY) ?? 'null');
-      if (Array.isArray(saved)) {
-        saved.forEach((lease, bed) => {
-          if (bed < count && typeof lease?.owner === 'string' && Number.isFinite(lease.until)) this.beds[bed] = { owner: lease.owner, until: lease.until };
-        });
-      }
+      const saved = readJson(LEASE_KEY);
+      leasesFromSave(saved, saved ? null : readJson(LEGACY_LEASE_KEY)).forEach((lease, bed) => {
+        if (typeof lease?.owner === 'string' && Number.isFinite(lease.until)) this.beds[bed] = { owner: lease.owner, until: lease.until };
+      });
+      if (!saved) this.save();
     } catch {}
   }
 
   save() {
     try {
-      writeGameItem(LEASE_KEY, JSON.stringify(this.beds));
+      writeGameItem(LEASE_KEY, JSON.stringify(leasesToSave(this.beds)));
     } catch {}
   }
 
@@ -152,8 +90,9 @@ class Leases {
   rent(bed, actor, offer, purse, now) {
     const lease = this.holder(bed, now);
     if (lease && lease.owner !== actor) return null;
-    if (!purse.spend(offer.price)) return false;
-    economy.collect(offer.price, actor, offer.price, 'land');
+    const price = leasePrice(offer, bed);
+    if (!purse.spend(price)) return false;
+    economy.collect(price, actor, price, 'land');
     this.beds[bed] = { owner: actor, until: (lease?.until ?? now) + offer.days * DAY_MINUTES };
     this.save();
     return this.beds[bed];
@@ -240,16 +179,17 @@ class FarmState {
     this.ledger = ledger;
     this.nameOf = nameOf;
     this.spots = Array.from({ length: count }, fresh);
-    this.leases = new Leases(ALL_BEDS.length);
+    this.leases = new Leases();
     this.load();
   }
 
   load() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
-      if (!saved || !Array.isArray(saved.spots) || saved.spots.length > this.spots.length) return false;
+      const saved = readJson(STORAGE_KEY);
+      const legacy = saved ? null : readJson(LEGACY_KEY);
+      if (!saved && !legacy) return false;
       const now = gameNow();
-      saved.spots.forEach((spot, i) => {
+      for (const [i, spot] of spotsFromSave(saved, legacy)) {
         const target = this.spots[i];
         const stage = Math.floor(Number(spot?.stage));
         target.stage = stage >= 0 && stage <= SPENT ? stage : 0;
@@ -263,8 +203,8 @@ class FarmState {
         target.watered = spot?.watered === true || legacyWet > 0;
         target.late = spot?.late === true;
         target.missed = Math.max(0, Math.floor(Number(spot?.missed) || 0));
-      });
-      const harvested = Math.floor(Number(saved.harvested) || 0);
+      }
+      const harvested = Math.floor(Number(legacy?.harvested) || 0);
       if (harvested > 0) this.ledger.purse(PLAYER).add('tomato', harvested);
       this.save();
       return true;
@@ -275,7 +215,7 @@ class FarmState {
 
   save() {
     try {
-      writeGameItem(STORAGE_KEY, JSON.stringify({ spots: this.spots }));
+      writeGameItem(STORAGE_KEY, JSON.stringify(spotsToSave(this.spots)));
     } catch {}
   }
 
@@ -351,15 +291,15 @@ class FarmState {
     const renew = this.leases.holds(bed, actor, now);
     const lease = this.leases.rent(bed, actor, offer, this.ledger.purse(actor), now);
     if (lease === null) return `Luống của ${this.nameOf(this.leases.holder(bed, now).owner)} rồi!`;
-    if (lease === false) return notEnough(offer.price);
+    if (lease === false) return notEnough(leasePrice(offer, bed));
     return `📜 ${renew ? 'Gia hạn' : 'Thuê luống'} xong, còn ${durationText(lease.until - now)}`;
   }
 
   leaseAction(bed, actor = PLAYER) {
     const lease = this.leases.holder(bed, gameNow());
-    if (!lease) return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions(), menu: true } };
+    if (!lease) return { id: 'rent', hint: 'hand', choices: { title: 'Thuê luống', options: leaseOptions(bed), menu: true } };
     if (lease.owner !== actor) return { id: 'look', hint: null };
-    return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(true), menu: true } };
+    return { id: 'rent', hint: 'hand', choices: { title: 'Gia hạn luống', options: leaseOptions(bed, true), menu: true } };
   }
 
   signLease(bed, actor, offer) {
@@ -396,39 +336,7 @@ class FarmState {
   }
 }
 
-function layoutSpots() {
-  const rand = makeRandom(31);
-  const spots = [];
-  for (const { x, shape, front, count } of ALL_BEDS) {
-    for (let k = 0; k < count; k++) {
-      const z = front + SPACING * (k + 0.5);
-      spots.push({ x: x + shape.offset(z), y: shape.height(z) * 1.03, z, yaw: rand() * Math.PI * 2, scale: 0.9 + rand() * 0.2 });
-    }
-  }
-  return spots;
-}
-
-const REACH = { across: 0.45, along: 1.3 };
 const TIMER_REACH = 2.6;
-
-function spotAt(spots, point) {
-  let best = -1;
-  let bestD = Infinity;
-  spots.forEach((spot, i) => {
-    const dx = Math.abs(point.x - spot.x);
-    const dz = Math.abs(point.z - spot.z);
-    if (dx > 0.75 || dz > SPACING / 2 || dx + dz >= bestD) return;
-    bestD = dx + dz;
-    best = i;
-  });
-  return best;
-}
-
-function standFor(spot, from) {
-  const x = spot.x + (from.x < spot.x ? -1 : 1) * (BED.pitch / 2);
-  const inReach = Math.abs(from.x - x) < REACH.across && Math.abs(from.z - spot.z) <= REACH.along;
-  return inReach ? { x: from.x, z: from.z } : { x, z: spot.z };
-}
 
 const STAGES = [
   (b) => b.add(shapes.cylinder(0.15, 0.17, 0.02, 12), C.hole, { p: [0, 0.004, 0] }),
@@ -477,6 +385,7 @@ class FarmView {
     this.spots = spots;
     this.state = state;
     this.field = field;
+    this.beds = bedsOf(field);
     this.group = new THREE.Group();
     this.clickables = [];
     this.slots = [];
@@ -541,7 +450,7 @@ class FarmView {
     const marker = (build) => {
       const b = new Batch();
       build(b);
-      const mesh = new THREE.InstancedMesh(b.geometry(), vertexMaterial(), ALL_BEDS.length);
+      const mesh = new THREE.InstancedMesh(b.geometry(), vertexMaterial(), this.beds.length);
       mesh.count = 0;
       mesh.castShadow = true;
       mesh.frustumCulled = false;
@@ -567,20 +476,19 @@ class FarmView {
   refreshStakes() {
     const now = gameNow();
     const leases = this.state.leases;
-    const holders = ALL_BEDS.map(({ field }, bed) => (field === this.field ? leases.holder(bed, now) : null));
-    const key = ALL_BEDS.map(({ field }, bed) => (field === this.field ? holders[bed]?.owner ?? '-' : '')).join('|');
+    const holders = this.beds.map((bed) => leases.holder(bed, now));
+    const key = holders.map((lease) => lease?.owner ?? '-').join('|');
     if (key === this.stakeKey) return;
     this.stakeKey = key;
     this.stakeBeds = [];
     this.flagBeds = [];
     this.takenBeds = [];
-    ALL_BEDS.forEach(({ x, shape, front, field }, bed) => {
-      if (field !== this.field) return;
-      position.set(x + shape.offset(front), 0, front - 0.35);
-      matrix.makeTranslation(position.x, position.y, position.z);
+    this.beds.forEach((bed, k) => {
+      const { x, z } = signPoint(bed);
+      matrix.makeRotationY(BEDS[bed].heading).setPosition(x, 0, z);
       this.stakes.setMatrixAt(this.stakeBeds.length, matrix);
       this.stakeBeds.push(bed);
-      const lease = holders[bed];
+      const lease = holders[k];
       if (!lease) return;
       const [mesh, beds] = lease.owner === PLAYER ? [this.flags, this.flagBeds] : [this.takenFlags, this.takenBeds];
       mesh.setMatrixAt(beds.length, matrix);
@@ -593,76 +501,51 @@ class FarmView {
     }
   }
 
+  decal(geometry, material, layer) {
+    const mesh = groundDecal(geometry, material, layer);
+    this.group.add(mesh);
+    this.clickables.push(mesh);
+  }
+
   buildField() {
-    if (this.field === 'banco') {
-      this.buildPlot();
-      return;
-    }
-    const b = new Batch();
-    const rand = makeRandom(909);
+    const info = FIELD_OF[this.field];
     const soil = soilMaterial();
-    SIDES.forEach(({ first, dir }, i) => {
-      const last = first + dir * (BEDS_PER_SIDE - 1) * BED.pitch;
-      const x0 = Math.min(first, last) - BED.pitch / 2 - 0.2;
-      const x1 = Math.max(first, last) + BED.pitch / 2 - 0.6;
-      const ground = groundDecal(raggedPatch(x0, FRONT - 0.6, x1, BACK + 0.6, 61 + i), soil, GROUND_LAYER.field);
-      this.group.add(ground);
-      this.clickables.push(ground);
-    });
-
-    this.addBeds(b, rand, BEDS, FRONT, BACK);
-    for (const { x, z } of JARS) this.jar(b, x, z);
-    for (const [x, z] of FIELD_TREES) roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
-
-    const mesh = b.mesh();
-    this.group.add(mesh);
-    this.clickables.push(mesh);
-
+    for (const patch of info.soil) this.decal(raggedPatch(patch.x0, patch.z0, patch.x1, patch.z1, patch.seed), soil, GROUND_LAYER.field);
     const earth = earthMaterial();
-    const path = groundDecal(roundedRectGeometry(PATH.x0, ROAD_EDGE, PATH.x1, BACK + 0.8, 0.6), earth, GROUND_LAYER.earth);
-    this.group.add(path);
-    this.clickables.push(path);
-  }
-
-  buildPlot() {
+    for (const path of info.paths) this.decal(roundedRectGeometry(path.x0, path.z0, path.x1, path.z1, path.radius), earth, GROUND_LAYER.earth);
     const b = new Batch();
-    const rand = makeRandom(919);
-    const xs = BANCO_BEDS.map((bed) => bed.x);
-    const x0 = Math.min(...xs) - BED.pitch / 2 - 0.2;
-    const x1 = Math.max(...xs) + BED.pitch / 2 + 0.2;
-    const ground = groundDecal(raggedPatch(x0, BANCO.front - 0.6, x1, BANCO_BACK + 0.6, 97), soilMaterial(), GROUND_LAYER.field);
-    this.group.add(ground);
-    this.clickables.push(ground);
-    const path = groundDecal(roundedRectGeometry(BANCO.x - 1.4, BANCO_STREET, BANCO.x + 1.4, BANCO.front - 0.2, 0.5), earthMaterial(), GROUND_LAYER.earth);
-    this.group.add(path);
-    this.clickables.push(path);
-    this.addBeds(b, rand, BANCO_BEDS, BANCO.front, BANCO_BACK);
+    this.addBeds(b);
+    for (const { x, z } of info.jars) this.jar(b, x, z);
+    const rand = makeRandom(info.seed);
+    for (const [x, z] of info.trees) roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
     const mesh = b.mesh();
     this.group.add(mesh);
     this.clickables.push(mesh);
   }
 
-  addBeds(b, rand, list, front, back) {
-    const beds = new THREE.Mesh(bedsGeometry(list, front, back), vertexMaterial());
+  addBeds(b) {
+    const list = this.beds.map((bed) => BEDS[bed]);
+    const beds = new THREE.Mesh(bedsGeometry(list), vertexMaterial());
     beds.castShadow = true;
     beds.receiveShadow = true;
     this.group.add(beds);
     this.clickables.push(beds);
-    for (const { x, shape } of list) {
+    for (const bed of list) {
+      const rand = makeRandom(bed.seed + 57);
       for (let i = 0; i < 26; i++) {
-        const z = front - 0.3 + rand() * (back - front + 0.6);
+        const u = -0.3 + rand() * (bed.length + 0.6);
         const side = rand() < 0.5 ? -1 : 1;
-        const cx = x + shape.offset(z) + side * (0.38 + rand() * 0.28);
+        const { x, z } = bedPoint(bed, u, bed.shape.offset(bed.s0 + u) + side * (0.38 + rand() * 0.28));
         const r = 0.03 + rand() * 0.035;
-        b.add(shapes.ico(r, 0), CLODS[i % CLODS.length], { p: [cx, r * 0.4, z], s: [1.3, 0.7, 1.1], r: [0, rand() * 3, 0], flat: true });
+        b.add(shapes.ico(r, 0), CLODS[i % CLODS.length], { p: [x, r * 0.4, z], s: [1.3, 0.7, 1.1], r: [0, rand() * 3, 0], flat: true });
       }
       for (let i = 0; i < 3; i++) {
-        const z = front + rand() * (back - front);
-        const cx = x + (rand() < 0.5 ? -1 : 1) * (0.75 + rand() * 0.6);
+        const u = rand() * bed.length;
+        const { x, z } = bedPoint(bed, u, (rand() < 0.5 ? -1 : 1) * (0.75 + rand() * 0.6));
         for (let k = 0; k < 4; k++) {
           const a = rand() * Math.PI * 2;
           b.add(shapes.cone(0.018, 0.1 + rand() * 0.08, 4), WEEDS[k % WEEDS.length], {
-            p: [cx + Math.cos(a) * 0.04, 0.05, z + Math.sin(a) * 0.04],
+            p: [x + Math.cos(a) * 0.04, 0.05, z + Math.sin(a) * 0.04],
             r: [Math.cos(a) * 0.4, 0, Math.sin(a) * 0.4],
             flat: true,
           });
@@ -837,41 +720,43 @@ export function createFarm({ ledger, nameOf, nav }) {
     return changed;
   };
 
-  function leaseOffer(purse, seed) {
+  function leaseOffer(purse, seed, bed) {
     const horizon = growDays(seed) * VILLAGER.leaseCycles;
     const budget = purse.money - VILLAGER.leaseReserve;
     let pick = -1;
     FARMING.leases.forEach((offer, i) => {
-      if (offer.price <= budget && (i === 0 || offer.days <= horizon)) pick = i;
+      if (leasePrice(offer, bed) <= budget && (i === 0 || offer.days <= horizon)) pick = i;
     });
-    if (pick < 0 && purse.money >= FARMING.leases[0].price) pick = 0;
+    if (pick < 0 && purse.money >= leasePrice(FARMING.leases[0], bed)) pick = 0;
     return pick;
   }
 
   function renewJob(actor, beds, purse, seed) {
     const now = gameNow();
-    const due = beds.filter((bed) => {
-      const claimant = claims.get(SPOT_BED.indexOf(bed));
-      return state.leases.holder(bed, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && (!claimant || claimant === actor);
+    const bed = beds.find((held) => {
+      const claimant = claims.get(FIRST_SPOT[held]);
+      return state.leases.holder(held, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && (!claimant || claimant === actor);
     });
-    if (!due.length) return null;
-    const offer = leaseOffer(purse, seed);
+    if (bed === undefined) return null;
+    const offer = leaseOffer(purse, seed, bed);
     if (offer < 0) return null;
-    const bed = due[0];
-    return { action: 'lease', bed, offer, index: SPOT_BED.indexOf(bed), stand: bedHead(bed) };
+    return { action: 'lease', bed, offer, index: FIRST_SPOT[bed], stand: bedHead(bed) };
   }
 
-  function leaseJob(actor, purse, from, seed) {
-    const offer = leaseOffer(purse, seed);
-    if (offer < 0) return null;
-    const gap = (bed) => Math.hypot(ALL_BEDS[bed].x - from.x, ALL_BEDS[bed].front + (ALL_BEDS[bed].count * SPACING) / 2 - from.z);
+  function leaseJob(actor, purse, from, seed, shortfall) {
+    const gap = (bed) => {
+      const mid = bedPoint(BEDS[bed], BEDS[bed].length / 2, 0);
+      return Math.hypot(mid.x - from.x, mid.z - from.z);
+    };
     const open = state.leases.free(gameNow()).filter((bed) => {
-      const claimant = claims.get(SPOT_BED.indexOf(bed));
-      return !claimant || claimant === actor;
+      const claimant = claims.get(FIRST_SPOT[bed]);
+      return BEDS[bed].holes <= shortfall * 2 && (!claimant || claimant === actor);
     });
     const bed = open.sort((a, b) => gap(a) - gap(b))[0];
     if (bed === undefined) return null;
-    return { action: 'lease', bed, offer, index: SPOT_BED.indexOf(bed), stand: bedHead(bed) };
+    const offer = leaseOffer(purse, seed, bed);
+    if (offer < 0) return null;
+    return { action: 'lease', bed, offer, index: FIRST_SPOT[bed], stand: bedHead(bed) };
   }
 
   const crew = {
@@ -905,10 +790,7 @@ export function createFarm({ ledger, nameOf, nav }) {
       refreshAll();
       return reply;
     },
-    signOf(bed) {
-      const head = ALL_BEDS[bed];
-      return { x: head.x + head.shape.offset(head.front), z: head.front - 0.35 };
-    },
+    signOf: (bed) => signPoint(bed),
     signLease(bed, actor, offer) {
       const lease = state.signLease(bed, actor, offer);
       refreshAll();
@@ -960,14 +842,18 @@ export function createFarm({ ledger, nameOf, nav }) {
         else if (state.thirsty(plant)) consider(index, 'water', 2);
         else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
-      if (owned < FARMING.villagerPlots && seedChoice) {
+      const want = FARMING.villagerHoles;
+      if (owned < want && seedChoice) {
         const beds = state.leases.heldBy(worker.id, gameNow());
-        if (!beds.length) return best ?? leaseJob(worker.id, purse, worker.position, seedChoice);
-        const renew = best ? null : renewJob(worker.id, beds, purse, seedChoice);
+        const renew = best || !beds.length ? null : renewJob(worker.id, beds, purse, seedChoice);
         if (renew) return renew;
+        let empty = 0;
         state.spots.forEach((plant, index) => {
-          if (plant.stage === 0 && beds.includes(bedOf(index))) consider(index, 'plant', 4, seedChoice);
+          if (plant.stage !== 0 || !beds.includes(bedOf(index))) return;
+          empty += 1;
+          consider(index, 'plant', 4, seedChoice);
         });
+        if (!best && owned + empty < want) return leaseJob(worker.id, purse, worker.position, seedChoice, want - owned - empty);
       }
       return best;
     },
@@ -981,9 +867,7 @@ export function createFarm({ ledger, nameOf, nav }) {
       target(hit, from) {
         const bed = views[field]?.bedOf(hit.object, hit.instanceId) ?? null;
         if (bed !== null) {
-          const index = SPOT_BED.indexOf(bed);
-          const head = ALL_BEDS[bed];
-          return { index, stake: bed, x: head.x + head.shape.offset(head.front), z: head.front - 0.35, stand: bedHead(bed) };
+          return { index: FIRST_SPOT[bed], stake: bed, ...signPoint(bed), stand: bedHead(bed) };
         }
         const index = views[field]?.spotOf(hit.object, hit.instanceId) ?? spotAt(spots, hit.point);
         if (index == null || index < 0 || fieldOf(index) !== field) return null;
@@ -1055,20 +939,13 @@ export function createFarm({ ledger, nameOf, nav }) {
     };
   }
 
-  const banco = fieldRegion('banco', {
-    id: 'bancoFarm',
-    name: FIELD_NAMES.banco,
-    bounds: BANCO_BOUNDS,
-    obstacles: BANCO_BEDS.map(({ x }) => bedBox(x, BANCO.front, BANCO_BACK)),
-  });
+  const [main, ...extraRegions] = FIELDS.map((info) =>
+    fieldRegion(info.id, { id: info.region, name: info.name, bounds: info.bounds, obstacles: fieldObstacles(info.id) }),
+  );
 
-  return fieldRegion('farm', {
-    id: 'farm',
-    name: FIELD_NAMES.farm,
-    bounds: BOUNDS,
-    obstacles: fieldObstacles(),
+  return Object.assign(main, {
     crew,
-    extraRegions: [banco],
+    extraRegions,
     tick() {
       const now = performance.now();
       if (now - lastTick < 500) return false;
@@ -1086,7 +963,7 @@ export function createFarm({ ledger, nameOf, nav }) {
         const kind = plant.stage === RIPE ? 'ripe' : state.thirsty(plant) ? 'water' : null;
         if (!kind) return;
         const key = `${kind}:${bed}`;
-        if (!found.has(key)) found.set(key, { key, kind, bed, crops: [], here: standsAt(bed, at), place: `${FIELD_NAMES[ALL_BEDS[bed].field]} · luống ${BED_NUMBERS[bed]}`, point: bedHead(bed) });
+        if (!found.has(key)) found.set(key, { key, kind, bed, crops: [], here: standsAt(bed, at), place: bedPlace(bed), point: bedHead(bed) });
         const crops = found.get(key).crops;
         const name = cropOf(plant).name;
         if (!crops.includes(name)) crops.push(name);

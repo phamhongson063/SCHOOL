@@ -119,7 +119,7 @@ export function createMarket() {
       if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('game') >= 1) return true;
       if (purse.total('seed') > 0) return false;
       const plots = villager.town.farm.plots(villager.id);
-      if (plots.owned >= FARMING.villagerPlots) return false;
+      if (plots.owned >= FARMING.villagerHoles) return false;
       return purse.money + stockValue(purse) - reserveOf(villager) >= cheapestSeed();
     },
     trade(villager) {

@@ -33,11 +33,11 @@ export const FARMING = {
   thirstShare: 0.6,
   missPenalty: 0.18,
   minVigor: 0.25,
-  villagerPlots: 10,
+  villagerHoles: 10,
   leases: [
-    { days: 3, price: 27 },
-    { days: 7, price: 54 },
-    { days: 15, price: 99 },
+    { days: 3, perHole: 2.7 },
+    { days: 7, perHole: 5.4 },
+    { days: 15, perHole: 9.9 },
   ],
   spentMinutes: 6 * 60,
 };
