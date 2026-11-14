@@ -11,6 +11,7 @@ import { realSeconds } from './clock.js';
 import { blessingCloseAt, blessingStayMinutes } from './villagerMind.js';
 import { blessingScore } from './blessingRules.js';
 import { NPC } from './npcIds.js';
+import { trade } from './trade.js';
 
 const VENDOR_TRIES = 2;
 const [MART_SNACK, MART_SNACK_INFO] = Object.entries(SNACKS).sort((a, b) => a[1].price - b[1].price)[0];
@@ -199,7 +200,7 @@ export class RestBehavior {
 
   wantsFood(ctx) {
     if (this.purse.energy >= ENERGY.low || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
-    return Object.values(FOODS).some((food) => food.price <= this.purse.money);
+    return Object.values(FOODS).some((food) => food.price <= this.purse.money && trade.ready(NPC.cook, food));
   }
 
   wantsInn() {
@@ -355,7 +356,7 @@ export class RestBehavior {
       return;
     }
     const eaten = this.feast(FOODS, NPC.cook);
-    this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : 'Hết tiền ăn rồi...', 2.2);
+    this.say(eaten.length ? `Ăn ${eaten.join('')} no bụng rồi!` : this.missedMeal(FOODS, NPC.cook), 2.2);
     this.wait(between(2, 4), () => this.finishService());
   }
 
@@ -365,14 +366,18 @@ export class RestBehavior {
     const frugal = this.frugal();
     const full = ENERGY.max * (frugal ? VILLAGER.frugalFull : 0.8);
     const order = frugal ? (a, b) => a.price / a.energy - b.price / b.energy : (a, b) => b.energy - a.energy;
+    const take = (food) => (seller === this.id ? trade.cookFor(seller, food) : trade.serve(seller, food, purse));
     for (const food of Object.values(foods).sort(order)) {
-      while (purse.energy < full && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(food.price)) {
-        economy.income(seller, food.price, this.id);
+      while (purse.energy < full && purse.energy + food.energy <= ENERGY.max + 5 && take(food)) {
         purse.addEnergy(food.energy);
         eaten.push(food.icon);
       }
     }
     return eaten;
+  }
+
+  missedMeal(foods, seller) {
+    return Object.values(foods).some((food) => trade.ready(seller, food)) ? 'Hết tiền ăn rồi...' : 'Hết món mất rồi...';
   }
 
   vendorGap() {
@@ -429,7 +434,7 @@ export class RestBehavior {
 
   wantsVendor() {
     if (this === this.town.vendor || this.purse.energy >= ENERGY.low || this.vendorOut() || this.vendorGap() > VENDOR.lure) return false;
-    return Object.values(VENDOR.foods).some((food) => food.price <= this.purse.money);
+    return Object.values(VENDOR.foods).some((food) => food.price <= this.purse.money && trade.ready(NPC.vendor, food));
   }
 
   goVendor(tries = 0) {
@@ -455,7 +460,7 @@ export class RestBehavior {
     vendor.hold(VENDOR.hold, this.position);
     this.lookAt = vendor.position;
     const eaten = this.feast(VENDOR.foods, NPC.vendor);
-    this.say(eaten.length ? `Ăn ${eaten.join('')} ngon quá!` : 'Hết tiền ăn rồi...', 2.2);
+    this.say(eaten.length ? `Ăn ${eaten.join('')} ngon quá!` : this.missedMeal(VENDOR.foods, NPC.vendor), 2.2);
     this.wait(between(2, 4), () => this.think());
   }
 }

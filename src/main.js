@@ -80,6 +80,7 @@ import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
 import { economy, SHOPKEEPERS } from './economy.js';
+import { trade } from './trade.js';
 import { loadingStep, loadingDone, hasEntered } from './loading.js';
 import { createRegen } from './regen.js';
 import { loadItemImages } from './itemArt.js';
@@ -232,6 +233,7 @@ player.terrainAt = terrainHeight;
 player.viewBlocked = islandBlocksView;
 
 const ledger = new Ledger();
+trade.start({ ledger });
 const purse = ledger.purse(PLAYER);
 if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
 createBag(purse);

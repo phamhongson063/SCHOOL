@@ -6,40 +6,14 @@ import { amount, coins, notEnough } from './format.js';
 import { iconTag } from './itemArt.js';
 import { closable } from './dialog.js';
 import { stallCard, paintStallArt } from './stallCard.js';
-import { economy } from './economy.js';
 import { setRich } from './goldArt.js';
-import { NPC } from './npcIds.js';
+import { priceOf, trade } from './trade.js';
 
-export function priceOf(item) {
-  const info = ITEMS[item];
-  if (!info) return 0;
-  if (info.kind === 'produce') return CROP_ECONOMY[info.crop]?.price ?? 0;
-  if (info.kind === 'seed') return CROP_ECONOMY[info.crop]?.seed ?? 0;
-  if (info.kind === 'fertilizer') return SHOP.fertilizer;
-  if (info.kind === 'fish') return FISH[info.fish]?.price ?? 0;
-  if (info.kind === 'game') return WILDLIFE[info.animal]?.price ?? 0;
-  if (info.kind === 'snack') return SNACKS[info.snack]?.price ?? 0;
-  if (item === 'rod') return FISHING.rod;
-  if (item === 'bait') return FISHING.baitPack;
-  return 0;
-}
-
-const SELLABLE = new Set(['produce', 'fish', 'game']);
 const SHOP_KINDS = ['produce', 'game'];
 const FISH_KINDS = ['fish'];
 
-function sellerOf(item) {
-  if (item === 'rod' || item === 'bait') return NPC.fishmonger;
-  if (ITEMS[item]?.kind === 'snack') return NPC.grocer;
-  return NPC.keeper;
-}
-
 export const martOpen = (minutes) => isOpenAt(MART, minutes);
 export const martHours = () => hoursText(MART);
-
-function packSize(item) {
-  return item === 'bait' ? FISHING.baitPerPack : 1;
-}
 
 function stockValue(purse) {
   let value = 0;
@@ -71,16 +45,12 @@ const reserveOf = (villager) => (villager.seated ? (CERTIFY.learnFee + CERTIFY.i
 
 function wantsBait(villager) {
   const purse = villager.purse;
-  return purse.count('rod') > 0 && purse.count('bait') < FISHING.villagerBaitBelow && purse.money - reserveOf(villager) >= FISHING.baitPack * FISHING.villagerBaitFunds;
+  return purse.count('rod') > 0 && purse.count('bait') < FISHING.villagerBaitBelow && purse.money - reserveOf(villager) >= FISHING.baitPack * FISHING.villagerBaitFunds && trade.available('bait');
 }
 
 export function createMarket() {
   function sell(purse, item, count) {
-    const have = purse.count(item);
-    const amount = Math.min(have, count);
-    if (amount <= 0 || !SELLABLE.has(ITEMS[item]?.kind)) return 0;
-    if (!purse.take(item, amount)) return 0;
-    return economy.sale(purse, amount * priceOf(item));
+    return trade.sell(purse, item, Math.min(purse.count(item), count)).earned;
   }
 
   function sellAll(purse, kinds) {
@@ -92,22 +62,18 @@ export function createMarket() {
   }
 
   function buy(purse, item, count) {
-    const price = priceOf(item);
-    if (!(count > 0) || !price || !purse.spend(price * count)) return false;
-    economy.income(sellerOf(item), price * count, purse.id);
-    purse.add(item, count * packSize(item));
-    return true;
+    return trade.buy(purse, item, count);
   }
 
   function seedPlan(purse, budget) {
     const want = Math.max(0, VILLAGER.seedStock - purse.total('seed'));
     if (!want || budget <= 0) return null;
     const options = Object.keys(CROPS)
-      .filter((crop) => CROP_ECONOMY[crop].seed <= budget)
+      .filter((crop) => CROP_ECONOMY[crop].seed <= budget && trade.available(seedId(crop)))
       .sort((a, b) => profitPerDay(b) - profitPerDay(a));
     if (!options.length) return null;
     const crop = options[Math.floor(Math.random() * Math.min(3, options.length))];
-    const count = Math.min(want, Math.floor(budget / CROP_ECONOMY[crop].seed));
+    const count = Math.min(want, Math.floor(budget / CROP_ECONOMY[crop].seed), trade.stockOf(seedId(crop)));
     return count > 0 ? { item: seedId(crop), count } : null;
   }
 
@@ -117,11 +83,12 @@ export function createMarket() {
     buy,
     wantsTrade(villager) {
       const purse = villager.purse;
-      if (purse.total('produce') >= VILLAGER.sellWhen || purse.total('game') >= 1) return true;
+      if (purse.total('produce') >= VILLAGER.sellWhen && purse.entries('produce').some(([item]) => trade.buying(item))) return true;
+      if (purse.entries('game').some(([item]) => trade.buying(item))) return true;
       if (purse.total('seed') > 0) return false;
       const plots = villager.town.farm.plots(villager.id);
       if (plots.owned >= FARMING.villagerHoles) return false;
-      return purse.money + stockValue(purse) - reserveOf(villager) >= cheapestSeed();
+      return purse.money + stockValue(purse) - reserveOf(villager) >= cheapestSeed() && Object.keys(CROPS).some((crop) => trade.available(seedId(crop)));
     },
     trade(villager) {
       const purse = villager.purse;
@@ -138,7 +105,8 @@ export function createMarket() {
       return lines;
     },
     wantsFish(villager) {
-      return villager.purse.total('fish') >= FISHING.villagerSellAt || wantsBait(villager);
+      const purse = villager.purse;
+      return (purse.total('fish') >= FISHING.villagerSellAt && purse.entries('fish').some(([item]) => trade.buying(item))) || wantsBait(villager);
     },
     fishTrade(villager) {
       const purse = villager.purse;
@@ -169,12 +137,14 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
   function sellRow(item) {
     const info = ITEMS[item];
     const have = purse.count(item);
-    const price = priceOf(item);
+    const price = trade.quote(item);
+    const buying = trade.buying(item);
     const sellSome = (count) => () => {
       const before = purse.count(item);
       const earned = market.sell(purse, item, count);
       const sold = before - purse.count(item);
       if (sold > 0) say(`Bán ${sold} ${info.unit} ${info.name.toLowerCase()} được ${coins(earned)}.`);
+      else say('Tiệm hết tiền mua rồi.');
       render();
     };
     return stallCard({
@@ -186,8 +156,8 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
       unit: info.unit,
       tag: `có ${have}`,
       actions: [
-        { label: 'Bán 1', disabled: have < 1, run: sellSome(1) },
-        { label: 'Bán hết', disabled: have < 1, run: sellSome(have) },
+        { label: 'Bán 1', disabled: have < 1 || !buying, run: sellSome(1) },
+        { label: 'Bán hết', disabled: have < 1 || !buying, run: sellSome(have) },
       ],
     });
   }
@@ -197,13 +167,17 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
     const info = ITEMS[item];
     const purchase = (count) => () => {
       if (market.buy(purse, item, count)) say(`Đã mua ${count} ${unit} ${info.name.toLowerCase()}.`);
+      else if (!trade.available(item, count)) say('Hết hàng rồi.');
       else say(notEnough(price * count));
       render();
     };
+    const stocked = trade.available(item);
     const actions = owned
       ? [{ label: 'Đã có', disabled: true, run: () => {} }]
-      : [{ label: 'Mua 1', disabled: purse.money < price, run: purchase(1) }];
-    if (many > 1 && !owned) actions.push({ label: `Mua ${many}`, disabled: purse.money < price * many, run: purchase(many) });
+      : stocked
+        ? [{ label: 'Mua 1', disabled: purse.money < price, run: purchase(1) }]
+        : [{ label: 'Hết hàng', disabled: true, run: () => {} }];
+    if (many > 1 && !owned && stocked) actions.push({ label: `Mua ${many}`, disabled: purse.money < price * many || !trade.available(item, many), run: purchase(many) });
     return stallCard({
       key: `buy:${item}`,
       icon: info.icon,

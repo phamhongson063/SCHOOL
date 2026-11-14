@@ -17,12 +17,15 @@ const INCOME_NAMES = {
   estate: ['🏡', 'Bán nhà'],
   land: ['🌾', 'Thuê ruộng'],
   arena: ['⚔️', 'Dư giải lôi đài'],
+  market: ['🧺', 'Phí chợ'],
+  capital: ['🏪', 'Thu hồi vốn tiệm'],
 };
 const EXPENSE_NAMES = {
   wage: ['🎖️', 'Lương quan viên'],
   blessing: ['✨', 'Lễ chúc phúc'],
   arena: ['🏆', 'Giải lôi đài'],
   buyback: ['🏚️', 'Mua lại nhà'],
+  capital: ['🏪', 'Cấp vốn tiệm'],
 };
 
 function el(tag, className, text) {

@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { ROUTINE, VENDOR, GUARD, ENERGY, ECONOMY, CERTIFY } from './config.js';
+import { ROUTINE, VENDOR, GUARD, ENERGY, CERTIFY } from './config.js';
 import { Batch, shapes } from './toon.js';
 import { isOpenAt } from './clock.js';
 import { TEACHER_STAND, FLOOR } from './school.js';
 import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PEDDLER_CALLS, PEDDLER_DAY_CALLS, pick } from './villagerData.js';
 import { PAGODA, SHELTERS } from './terrain.js';
 import { Villager } from './villager.js';
+import { trade } from './trade.js';
 
 export class Teacher extends Villager {
   onDuty(ctx) {
@@ -178,8 +179,7 @@ export class Peddler extends ShiftWorker {
     if (purse.energy >= ENERGY.low) return false;
     const eaten = [];
     for (const food of Object.values(VENDOR.foods).sort((a, b) => b.energy - a.energy)) {
-      const cost = Math.ceil(food.price * (1 - ECONOMY.keep.vendor));
-      while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && purse.spend(cost)) {
+      while (purse.energy < ENERGY.max * 0.8 && purse.energy + food.energy <= ENERGY.max + 5 && trade.cookFor(this.id, food)) {
         purse.addEnergy(food.energy);
         eaten.push(food.icon);
       }

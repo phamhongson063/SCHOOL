@@ -6,6 +6,7 @@ import { dayOf, minuteOfDay } from './clock.js';
 import { blessingSlots, economy } from './economy.js';
 import { blessingAskScore } from './blessingRules.js';
 import { averageYield } from './market.js';
+import { trade } from './trade.js';
 import { SELF_STUDY } from './villagerData.js';
 
 const KINDS = ['farm', 'fish', 'hunt', 'study', 'blessing'];
@@ -57,17 +58,17 @@ export class MindBehavior {
     const action = job.action === 'clear' && this.town.farm.ownerOf(job.index) !== this.id ? 'clearOther' : job.action;
     const share = MIND.harvestShare[action] ?? MIND.harvestShare.clear;
     const supplies = job.action === 'fertilize' ? SHOP.fertilizer : 0;
-    return (HARVEST_VALUE * share - supplies) * need - (ENERGY.costs[job.action] ?? 0) * MIND.energyCoin;
+    return (HARVEST_VALUE * trade.payRate('produce') * share - supplies) * need - (ENERGY.costs[job.action] ?? 0) * MIND.energyCoin;
   }
 
   fishGain(need, casts) {
     const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
-    return casts * ((skill * FISH_VALUE - BAIT_PER_CAST) * need - ENERGY.costs.fish * MIND.energyCoin);
+    return casts * ((skill * FISH_VALUE * trade.payRate('fish') - BAIT_PER_CAST) * need - ENERGY.costs.fish * MIND.energyCoin);
   }
 
   huntGain(need) {
     const skill = HUNTING.villagerSkill[this.kind] ?? 0.5;
-    return skill * GAME_VALUE * need - HUNTING.energy * MIND.energyCoin;
+    return skill * GAME_VALUE * trade.payRate('game') * need - HUNTING.energy * MIND.energyCoin;
   }
 
   studyGain(need, sit) {

@@ -1,6 +1,6 @@
 import { BANK_ART } from './bankArt.js';
 import { paintIcon } from './itemArt.js';
-import { amount } from './format.js';
+import { fineAmount } from './format.js';
 import { setRich } from './goldArt.js';
 
 function el(tag, className, text) {
@@ -33,7 +33,7 @@ export function stallCard({ key, icon, art, title, price = null, unit = null, ta
   text.append(el('strong', 'bank-card-title', title));
   if (price !== null) {
     const chip = el('span', 'bank-chip');
-    chip.append(coinArt(), el('strong', 'bank-chip-value', amount(price)));
+    chip.append(coinArt(), el('strong', 'bank-chip-value', fineAmount(price)));
     if (unit) chip.append(el('span', 'stall-chip-unit', `/${unit}`));
     if (tag) chip.append(el('span', 'bank-chip-bar'), el('span', 'bank-chip-rate', tag));
     text.append(chip);

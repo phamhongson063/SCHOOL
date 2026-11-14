@@ -178,10 +178,10 @@ export const LODGE_ROOMS = {
 export const EATERY = { open: 5 * 60, close: 21 * 60 + 30 };
 
 export const FOODS = {
-  che: { icon: '🍧', name: 'Chè đậu xanh', price: 10, energy: 12 },
-  banhmi: { icon: '🥖', name: 'Bánh mì thịt', price: 20, energy: 25 },
-  caolau: { icon: '🍜', name: 'Cao lầu', price: 30, energy: 45 },
-  comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55 },
+  che: { icon: '🍧', name: 'Chè đậu xanh', price: 10, energy: 12, uses: { produce: 5 } },
+  banhmi: { icon: '🥖', name: 'Bánh mì thịt', price: 20, energy: 25, uses: { produce: 4, protein: 7 } },
+  caolau: { icon: '🍜', name: 'Cao lầu', price: 30, energy: 45, uses: { produce: 6, protein: 10 } },
+  comga: { icon: '🍛', name: 'Cơm gà Hội An', price: 35, energy: 55, uses: { produce: 8, protein: 12 } },
 };
 
 export const CERTIFY = {
@@ -218,7 +218,7 @@ export const MART = { open: 6 * 60, close: 22 * 60, house: 'd1', reserve: 80, ch
 export const SNACKS = {
   banhngot: { icon: '🥐', name: 'Bánh ngọt', price: 15, energy: 8 },
   migoi: { icon: '🍜', name: 'Mì ly', price: 22, energy: 12 },
-  comnam: { icon: '🍙', name: 'Cơm nắm', price: 32, energy: 18 },
+  comnam: { icon: '🍙', name: 'Cơm nắm', price: 32, energy: 18, uses: { produce: 10, protein: 7 } },
 };
 
 export const VENDOR = {
@@ -231,10 +231,10 @@ export const VENDOR = {
   lure: 18,
   roamPause: [8, 18],
   foods: {
-    cheden: { icon: '🍧', name: 'Chè đậu đen', price: 8, energy: 10 },
-    banhgio: { icon: '🥟', name: 'Bánh giò', price: 15, energy: 20 },
-    xoixeo: { icon: '🍙', name: 'Xôi xéo', price: 18, energy: 25 },
-    phoganh: { icon: '🍜', name: 'Phở gánh', price: 30, energy: 45 },
+    cheden: { icon: '🍧', name: 'Chè đậu đen', price: 8, energy: 10, uses: { produce: 4 } },
+    banhgio: { icon: '🥟', name: 'Bánh giò', price: 15, energy: 20, uses: { produce: 3, protein: 5 } },
+    xoixeo: { icon: '🍙', name: 'Xôi xéo', price: 18, energy: 25, uses: { produce: 6, protein: 4 } },
+    phoganh: { icon: '🍜', name: 'Phở gánh', price: 30, energy: 45, uses: { produce: 6, protein: 10 } },
   },
 };
 
@@ -258,7 +258,7 @@ export const FIREFLY = {
 
 export const ECONOMY = {
   vat: 0.1,
-  keep: { teacher: 0.9, cook: 0.2, vendor: 0.3, keeper: 0.3, fishmonger: 0.3, grocer: 0.3 },
+  keep: { teacher: 0.9 },
   wages: { guard: 12, teacher: 10, chief: 15, mayor: 20 },
   fundSeed: 5000,
   living: 12,
@@ -268,6 +268,27 @@ export const ECONOMY = {
   thrift: 0.6,
   incomeTax: 0.2,
   offline: { sampleDays: 3, minSample: 120 },
+};
+
+export const TRADE = {
+  buyHigh: 0.9,
+  buyLow: 0.5,
+  exportRate: 0.6,
+  importRate: 0.6,
+  cap: { produce: 150, fish: 100, game: 20 },
+  opening: { produce: 60, fish: 40, game: 8 },
+  pantry: {
+    cook: { produce: 150, protein: 200 },
+    vendor: { produce: 80, protein: 80 },
+    grocer: { produce: 60, protein: 40 },
+  },
+  stock: { seed: 30, fertilizer: 20, bait: 60, rod: 3, snack: 20 },
+  restockBelow: 0.5,
+  capital: 400,
+  richLift: 0.5,
+  marketFee: 0.05,
+  scarce: { protein: 1.5 },
+  turnoverWeight: 0.3,
 };
 
 export const QUIZ = { seconds: 5 * 60, reward: 1 };
@@ -378,7 +399,7 @@ export const BANK = {
   maxLoans: 3,
   maxTerms: 5,
   catchUpDays: 60,
-  npc: { keepBase: 40, keepSpread: 60, broke: 15, need: 40, repayShare: 0.5, repayMin: 10, dueSoon: 1, maxLine: 3, urgentGap: 60, restGap: 8 * 60 },
+  npc: { keepBase: 40, keepSpread: 60, broke: 15, merchantBroke: 0.25, need: 40, repayShare: 0.5, repayMin: 10, dueSoon: 1, maxLine: 3, urgentGap: 60, restGap: 8 * 60 },
 };
 
 export const ATM = {

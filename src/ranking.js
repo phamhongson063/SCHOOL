@@ -7,6 +7,7 @@ import { setRich } from './goldArt.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
+import { trade } from './trade.js';
 
 const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -51,7 +52,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
   let tab = 'worth';
 
   const titlesOf = (id) => arena.champions.filter((item) => item.id === id).length;
-  const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) + (estate.houseOf(id)?.price ?? 0);
+  const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) - Math.ceil(trade.debtOf(id)) + (estate.houseOf(id)?.price ?? 0);
 
   function standings(score, previous) {
     const before = new Map((previous ?? []).map((row) => [row.id, row.score]));

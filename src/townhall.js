@@ -1,7 +1,7 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'poll', 'house', 'estate', 'land', 'arena'];
-export const EXPENSE_KINDS = ['wage', 'blessing', 'arena', 'buyback'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arena', 'capital'];
+export const EXPENSE_KINDS = ['wage', 'blessing', 'arena', 'buyback', 'capital'];
 
 export function spreadPicks(count, total) {
   if (count >= total) return Array.from({ length: total }, (_, i) => i);

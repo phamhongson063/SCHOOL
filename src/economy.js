@@ -6,7 +6,8 @@ import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { nextBlessingRate, planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
-import { NPC } from './npcIds.js';
+import { LEGACY_NPC_IDS, NPC } from './npcIds.js';
+import { trade } from './trade.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -14,6 +15,7 @@ const ARENA_POOL = 'arenaPool';
 const CHECK_MS = 5000;
 const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
+const ROLE_OF = new Map([...LEGACY_NPC_IDS].map(([role, id]) => [id, role]));
 
 export const SHOPKEEPERS = [
   { id: NPC.keeper, name: 'Yoshiko' },
@@ -212,14 +214,6 @@ export function blessingSlots(day) {
   return picks.map((index) => ({ index, start: BLESSING.windows[index][0], end: BLESSING.windows[index][1] }));
 }
 
-function payLiving() {
-  for (const keeper of SHOPKEEPERS) {
-    const purse = ctx.ledger.purse(keeper.id);
-    const cost = Math.min(ECONOMY.living, purse.money);
-    if (cost > 0 && purse.spend(cost)) economy.income(keeper.id === NPC.cook ? NPC.vendor : NPC.cook, cost);
-  }
-}
-
 function sellDistressedHouses() {
   for (const id of ctx.people()) {
     if (id === PLAYER || !ctx.estate.houseOf(id) || !ctx.bank.overdue(id)) continue;
@@ -231,17 +225,19 @@ function sellDistressedHouses() {
 function manageSavings() {
   for (const worker of workers()) {
     const purse = ctx.ledger.purse(worker.id);
-    if (!ctx.estate.houseOf(worker.id)) ctx.estate.buyFor(worker.id, purse, VILLAGER.houseReserve);
-    const client = { id: worker.id, purse, thrift: ECONOMY.thrift, roll: Math.random() };
+    if (!ctx.estate.houseOf(worker.id)) ctx.estate.buyFor(worker.id, purse, Math.max(VILLAGER.houseReserve, trade.reserveOf(worker.id) ?? 0));
+    const merchant = trade.isMerchant(worker.id);
+    const client = { id: worker.id, purse, thrift: ECONOMY.thrift, roll: Math.random(), keep: trade.reserveOf(worker.id), income: trade.incomeOf(worker.id) };
     const plan = ctx.bank.npcPlan(client);
-    if (plan && plan.kind !== 'borrow') ctx.bank.npcServe(client);
+    if (plan && plan.kind !== (merchant ? 'deposit' : 'borrow')) ctx.bank.npcServe(client);
   }
 }
 
 function settleDay(day) {
   payWages();
   collectTaxes();
-  payLiving();
+  trade.meals(SHOPKEEPERS.map((keeper) => keeper.id));
+  trade.daily();
   sellDistressedHouses();
   manageSavings();
   planFor(day);
@@ -318,13 +314,14 @@ export const economy = {
       pay(FUND, ECONOMY.fundSeed);
     }
     mergeArenaPool();
+    trade.open(bank);
     store.save();
     await update(progress);
     setInterval(() => update(), CHECK_MS);
   },
   income(seller, price, payer = null) {
     if (!ctx || !(price > 0)) return;
-    const keep = price * (ECONOMY.keep[seller] ?? 0);
+    const keep = price * (ECONOMY.keep[ROLE_OF.get(seller)] ?? 0);
     const tax = price * ECONOMY.vat;
     const cut = payEarner(seller, keep);
     deposit(tax, 'vat');
@@ -337,23 +334,32 @@ export const economy = {
     trackSpend(payer, spent, { [FUND]: value });
     store.save();
   },
-  sale(purse, gross) {
+  trade(purse, gross, cost = 0) {
     if (!(gross > 0)) return 0;
     if (!ctx) {
       const whole = Math.floor(gross);
       purse.earn(whole);
       return whole;
     }
-    const tax = gross * ECONOMY.vat;
-    const cut = (gross - tax) * ECONOMY.incomeTax;
-    const net = gross - tax - cut;
-    deposit(tax, 'vat');
+    const cut = Math.max(0, gross - cost) * ECONOMY.incomeTax;
+    const net = gross - cut;
     deposit(cut, 'levy');
     const whole = settle(purse.id, net);
     if (whole > 0) purse.earn(whole);
-    trackEarn(purse.id, net, tax + cut);
+    trackEarn(purse.id, net, cut);
     store.save();
     return whole;
+  },
+  retail(seller, price, cost, payer = null) {
+    if (!ctx || !(price > 0)) return;
+    const tax = price * ECONOMY.vat;
+    const net = price - tax;
+    const cut = Math.max(0, net - cost) * ECONOMY.incomeTax;
+    deposit(tax, 'vat');
+    deposit(cut, 'levy');
+    pay(seller, net - cut);
+    trackSpend(payer, price, { [seller]: net - cut, [FUND]: tax + cut });
+    store.save();
   },
   dailyFlow(id) {
     const flow = state.flows[id];

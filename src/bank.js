@@ -387,10 +387,10 @@ export function createBank({ ledger, estate, now }) {
     return (a, b) => pressure(b) - pressure(a) || b.rate - a.rate;
   }
 
-  function npcRepay(account, money, t) {
+  function npcRepay(account, money, t, floor) {
     const target = [...account.loans].sort(repayOrder(t))[0];
     const owed = Math.ceil(debtOf(target));
-    const fromCash = Math.min(owed, Math.max(0, money - BANK.npc.broke));
+    const fromCash = Math.min(owed, Math.max(0, money - floor));
     const fromSavings = Math.min(Math.floor(account.savings), owed - fromCash);
     const amount = fromCash + fromSavings;
     if (amount < Math.min(owed, BANK.npc.repayMin)) return null;
@@ -410,29 +410,30 @@ export function createBank({ ledger, estate, now }) {
     return best;
   }
 
-  function npcPlan({ id, purse, thrift, roll, income = null }) {
+  function npcPlan({ id, purse, thrift, roll, income = null, keep: reserve = null }) {
     const t = now();
     tick(t);
     const account = state.accounts[id] ?? null;
     if (account) settle(id, account, t);
     const money = purse.money;
-    const keep = BANK.npc.keepBase + BANK.npc.keepSpread * (1 - thrift);
+    const merchant = reserve !== null;
+    const keep = reserve ?? BANK.npc.keepBase + BANK.npc.keepSpread * (1 - thrift);
     const liquid = account ? Math.floor(account.savings) : 0;
     const loans = account?.loans ?? [];
     if (loans.length) {
-      const repayPlan = npcRepay(account, money, t);
+      const repayPlan = npcRepay(account, money, t, merchant ? reserve : BANK.npc.broke);
       if (repayPlan) return repayPlan;
     }
     if (!loans.length && liquid > 0 && estate.affordableFor(id, money + liquid - VILLAGER.houseReserve) && !estate.affordableFor(id, money - VILLAGER.houseReserve)) {
       return { kind: 'withdraw', amount: liquid, urgent: true };
     }
     if (money < keep * 0.4 && liquid > 0) return { kind: 'withdraw', amount: Math.min(liquid, Math.ceil(keep - money)), urgent: true };
-    if (money < BANK.npc.broke && !loans.some((loan) => dueOf(loan) <= t)) {
+    if (money < (merchant ? reserve * BANK.npc.merchantBroke : BANK.npc.broke) && !loans.some((loan) => dueOf(loan) <= t)) {
       if (loans.length >= BANK.maxLoans) return null;
-      const appetite = Math.min(1, ((1 - thrift) * (BANK.deposit.base + BANK.loan.spread)) / state.loan);
+      const appetite = merchant ? 1 : Math.min(1, ((1 - thrift) * (BANK.deposit.base + BANK.loan.spread)) / state.loan);
       if (roll >= appetite) return null;
       const room = roomFor(id, account ?? blankAccount(), t);
-      const need = Math.max(BANK.minLoan, BANK.npc.need - money);
+      const need = Math.max(BANK.minLoan, (merchant ? reserve : BANK.npc.need) - money);
       const loan = npcLoan(account ?? blankAccount(), room, need, income);
       return loan ? { kind: 'borrow', amount: loan.amount, term: loan.term, urgent: true } : null;
     }

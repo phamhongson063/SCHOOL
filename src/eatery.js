@@ -7,7 +7,7 @@ import { amount, notEnough } from './format.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { closable } from './dialog.js';
 import { stallCard, paintStallArt } from './stallCard.js';
-import { economy } from './economy.js';
+import { trade } from './trade.js';
 import { setRich } from './goldArt.js';
 import { NPC } from './npcIds.js';
 
@@ -157,30 +157,35 @@ export function createFoodUI({ purse }) {
     energy.textContent = `${Math.floor(purse.energy)}/${ENERGY.max}`;
     const full = purse.full;
     list.replaceChildren(
-      ...Object.values(menu.foods).map((food) =>
-        stallCard({
+      ...Object.values(menu.foods).map((food) => {
+        const ready = trade.ready(menu.seller, food);
+        return stallCard({
           icon: food.icon,
           title: food.name,
           price: food.price,
           tag: `+${food.energy} năng lượng`,
           actions: [
             {
-              label: 'Ăn',
-              disabled: full || purse.money < food.price,
+              label: ready ? 'Ăn' : 'Hết món',
+              disabled: full || !ready || purse.money < food.price,
               run: () => {
-                if (!purse.spend(food.price)) {
+                if (purse.money < food.price) {
                   setRich(note, notEnough(food.price));
                   return;
                 }
-                economy.income(menu.seller, food.price);
+                if (!trade.serve(menu.seller, food, purse)) {
+                  note.textContent = 'Món này hết rồi.';
+                  render();
+                  return;
+                }
                 purse.addEnergy(food.energy);
                 note.textContent = `Ngon quá! ${food.name} +${food.energy} năng lượng.`;
                 render();
               },
             },
           ],
-        }),
-      ),
+        });
+      }),
     );
   }
 
