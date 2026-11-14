@@ -360,9 +360,16 @@ export function createArenaSky(island) {
   let tint = -1;
   const cloudColor = new THREE.Color();
   const seaColor = new THREE.Color();
+  const backdrop = [floor, ...seas.map(({ mesh }) => mesh), ...clouds.map(({ sprite }) => sprite)];
+  let backdropShown = true;
 
   return {
     group,
+    showBackdrop(shown) {
+      if (shown === backdropShown) return;
+      backdropShown = shown;
+      for (const object of backdrop) object.visible = shown;
+    },
     showStage(stage, shown) {
       for (const item of halos) if (item.stage === stage) item.sprite.visible = shown;
     },

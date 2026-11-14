@@ -321,7 +321,7 @@ regions.add(
 );
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
-const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight });
+const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, overview: () => mode === 'overview' });
 regions.add(arenaIsland.region);
 for (const region of farm.extraRegions) regions.add(region);
 for (const region of village.regions({
