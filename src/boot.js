@@ -1,4 +1,5 @@
 import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
+import { RELEASE, VERSION } from './version.js';
 
 const LOCK = 'langsch.game';
 performance.setResourceTimingBufferSize?.(1000);
@@ -6,6 +7,8 @@ const loader = document.getElementById('loader');
 const label = loader?.querySelector('.loader-label');
 const idleLabel = label?.textContent;
 const login = loader?.querySelector('.loader-login');
+const versionNote = loader?.querySelector('.loader-version');
+if (versionNote) versionNote.textContent = `Phiên bản ${RELEASE} · ${VERSION}`;
 const waiting = new AbortController();
 let releaseLock = () => {};
 

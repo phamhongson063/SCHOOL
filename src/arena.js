@@ -9,7 +9,7 @@ import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf } from './clock.js';
 
 const KEY = worldKey('arena');
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 const PHASES = ['open', 'running', 'done'];
 const SIDES = ['a', 'b'];
 const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
