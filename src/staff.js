@@ -6,10 +6,20 @@ import { isOpenAt } from './clock.js';
 import { TEACHER_STAND, FLOOR } from './school.js';
 import { GUARD_DAY_CALLS, GUARD_NIGHT_CALLS, PEDDLER_CALLS, PEDDLER_DAY_CALLS, pick } from './villagerData.js';
 import { PAGODA, SHELTERS } from './terrain.js';
+import { BANK_POINTS } from './fishZones.js';
 import { Villager } from './villager.js';
+import { createBubble, nameColor } from './bubble.js';
 import { trade } from './trade.js';
 
 export class Teacher extends Villager {
+  constructor(profile, town) {
+    super(profile, town);
+    this.seatBubble = createBubble();
+    this.seatBubble.sprite.position.set(0, 1.85, 0);
+    this.seatBubble.setName(this.name, nameColor(this.id));
+    town.school.teacher.group.add(this.seatBubble.sprite);
+  }
+
   onDuty(ctx) {
     return ctx.minute >= CERTIFY.open && ctx.minute < CERTIFY.close;
   }
@@ -136,7 +146,7 @@ export class Peddler extends ShiftWorker {
     const choices = [
       () => pick(town.streetStops),
       () => town.fieldEdgePoint(),
-      () => pick(town.river.spots).stand,
+      () => pick(BANK_POINTS),
       () => pick(SHELTERS),
       () => PAGODA.stand,
     ];

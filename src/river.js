@@ -2,32 +2,18 @@ import * as THREE from 'three';
 import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial, vertexMaterial } from './toon.js';
 import { between, makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
-import { FISH, FISHING, WORLD } from './config.js';
-import { gameNow, minuteOfDay } from './clock.js';
+import { FISHING, WORLD } from './config.js';
+import { gameNow } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { writeGameItem } from './seal.js';
-import { worldKey } from './saveKeys.js';
+import { BOAT_X, DOCK, DOCK_X, SEGMENT, northBank, southBank } from './riverShape.js';
+import { createFishZones } from './fishZones.js';
 
-const KEY = worldKey('river');
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
 const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
-const DOCK = { x0: 44.6, x1: 46.4, z0: 68.8, z1: 76.6 };
-const DOCK_X = (DOCK.x0 + DOCK.x1) / 2;
 const PATH = { x0: 44.4, x1: 46.6, z0: 37, bypassX0: 47.8, bypassX1: 49.8, bendZ0: 53.6, bendZ1: 55.6 };
 const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
-const SEGMENT = 3;
 const STEP = 1;
 const FISH_PICK_RADIUS = 6;
-const BERTH_GAP = 1.6;
-const CROWD_RADIUS = 8;
-const CROWD_PENALTY = 25;
-const SPREAD = 6;
-const BOAT_X = 38.5;
-const BANK_RANGE = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5, step: 5 };
-const BANK_SPOTS = [];
-for (let x = BANK_RANGE.x0; x <= BANK_RANGE.x1; x += BANK_RANGE.step) {
-  if (Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3) BANK_SPOTS.push(x);
-}
 const DROPS = 300;
 const RING_SECONDS = 1.3;
 const SPLASH_GROW = 4.5;
@@ -39,55 +25,6 @@ const REED = [0x7fa443, 0x9ab84a, 0x6a8a3a];
 const PEBBLES = [0x9e9484, 0xb3ab99, 0x857c6c];
 const FLOW_SPEED = 0.05;
 const HYACINTHS = 30;
-
-const randomInt = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
-const smooth = (a, b, x) => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
-const bump = (x, at, width, amount) => amount * Math.exp(-(((x - at) / width) ** 2));
-const fade = (x) => smooth(4, 12, Math.abs(x - DOCK_X));
-
-export function northBank(x) {
-  const wave = 1.1 * Math.sin(x * 0.045 + 1) + 0.6 * Math.sin(x * 0.11 + 2.3) + 0.3 * Math.sin(x * 0.23 + 0.4) + bump(x, 8, 5, 1.6) + bump(x, -28, 6, -1.2) + bump(x, 78, 5, 1.4);
-  return 70 + wave * fade(x);
-}
-
-export function southBank(x) {
-  const wave = 1.3 * Math.sin(x * 0.05 + 4) + 0.7 * Math.sin(x * 0.13 + 0.7) + 0.35 * Math.sin(x * 0.27 + 1.9) + bump(x, 30, 6, -1.8) + bump(x, 92, 5, -1.5) + bump(x, -45, 7, -1.3);
-  return 130 + wave * (0.4 + 0.6 * fade(x));
-}
-
-function lowestNorth(x, half) {
-  let low = Infinity;
-  for (let s = x - half; s <= x + half + 1e-6; s += 0.25) low = Math.min(low, northBank(s));
-  return low;
-}
-
-function makeSpots() {
-  const spots = [];
-  const berth = (stand, float) => ({ stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), who: null, spot: null });
-  const add = (stand, float, berths) => {
-    const spot = { id: spots.length, stand, float, facing: Math.atan2(float.x - stand.x, float.z - stand.z), berths, fish: 0, until: 0, jumpAt: 0, rippleAt: 0 };
-    for (const item of berths) item.spot = spot;
-    spots.push(spot);
-  };
-  const single = (stand, float) => add(stand, float, [berth(stand, float)]);
-  single({ x: DOCK_X, z: DOCK.z1 - 0.5 }, { x: DOCK_X, z: DOCK.z1 + 1.7 });
-  for (const z of [72.6, 74.6]) {
-    single({ x: DOCK.x0 + 0.3, z }, { x: DOCK.x0 - 2.4, z });
-    single({ x: DOCK.x1 - 0.3, z }, { x: DOCK.x1 + 2.4, z });
-  }
-  const clear = (x) => Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3;
-  for (const x of BANK_SPOTS) {
-    const berths = [-BERTH_GAP, 0, BERTH_GAP]
-      .map((dx) => x + dx)
-      .filter(clear)
-      .map((bx) => berth({ x: bx, z: lowestNorth(bx, SEGMENT) - 0.5 }, { x: bx, z: northBank(bx) + 2.5 }));
-    add({ x, z: lowestNorth(x, SEGMENT) - 0.5 }, { x, z: northBank(x) + 2.5 }, berths);
-  }
-  return spots;
-}
 
 function ribbon(x0, x1, edgeA, edgeB) {
   const positions = [];
@@ -171,7 +108,7 @@ function dock(b) {
 }
 
 function shoreline(b, rand) {
-  const skip = (x) => Math.abs(x - DOCK_X) < 5 || Math.abs(x - BOAT_X) < 3 || BANK_SPOTS.some((spot) => Math.abs(x - spot) < 1.6);
+  const skip = (x) => Math.abs(x - DOCK_X) < 5 || Math.abs(x - BOAT_X) < 3;
   for (let i = 0; i < 90 * SPAN_SCALE; i++) {
     const x = SPAN.x0 + 8 + rand() * (SPAN.x1 - SPAN.x0 - 16);
     if (skip(x)) continue;
@@ -240,14 +177,6 @@ function hyacinthGeometry() {
   return b.geometry();
 }
 
-function loadZones() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && saved.zones && typeof saved.zones === 'object' && Array.isArray(saved.pending)) return saved;
-  } catch {}
-  return null;
-}
-
 function fishGeometry() {
   const b = new Batch();
   b.add(
@@ -288,9 +217,8 @@ function waterObstacles() {
 }
 
 export function createRiver() {
-  const spots = makeSpots();
-  const saved = loadZones();
-  const pending = [];
+  const zones = createFishZones(gameNow());
+  const spots = zones.spots;
   const obstacles = waterObstacles();
 
   const group = new THREE.Group();
@@ -379,65 +307,6 @@ export function createRiver() {
   const flying = [];
   const dropMatrix = new THREE.Matrix4();
   group.matrixWorldAutoUpdate = true;
-
-  const save = () => {
-    const zones = {};
-    for (const spot of spots) if (spot.fish > 0) zones[spot.id] = [spot.fish, spot.until];
-    try {
-      writeGameItem(KEY, JSON.stringify({ zones, pending }));
-    } catch {}
-  };
-
-  const zoneCount = () => spots.reduce((count, spot) => count + (spot.fish > 0 ? 1 : 0), 0);
-
-  function openZone(minutes, skip = null) {
-    if (zoneCount() >= FISHING.zones) return;
-    const empty = spots.filter((spot) => spot.fish <= 0 && spot !== skip);
-    if (!empty.length) return;
-    const spot = empty[Math.floor(Math.random() * empty.length)];
-    spot.fish = randomInt(FISHING.zoneFish);
-    spot.until = minutes + randomInt(FISHING.zoneLife);
-    spot.jumpAt = clock + between(0.5, 2);
-  }
-
-  const heading = new Map();
-  const busy = (spot) => spot.berths.some((berth) => berth.who) || [...heading.values()].some((berth) => berth.spot === spot);
-
-  const startedAt = gameNow();
-  if (saved) {
-    for (const [id, value] of Object.entries(saved.zones)) {
-      const spot = spots[Number(id)];
-      const [count, until] = Array.isArray(value) ? value : [value, startedAt + randomInt(FISHING.zoneLife)];
-      if (!spot || !Number.isFinite(count) || count <= 0 || zoneCount() >= FISHING.zones) continue;
-      spot.fish = Math.floor(count);
-      spot.until = Number.isFinite(until) ? until : startedAt + randomInt(FISHING.zoneLife);
-    }
-    pending.push(...saved.pending.filter(Number.isFinite).sort((a, b) => a - b).slice(0, Math.max(0, FISHING.zones - zoneCount())));
-  } else {
-    for (let i = 0; i < FISHING.zones; i++) openZone(startedAt);
-    save();
-  }
-
-  function refill(minutes) {
-    let changed = false;
-    for (const spot of spots) {
-      if (spot.fish <= 0 || spot.until > minutes || busy(spot)) continue;
-      spot.fish = 0;
-      openZone(minutes, spot);
-      changed = true;
-    }
-    while (pending.length && pending[0] <= minutes) {
-      pending.shift();
-      openZone(minutes);
-      changed = true;
-    }
-    while (zoneCount() + pending.length < FISHING.zones) {
-      pending.push(minutes + randomInt(FISHING.zoneRespawn));
-      pending.sort((a, b) => a - b);
-      changed = true;
-    }
-    if (changed) save();
-  }
 
   function ring(x, z, grow, alpha) {
     const item = rings.find((candidate) => candidate.t < 0);
@@ -547,114 +416,32 @@ export function createRiver() {
     if (alive) drops.instanceMatrix.needsUpdate = true;
   }
 
-  const berths = spots.flatMap((spot) => spot.berths);
-  const taken = (who) => berths.filter((item) => item.who && item.who !== who);
-  const expected = (who) => [...taken(who), ...[...heading].filter(([other]) => other !== who).map(([, berth]) => berth)];
-  const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-
-  function crowdAt(point, who) {
-    return expected(who).filter((item) => gap(item.stand, point) < CROWD_RADIUS).length;
-  }
-
-  function freeBerth(spot, who, point) {
-    const others = expected(who);
-    let best = null;
-    let bestScore = -Infinity;
-    for (const item of spot.berths) {
-      if (item.who && item.who !== who) continue;
-      let room = SPREAD;
-      for (const other of others) room = Math.min(room, gap(item.stand, other.stand));
-      const score = room - (point ? gap(item.stand, point) * 0.1 : 0);
-      if (score > bestScore) {
-        bestScore = score;
-        best = item;
-      }
-    }
-    return best;
-  }
-
-  function nearestFish(point, radius) {
-    let best = null;
-    let bestD = radius;
-    for (const spot of spots) {
-      if (spot.fish <= 0) continue;
-      const d = Math.hypot(spot.float.x - point.x, spot.float.z - point.z);
-      if (d < bestD) {
-        bestD = d;
-        best = spot;
-      }
-    }
-    return best;
-  }
-
   return {
     obstacles,
     spots,
-    hasFish(spot) {
-      return spot.fish > 0;
-    },
-    restock: (minutes) => refill(minutes),
+    setSnap: (fn) => zones.setSnap(fn),
+    hasFish: (spot) => zones.hasFish(spot),
+    restock: (minutes) => zones.refill(minutes),
     get hasRoom() {
-      return spots.some((spot) => spot.fish > 0 && spot.berths.some((item) => !item.who));
+      return zones.hasRoom;
     },
     get anglers() {
-      return berths.filter((item) => item.who).length + heading.size;
+      return zones.anglers;
     },
-    pick(point, who) {
-      let best = null;
-      let bestScore = Infinity;
-      for (const spot of spots) {
-        if (spot.fish <= 0) continue;
-        const berth = freeBerth(spot, who, point);
-        if (!berth) continue;
-        const score = Math.hypot(berth.stand.x - point.x, berth.stand.z - point.z) + crowdAt(berth.stand, who) * CROWD_PENALTY;
-        if (score < bestScore) {
-          bestScore = score;
-          best = berth;
-        }
-      }
-      return best;
-    },
-    berthFor(who, spot, point) {
-      return freeBerth(spot, who, point);
-    },
-    aim(who, berth) {
-      for (const item of berths) if (item.who === who) item.who = null;
-      heading.set(who, berth);
-      return berth;
-    },
-    hold(who, berth) {
-      if (berth.who && berth.who !== who) return false;
-      heading.delete(who);
-      for (const item of berths) if (item.who === who) item.who = null;
-      berth.who = who;
-      return true;
-    },
-    leave(who) {
-      heading.delete(who);
-      for (const item of berths) if (item.who === who) item.who = null;
-    },
-    take(spot) {
-      if (spot.fish <= 0) return false;
-      spot.fish -= 1;
-      save();
-      return true;
-    },
-    rollFish(minutes) {
-      const t = minuteOfDay(minutes);
-      const night = t >= 1140 || t < 300;
-      const entries = Object.entries(FISH).map(([id, fish]) => [id, fish.weight * (night && (id === 'catfish' || id === 'snakehead') ? 1.8 : 1)]);
-      let r = Math.random() * entries.reduce((sum, [, w]) => sum + w, 0);
-      for (const [id, w] of entries) if ((r -= w) <= 0) return id;
-      return entries[0][0];
-    },
+    pick: (point, who) => zones.pick(point, who),
+    berthFor: (who, spot, point) => zones.berthFor(who, spot, point),
+    aim: (who, berth) => zones.aim(who, berth),
+    hold: (who, berth) => zones.hold(who, berth),
+    leave: (who) => zones.leave(who),
+    take: (spot) => zones.take(spot),
+    rollFish: (minutes) => zones.rollFish(minutes),
     setNight(k) {
       night = k;
       if (lanternMaterial) lanternMaterial.emissiveIntensity = k * 1.8;
     },
     update(dt, minutes) {
       clock += dt;
-      refill(minutes);
+      zones.refill(minutes);
       if (!group.parent) return;
       animateJumps(dt);
       lanternGlow.update(clock, night);
@@ -687,14 +474,14 @@ export function createRiver() {
         shore: { edge: northBank, reach: 12, hush: 6 },
         target(hit) {
           if (hit.object !== water) return null;
-          const spot = nearestFish(hit.point, FISH_PICK_RADIUS);
-          const berth = spot && freeBerth(spot, options.player, hit.point);
+          const spot = zones.nearestFish(hit.point, FISH_PICK_RADIUS);
+          const berth = spot && zones.berthFor(options.player, spot, hit.point);
           if (!berth) return null;
           return { kind: 'angle', spot, berth, index: `fish:${spot.id}`, x: berth.float.x, z: berth.float.z, stand: berth.stand };
         },
         blankTap(hit) {
           if (hit.object !== water) return null;
-          return nearestFish(hit.point, FISH_PICK_RADIUS) ? 'Chỗ này đông người rồi, tìm chỗ khác nhé!' : 'Chỗ này không có cá.';
+          return zones.nearestFish(hit.point, FISH_PICK_RADIUS) ? 'Chỗ này đông người rồi, tìm chỗ khác nhé!' : 'Chỗ này không có cá.';
         },
         actionFor() {
           return { id: 'fish', hint: 'hand' };

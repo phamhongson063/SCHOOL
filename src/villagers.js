@@ -49,12 +49,7 @@ export class Town {
       this.classTeachers[deck] = teacher;
     }
     for (const queue of Object.values(this.queues)) queue.snap = (point) => this.walkable(point);
-    for (const spot of river.spots) {
-      for (const berth of spot.berths) {
-        berth.stand = this.walkable(berth.stand);
-        berth.facing = Math.atan2(berth.float.x - berth.stand.x, berth.float.z - berth.stand.z);
-      }
-    }
+    river.setSnap((point) => this.walkable(point));
     this.dust = dust;
     this.stepSound = stepSound;
     this.context = null;

@@ -60,6 +60,7 @@ import { createSettings, wipeGame } from './settings.js';
 import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
+import { BANK_POINTS } from './fishZones.js';
 import { createAngler } from './angler.js';
 import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
@@ -914,7 +915,7 @@ const fireflies = createFireflies({
   scene,
   zones: [
     { x0: -30 + FARM_X, x1: 31 + FARM_X, z0: 40, z1: 62, weight: 3 },
-    ...river.spots.map(({ stand }) => ({ x0: stand.x - 4, x1: stand.x + 4, z0: stand.z - 2.5, z1: stand.z + 1, weight: 1 })),
+    ...BANK_POINTS.map((stand) => ({ x0: stand.x - 4, x1: stand.x + 4, z0: stand.z - 2.5, z1: stand.z + 1, weight: 1 })),
   ],
   heightAt: (x, z) => player.nav.heightAt(x, z),
 });
@@ -1499,7 +1500,7 @@ const mapLabels = createMapLabels({
   },
 });
 const HOME_NAME = 'Nhà của bạn';
-const midRiver = river.spots[Math.floor(river.spots.length / 2)]?.stand ?? null;
+const midRiver = BANK_POINTS[Math.floor(BANK_POINTS.length / 2)] ?? null;
 let homeLabel = null;
 for (const [name, at, stand, lift] of [
   ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND, 9],
