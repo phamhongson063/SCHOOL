@@ -1864,6 +1864,9 @@ if (purse.sleeping) showSleep(true);
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
 await regions.warmUp(() => arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera))).catch(() => {});
+await loadingStep(0.95);
+renderer.shadowMap.needsUpdate = true;
+renderer.render(scene, camera);
 await loadingStep(0.97);
 
 let shownNight = -1;

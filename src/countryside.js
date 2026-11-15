@@ -30,7 +30,7 @@ function bambooMeshes(clumps, rand) {
   const culm = new THREE.CylinderGeometry(0.045, 0.06, 1, 5).translate(0, 0.5, 0);
   const leaf = new THREE.IcosahedronGeometry(1, 0);
   const culms = new THREE.InstancedMesh(culm, toonMaterial({ muted: true, color: 0x8aa04a }), clumps.length * 6);
-  const leaves = new THREE.InstancedMesh(leaf, toonMaterial({ muted: true, flatShading: true }), clumps.length * 4);
+  const leaves = new THREE.InstancedMesh(leaf, toonMaterial({ muted: true }), clumps.length * 4);
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
   let c = 0;
