@@ -14,6 +14,7 @@ const goldBadge = (emoji) =>
   `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff6d8" stroke="#c9962f" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">${emoji}</text></svg>`;
 const STUDY = goldBadge('📖');
 const PEN = goldBadge('✍️');
+const LANTERN = goldBadge('🏮');
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
 const MOODS = {
@@ -137,7 +138,8 @@ export function createBubble() {
   const tripBadge = makeBadge(TRIP);
   const studyBadge = makeBadge(STUDY, 'study');
   const penBadge = makeBadge(PEN);
-  const badges = [moodBadge, turnBadge, tripBadge, studyBadge, penBadge];
+  const lanternBadge = makeBadge(LANTERN);
+  const badges = [moodBadge, turnBadge, tripBadge, studyBadge, penBadge, lanternBadge];
   const anyBadge = () => badges.some((badge) => badge.on);
   const nameTag = document.createElement('div');
   nameTag.className = 'name-tag';
@@ -266,6 +268,11 @@ export function createBubble() {
     toggle(studyBadge, studying);
   }
 
+  function setLantern(next) {
+    if (next === lanternBadge.on) return;
+    toggle(lanternBadge, next);
+  }
+
   function setPen(next) {
     if (next === signing) return;
     signing = next;
@@ -295,6 +302,7 @@ export function createBubble() {
     setTrip,
     setStudy,
     setPen,
+    setLantern,
     setName,
     update(now) {
       if (shown && now > until) hide();

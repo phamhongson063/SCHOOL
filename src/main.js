@@ -30,6 +30,10 @@ import { createFarm } from './farm.js';
 import { FIELDS } from './fieldPlan.js';
 import { createFireflies, createFireflyLamp } from './fireflies.js';
 import { createFireflyField } from './fireflyField.js';
+import { createOpenGround } from './openGround.js';
+import { createLanterns, knowsLantern, landedAt, lanternWindow } from './lanterns.js';
+import { createSkyLanterns } from './skyLanterns.js';
+import { createLanternDialog } from './lanternDialog.js';
 import { createLampBurner } from './fireflyRules.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
@@ -41,7 +45,7 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { blessingScore } from './blessingRules.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
@@ -331,6 +335,8 @@ const districtRegion = district.region({
   openArena: (choice) => openArena(choice),
   hallMenu: () => hallMenu(economy),
   openHall: (choice) => hallUI.open(choice),
+  lanternMenu: () => lanternMenu(),
+  openLantern: (choice) => registerLantern(choice),
   minutes: () => gameNow(),
 });
 regions.add(districtRegion);
@@ -483,6 +489,7 @@ const busyEffect = () => Object.values(effects).find((effect) => effect.busy);
 let effectTask = null;
 
 let fieldTask = null;
+let lanternTrip = null;
 const VENDOR_MENU = {
   title: 'Gánh hàng rong',
   icon: '🏮',
@@ -549,6 +556,7 @@ player.onArrive = () => {
 
 function stopWork() {
   fieldTask = null;
+  lanternTrip = null;
   vendorVisit = false;
   fishing.stop();
   busyEffect()?.cancel();
@@ -741,6 +749,10 @@ const blessingDialog = createBlessingDialog({
   blessing,
   minutes: () => context.minutes,
   onJoin: () => {
+    if (!economy.joinBlessing(PLAYER, blessing.session(context.minutes), purse)) {
+      sayPlayer(`Mình chưa đủ ${coins(BLESSING.fee)} lệ phí chúc phúc.`, 2.4);
+      return false;
+    }
     const joined = blessing.join(PLAYER, context.minutes);
     if (joined) {
       dropBlessingMail();
@@ -753,6 +765,33 @@ const blessingDialog = createBlessingDialog({
 try {
   blessing.resume(PLAYER, JSON.parse(localStorage.getItem(BLESSING_KEY) ?? 'null'), gameNow());
 } catch {}
+const openGround = createOpenGround({
+  bounds: { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
+  heightAt: (x, z) => player.nav.heightAt(x, z),
+  allowed: (x, y, z) => !inStudyRoom({ x, y, z }),
+});
+const fireflyField = createFireflyField({ ground: openGround });
+town.fireflies = fireflyField;
+const lanterns = createLanterns({
+  ground: openGround,
+  roster: () => [PLAYER, ...town.members.map((member) => member.id)],
+  budget: (now) => economy.lanternLeft(now),
+  reward: (who, now, points) => {
+    const wallet = ledger.purse(who);
+    const energy = points > 0 ? economy.payLantern(points, now) : 0;
+    if (energy > 0) wallet.add('energy', energy);
+    wallet.addIntellect(LANTERN.reward.intellect);
+    return { energy, intellect: LANTERN.reward.intellect };
+  },
+  charge: (who, fee) => {
+    const wallet = ledger.purse(who);
+    if (wallet.money < fee || !wallet.spend(fee)) return false;
+    economy.collect(fee, who, fee, 'lantern');
+    return true;
+  },
+});
+town.lanterns = lanterns;
+town.lanternDesk = district.lanternDesk;
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 await economy.start({
   ledger,
@@ -915,13 +954,9 @@ player.onStand = () => {
 };
 
 
-const fireflyField = createFireflyField({
-  bounds: { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
-  heightAt: (x, z) => player.nav.heightAt(x, z),
-  allowed: (x, y, z) => !inStudyRoom({ x, y, z }),
-});
-town.fireflies = fireflyField;
 const fireflies = createFireflies({ scene, field: fireflyField });
+const skyLanterns = createSkyLanterns(scene, { known: (key) => knowsLantern(PLAYER, key) });
+const lanternDialog = createLanternDialog({ sounds: uiSounds, attempt: (id, answer) => lanterns.attempt(PLAYER, id, answer, context.minutes) });
 const fireflyLamp = createFireflyLamp(scene);
 const playerLamp = createLampBurner();
 const catchFrom = player.position.clone();
@@ -1279,7 +1314,7 @@ function goTeacher(run = false) {
 }
 
 function clickTargets() {
-  return [...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.flatMap((hall) => [hall.group, hall.teacher.group]), ...blessing.clickables, inn.group];
+  return [...skyLanterns.clickables, ...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.flatMap((hall) => [hall.group, hall.teacher.group]), ...blessing.clickables, inn.group];
 }
 
 function sceneClick(clientX, clientY, run) {
@@ -1292,6 +1327,11 @@ function sceneClick(clientX, clientY, run) {
   player.getUp();
   stopWork();
   const queueing = playerLine;
+  const lanternId = skyLanterns.lanternAt(hit.object);
+  if (lanternId !== null) {
+    openLantern(lanternId);
+    return true;
+  }
   const villager = town.villagerAt(hit.object);
   if (villager === town.vendor) {
     leaveLine();
@@ -1493,6 +1533,12 @@ const mapLabels = createMapLabels({
   zoom: () => camera.position.distanceTo(orbit.target),
   onPick: (stand) => {
     setMode('play');
+    const lantern = lanterns.list.find((item) => item.doneAt === null && item.x === stand.x && item.z === stand.z);
+    if (lantern) {
+      stopWork();
+      openLantern(lantern.id);
+      return;
+    }
     player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
   },
 });
@@ -1513,6 +1559,7 @@ for (const [name, at, stand, lift] of [
   ['Hàng cá', village.places.fish],
   ['Ngân hàng', district.bankDoor],
   ['Lôi đài', district.arenaStand],
+  ['Hội đèn trời', district.lanternStand],
   ['Tòa thị chính', district.hallLook, district.hallStand, 12],
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
@@ -1520,6 +1567,21 @@ for (const [name, at, stand, lift] of [
 ]) {
   const label = mapLabels.add(name, at, stand ?? at, lift);
   if (name === HOME_NAME) homeLabel = label;
+}
+
+const lanternLabels = Array.from({ length: LANTERN.count }, () => mapLabels.add('🏮', null, null, 4, { lead: true, kind: 'lantern' }));
+let lanternLabelKey = '';
+
+function updateLanternLabels(now) {
+  const shown = lanterns.list.filter((lantern) => lantern.doneAt === null && now >= lantern.dropAt);
+  const key = shown.map((lantern) => lantern.id).join(',');
+  if (key === lanternLabelKey) return;
+  lanternLabelKey = key;
+  lanternLabels.forEach((label, i) => {
+    const lantern = shown[i];
+    const spot = lantern ? { x: lantern.x, z: lantern.z } : null;
+    mapLabels.move(label, spot, spot);
+  });
 }
 
 function refreshHomeLabel() {
@@ -1665,7 +1727,94 @@ function announceBlessing() {
 }
 
 const heraldBeats = new Map();
-const heraldText = ({ kind, at, left }) => (kind === 'arena' ? `Lôi đài ${clockText(at)} sắp khai mạc, còn ${left} phút!` : `Chúc phúc ${clockText(at)} sắp bắt đầu, còn ${left} phút!`);
+const HERALD_TEXT = {
+  arena: (at, left) => `Lôi đài ${clockText(at)} sắp khai mạc, còn ${left} phút!`,
+  blessing: (at, left) => `Chúc phúc ${clockText(at)} sắp bắt đầu, còn ${left} phút!`,
+  lantern: (at, left) => `Hội đèn trời ${clockText(at)} sắp thả đèn, còn ${left} phút!`,
+};
+const heraldText = ({ kind, at, left }) => HERALD_TEXT[kind](at, left);
+
+let lanternAnnounced = null;
+function announceLanterns() {
+  if (!hasEntered()) return;
+  const slot = lanternWindow(context.minutes);
+  if (!slot) return;
+  const beat = `${slot.day}:${Math.floor((context.minutes - slot.start) / LANTERN.remindEvery)}`;
+  if (beat === lanternAnnounced) return;
+  lanternAnnounced = beat;
+  broadcast.show(`Hội đèn trời đang diễn ra đến ${clockText(LANTERN.end)}! Đèn trời đang rơi khắp làng, ghi danh ở Hội đèn trời rồi mở bản đồ tìm đèn giải đố nhé.`);
+}
+
+function lanternMenu() {
+  return [
+    { id: 'join', name: `Ghi danh · ${coins(LANTERN.fee)}`, icon: '🏮', art: 'scroll' },
+    { id: 'hours', name: `Thả đèn ${clockText(LANTERN.start)}–${clockText(LANTERN.end)}`, icon: '🕖', info: true },
+  ];
+}
+
+function registerLantern(choice) {
+  if (choice !== 'join') return;
+  const desk = district.lanternDesk;
+  const outcome = lanterns.register(PLAYER, context.minutes);
+  if (outcome === 'ok') {
+    uiSounds.pop();
+    desk?.say(`Ghi danh xong! ${clockText(LANTERN.start)} nhớ ra đón đèn nhé con.`, 2.6);
+    return;
+  }
+  const lines = {
+    already: 'Con ghi danh hôm nay rồi mà.',
+    poor: `Con chưa đủ ${coins(LANTERN.fee)} lệ phí.`,
+    closed: `Bà nhận ghi danh từ ${clockText(LANTERN.signOpen)} đến ${clockText(LANTERN.end)}.`,
+  };
+  desk?.say(lines[outcome] ?? '', 2.4);
+}
+
+const LANTERN_REFUSALS = {
+  gone: 'Đèn này bay đi mất rồi.',
+  unregistered: 'Phải ghi danh ở Hội đèn trời trước đã.',
+  unknown: 'Đoạn hội thoại này mình chưa học.',
+};
+
+function openLantern(id) {
+  const now = context.minutes;
+  const lantern = lanterns.get(id);
+  const reason = lanterns.blocker(PLAYER, id, now);
+  if (LANTERN_REFUSALS[reason]) {
+    sayPlayer(LANTERN_REFUSALS[reason], 2.2);
+    return;
+  }
+  if (reason === 'locked') {
+    sayPlayer(`Chờ ${Math.ceil(lanterns.lockLeft(PLAYER, id, now))} giây nữa mới thử lại được.`, 2.2);
+    return;
+  }
+  const gap = Math.hypot(lantern.x - player.position.x, lantern.z - player.position.z);
+  if (reason === 'falling' || gap > LANTERN.reach) {
+    lanternTrip = id;
+    if (gap > LANTERN.reach * 0.5) player.requestMove(new THREE.Vector3(lantern.x, 0, lantern.z), true);
+    return;
+  }
+  lanternTrip = null;
+  player.faceToward(lantern.x, lantern.z);
+  lanternDialog.show(lantern);
+}
+
+function updateLanterns() {
+  const now = context.minutes;
+  lanterns.tick(now);
+  skyLanterns.update(lanterns.list, now, clock.elapsedTime);
+  if (lanternDialog.open) {
+    const shown = lanterns.get(lanternDialog.lanternId);
+    if (!shown || (shown.doneAt !== null && shown.by !== PLAYER)) lanternDialog.gone(lanternDialog.lanternId);
+  }
+  if (lanternTrip !== null && !player.path && player.posture === 'free' && !player.lying && !popupOpen()) {
+    const lantern = lanterns.get(lanternTrip);
+    const near = lantern && Math.hypot(lantern.x - player.position.x, lantern.z - player.position.z) <= LANTERN.reach;
+    if (!lantern || lantern.doneAt !== null || !near) lanternTrip = null;
+    else if (now >= landedAt(lantern)) openLantern(lanternTrip);
+  }
+  if (mode === 'overview') updateLanternLabels(now);
+  announceLanterns();
+}
 
 function heraldEvents() {
   if (!hasEntered()) return;
@@ -1994,6 +2143,7 @@ renderer.setAnimationLoop((time) => {
   heraldEvents();
   catchFireflies(t, dt);
   updateLamp(t);
+  updateLanterns();
   if (servingVendor) {
     if (foodUI.isOpen) town.vendor.hold(2);
     else servingVendor = false;

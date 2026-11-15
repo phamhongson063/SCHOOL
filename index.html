@@ -756,6 +756,19 @@
       <p id="phraseResult" class="phrase-result"></p>
     </div>
   </dialog>
+  <dialog id="lanternDialog" class="paper phrase-quiz lantern-quiz" aria-label="Đèn trời đố chữ" tabindex="-1">
+    <div class="quiz-body">
+      <header class="quiz-head">
+        <span class="quiz-icon" aria-hidden="true">🏮</span>
+        <span id="lanternLevel" class="quiz-level"></span>
+        <span class="sched-fill"></span>
+        <button id="lanternClose" class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div id="lanternText" class="phrase-text dialogue" lang="ja"></div>
+      <div id="lanternTiles" class="kana-tiles" lang="ja"></div>
+      <p id="lanternResult" class="phrase-result"></p>
+    </div>
+  </dialog>
   <div id="broadcast" class="broadcast" popover="manual" role="status" aria-live="polite" hidden>
     <div class="broadcast-frame">
       <span class="broadcast-badge" aria-hidden="true">📢</span>

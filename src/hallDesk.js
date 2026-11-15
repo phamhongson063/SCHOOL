@@ -17,12 +17,16 @@ const INCOME_NAMES = {
   estate: ['🏡', 'Bán nhà'],
   land: ['🌾', 'Thuê ruộng'],
   arena: ['⚔️', 'Dư giải lôi đài'],
+  arenaFee: ['⚔️', 'Phí lôi đài'],
+  blessing: ['✨', 'Phí chúc phúc'],
+  lantern: ['🏮', 'Phí hội đèn trời'],
   market: ['🧺', 'Phí chợ'],
   capital: ['🏪', 'Thu hồi vốn tiệm'],
 };
 const EXPENSE_NAMES = {
   wage: ['🎖️', 'Lương quan viên'],
   blessing: ['✨', 'Lễ chúc phúc'],
+  lantern: ['🏮', 'Hội đèn trời'],
   arena: ['🏆', 'Giải lôi đài'],
   buyback: ['🏚️', 'Mua lại nhà'],
   capital: ['🏪', 'Cấp vốn tiệm'],

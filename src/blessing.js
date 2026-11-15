@@ -918,7 +918,7 @@ export function createBlessingDialog({ blessing, minutes, onJoin, onStart }) {
       else {
         const left = blessing.minutesLeft(now);
         const invite = left < BLESSING.lateMinutes ? `Buổi chúc phúc chỉ còn ${Math.max(1, Math.ceil(left))} phút. Ngươi vẫn muốn tham gia chứ?` : 'Ngươi có muốn tham gia nhận chúc phúc không?';
-        show(invite, { accept: onJoin, label: 'Tham gia' });
+        show(`${invite} Lệ phí ${BLESSING.fee} 🪙.`, { accept: onJoin, label: 'Tham gia' });
       }
     },
     openStatue(id) {

@@ -106,12 +106,12 @@ export class MindBehavior {
   blessingGain(need, stay, session) {
     const score = (blessingAskScore(this.answerOdds()) * stay * 60) / BLESSING_ASK_SECONDS;
     const coins = Math.min(score / CERTIFY.blessingCoinPer, economy.blessingLeft(session));
-    return coins * need + (score / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
+    return (coins - BLESSING.fee) * need + (score / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
   }
 
   blessingOption(ctx, need) {
     const blessing = this.town.blessing;
-    if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes)) return null;
+    if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes) || this.purse.money < BLESSING.fee) return null;
     const walk = this.walkMinutes(blessing.official.at);
     const stay = Math.min(blessingMinutesLeft(ctx.minutes) - walk, BLESSING_STAY);
     if (stay <= 0) return null;
@@ -205,7 +205,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

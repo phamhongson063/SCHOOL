@@ -39,7 +39,7 @@ function view(prefix, textId, iconId) {
   };
 }
 
-function clozeLines(lines, cloze) {
+export function clozeLines(lines, cloze) {
   const blanks = [];
   let blanked = false;
   const nodes = lines.map(([speaker, text]) => {

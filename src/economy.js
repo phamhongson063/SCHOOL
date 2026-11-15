@@ -1,10 +1,10 @@
-import { ARENA, AWAY, BLESSING, ECONOMY, STIPEND, VILLAGER } from './config.js';
+import { ARENA, AWAY, BLESSING, ECONOMY, ENERGY_PRICE, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
-import { nextBlessingRate, planDay, pruneBook, record, sumBook } from './townhall.js';
+import { planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
 import { LEGACY_NPC_IDS, NPC } from './npcIds.js';
 import { trade } from './trade.js';
@@ -44,14 +44,15 @@ function load() {
         book: saved.book && typeof saved.book === 'object' ? saved.book : {},
         plans: saved.plans && typeof saved.plans === 'object' ? saved.plans : {},
         blessingPool: Number.isFinite(saved.blessingPool) ? saved.blessingPool : 0,
-        blessingRate: Number.isFinite(saved.blessingRate) ? saved.blessingRate : BLESSING.cost,
         blessingCaps: saved.blessingCaps && typeof saved.blessingCaps === 'object' ? saved.blessingCaps : {},
+        blessingJoins: saved.blessingJoins && typeof saved.blessingJoins === 'object' ? saved.blessingJoins : {},
         blessingCarry: saved.blessingCarry && typeof saved.blessingCarry === 'object' ? saved.blessingCarry : {},
         tuition: Number.isFinite(saved.tuition) ? saved.tuition : 0,
+        lanternPaid: Number.isFinite(saved.lanternPaid?.day) && Number.isFinite(saved.lanternPaid?.paid) ? saved.lanternPaid : { day: null, paid: 0 },
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingRate: BLESSING.cost, blessingCaps: {}, blessingCarry: {}, tuition: 0 };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, lanternPaid: { day: null, paid: 0 } };
 }
 
 let ctx = null;
@@ -153,14 +154,11 @@ function collectTaxes() {
   }
 }
 
-function closeBlessingPool(day) {
+function closeBlessingPool() {
   const left = Math.max(0, state.blessingPool);
-  const last = state.plans[day - 1];
-  if (Number.isFinite(last?.blessingPool) && last.blessingPool > 0) {
-    state.blessingRate = nextBlessingRate(state.blessingRate, { paid: last.blessingPool - left, sessions: last.blessings.length, dry: left < 1 }, BLESSING.cost);
-  }
   state.blessingPool = 0;
   state.blessingCaps = {};
+  state.blessingJoins = {};
   if (left > 0) ctx.ledger.purse(FUND).earn(left);
 }
 
@@ -174,9 +172,20 @@ function capOf(session) {
   return state.blessingCaps[session];
 }
 
-function grantBlessing(session, value) {
+const joinsOf = (session) => state.blessingJoins[session] ?? [];
+
+function headShare(session, extra = 0) {
   const cap = capOf(session);
-  const paid = Math.min(Math.floor(value), cap.cap - cap.paid, Math.floor(state.blessingPool));
+  const left = Math.max(0, Math.min(cap.cap - cap.paid, Math.floor(state.blessingPool)));
+  const waiting = Math.max(1, joinsOf(session).length - (cap.payers ?? 0) + extra);
+  return Math.floor(left / waiting);
+}
+
+function grantBlessing(session, value) {
+  const share = headShare(session);
+  const cap = capOf(session);
+  cap.payers = (cap.payers ?? 0) + 1;
+  const paid = Math.min(Math.floor(value), share);
   if (!(paid > 0)) return 0;
   cap.paid += paid;
   state.blessingPool -= paid;
@@ -192,17 +201,18 @@ function openBlessingPool(value) {
   return amount;
 }
 
-function planFor(day) {
-  closeBlessingPool(day);
-  const plan = planDay({
+const draftPlan = () =>
+  planDay({
     fund: ctx.ledger.purse(FUND).money,
     wages: dailyWages(),
-    windows: BLESSING.windows.length,
     starts: ARENA.starts.length,
-    blessingRate: state.blessingRate,
   });
+
+function planFor(day) {
+  closeBlessingPool();
+  const plan = draftPlan();
   const blessingPool = openBlessingPool(plan.blessingPool);
-  state.plans[day] = { blessings: plan.blessings, arenaPrize: plan.arenaPrize, reserve: plan.reserve, blessingPool };
+  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, reserve: plan.reserve, blessingPool };
   for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
   pruneBook(state.book, day);
 }
@@ -214,9 +224,8 @@ function latestPlan() {
 
 const planOf = (day) => state.plans[day] ?? latestPlan();
 
-export function blessingSlots(day) {
-  const picks = planOf(day)?.blessings ?? BLESSING.windows.map((_, index) => index);
-  return picks.map((index) => ({ index, start: BLESSING.windows[index][0], end: BLESSING.windows[index][1] }));
+export function blessingSlots() {
+  return BLESSING.windows.map(([start, end], index) => ({ index, start, end }));
 }
 
 function sellDistressedHouses() {
@@ -301,6 +310,7 @@ function settleThrough(t) {
   for (let day = state.day; day < now; day++) settleDay(day + 1);
   state.day = now;
   if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
+  if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan().lanternBudget;
 }
 
 function mergeArenaPool() {
@@ -447,12 +457,42 @@ export const economy = {
     return { money, intellect: reward.intellect };
   },
   blessingLeft(session) {
-    const cap = state.blessingCaps[session];
-    const left = cap ? cap.cap - cap.paid : shareOf(session);
-    return Math.max(0, Math.min(left, Math.floor(state.blessingPool)));
+    return headShare(session, joinsOf(session).length ? 1 : 0);
+  },
+  joinBlessing(id, session, purse) {
+    if (!session) return false;
+    const joins = joinsOf(session);
+    if (joins.includes(id)) return true;
+    if (purse.money < BLESSING.fee || !purse.spend(BLESSING.fee)) return false;
+    state.blessingJoins[session] = [...joins, id];
+    if (ctx) {
+      deposit(BLESSING.fee, 'blessing');
+      trackSpend(id, BLESSING.fee, { [FUND]: BLESSING.fee });
+    }
+    store.save();
+    return true;
   },
   blessingBudget(day = today()) {
     return planOf(day)?.blessingPool ?? 0;
+  },
+  lanternLeft(at = gameNow()) {
+    if (!ctx) return 0;
+    const day = dayOf(at);
+    const paid = state.lanternPaid.day === day ? state.lanternPaid.paid : 0;
+    const left = Math.min((planOf(day)?.lanternBudget ?? 0) - paid, ctx.ledger.purse(FUND).money);
+    return Math.max(0, Math.floor(left / ENERGY_PRICE));
+  },
+  payLantern(points, at = gameNow()) {
+    const funded = Math.min(Math.floor(points), economy.lanternLeft(at));
+    if (!(funded > 0)) return 0;
+    const cost = withdraw(Math.ceil(funded * ENERGY_PRICE), 'lantern');
+    if (!(cost > 0)) return 0;
+    const day = dayOf(at);
+    if (state.lanternPaid.day !== day) state.lanternPaid = { day, paid: 0 };
+    state.lanternPaid.paid += cost;
+    payEarner(NPC.cook, cost);
+    store.save();
+    return funded;
   },
   payOut(value, purse, kind = 'buyback') {
     if (!ctx || !(value > 0) || ctx.ledger.purse(FUND).money < value) return false;

@@ -1,10 +1,11 @@
-import { ARENA, HERALD } from './config.js';
+import { ARENA, HERALD, LANTERN } from './config.js';
 import { DAY_MINUTES, dayOf } from './clock.js';
 import { blessingSlots } from './economy.js';
 
 const EVENTS = [
   { kind: 'blessing', starts: (day) => blessingSlots(day).map(({ start }) => start), lead: HERALD.lead },
   { kind: 'arena', starts: () => ARENA.starts, lead: ARENA.lead },
+  { kind: 'lantern', starts: () => [LANTERN.start], lead: LANTERN.heraldLead },
 ];
 
 function nextAt(now, starts) {

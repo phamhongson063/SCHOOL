@@ -220,6 +220,8 @@ export const SNACKS = {
   comnam: { icon: '🍙', name: 'Cơm nắm', price: 32, energy: 18, uses: { produce: 10, protein: 7 } },
 };
 
+export const ENERGY_PRICE = Object.values(SNACKS).reduce((sum, snack) => sum + snack.price / snack.energy, 0) / Object.keys(SNACKS).length;
+
 export const VENDOR = {
   open: 21 * 60,
   close: 60,
@@ -379,16 +381,39 @@ export const HERALD = { lead: 15, every: 3 };
 
 export const TOWNHALL = {
   reserveDays: 5,
-  spend: 0.2,
-  blessingShare: 0.5,
-  blessingMin: 2,
-  blessingGrow: 1.5,
-  blessingEase: 0.3,
+  spend: 0.45,
+  blessingShare: 0.4,
+  arenaShare: 0.3,
   history: 14,
+  lanternShare: 0.3,
+};
+
+export const LANTERN = {
+  fee: 3,
+  signOpen: 6 * 60,
+  start: 19 * 60 + 30,
+  end: 21 * 60 + 30,
+  heraldLead: 10,
+  remindEvery: 15,
+  count: 10,
+  stagger: 1.5,
+  fall: 0.4,
+  rise: 0.15,
+  sky: 45,
+  hover: 1.9,
+  gap: 22,
+  reach: 3,
+  lock: 20,
+  extraTiles: 3,
+  tileSeconds: 2.5,
+  reward: { energy: 10, intellect: 2 },
+  pace: 1,
+  paceWeight: 10,
+  prepare: 60,
 };
 
 export const BLESSING = {
-  cost: 15,
+  fee: 1,
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
   quizSeconds: 3,
   quizCloseMs: 500,

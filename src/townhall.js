@@ -1,35 +1,21 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arena', 'capital'];
-export const EXPENSE_KINDS = ['wage', 'blessing', 'arena', 'buyback', 'capital'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arena', 'arenaFee', 'blessing', 'lantern', 'capital'];
+export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'arena', 'buyback', 'capital'];
 
-export function spreadPicks(count, total) {
-  if (count >= total) return Array.from({ length: total }, (_, i) => i);
-  if (count <= 0) return [];
-  return Array.from({ length: count }, (_, i) => Math.round(((i + 0.5) * total) / count - 0.5));
-}
-
-export function planDay({ fund, wages, windows, starts, blessingRate }) {
+export function planDay({ fund, wages, starts }) {
   const reserve = wages * TOWNHALL.reserveDays;
   const budget = Math.max(0, fund - reserve) * TOWNHALL.spend;
-  const wanted = Math.floor((budget * TOWNHALL.blessingShare) / blessingRate);
-  const count = Math.max(Math.min(TOWNHALL.blessingMin, windows), Math.min(windows, wanted));
-  const blessingPool = Math.max(0, Math.min(fund, Math.round(count * blessingRate)));
-  const arenaBudget = Math.max(0, budget - count * blessingRate);
+  const blessingPool = Math.max(0, Math.min(fund, Math.floor(budget * TOWNHALL.blessingShare)));
+  const lanternBudget = Math.floor(budget * TOWNHALL.lanternShare);
+  const arenaBudget = Math.floor(budget * TOWNHALL.arenaShare);
   return {
-    blessings: spreadPicks(count, windows),
     blessingPool,
+    lanternBudget,
     arenaPrize: starts > 0 ? Math.floor(arenaBudget / starts) : 0,
     reserve,
     budget,
   };
-}
-
-export function nextBlessingRate(rate, { paid, sessions, dry }, floor) {
-  if (!(sessions > 0)) return rate;
-  const seen = paid / sessions;
-  if (dry) return Math.max(rate, seen * TOWNHALL.blessingGrow);
-  return Math.max(floor, rate + (seen - rate) * TOWNHALL.blessingEase);
 }
 
 export function bookDay(book, day) {

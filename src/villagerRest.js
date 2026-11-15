@@ -11,6 +11,7 @@ import { realSeconds } from './clock.js';
 import { blessingCloseAt, blessingStayMinutes } from './villagerMind.js';
 import { blessingScore } from './blessingRules.js';
 import { createLampBurner } from './fireflyRules.js';
+import { lanternNeed } from './lanterns.js';
 import { NPC } from './npcIds.js';
 import { trade } from './trade.js';
 
@@ -31,7 +32,8 @@ export class RestBehavior {
     };
     this.travel(blessing.standFor(this.id, this.position, this.walkSpeed), {
       then: () => {
-        if (!blessing.join(this.id, this.town.context.minutes)) return leave();
+        const minutes = this.town.context.minutes;
+        if (!economy.joinBlessing(this.id, blessing.session(minutes), this.purse) || !blessing.join(this.id, minutes)) return leave();
         this.lookAt = blessing.official.at;
         blessing.official.attend(this, OFFICIAL_ATTEND);
         this.wait(between(1.5, 2.5), () => this.startBlessingTest());
@@ -155,7 +157,9 @@ export class RestBehavior {
       this.think();
     }
     this.tired = this.purse.energy <= 0;
-    if (this.purse.energy < ENERGY.low && !this.canEat(ctx)) this.snack();
+    const line = this.hungerLine(ctx);
+    if (this.purse.energy < line) this.purse.eatEnergy();
+    if (this.purse.energy < line && !this.canEat(ctx)) this.snack();
     const mood = moodOf(this.purse.energy);
     this.bubble.setMood(mood);
     this.seatBubble?.setMood(mood);
@@ -202,6 +206,17 @@ export class RestBehavior {
     return this.town.bank?.debt(this.id) ?? 0;
   }
 
+  energyAhead(ctx = this.town.context) {
+    return this.town.lanterns?.signed(this.id, ctx.minutes) ? lanternNeed(ctx.minutes) : 0;
+  }
+
+  hungerLine(ctx = this.town.context) {
+    const ahead = this.energyAhead(ctx);
+    if (!(ahead > 0)) return ENERGY.low;
+    const full = ENERGY.max * (this.frugal() ? VILLAGER.frugalFull : 0.8);
+    return Math.max(ENERGY.low, Math.min(full - 1, ENERGY.low + ahead));
+  }
+
   frugal() {
     if (this.debt() > 0) return true;
     const flow = economy.dailyFlow(this.id);
@@ -209,7 +224,7 @@ export class RestBehavior {
   }
 
   wantsFood(ctx) {
-    if (this.purse.energy >= ENERGY.low || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
+    if (this.purse.energy >= this.hungerLine(ctx) || ctx.minute < EATERY.open || ctx.minute >= EATERY.close) return false;
     return Object.values(FOODS).some((food) => food.price <= this.purse.money && trade.ready(NPC.cook, food));
   }
 
@@ -402,6 +417,7 @@ export class RestBehavior {
 
   snack() {
     const purse = this.purse;
+    if (purse.eatEnergy()) return;
     const energyOf = ([item]) => SNACKS[ITEMS[item].snack].energy;
     const [item] = purse.entries('snack').sort((a, b) => energyOf(a) - energyOf(b))[0] ?? [];
     if (item && purse.take(item, 1)) purse.addEnergy(SNACKS[ITEMS[item].snack].energy);
@@ -443,7 +459,7 @@ export class RestBehavior {
   }
 
   wantsVendor() {
-    if (this === this.town.vendor || this.purse.energy >= ENERGY.low || this.vendorOut() || this.vendorGap() > VENDOR.lure) return false;
+    if (this === this.town.vendor || this.purse.energy >= this.hungerLine() || this.vendorOut() || this.vendorGap() > VENDOR.lure) return false;
     return Object.values(VENDOR.foods).some((food) => food.price <= this.purse.money && trade.ready(NPC.vendor, food));
   }
 

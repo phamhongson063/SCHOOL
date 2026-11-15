@@ -4,21 +4,7 @@ import { between } from './random.js';
 const SAFE_SPAWN = 8;
 const HAND_HEIGHT = 0.8;
 const HAND_REACH = 1.2;
-const CELL = 2;
 const MAX_SWEEP = 4;
-
-function openCells({ x0, x1, z0, z1 }, heightAt, allowed) {
-  const cells = [];
-  for (let x = x0; x < x1; x += CELL) {
-    for (let z = z0; z < z1; z += CELL) {
-      const cx = x + CELL / 2;
-      const cz = z + CELL / 2;
-      const ground = heightAt(cx, cz);
-      if (ground != null && allowed(cx, ground, cz)) cells.push({ x, z });
-    }
-  }
-  return cells;
-}
 
 function gapToPath(fly, from, to) {
   const dx = to.x - from.x;
@@ -28,24 +14,14 @@ function gapToPath(fly, from, to) {
   return Math.hypot(fly.x - (from.x + dx * k), fly.z - (from.z + dz * k));
 }
 
-export function createFireflyField({ bounds, heightAt, allowed = () => true }) {
-  const cells = openCells(bounds, heightAt, allowed);
-  const area = cells.length * CELL * CELL;
-  const count = Math.round(FIREFLY.density * area);
+export function createFireflyField({ ground }) {
+  const count = Math.round(FIREFLY.density * ground.area);
   const claims = new Map();
   let now = 0;
 
   function randomHome(avoid) {
-    for (let tries = 0; tries < 12 && cells.length; tries++) {
-      const cell = cells[Math.floor(Math.random() * cells.length)];
-      const x = cell.x + Math.random() * CELL;
-      const z = cell.z + Math.random() * CELL;
-      if (avoid && Math.hypot(x - avoid.x, z - avoid.z) < SAFE_SPAWN) continue;
-      const ground = heightAt(x, z);
-      if (ground == null || !allowed(x, ground, z)) continue;
-      return { x, y: ground + between(0.55, 1.5), z };
-    }
-    return null;
+    const spot = ground.pick(Math.random, (x, z) => !avoid || Math.hypot(x - avoid.x, z - avoid.z) >= SAFE_SPAWN);
+    return spot ? { x: spot.x, y: spot.y + between(0.55, 1.5), z: spot.z } : null;
   }
 
   const flies = Array.from({ length: count }, () => ({
@@ -90,7 +66,7 @@ export function createFireflyField({ bounds, heightAt, allowed = () => true }) {
 
   return {
     flies,
-    density: area > 0 ? count / area : 0,
+    density: ground.area > 0 ? count / ground.area : 0,
     step(t, avoid) {
       now = t;
       for (const fly of flies) {

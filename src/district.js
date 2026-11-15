@@ -3,7 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, freeze } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
-import { createShophouse, createBank, createArenaCompound, createTownHall, shophousePots } from './architecture.js';
+import { createShophouse, createBank, createArenaCompound, createLanternPavilion, createTownHall, shophousePots } from './architecture.js';
+import { createLanternGlow } from './lanternGlow.js';
 import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
@@ -30,6 +31,9 @@ const BANK_PICK = 'south:0';
 const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
 const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
+const LANTERN_LOT = { picks: ['north:5', 'north:6'], width: 12, depth: 10, seed: 2717 };
+const LANTERN_KEEPER_LOOK = { shirt: 0x8a2a1c, pants: 0x2a2420, skin: 0xe8b890, style: 'bun', hairColor: 0xd8d4cc, iris: 0x3a2214 };
+const LANTERN_KEEPER = { model: 'granny-navy', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const EMPTY_PICKS = new Set(['south:4']);
 const PLAZA_LOT = 'south:2';
 const BANK_WIDTH = 8.4;
@@ -76,6 +80,7 @@ function layout() {
   ];
   const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
   const arenaXs = [];
+  const lanternXs = [];
   let plazaWest = plaza.x0;
   for (const row of rows) {
     row.xs.forEach((x, index) => {
@@ -97,6 +102,13 @@ function layout() {
       if (lodge) {
         house.lodge = lodge;
         house.stories = LODGE_LOOKS[LODGE_ROOMS[lodge].tier].stories;
+      }
+      if (LANTERN_LOT.picks.includes(`${row.side}:${index}`)) {
+        lanternXs.push(x);
+        if (lanternXs.length < LANTERN_LOT.picks.length) return;
+        house.lantern = true;
+        house.x = lanternXs.reduce((sum, value) => sum + value, 0) / lanternXs.length;
+        house.width = LANTERN_LOT.width;
       }
       if (`${row.side}:${index}` === BANK_PICK) {
         house.bank = true;
@@ -145,7 +157,7 @@ function mergeByMaterial(root) {
 function buildBlock(block) {
   const root = new THREE.Group();
   for (const house of block.houses) {
-    if (house.lodge || house.bank || house.arena) continue;
+    if (house.lodge || house.bank || house.arena || house.lantern) continue;
     const built = createShophouse({ seed: house.seed, width: house.width, depth: DEPTH, stories: house.stories });
     built.group.position.set(house.x, 0, house.front);
     built.group.rotation.y = house.turn;
@@ -184,7 +196,7 @@ export function createDistrict() {
   const obstacles = [];
   for (const block of blocks) {
     for (const house of block.houses) {
-      if (house.arena) continue;
+      if (house.arena || house.lantern) continue;
       obstacles.push(footprint(house, house.width));
       if (!house.bank) obstacles.push(...shophousePots(house.width).map((box) => place(house, box)));
     }
@@ -285,6 +297,41 @@ export function createDistrict() {
       arena = { group: built.group, registrar, at, out: side, spots, stand: spots[1], lamps };
     }
   }
+  let festival = null;
+  for (const block of blocks) {
+    for (const house of block.houses) {
+      if (!house.lantern) continue;
+      const built = createLanternPavilion({ seed: LANTERN_LOT.seed, width: house.width, depth: LANTERN_LOT.depth });
+      obstacles.push(...built.obstacles.map((box) => place(house, box)));
+      for (const node of [built.group, built.floor]) {
+        node.position.set(house.x, 0, house.front);
+        node.rotation.y = house.turn;
+      }
+      group.add(built.floor, built.group);
+      clickables.push(built.group);
+      const side = house.north ? 1 : -1;
+      const toWorld = (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z });
+      const at = toWorld(built.door);
+      const keeper = keeperNPC(LANTERN_KEEPER_LOOK, LANTERN_KEEPER.model);
+      keeper.walker.group.position.set(at.x, 0, at.z);
+      keeper.walker.group.rotation.y = house.turn;
+      clickables.push(keeper.walker.group);
+      obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
+      const spots = LANTERN_KEEPER.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * LANTERN_KEEPER.reach }));
+      const glow = createLanternGlow(
+        built.group.userData.lights.map(({ position, tint }) => {
+          const { x, z } = toWorld({ x: position.x, z: position.z });
+          return { position: new THREE.Vector3(x, position.y, z), tint };
+        }),
+      );
+      festival = { group: built.group, keeper, at, out: side, spots, stand: spots[1], glow };
+    }
+  }
+  let nightLevel = 0;
+  const ownsFestival = (object) => {
+    for (let node = object; node; node = node.parent) if (node === festival?.group || node === festival?.keeper.walker.group) return true;
+    return false;
+  };
   const ownsArena = (object) => {
     for (let node = object; node; node = node.parent) if (node === arena?.group || node === arena?.registrar.walker.group) return true;
     return false;
@@ -317,6 +364,7 @@ export function createDistrict() {
   root.add(group);
   if (bank) root.add(bank.teller.walker.group);
   if (arena) root.add(arena.registrar.walker.group, arena.lamps.group);
+  if (festival) root.add(festival.keeper.walker.group, festival.glow.object);
   root.add(hall.mayor.walker.group, hallLife.group);
   const pending = [...blocks];
   let now = 0;
@@ -330,6 +378,8 @@ export function createDistrict() {
     hallStand: hall.stand,
     hallLook: hall.look,
     arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text, duration = 1.8) => arena.registrar.bubble.show(text, duration, now) } : null,
+    lanternStand: festival ? festival.stand : null,
+    lanternDesk: festival ? { at: festival.at, out: festival.out, spots: festival.spots, say: (text, duration = 1.8) => festival.keeper.bubble.show(text, duration, now) } : null,
     update(t, ctx, camera) {
       now = t;
       if (bank) animateKeeper(bank.teller, t, bankOpen(ctx.minutes) && camera.position.distanceTo(bank.teller.walker.group.position) < TELLER_DISTANCE);
@@ -338,9 +388,14 @@ export function createDistrict() {
         arena.lamps.update(t);
       }
       animateKeeper(hall.mayor, t, camera.position.distanceTo(hall.mayor.walker.group.position) < TELLER_DISTANCE);
+      if (festival) {
+        animateKeeper(festival.keeper, t, camera.position.distanceTo(festival.keeper.walker.group.position) < TELLER_DISTANCE);
+        festival.glow.update(t, nightLevel);
+      }
       hallLife.update(t, ctx.minutes, camera);
     },
     setNight(k) {
+      nightLevel = k;
       hallLife.setNight(k);
       arena?.lamps.setNight(k);
     },
@@ -352,6 +407,7 @@ export function createDistrict() {
         staticNav: true,
         target(hit) {
           if (ownsArena(hit.object)) return { kind: 'arena', id: 'arena', index: 'arena', x: arena.at.x, z: arena.at.z, stand: arena.stand };
+          if (ownsFestival(hit.object)) return { kind: 'lantern', id: 'lantern', index: 'lantern', x: festival.at.x, z: festival.at.z, stand: festival.stand };
           if (ownsHall(hit.object)) return { kind: 'hall', id: 'hall', index: 'hall', x: hall.look.x, z: hall.look.z, stand: hall.stand };
           if (ownsBank(hit.object)) return { kind: 'bank', id: 'bank', index: 'bank', x: bank.look.x, z: bank.look.z, stand: bank.stand };
           const lodge = lodgeOf(hit.object);
@@ -362,6 +418,7 @@ export function createDistrict() {
           const arenaOptions = target.kind === 'arena' ? options.arenaMenu() : null;
           if (arenaOptions) return { id: 'visit', hint: 'hand', choices: { title: 'Lôi đài', options: arenaOptions, menu: true } };
           if (target.kind === 'hall') return { id: 'visit', hint: 'hand', choices: { title: 'Tòa thị chính', options: options.hallMenu(), menu: true } };
+          if (target.kind === 'lantern') return { id: 'visit', hint: 'hand', choices: { title: 'Hội đèn trời', options: options.lanternMenu(), menu: true } };
           return { id: 'visit', hint: 'hand' };
         },
         topOf(target) {
@@ -370,6 +427,10 @@ export function createDistrict() {
         act(action, target, choice) {
           if (target.kind === 'arena') {
             options.openArena(choice);
+            return null;
+          }
+          if (target.kind === 'lantern') {
+            options.openLantern(choice);
             return null;
           }
           if (target.kind === 'hall') {

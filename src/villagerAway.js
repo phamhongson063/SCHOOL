@@ -6,13 +6,13 @@ import { energyRate, homeActivity } from './stamina.js';
 import { between } from './random.js';
 import { AVERAGE_CASTS, BLESSING_STAY, blessingStayMinutes } from './villagerMind.js';
 import { blessingSlots, economy } from './economy.js';
-import { blessingScore } from './blessingRules.js';
 import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
+import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -112,7 +112,9 @@ export function createAwaySim({ town, contextAt }) {
   }
 
   function eat(member, ctx) {
-    if (member.purse.energy >= ENERGY.low) return;
+    const line = member.hungerLine(ctx);
+    if (member.purse.energy < line) member.purse.eatEnergy();
+    if (member.purse.energy >= line) return;
     if (!(member.wantsFood(ctx) && member.feast(FOODS, NPC.cook).length)) member.snack();
   }
 
@@ -140,6 +142,27 @@ export function createAwaySim({ town, contextAt }) {
     if (arrive < arena.event.at) arena.register(member.id);
   }
 
+  function signLanterns(member, ctx) {
+    if (!member.wantsLanternSignup(ctx)) return;
+    const memo = memoOf(member);
+    memo.busyUntil = Math.max(ctx.minutes, memo.busyUntil) + AWAY.walk;
+    memo.busyAs = 'walk';
+    town.lanterns.register(member.id, ctx.minutes);
+  }
+
+  function lanternPlan(member, clock) {
+    const lantern = town.lanterns?.pickFor(member.id, member.position, clock);
+    if (!lantern) return null;
+    return { lantern, ready: Math.max(AWAY.walk, landedAt(lantern) - clock), solve: lanternSeconds(lantern.key) / 60 };
+  }
+
+  function solveLantern(member, clock, { lantern, ready }) {
+    const { correct, seconds } = lanternTry(member.id, lantern.key, dayOf(clock));
+    const at = clock + ready + seconds / 60;
+    town.lanterns.attempt(member.id, lantern.id, correct ? answerOf(lantern.key) : '', at);
+    return at - clock;
+  }
+
   function banking(member, ctx) {
     const since = member.bankAt === null ? Infinity : ctx.minutes - member.bankAt;
     if (!bank || since < BANK.npc.urgentGap) return;
@@ -159,6 +182,7 @@ export function createAwaySim({ town, contextAt }) {
     if (ctx.martOpen && member.wantsMart()) member.buySnacks();
     exams(member, ctx);
     signUp(member, ctx);
+    signLanterns(member, ctx);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);
@@ -270,7 +294,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function blessingPlan(member, clock, end) {
     const window = blessingWindow(clock, end);
-    if (!window || memoOf(member).blessing === window.session || town.blessing?.member(member.id, window.open)) return null;
+    if (!window || memoOf(member).blessing === window.session || town.blessing?.member(member.id, window.open) || member.purse.money < BLESSING.fee) return null;
     const from = Math.max(clock + AWAY.walk, window.open);
     const stay = Math.min(window.close - from, BLESSING_STAY);
     return stay > 0 ? { window, from, stay } : null;
@@ -278,11 +302,10 @@ export function createAwaySim({ town, contextAt }) {
 
   function bless(member, clock, { window, from }) {
     memoOf(member).blessing = window.session;
+    if (!economy.joinBlessing(member.id, window.session, member.purse)) return AWAY.walk;
     const minutes = blessingStayMinutes(from, window.close);
-    const { correct, wrong } = blessingAnswers(member, minutes);
-    const { money, intellect } = economy.payBlessing(member.id, window.session, blessingScore(correct, wrong));
-    if (money > 0) economy.reward(member.purse, money);
-    if (intellect > 0) member.purse.addIntellect(intellect);
+    member.settleBlessing();
+    member.blessingTally = { session: window.session, ...blessingAnswers(member, minutes) };
     return from - clock + minutes;
   }
 
@@ -291,6 +314,8 @@ export function createAwaySim({ town, contextAt }) {
     const options = [];
     const blessing = blessingPlan(member, clock, end);
     if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay, blessing.window.session) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
+    const lantern = lanternPlan(member, clock);
+    if (lantern) options.push({ kind: 'lantern', as: 'walk', rate: lanternWorth(member.id, lantern.lantern.key, need, member.diligence, town.lanterns.energyAt(clock)) / (lantern.ready + lantern.solve), run: () => solveLantern(member, clock, lantern) });
     const job = farm.jobFor(member, member.seedChoice());
     if (job) options.push({ kind: 'farm', as: 'walk', rate: member.farmGain(need, job) / (AWAY.walk + FARM), run: () => tend(member, job) });
     if (canFish(member, slots)) {
@@ -346,6 +371,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function live(member, ctx, minutes, slots) {
     const end = ctx.minutes + minutes;
+    member.settleBlessing();
     if (memoOf(member).busyUntil < end) {
       if (ctx.night && member.needsSleep(ctx)) return sleep(member, ctx, end);
       if (!ctx.night) {
@@ -375,6 +401,7 @@ export function createAwaySim({ town, contextAt }) {
       const ctx = contextAt(from);
       town.context = ctx;
       town.arena?.tick(from);
+      town.lanterns?.tick(from);
       farm.grow();
       river.restock(from);
       const slots = { anglers: new Set(), hunters: new Set(), study: new Map(), seats: { ...seatsOf } };

@@ -38,6 +38,16 @@ export function nextShift(minutes) {
   return base + DAY_MINUTES + ROUTINE.wake;
 }
 
+export function drainBetween(from, to, activity) {
+  let total = 0;
+  for (let t = from; t < to; ) {
+    const end = Math.min(to, nextShift(t));
+    total += (energyRate(activity, isNight(t)) * (end - t)) / 60;
+    t = end;
+  }
+  return total;
+}
+
 export function activityOf(speed, walk, run) {
   if (speed >= (walk + run) / 2) return 'run';
   if (speed > 0.2) return 'walk';

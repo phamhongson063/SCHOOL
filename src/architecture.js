@@ -2287,6 +2287,173 @@ export function createArenaCompound({ seed = 1, width = 16, depth = 11 } = {}) {
   };
 }
 
+const LANTERN_ART = {
+  paving: 0xcfc2a2,
+  path: 0xa8321e,
+  bamboo: 0xa8964e,
+  paper: 0xffe2a6,
+  sky: [0xf07a2a, 0xe8502a, 0xf2a03a],
+  silk: [0xd8321e, 0xf2b630, 0xe8762a, 0xc8261a],
+};
+const SKY_PROFILE = [[0.3, 0], [0.36, 0.12], [0.42, 0.36], [0.45, 0.6], [0.43, 0.8], [0.35, 0.95], [0.2, 1.04], [0.001, 1.07]];
+
+function skyLantern(kit, x, y, z, scale, color) {
+  kit.lamps.add(shapes.lathe(SKY_PROFILE, 14), color, { p: [x, y, z], s: [scale, scale, scale] });
+  kit.body.add(shapes.torus(0.3 * scale, 0.018 * scale, 14), PAL.woodDark, { p: [x, y, z], r: [Math.PI / 2, 0, 0] });
+  kit.lights.push({ position: new THREE.Vector3(x, y + 0.5 * scale, z), tint: color });
+}
+
+function lanternStand(kit, x, z, color) {
+  const b = kit.body;
+  const top = 1.55;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    b.limb([x + Math.cos(a) * 0.42, 0, z + Math.sin(a) * 0.42], [x, top, z], 0.035, LANTERN_ART.bamboo, { capsule: false, seg: 5 });
+  }
+  b.add(shapes.torus(0.2, 0.03, 10), PAL.woodDark, { p: [x, top, z], r: [Math.PI / 2, 0, 0] });
+  skyLantern(kit, x, top + 0.02, z, 0.72, color);
+  block(kit, x - 0.45, z - 0.45, x + 0.45, z + 0.45, 2.5);
+}
+
+function lanternString(kit, x, z0, z1, height) {
+  const b = kit.body;
+  for (const z of [z0, z1]) {
+    b.add(shapes.cylinder(0.05, 0.06, height, 6), LANTERN_ART.bamboo, { p: [x, height / 2, z] });
+    b.add(shapes.cone(0.07, 0.16, 6), PAL.gold, { p: [x, height + 0.08, z] });
+    block(kit, x - 0.12, z - 0.12, x + 0.12, z + 0.12, height);
+  }
+  b.limb([x, height - 0.1, z0], [x, height - 0.1, z1], 0.01, PAL.ink, { capsule: false, seg: 4 });
+  const count = Math.max(2, Math.round(Math.abs(z1 - z0) / 1.15));
+  for (let i = 1; i < count; i++) {
+    const z = z0 + ((z1 - z0) * i) / count;
+    silkLantern(kit, x, height - 0.1, z, LANTERN_ART.silk[i % LANTERN_ART.silk.length], 0.85 + kit.rand() * 0.3);
+  }
+}
+
+function lanternGate(kit, x, z, half) {
+  const b = kit.body;
+  const height = 3.3;
+  for (const side of [-1, 1]) {
+    lacquerColumn(kit, x + side * half, z, height);
+    block(kit, x + side * half - 0.25, z - 0.25, x + side * half + 0.25, z + 0.25, height);
+  }
+  b.add(shapes.box(half * 2 + 0.8, 0.26, 0.3), PAL.lacquer, { p: [x, height - 0.1, z] });
+  b.add(shapes.box(half * 2 + 0.84, 0.05, 0.32), PAL.gold, { p: [x, height - 0.26, z] });
+  b.add(shapes.box(half * 2 - 0.3, 0.14, 0.2), PAL.lacquer, { p: [x, height - 0.72, z] });
+  const tint = PAL.roofTints[0];
+  const slope = 0.5;
+  const run = 0.7;
+  const ridgeY = height + 0.12 + run * slope;
+  roofPitch(kit, { x0: x - half - 0.7, x1: x + half + 0.7, ridgeZ: z, ridgeY, run, slope, facing: 1, tint, tileEnds: true });
+  roofPitch(kit, { x0: x - half - 0.7, x1: x + half + 0.7, ridgeZ: z, ridgeY, run, slope, facing: -1, tint, tileEnds: true });
+  ridgeCrest(kit, x - half - 0.4, x + half + 0.4, z, ridgeY, 'disc');
+  for (const facing of [-1, 1]) for (const [ex, side] of [[x - half - 0.7, -1], [x + half + 0.7, 1]]) eaveTip(kit, ex, ridgeY - run * slope, z + facing * run, side);
+  textSign(kit, x, height - 0.46, z + 0.16, half * 2 - 0.5, 0.42, { text: 'Hội Đèn Trời' });
+  for (const side of [-1, 1]) silkLantern(kit, x + side * (half - 0.45), height - 0.8, z, LANTERN_ART.silk[side > 0 ? 1 : 0], 1.1);
+}
+
+function lanternHall(kit, { half, front, back }) {
+  const b = kit.body;
+  const g = 3.2;
+  const depth = front - back;
+  const ridgeZ = (front + back) / 2;
+  b.add(shapes.box(half * 2 + 0.5, 0.1, depth + 0.5), PAL.stone, { p: [0, 0.05, ridgeZ] });
+  b.add(shapes.box(half * 2 + 0.56, 0.04, depth + 0.56), PAL.stoneDark, { p: [0, 0.02, ridgeZ] });
+  const posts = [-(half - 0.2), -1.25, 1.25, half - 0.2];
+  for (const z of [front, back]) {
+    for (const x of posts) {
+      lacquerColumn(kit, x, z, g, 0.1);
+      block(kit, x - 0.25, z - 0.25, x + 0.25, z + 0.25, g);
+    }
+    b.add(shapes.box(half * 2, 0.28, 0.3), PAL.lacquer, { p: [0, g - 0.14, z] });
+    b.add(shapes.box(half * 2 + 0.04, 0.05, 0.32), PAL.gold, { p: [0, g - 0.3, z] });
+  }
+  for (const side of [-1, 1]) b.add(shapes.box(0.3, 0.28, depth), PAL.lacquer, { p: [side * (half - 0.2), g - 0.14, ridgeZ] });
+  for (const x of posts) {
+    for (const side of [-1, 1]) {
+      if (Math.abs(x + side * 0.5) > half) continue;
+      b.limb([x, g - 0.9, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    }
+  }
+  const tint = PAL.roofTints[1];
+  const slope = 0.5;
+  const run = depth / 2 + 0.9;
+  const ridgeY = g + 0.1 + run * slope;
+  roofPitch(kit, { x0: -half - 0.6, x1: half + 0.6, ridgeZ, ridgeY, run, slope, facing: 1, tint, tileEnds: true });
+  roofPitch(kit, { x0: -half - 0.6, x1: half + 0.6, ridgeZ, ridgeY, run, slope, facing: -1, tint, tileEnds: true });
+  for (const facing of [-1, 1]) for (const [x, side] of [[-half - 0.6, -1], [half + 0.6, 1]]) eaveTip(kit, x, g + 0.1, ridgeZ + facing * run, side);
+  const loft = { half: half - 0.9, depth: depth * 0.42, y0: ridgeY - 0.15, h: 0.8 };
+  kit.lamps.add(shapes.box(loft.half * 2, loft.h, loft.depth), LANTERN_ART.paper, { p: [0, loft.y0 + loft.h / 2, ridgeZ] });
+  for (let i = 0; i <= 6; i++) {
+    const x = -loft.half + (loft.half * 2 * i) / 6;
+    for (const side of [-1, 1]) b.add(shapes.box(0.06, loft.h, 0.06), PAL.lacquer, { p: [x, loft.y0 + loft.h / 2, ridgeZ + side * (loft.depth / 2 + 0.02)] });
+  }
+  for (const side of [-1, 1]) b.add(shapes.box(0.06, loft.h, loft.depth), PAL.lacquer, { p: [side * (loft.half + 0.02), loft.y0 + loft.h / 2, ridgeZ] });
+  const topRun = loft.depth / 2 + 0.7;
+  const topY = loft.y0 + loft.h + topRun * slope;
+  roofPitch(kit, { x0: -loft.half - 0.6, x1: loft.half + 0.6, ridgeZ, ridgeY: topY, run: topRun, slope, facing: 1, tint, tileEnds: true });
+  roofPitch(kit, { x0: -loft.half - 0.6, x1: loft.half + 0.6, ridgeZ, ridgeY: topY, run: topRun, slope, facing: -1, tint, tileEnds: true });
+  for (const facing of [-1, 1]) for (const [x, side] of [[-loft.half - 0.6, -1], [loft.half + 0.6, 1]]) eaveTip(kit, x, loft.y0 + loft.h, ridgeZ + facing * topRun, side);
+  ridgeCrest(kit, -loft.half - 0.2, loft.half + 0.2, ridgeZ, topY, 'gourd');
+  textSign(kit, 0, g - 0.62, front + 0.06, 2.3, 0.44, { text: 'Thả Đèn Đố Chữ', bg: PAL.ink, fg: PAL.gold });
+  const couplets = [['Đèn', 'Sáng', 'Muôn', 'Nhà'], ['Chữ', 'Hay', 'Vạn', 'Lối']];
+  for (const [k, side] of [-1, 1].entries()) {
+    textSign(kit, side * (half - 0.2), 1.75, front + 0.2, 0.3, 1.6, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
+    silkLantern(kit, side * 2.3, g - 0.3, front + 0.1, LANTERN_ART.silk[k], 1.15);
+  }
+  silkLantern(kit, -1.7, g - 0.3, back + 0.6, LANTERN_ART.silk[2], 1);
+  silkLantern(kit, 1.7, g - 0.3, back + 0.6, LANTERN_ART.silk[3], 1);
+  return ridgeY;
+}
+
+export function createLanternPavilion({ seed = 1, width = 10.4, depth = 10 } = {}) {
+  const kit = createKit(seed);
+  const edge = width / 2 - 0.25;
+  const front = -0.3;
+  const back = -depth;
+  const hall = { half: 3.1, front: -4.3, back: -8.6 };
+  const keeperZ = -6.1;
+  const deskZ = keeperZ + 0.55;
+
+  const ground = new Batch();
+  ground.add(shapes.box(edge * 2, 0.04, front - back), LANTERN_ART.paving, { p: [0, 0.02, (front + back) / 2] });
+  ground.add(shapes.box(1.5, 0.05, front - hall.front), LANTERN_ART.path, { p: [0, 0.035, (front + hall.front) / 2] });
+  for (let z = front - 0.5; z > hall.front + 0.3; z -= 0.8) ground.add(shapes.box(1.7, 0.055, 0.12), PAL.gold, { p: [0, 0.04, z] });
+
+  balustrade(kit, -edge, front, -2.3, front);
+  balustrade(kit, 2.3, front, edge, front);
+  for (const side of [-1, 1]) balustrade(kit, side * edge, back + 0.2, side * edge, front);
+
+  lanternGate(kit, 0, front - 0.15, 1.75);
+  const ridgeY = lanternHall(kit, hall);
+  registrationDesk(kit, 0, deskZ);
+  skyLantern(kit, -0.7, 0.78, deskZ - 0.08, 0.26, LANTERN_ART.sky[0]);
+  skyLantern(kit, 0.95, 0.78, deskZ - 0.1, 0.22, LANTERN_ART.sky[2]);
+
+  for (const side of [-1, 1]) {
+    lanternStand(kit, side * 3.0, -2.3, LANTERN_ART.sky[side > 0 ? 1 : 0]);
+    stoneLantern(kit, side * 1.55, front - 1.3);
+    lanternString(kit, side * (edge - 0.45), front - 1.1, back + 1.6, 3.4);
+  }
+  skyLantern(kit, -2.4, ridgeY + 2.4, -5.2, 0.85, LANTERN_ART.sky[0]);
+  skyLantern(kit, 2.1, ridgeY + 3.1, -7.2, 0.7, LANTERN_ART.sky[1]);
+  skyLantern(kit, 0.4, ridgeY + 3.8, -3.6, 0.55, LANTERN_ART.sky[2]);
+
+  blossomTree(kit, -(edge - 1.0), back + 0.9, 0.95);
+  pineTree(kit, edge - 1.0, back + 0.9, 0.9);
+
+  block(kit, -hall.half - 0.25, back - 0.2, hall.half + 0.25, keeperZ - 0.45, 4);
+  for (const side of [-1, 1]) block(kit, side > 0 ? 1.15 : -hall.half - 0.25, keeperZ - 0.45, side > 0 ? hall.half + 0.25 : -1.15, deskZ + 0.3, 1.2);
+
+  return {
+    group: assemble(kit),
+    floor: ground.mesh(vertexMaterial(), { shadow: false }),
+    obstacles: kit.obstacles,
+    door: { x: 0, z: keeperZ },
+    desk: { x: 0, z: deskZ },
+  };
+}
+
 const CIVIC = {
   wall: 0xf4f1ea,
   trim: 0xe2ddd2,

@@ -340,7 +340,7 @@ export function createArena({ ledger, roster = () => [] }) {
   }
 
   function refund(event) {
-    for (const id of event.entrants) if (!event.drafted.includes(id)) ledger.purse(id).earn(ARENA.fee);
+    for (const id of event.entrants) if (!event.drafted.includes(id)) economy.payOut(ARENA.fee, ledger.purse(id), 'arena');
     event.pot = 0;
   }
 
@@ -481,9 +481,9 @@ export function createArena({ ledger, roster = () => [] }) {
     blocked,
     register(id) {
       if (blocked(id) || !ledger.purse(id).spend(ARENA.fee)) return false;
+      economy.collect(ARENA.fee, id, ARENA.fee, 'arenaFee');
       const event = state.event;
       event.entrants.push(id);
-      event.pot += ARENA.fee;
       store.save();
       return true;
     },

@@ -2630,6 +2630,59 @@ dialog.paper.phrase-quiz {
   font-weight: 700;
 }
 
+.lantern-quiz .phrase-blank {
+  min-width: 4em;
+  color: #c2287e;
+  font-weight: 700;
+  text-align: center;
+}
+
+.kana-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin: 2px 0 8px;
+}
+
+.kana-tiles button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 6px;
+  border: 1.5px solid #d9c49a;
+  border-radius: 10px;
+  background: rgba(255, 252, 240, 0.9);
+  color: var(--ink);
+  font: 700 21px/1 "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, opacity 0.15s, transform 0.08s;
+}
+
+.kana-tiles button:hover:not(:disabled) {
+  background: #fff6dc;
+}
+
+.kana-tiles button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.kana-tiles button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.kana-tiles button.back {
+  font: 700 17px/1 var(--font-ui);
+  color: var(--wood);
+}
+
+.map-label.lantern {
+  font: 400 26px/1 system-ui, sans-serif;
+}
+
 .phrase-quiz.brief .phrase-options {
   margin-bottom: 0;
 }

@@ -35,6 +35,7 @@ ITEMS.rod = { icon: '🎣', name: 'Cần câu tre', kind: 'gear', unit: 'cái' }
 ITEMS.bait = { icon: '🪱', name: 'Mồi giun', kind: 'gear', unit: 'lần' };
 ITEMS.firefly = { icon: '✨', name: 'Đom đóm', kind: 'gear', unit: 'con' };
 ITEMS.intellect = { icon: '💡', name: 'Trí lực', kind: 'gear', unit: 'điểm' };
+ITEMS.energy = { icon: '⚡', name: 'Năng lượng', kind: 'energy', unit: 'điểm' };
 
 const GIFTS = ['fishing', 'intellect'];
 const blank = () => ({ money: 0, items: {}, gifts: [], energy: ENERGY.max, energyAt: null, sleeping: false, lodging: false });
@@ -180,6 +181,13 @@ export class Purse {
     if (!(amount > 0)) return;
     this.data.energy = Math.min(ENERGY.max, this.data.energy + amount);
     this.changed({ energy: amount });
+  }
+
+  eatEnergy() {
+    const amount = Math.min(this.count('energy'), Math.floor(ENERGY.max - this.data.energy));
+    if (!(amount > 0) || !this.take('energy', amount)) return 0;
+    this.addEnergy(amount);
+    return amount;
   }
 
   liveEnergy(minutes, activity, offlineNight, offlineDay = 'idle') {

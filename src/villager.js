@@ -23,6 +23,7 @@ import { SchoolBehavior } from './villagerSchool.js';
 import { WorkBehavior } from './villagerWork.js';
 import { ErrandBehavior } from './villagerErrands.js';
 import { MindBehavior } from './villagerMind.js';
+import { LanternBehavior } from './villagerLantern.js';
 
 
 export class Villager {
@@ -213,6 +214,7 @@ export class Villager {
     const money = this.moneyErrand(ctx);
     if (money) return this.goMoney(money);
     if (this.wantsArena()) return this.goArena();
+    if (this.wantsLanternSignup(ctx)) return this.goLanternDesk();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();
@@ -326,6 +328,8 @@ export class Villager {
     this.hunting = null;
     this.town.fireflies?.release(this);
     this.fireflyUntil = null;
+    this.town.lanterns?.release(this.id);
+    this.bubble.setLantern(false);
     if (this.fx) for (const effect of Object.values(this.fx)) effect.busy && effect.cancel();
     this.town.seatWait?.leave(this);
     if (this.targetSeat) this.town.seats.unreserve(this.targetSeat, this);
@@ -766,4 +770,4 @@ function mixin(target, ...sources) {
   }
 }
 
-mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior);
+mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior, LanternBehavior);
