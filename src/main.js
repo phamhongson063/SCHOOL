@@ -1878,7 +1878,7 @@ renderer.setAnimationLoop((time) => {
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const watching = scenePopupOpen();
   const popup = !watching && popupOpen();
-  if (popup && performance.now() - lastScroll < SCROLL_PAUSE) return;
+  if (popup && !busy && performance.now() - lastScroll < SCROLL_PAUSE) return;
   const reading = study.visible;
   const resting = reading || idle;
   const still = resting && !town.anyMoving() && !mountain.moving();
@@ -1889,9 +1889,9 @@ renderer.setAnimationLoop((time) => {
       : watching
       ? SCENE_POPUP_FRAME_RATE
       : popup
-        ? bagPanel.hidden
-          ? POPUP_FRAME_RATE
-          : BAG_FRAME_RATE
+        ? busy || !bagPanel.hidden
+          ? BAG_FRAME_RATE
+          : POPUP_FRAME_RATE
         : still
           ? reading
             ? READING_FRAME_RATE
