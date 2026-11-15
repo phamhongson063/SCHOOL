@@ -76,11 +76,17 @@ export function createMapLabels({ camera, zoom, onPick }) {
     }
   }
 
-  function add(name, at = null, stand = null, lift = 5, { lead = false, kind = '' } = {}) {
+  function add(name, at = null, stand = null, lift = 5, { lead = false, kind = '', image = null } = {}) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = kind ? `map-label ${kind}` : 'map-label';
-    el.textContent = name;
+    if (image) {
+      const img = document.createElement('img');
+      img.src = image;
+      img.alt = name;
+      img.addEventListener('load', relayout, { once: true });
+      el.append(img);
+    } else el.textContent = name;
     const label = { el, at: new THREE.Vector3(), stand: null, lift, front: false, onScreen: true, clear: true, x: 0, y: 0, drawnX: NaN, drawnY: NaN, w: 0, h: 0 };
     el.addEventListener('click', () => label.stand && label.clear && onPick(label.stand));
     layer.append(el);

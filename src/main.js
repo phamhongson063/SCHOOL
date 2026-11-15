@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
-import { buildWorld, populate, stairHeight, CX, HOUSE, TEACHER_STAND, TEACHER_Z } from './school.js';
+import { buildWorld, populate, stairHeight, CX, HOUSE, PLAZA, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer, createWalker } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
@@ -622,7 +622,10 @@ addEventListener('pagehide', () => {
   savePlace();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'hidden') return;
+  if (document.visibilityState !== 'hidden') {
+    economy.resume();
+    return;
+  }
   ledger.flush();
   savePlace();
 });
@@ -778,6 +781,7 @@ const fireflyField = createFireflyField({ ground: openGround });
 town.fireflies = fireflyField;
 const lanterns = createLanterns({
   ground: openGround,
+  zones: openGround.zoned(PLAZA, LANTERN.zoneRadius, LANTERN.sectors),
   roster: () => [PLAYER, ...town.members.map((member) => member.id)],
   budget: (now) => economy.lanternLeft(now),
   reward: (who, now, points) => {
@@ -1552,7 +1556,10 @@ function setMode(next) {
     camera.updateProjectionMatrix();
     player.setEnabled(true);
   }
-  if (mode === 'overview') refreshHomeLabel();
+  if (mode === 'overview') {
+    refreshHomeLabel();
+    refreshSelfLabel();
+  }
   mapLabels.setShown(mode === 'overview');
   refreshUI();
 }
@@ -1611,6 +1618,14 @@ function updateLanternLabels(now) {
     const spot = lantern ? { x: lantern.x, z: lantern.z } : null;
     mapLabels.move(label, spot, spot);
   });
+}
+
+let selfLabel = null;
+
+function refreshSelfLabel() {
+  selfLabel ??= mapLabels.add('Bạn', null, null, 2.6, { lead: true, kind: 'self', image: portraitOf(PLAYER) });
+  const spot = { x: player.position.x, z: player.position.z };
+  mapLabels.move(selfLabel, spot, spot);
 }
 
 function refreshHomeLabel() {

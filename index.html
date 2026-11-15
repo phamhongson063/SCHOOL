@@ -249,7 +249,21 @@
     <p id="sleepEnergy" class="sleep-energy"></p>
     <button id="wakeBtn" class="sleep-wake" type="button">☀️ Thức dậy</button>
   </div>
-  <button id="lanternBtn" class="icon-btn lantern-btn" type="button" title="Hội đèn trời" aria-label="Hội đèn trời" aria-expanded="false" aria-controls="lanternBoard" hidden><span aria-hidden="true">🏮</span></button>
+  <button id="lanternBtn" class="icon-btn lantern-btn" type="button" title="Hội đèn trời" aria-label="Hội đèn trời" aria-expanded="false" aria-controls="lanternBoard" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="skyLanternPaper" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff0b8" />
+          <stop offset="0.55" stop-color="#f7b24a" />
+          <stop offset="1" stop-color="#e2622a" />
+        </linearGradient>
+      </defs>
+      <path class="sky-lantern-paper" d="M5.5 4.2C8.5 2.4 15.5 2.4 18.5 4.2L15.6 17.2C13.4 18 10.6 18 8.4 17.2Z" />
+      <path class="sky-lantern-rib" d="M12 2.9V17.7M9 3.4 10.3 17.6M15 3.4 13.7 17.6" />
+      <ellipse class="sky-lantern-rim" cx="12" cy="17.3" rx="3.7" ry="0.9" />
+      <path class="sky-lantern-flame" d="M12 18.4C13.3 19.6 13.2 21.3 12 21.8 10.8 21.3 10.7 19.6 12 18.4Z" />
+    </svg>
+  </button>
   <div id="lanternBoard" class="picker menu tailless lantern-board" role="dialog" aria-label="Hội đèn trời" hidden>
     <div class="picker-head">
       <span class="picker-title">Hội đèn trời</span>

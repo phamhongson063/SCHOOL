@@ -1,4 +1,4 @@
-import { AWAY, BANK, BLESSING, CERTIFY, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, ROUTINE, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { AWAY, BANK, BLESSING, CERTIFY, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, VENDOR, VILLAGER, WILDLIFE } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
@@ -13,6 +13,7 @@ import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
+import { lodgeNightOf } from './lodging.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -73,19 +74,103 @@ export function createAwaySim({ town, contextAt }) {
   const memos = new Map();
   let quizCarry = 0;
 
+  function savedEntry(member, create = false) {
+    if (create && (!town.saved || typeof town.saved !== 'object')) town.saved = {};
+    if (create && !Array.isArray(town.saved.members)) town.saved.members = [];
+    const entries = Array.isArray(town.saved?.members) ? town.saved.members : [];
+    let entry = entries.find((item) => item?.id === member.id) ?? null;
+    if (!entry && create) {
+      entry = { id: member.id };
+      entries.push(entry);
+    }
+    return entry;
+  }
+
+  function keepLanternJob(member, job) {
+    if (town.started) return;
+    const entry = savedEntry(member, Boolean(job));
+    if (!entry) return;
+    if (job) {
+      entry.lantern = job;
+      town.lanterns?.claim(member.id, job.id);
+    } else {
+      delete entry.lantern;
+      town.lanterns?.release(member.id);
+    }
+  }
+
+  function savedLanternJob(member) {
+    const job = town.started ? null : savedEntry(member)?.lantern;
+    if (!job || !Number.isInteger(job.id) || !Number.isFinite(job.at)) return null;
+    return { id: job.id, at: job.at, correct: typeof job.correct === 'boolean' ? job.correct : null };
+  }
+
+  function keepInn(member, stay) {
+    if (town.started) return;
+    const entry = savedEntry(member, Boolean(stay));
+    if (!entry) return;
+    if (stay) entry.inn = stay;
+    else delete entry.inn;
+  }
+
+  function seedInn(memo, stay) {
+    if (!stay || town.started) return;
+    if (Number.isInteger(stay.night) && (typeof stay.room === 'string' || stay.room === null)) {
+      memo.night = stay.night;
+      memo.room = stay.room;
+    } else if (stay.night === null && typeof stay.room === 'string') memo.stay = stay.room;
+  }
+
+  function seedStudy(memo, study) {
+    const from = town.saved?.minutes;
+    if (town.started || !(study?.left > 0) || !Number.isFinite(from)) return;
+    const until = from + study.left / 60;
+    if (until <= memo.busyUntil) return;
+    memo.busyUntil = until;
+    memo.busyAs = 'study';
+  }
+
   function memoOf(member) {
-    if (!memos.has(member.id)) memos.set(member.id, { night: null, room: null, stay: null, studyAt: -Infinity, busyUntil: -Infinity, busyAs: 'walk' });
+    if (!memos.has(member.id)) {
+      const memo = { night: null, room: null, stay: null, studyAt: -Infinity, busyUntil: -Infinity, busyAs: 'walk', lantern: savedLanternJob(member) };
+      if (memo.lantern) {
+        memo.busyUntil = memo.lantern.at;
+        town.lanterns?.claim(member.id, memo.lantern.id);
+      }
+      const entry = town.started ? null : savedEntry(member);
+      seedInn(memo, entry?.inn);
+      seedStudy(memo, entry?.study);
+      memos.set(member.id, memo);
+    }
     return memos.get(member.id);
+  }
+
+  function deferLantern(member, job) {
+    memoOf(member).lantern = job;
+    keepLanternJob(member, job);
+  }
+
+  function finishLantern(member, end) {
+    const memo = memoOf(member);
+    const job = memo.lantern;
+    if (!job || job.at > end) return;
+    memo.lantern = null;
+    keepLanternJob(member, null);
+    const lantern = town.lanterns?.get(job.id);
+    if (!lantern || lantern.doneAt !== null) return;
+    const correct = job.correct ?? lanternTry(member.id, lantern.key, dayOf(job.at)).correct;
+    town.lanterns.attempt(member.id, lantern.id, correct ? answerOf(lantern.key) : '', job.at);
   }
 
   function nightRoom(member, ctx) {
     const memo = memoOf(member);
-    const night = dayOf(ctx.minutes - ROUTINE.wake);
+    const night = lodgeNightOf(ctx.minutes);
     if (memo.night !== night) {
       const spot = memo.stay ? null : member.pickLodge(true);
       memo.night = night;
       memo.room = memo.stay ?? (spot && member.payRoom(spot.id) ? spot.id : null);
       memo.stay = null;
+      keepInn(member, { room: memo.room, night });
     }
     return memo.room;
   }
@@ -101,11 +186,13 @@ export function createAwaySim({ town, contextAt }) {
 
   function lodged(member, end) {
     const memo = memoOf(member);
+    const before = memo.stay;
     if (memo.stay && member.purse.full) memo.stay = null;
     if (!memo.stay && member.wantsInn()) {
       const spot = member.pickLodge(false);
       if (spot && member.payRoom(spot.id)) memo.stay = spot.id;
     }
+    if (memo.stay !== before) keepInn(member, memo.stay ? { room: memo.stay, night: null } : null);
     if (!memo.stay) return false;
     member.purse.tickEnergy(end, energyRate(memo.stay, false));
     return true;
@@ -134,7 +221,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function signUp(member, ctx) {
     const arena = town.arena;
-    if (!town.arenaDesk || !arena?.consider(member.id, ctx.minutes)) return;
+    if (!town.arenaDesk || !arena?.consider(member.id, ctx.minutes, member.arenaCost(ctx.minutes))) return;
     const memo = memoOf(member);
     const arrive = Math.max(ctx.minutes, memo.busyUntil) + AWAY.walk;
     memo.busyUntil = arrive;
@@ -156,10 +243,11 @@ export function createAwaySim({ town, contextAt }) {
     return { lantern, ready: Math.max(AWAY.walk, landedAt(lantern) - clock), solve: lanternSeconds(lantern.key) / 60 };
   }
 
-  function solveLantern(member, clock, { lantern, ready }) {
+  function solveLantern(member, clock, end, { lantern, ready }) {
     const { correct, seconds } = lanternTry(member.id, lantern.key, dayOf(clock));
     const at = clock + ready + seconds / 60;
-    town.lanterns.attempt(member.id, lantern.id, correct ? answerOf(lantern.key) : '', at);
+    if (at > end) deferLantern(member, { id: lantern.id, at, correct });
+    else town.lanterns.attempt(member.id, lantern.id, correct ? answerOf(lantern.key) : '', at);
     return at - clock;
   }
 
@@ -315,7 +403,7 @@ export function createAwaySim({ town, contextAt }) {
     const blessing = blessingPlan(member, clock, end);
     if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay, blessing.window.session) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
     const lantern = lanternPlan(member, clock);
-    if (lantern) options.push({ kind: 'lantern', as: 'walk', rate: lanternWorth(member.id, lantern.lantern.key, need, member.diligence, town.lanterns.energyAt(clock)) / (lantern.ready + lantern.solve), run: () => solveLantern(member, clock, lantern) });
+    if (lantern) options.push({ kind: 'lantern', as: 'walk', rate: lanternWorth(member.id, lantern.lantern.key, need, member.diligence, town.lanterns.energyAt(clock)) / (lantern.ready + lantern.solve), run: () => solveLantern(member, clock, end, lantern) });
     const job = farm.jobFor(member, member.seedChoice());
     if (job) options.push({ kind: 'farm', as: 'walk', rate: member.farmGain(need, job) / (AWAY.walk + FARM), run: () => tend(member, job) });
     if (canFish(member, slots)) {
@@ -369,8 +457,32 @@ export function createAwaySim({ town, contextAt }) {
     member.purse.tickEnergy(end, rate);
   }
 
+  function holdArena(member, ctx, hold, end, slots) {
+    const memo = memoOf(member);
+    if (memo.lantern) {
+      memo.lantern = null;
+      keepLanternJob(member, null);
+    }
+    if (memo.stay || memo.room) {
+      memo.stay = null;
+      memo.room = null;
+      memo.night = null;
+      keepInn(member, null);
+    }
+    memo.busyUntil = hold.to;
+    memo.busyAs = 'idle';
+    member.purse.tickEnergy(hold.to, energyRate('idle', ctx.night));
+    if (hold.to < end) live(member, contextAt(hold.to), end - hold.to, slots);
+  }
+
   function live(member, ctx, minutes, slots) {
     const end = ctx.minutes + minutes;
+    const hold = town.arena?.holdOf(member.id, ctx.minutes, end);
+    if (hold) {
+      if (hold.from > ctx.minutes) live(member, ctx, hold.from - ctx.minutes, slots);
+      return holdArena(member, ctx, hold, end, slots);
+    }
+    finishLantern(member, end);
     member.settleBlessing();
     if (memoOf(member).busyUntil < end) {
       if (ctx.night && member.needsSleep(ctx)) return sleep(member, ctx, end);
@@ -387,6 +499,10 @@ export function createAwaySim({ town, contextAt }) {
   }
 
   return {
+    begin() {
+      town.suspend();
+      memos.clear();
+    },
     during(run) {
       const before = town.context;
       try {
@@ -401,6 +517,8 @@ export function createAwaySim({ town, contextAt }) {
       const ctx = contextAt(from);
       town.context = ctx;
       town.arena?.tick(from);
+      const event = town.arena?.event;
+      if (event && event.phase !== 'done' && event.at < to) town.arena.tick(to);
       town.lanterns?.tick(from);
       farm.grow();
       river.restock(from);

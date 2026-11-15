@@ -97,13 +97,20 @@ export function signupOpen(minutes) {
   return m >= LANTERN.signOpen && m < LANTERN.end;
 }
 
-export function lanternSignWorth(id, need, diligence, points) {
+export function festivalShare(from, to) {
+  const day = dayOf(from);
+  const start = day * DAY_MINUTES + LANTERN.start;
+  const end = day * DAY_MINUTES + LANTERN.end;
+  return Math.max(0, Math.min(to, end) - Math.max(from, start)) / (end - start);
+}
+
+export function lanternSignWorth(id, need, diligence, points, busy = 0) {
   const keys = PHRASE_KEYS.filter((key) => knowsLantern(id, key));
   if (!keys.length) return -LANTERN.fee * need;
   const sample = keys.length > 12 ? keys.filter((_, i) => i % Math.ceil(keys.length / 12) === 0) : keys;
   const each = sample.reduce((sum, key) => sum + lanternWorth(id, key, need, diligence, points), 0) / sample.length;
   const share = Math.min(keys.length, LANTERN.count) / LANTERN.count;
-  return each * share * LANTERN.count * 0.3 - LANTERN.fee * need;
+  return each * share * LANTERN.count * 0.3 * (1 - busy) - LANTERN.fee * need;
 }
 
 const blank = () => ({ day: null, seq: 0, solved: 0, list: [], locks: {}, tally: {} });
@@ -127,9 +134,9 @@ export function lanternStandings(ids, tally) {
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && Number.isInteger(saved.day)) {
+    if (saved && typeof saved === 'object') {
       return {
-        day: saved.day,
+        day: Number.isInteger(saved.day) ? saved.day : null,
         seq: Number.isInteger(saved.seq) ? saved.seq : 0,
         solved: Number.isInteger(saved.solved) ? saved.solved : 0,
         list: Array.isArray(saved.list) ? saved.list.filter(validLantern).map((raw) => ({ ...raw, doneAt: Number.isFinite(raw.doneAt) ? raw.doneAt : null, by: raw.by ?? null })) : [],
@@ -143,7 +150,7 @@ function load() {
   return { ...blank(), signup: blankSignup(), totals: {} };
 }
 
-export function createLanterns({ ground, roster, reward, charge, budget }) {
+export function createLanterns({ ground, zones = null, roster, reward, charge, budget }) {
   let state = load();
   const store = createStore(KEY, () => state);
   const claims = new Map();
@@ -162,6 +169,18 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
     return PHRASE_KEYS.filter((key) => !taken.has(key) && ids.some((id) => knowsLantern(id, key)));
   }
 
+  function zoneFor(others, rand) {
+    if (!zones?.ids.length) return null;
+    const counts = new Map(zones.ids.map((id) => [id, 0]));
+    for (const other of others) {
+      const id = zones.of(other.x, other.z);
+      if (counts.has(id)) counts.set(id, counts.get(id) + 1);
+    }
+    const fewest = Math.min(...counts.values());
+    const open = zones.ids.filter((id) => counts.get(id) === fewest);
+    return open[Math.floor(rand() * open.length)];
+  }
+
   function spawn(dropAt) {
     const keys = knownKeys();
     if (!keys.length) return false;
@@ -170,7 +189,8 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
     const key = keys[Math.floor(rand() * keys.length)];
     const others = live();
     const apart = (x, z) => others.every((other) => Math.hypot(other.x - x, other.z - z) >= LANTERN.gap);
-    const spot = ground.pick(rand, apart) ?? ground.pick(rand);
+    const zone = zoneFor(others, rand);
+    const spot = (zone === null ? null : zones.pick(zone, rand, apart) ?? zones.pick(zone, rand)) ?? ground.pick(rand, apart) ?? ground.pick(rand);
     if (!spot) return false;
     state.list.push({ id: state.seq, key, x: spot.x, y: spot.y, z: spot.z, dropAt, doneAt: null, by: null });
     return true;

@@ -42,6 +42,18 @@ function sizeAt(at) {
 
 export const capacityOf = (event) => event.size ?? sizeAt(event.at);
 
+export function arenaMinutes(size) {
+  const turn = (ARENA.read + ARENA.seconds + ARENA.pause) / 60;
+  let minutes = ARENA.opening;
+  for (let pairs = size / 2; pairs >= 1; pairs /= 2) {
+    const sets = pairs === 1 ? ARENA.finalSets : 1;
+    minutes += Math.ceil(pairs / ARENA.stages) * sets * ARENA.turns * turn + ARENA.breather / 60;
+  }
+  return minutes;
+}
+
+export const arenaWindow = (event) => ({ from: event.at, to: event.at + arenaMinutes(capacityOf(event)) });
+
 const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
 
 function slotOf(now) {
@@ -416,8 +428,10 @@ export function createArena({ ledger, roster = () => [] }) {
       startWaiting(event, now, present);
       const next = nextAt(event);
       if (next === null || now < next) return;
-      if (round.length === 1) finish(event);
-      else startRound(event, Number.isFinite(now) ? Math.max(next, now) : next, present);
+      if (round.length === 1) {
+        event.doneAt = next;
+        finish(event);
+      } else startRound(event, Number.isFinite(now) ? Math.max(next, now) : next, present);
     }
   }
 
@@ -487,7 +501,7 @@ export function createArena({ ledger, roster = () => [] }) {
       store.save();
       return true;
     },
-    consider(id, now) {
+    consider(id, now, cost = 0) {
       const event = state.event;
       if (isHuman(id) || event?.phase !== 'open' || blocked(id) || !roster().includes(id)) return false;
       const { npc } = ARENA;
@@ -495,7 +509,14 @@ export function createArena({ ledger, roster = () => [] }) {
       thought.set(id, now);
       if (ledger.purse(id).money < ARENA.fee + npc.reserve) return false;
       const prize = economy.arenaPrize(event.at) + event.pot;
-      return prize * prizeShare(event, id) > ARENA.fee && Math.random() < npc.eager;
+      return prize * prizeShare(event, id) - cost > ARENA.fee && Math.random() < npc.eager;
+    },
+    holdOf(id, from, to) {
+      const event = state.event;
+      if (!event?.entrants.includes(id) || event.away?.includes(id) || !(event.at < to) || event.phase === 'open') return null;
+      const until = event.phase === 'done' ? event.doneAt : to;
+      if (!Number.isFinite(until) || until <= from) return null;
+      return { from: Math.max(from, event.at), to: Math.min(to, until) };
     },
     liveMatch,
     clash(id, now, span) {

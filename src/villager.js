@@ -369,7 +369,7 @@ export class Villager {
     this.setVisible(false);
   }
 
-  enterArena(spot) {
+  clearActivity() {
     if (this.seatRef && (this.state === 'seated' || this.state === 'sitting' || this.state === 'rising' || this.state === 'leaving')) {
       this.town.seats.vacate(this.seatRef, this);
       this.showSeated(false);
@@ -386,6 +386,23 @@ export class Villager {
     this.restBlend = 0;
     this.route = null;
     this.wakeAt = null;
+  }
+
+  suspend() {
+    this.clearActivity();
+    this.lodge = null;
+    this.lodgeNight = false;
+    this.lanternSolve = null;
+    this.task = null;
+    this.lookAt = null;
+    this.velocity = 0;
+    this.timer = 0;
+    this.state = 'away';
+    this.setVisible(false);
+  }
+
+  enterArena(spot) {
+    this.clearActivity();
     this.task = 'arena';
     this.state = 'arena';
     this.placeArena(spot);

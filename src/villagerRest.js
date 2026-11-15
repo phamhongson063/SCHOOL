@@ -289,11 +289,27 @@ export class RestBehavior {
       else this.wait(between(1.5, 3));
       return;
     }
+    this.enterRoom(spot, this.town.context.night);
+  }
+
+  resumeRoom(spot, night) {
+    if (spot && !isFree(spot.id, this)) return false;
+    if (night) {
+      this.settleAt(spot, true);
+      return true;
+    }
+    if (!spot) return false;
+    this.position.set(spot.stand.x, this.town.nav.heightAt(spot.stand.x, spot.stand.z) ?? 0, spot.stand.z);
+    this.enterRoom(spot, false);
+    return true;
+  }
+
+  enterRoom(spot, night) {
     this.cancel();
     book(spot.id, this);
     this.task = 'inn';
     this.lodge = spot;
-    this.lodgeNight = this.town.context.night;
+    this.lodgeNight = night;
     this.route = null;
     this.velocity = 0;
     this.state = 'inn';
@@ -355,11 +371,15 @@ export class RestBehavior {
       this.vanish();
       return;
     }
-    const spot = this.pickLodge(true);
+    this.settleAt(this.pickLodge(true));
+  }
+
+  settleAt(spot, paid = false) {
     const at = spot ? spot.stand : this.town.bedPoint(this.homePoint(), this);
     this.position.set(at.x, this.town.nav.heightAt(at.x, at.z) ?? 0, at.z);
     if (spot) {
-      this.checkIn(spot);
+      if (paid) this.enterRoom(spot, true);
+      else this.checkIn(spot);
       return;
     }
     this.setVisible(true);

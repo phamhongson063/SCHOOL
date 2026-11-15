@@ -337,6 +337,7 @@ let catching = false;
 async function catchUp(from, to, progress) {
   catching = true;
   try {
+    ctx.away.begin();
     let t = from;
     while (t < to) {
       const until = performance.now() + SLICE_MS;
@@ -355,10 +356,10 @@ async function catchUp(from, to, progress) {
 }
 
 async function update(progress = null) {
-  if (catching) return;
+  if (catching || document.hidden) return;
   const t = ctx.now();
   const gap = state.seen === null ? 0 : t - state.seen;
-  if (gap > ONLINE_GAP || (gap > 0 && document.hidden)) await catchUp(state.seen, t, progress);
+  if (gap > ONLINE_GAP) await catchUp(state.seen, t, progress);
   else if (gap > 0) observe(gap);
   settleThrough(t);
   state.seen = t;
@@ -381,6 +382,7 @@ export const economy = {
     await update(progress);
     setInterval(() => update(), CHECK_MS);
   },
+  resume: () => (ctx ? update() : Promise.resolve()),
   income(seller, price, payer = null) {
     if (!ctx || !(price > 0)) return;
     const role = ROLE_OF.get(seller);

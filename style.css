@@ -2684,6 +2684,20 @@ dialog.paper.phrase-quiz {
   font: 400 26px/1 system-ui, sans-serif;
 }
 
+.map-label.self {
+  padding: 0;
+  line-height: 0;
+}
+
+.map-label.self img {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff3d2;
+  border-radius: 50%;
+  background: #f4e6c8;
+  box-shadow: 0 2px 5px rgba(20, 10, 4, 0.6);
+}
+
 .phrase-quiz.brief .phrase-options {
   margin-bottom: 0;
 }
@@ -7056,19 +7070,37 @@ body.in-duel > :not(#app):not(#duelDialog) {
   width: var(--hud-face);
 }
 
-.lantern-btn span {
-  font-size: 30px;
-  line-height: 1;
-  transform-origin: 50% 0;
-  animation: lantern-swing 1.6s ease-in-out infinite, lantern-glow 1.1s ease-in-out infinite;
+.lantern-btn svg {
+  width: 30px;
+  height: 30px;
+  stroke: none;
+  animation: lantern-float 2.4s ease-in-out infinite, lantern-glow 1.1s ease-in-out infinite;
 }
 
-@keyframes lantern-swing {
+.lantern-btn .sky-lantern-paper {
+  fill: url(#skyLanternPaper);
+}
+
+.lantern-btn .sky-lantern-rib {
+  fill: none;
+  stroke: rgba(150, 60, 20, 0.45);
+  stroke-width: 0.7;
+}
+
+.lantern-btn .sky-lantern-rim {
+  fill: #8a3d12;
+}
+
+.lantern-btn .sky-lantern-flame {
+  fill: #ffe27a;
+}
+
+@keyframes lantern-float {
   0%, 100% {
-    transform: rotate(-12deg);
+    transform: translateY(2px);
   }
   50% {
-    transform: rotate(12deg);
+    transform: translateY(-2px);
   }
 }
 
@@ -7084,7 +7116,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lantern-btn span {
+  .lantern-btn svg {
     animation: lantern-glow 1.1s ease-in-out infinite;
   }
 }

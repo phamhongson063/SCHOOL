@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { between } from './random.js';
 import { LANTERN } from './config.js';
-import { answerOf, landedAt, lanternSeconds, lanternSignWorth, lanternTry, lanternWorth, signupOpen } from './lanterns.js';
+import { answerOf, festivalShare, landedAt, lanternSeconds, lanternSignWorth, lanternTry, lanternWorth, signupOpen } from './lanterns.js';
+import { arenaWindow } from './arena.js';
 import { pick } from './villagerData.js';
 
 const LANDING_POLL = 1;
@@ -11,8 +12,27 @@ export class LanternBehavior {
   wantsLanternSignup(ctx = this.town.context) {
     const lanterns = this.town.lanterns;
     if (!lanterns || !this.town.lanternDesk || !signupOpen(ctx.minutes) || lanterns.signed(this.id, ctx.minutes)) return false;
-    if (this.lanternPlan?.day !== ctx.day) this.lanternPlan = { day: ctx.day, join: lanternSignWorth(this.id, this.moneyNeed(), this.diligence, lanterns.energyAt(ctx.minutes)) > 0 };
+    if (this.lanternPlan?.day !== ctx.day) this.lanternPlan = { day: ctx.day, join: lanternSignWorth(this.id, this.moneyNeed(), this.diligence, lanterns.energyAt(ctx.minutes), this.arenaBusy()) > 0 };
     return this.lanternPlan.join && this.purse.money >= LANTERN.fee;
+  }
+
+  arenaBusy() {
+    const event = this.town.arena?.event;
+    if (!event || event.phase === 'done' || !event.entrants.includes(this.id)) return 0;
+    const { from, to } = arenaWindow(event);
+    return festivalShare(from, to);
+  }
+
+  arenaCost(minutes) {
+    const lanterns = this.town.lanterns;
+    const event = this.town.arena?.event;
+    if (!lanterns || event?.phase !== 'open' || !lanterns.signed(this.id, event.at)) return 0;
+    const { from, to } = arenaWindow(event);
+    const share = festivalShare(from, to);
+    if (!(share > 0)) return 0;
+    const need = this.moneyNeed();
+    const worth = lanternSignWorth(this.id, need, this.diligence, lanterns.energyAt(minutes)) + LANTERN.fee * need;
+    return (Math.max(0, worth) * share) / need;
   }
 
   goLanternDesk() {
@@ -68,7 +88,35 @@ export class LanternBehavior {
     }
     this.bubble.setLantern(true);
     const { correct, seconds } = lanternTry(this.id, lantern.key, ctx.day);
+    this.lanternSolve = { id: lantern.id, correct, at: ctx.minutes + seconds / 60 };
     this.wait(seconds, () => this.solveLantern(correct));
+  }
+
+  lanternJob(minutes) {
+    if (this.task !== 'lantern') return null;
+    const lantern = this.town.lanterns?.claimOf(this.id);
+    if (!lantern) return null;
+    const solve = this.lanternSolve;
+    if (solve?.id === lantern.id) return { ...solve };
+    return { id: lantern.id, at: Math.max(minutes + this.walkMinutes(lantern), landedAt(lantern)) + lanternSeconds(lantern.key) / 60 };
+  }
+
+  resumeLantern(job, minutes) {
+    const lantern = this.town.lanterns?.get(job.id);
+    if (!lantern || lantern.doneAt !== null) return false;
+    this.cancel();
+    const near = Math.hypot(lantern.x - this.position.x, lantern.z - this.position.z) <= LANTERN.reach;
+    if (typeof job.correct !== 'boolean' || !near) {
+      this.goLantern(lantern.id);
+      return true;
+    }
+    this.town.lanterns.claim(this.id, lantern.id);
+    this.task = 'lantern';
+    this.lookAt = { x: lantern.x, z: lantern.z };
+    this.lanternSolve = { id: lantern.id, correct: job.correct, at: job.at };
+    this.bubble.setLantern(true);
+    this.wait(Math.max(0, job.at - minutes) * 60, () => this.solveLantern(job.correct));
+    return true;
   }
 
   solveLantern(correct) {
@@ -84,6 +132,7 @@ export class LanternBehavior {
 
   endLantern() {
     this.town.lanterns?.release(this.id);
+    this.lanternSolve = null;
     this.bubble.setLantern(false);
     this.lookAt = null;
     this.task = null;

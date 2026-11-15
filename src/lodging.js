@@ -1,9 +1,12 @@
-import { LODGES, LODGE_ROOMS } from './config.js';
+import { LODGES, LODGE_ROOMS, ROUTINE } from './config.js';
+import { dayOf } from './clock.js';
 import { coins } from './format.js';
 
 const guests = new Map();
 
 export const roomTier = (id) => LODGES[LODGE_ROOMS[id].tier];
+
+export const lodgeNightOf = (minutes) => dayOf(minutes - ROUTINE.wake);
 
 export function isFree(id, who) {
   const guest = guests.get(id);

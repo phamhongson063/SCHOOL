@@ -14,6 +14,7 @@ import { certify } from './certify.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 import { traits } from './traits.js';
+import { lodgeNightOf } from './lodging.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
@@ -79,6 +80,8 @@ export class Town {
     this.lamps = new Map();
     this.reviewAt = 0;
     this.started = false;
+    this.resuming = false;
+    this.clockAt = 0;
   }
 
   playerBlocks(queue, spot) {
@@ -404,6 +407,10 @@ export class Town {
     });
     const members = this.members.map((member) => {
       const entry = { id: member.id };
+      const job = member.lanternJob(minutes);
+      if (job) entry.lantern = job;
+      if (member.state === 'inn' && member.lodge) entry.inn = { room: member.lodge.id, night: member.lodgeNight ? lodgeNightOf(minutes) : null };
+      else if (member.state === 'resting' && member.lyingDown && member.sleepingOut) entry.inn = { room: null, night: lodgeNightOf(minutes) };
       if (member.studyRestAt > t) entry.studyRest = Math.round(member.studyRestAt - t);
       if (member.state === 'seated' && member.task === 'selfstudy' && member.seatRef?.study) {
         entry.study = { seat: seats.indexOf(member.seatRef), left: Math.round(member.studyUntil - t), words: member.sitWords ?? 0, mark: Math.round(t - member.studyMark) };
@@ -421,9 +428,9 @@ export class Town {
     const saved = this.saved;
     this.saved = null;
     const gap = ctx.minutes - saved?.minutes;
-    if (!(gap >= 0 && gap <= VILLAGER.resumeMinutes) || !Array.isArray(saved.members)) return { members: new Map(), rests: [] };
+    if (!(gap >= 0 && gap <= VILLAGER.resumeMinutes) || !Array.isArray(saved.members)) return { members: new Map(), rests: [], gap: 0 };
     const members = new Map(saved.members.filter((entry) => entry && typeof entry.id === 'string').map((entry) => [entry.id, entry]));
-    return { members, rests: Array.isArray(saved.rests) ? saved.rests : [] };
+    return { members, rests: Array.isArray(saved.rests) ? saved.rests : [], gap };
   }
 
   restoreRests(rests, t) {
@@ -434,13 +441,14 @@ export class Town {
     }
   }
 
-  resumeMember(member, entry, ctx, t) {
+  resumeMember(member, entry, ctx, t, gap) {
     if (!entry) return false;
-    if (entry.studyRest > 0) member.studyRestAt = t + entry.studyRest;
+    const passed = gap * 60;
+    if (entry.studyRest > passed) member.studyRestAt = t + entry.studyRest - passed;
     const study = entry.study;
-    if (study && study.left > 0 && !(ctx.night && member.needsSleep(ctx))) {
+    if (study && study.left > passed && !(ctx.night && member.needsSleep(ctx))) {
       const seat = this.studySeats.list[study.seat];
-      if (seat && member.resumeStudy(seat, study, t)) return true;
+      if (seat && member.resumeStudy(seat, { ...study, left: study.left - passed }, t)) return true;
     }
     const [x, z, facing] = Array.isArray(entry.at) ? entry.at : [];
     if (![x, z].every(Number.isFinite)) return false;
@@ -459,18 +467,61 @@ export class Town {
     return true;
   }
 
+  savedJobs() {
+    const entries = (Array.isArray(this.saved?.members) ? this.saved.members : []).filter((entry) => typeof entry?.id === 'string');
+    const lantern = (job) => job && Number.isInteger(job.id) && Number.isFinite(job.at);
+    const inn = (stay) => stay && (typeof stay.room === 'string' ? stay.night === null || Number.isInteger(stay.night) : stay.room === null && Number.isInteger(stay.night));
+    return {
+      lanterns: new Map(entries.filter((entry) => lantern(entry.lantern)).map((entry) => [entry.id, entry.lantern])),
+      inns: new Map(entries.filter((entry) => inn(entry.inn)).map((entry) => [entry.id, entry.inn])),
+    };
+  }
+
+  resumeInn(member, stay, ctx) {
+    if (!stay) return false;
+    const night = stay.night !== null;
+    if (night ? !ctx.night || lodgeNightOf(ctx.minutes) !== stay.night : ctx.night) return false;
+    const spot = stay.room === null ? null : this.lodgeSpots.find((item) => item.id === stay.room);
+    if (spot === undefined || this.estate.houseOf(member.id)) return false;
+    return member.resumeRoom(spot, night);
+  }
+
+  suspend() {
+    const minutes = this.context?.minutes;
+    if (!this.started || !Number.isFinite(minutes)) return;
+    this.saved = this.snapshot(this.clockAt, minutes);
+    for (const member of this.members) if (member.state !== 'arena') member.suspend();
+    this.started = false;
+    this.resuming = true;
+  }
+
+  resumeLanterns(jobs, ctx) {
+    for (const member of this.members) {
+      this.lanterns?.release(member.id);
+      const job = jobs.get(member.id);
+      if (job && member.present && member.state !== 'seated') member.resumeLantern(job, ctx.minutes);
+    }
+  }
+
   restore(ctx, t = 0) {
+    const jobs = this.savedJobs();
     const saved = this.resumable(ctx);
+    const resuming = this.resuming;
+    this.resuming = false;
     this.restoreRests(saved.rests, t);
     this.context = ctx;
     this.started = true;
     this.lastNight = ctx.night;
-    if (this.teacher.onDuty(ctx)) this.teacher.beginTeaching();
-    else if (ctx.night) this.teacher.settleNight();
-    else this.teacher.vanish();
-    for (const worker of this.shiftWorkers) worker.vanish();
+    if (!resuming) {
+      if (this.teacher.onDuty(ctx)) this.teacher.beginTeaching();
+      else if (ctx.night) this.teacher.settleNight();
+      else this.teacher.vanish();
+      for (const worker of this.shiftWorkers) worker.vanish();
+    }
     for (const member of this.members) {
-      if (this.resumeMember(member, saved.members.get(member.id), ctx, t)) continue;
+      if (member.state === 'arena') continue;
+      if (this.resumeMember(member, saved.members.get(member.id), ctx, t, saved.gap)) continue;
+      if (this.resumeInn(member, jobs.inns.get(member.id), ctx)) continue;
       if (member.wantsSleep(ctx)) {
         member.settleNight();
         continue;
@@ -479,13 +530,14 @@ export class Town {
       const height = this.nav.heightAt(spot.x, spot.z);
       if (height === null) {
         member.vanish();
-        member.wakeAt = between(0.5, 6);
+        member.wakeAt = t + between(0.5, 6);
         continue;
       }
       member.position.set(spot.x, height, spot.z);
       member.setVisible(true);
       member.wait(between(0.2, 3));
     }
+    this.resumeLanterns(jobs.lanterns, ctx);
   }
 
   review(ctx) {
@@ -518,6 +570,7 @@ export class Town {
     this.budget = PATHS_PER_FRAME;
     this.player = player;
     this.context = ctx;
+    this.clockAt = t;
     if (!this.started) this.restore(ctx, t);
     if (ctx.night !== this.lastNight) {
       this.lastNight = ctx.night;
