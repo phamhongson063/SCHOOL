@@ -7,6 +7,7 @@ import { closable } from './dialog.js';
 import { createPairStore, without } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { setRich } from './goldArt.js';
+import { certify } from './certify.js';
 
 const WORLD_KEY = worldKey('bank');
 const SELF_KEY = selfKey('bank');
