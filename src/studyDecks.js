@@ -64,6 +64,7 @@ const kanjiCards = () =>
     kanji.words.map((entry, i) => ({
       key: `kn2:${kanji.no}:${i + 1}`,
       deck: 'kanjiN2',
+      group: kanji.no,
       word: entry.word,
       reading: entry.reading,
       hanViet: entry.hanViet,
@@ -87,6 +88,7 @@ export const DECKS = {
     cards: linkSiblings(N2_VOCAB.map((entry, i) => ({
       key: N2_KEYS[i],
       deck: 'n2',
+      group: entry.no,
       word: entry.word,
       reading: entry.reading,
       hanViet: entry.hanViet,
@@ -114,6 +116,7 @@ export const DECKS = {
       lesson.examples.map((example, i) => ({
         key: `sugu1:${lesson.no}:${i + 1}`,
         deck: 'sugu1',
+        group: lesson.no,
         word: lesson.phrase,
         reading: '',
         hanViet: '',

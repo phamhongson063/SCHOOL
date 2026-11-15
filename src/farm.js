@@ -8,6 +8,7 @@ import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, VILLAGER, growDays } from './config.js';
+import { holesWanted } from './holdings.js';
 import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
@@ -842,7 +843,7 @@ export function createFarm({ ledger, nameOf, nav }) {
         else if (state.thirsty(plant)) consider(index, 'water', 2);
         else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
       });
-      const want = FARMING.villagerHoles;
+      const want = holesWanted(purse.money);
       if (owned < want && seedChoice) {
         const beds = state.leases.heldBy(worker.id, gameNow());
         const renew = best || !beds.length ? null : renewJob(worker.id, beds, purse, seedChoice);

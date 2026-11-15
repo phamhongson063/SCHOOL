@@ -4,11 +4,51 @@ import { createPairStore, without } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { PLAYER } from './inventory.js';
 import { dayOf, gameNow } from './clock.js';
+import { makeRandom } from './random.js';
 
 const WORLD_KEY = worldKey('certify');
 const SELF_KEY = selfKey('certify');
 
 const today = () => dayOf(gameNow());
+const ORDER_VERSION = 2;
+const orders = new Map();
+
+function hashOf(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function orderOf(actor, deck) {
+  const tag = `${actor}|${deck}`;
+  if (orders.has(tag)) return orders.get(tag);
+  const cards = DECKS[deck].cards;
+  let order;
+  if (actor === PLAYER) order = cards.map((card) => card.key);
+  else {
+    const groups = [];
+    const byGroup = new Map();
+    for (const card of cards) {
+      const group = card.group ?? card.key;
+      if (!byGroup.has(group)) {
+        byGroup.set(group, []);
+        groups.push(group);
+      }
+      byGroup.get(group).push(card.key);
+    }
+    const rand = makeRandom(hashOf(tag));
+    for (let i = groups.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [groups[i], groups[j]] = [groups[j], groups[i]];
+    }
+    order = groups.flatMap((group) => byGroup.get(group));
+  }
+  orders.set(tag, order);
+  return order;
+}
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -18,9 +58,9 @@ function shuffle(list) {
   return list;
 }
 
-const blankDeck = () => ({ day: null, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, exams: 0, examPassed: false, tries: 0 });
+const blankDeck = () => ({ day: null, order: ORDER_VERSION, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, exams: 0, examPassed: false, tries: 0 });
 
-function cleanDeck(raw, id) {
+function cleanDeck(raw, id, actor) {
   const deck = blankDeck();
   if (!raw || typeof raw !== 'object') return deck;
   const cards = DECKS[id].cards;
@@ -32,6 +72,7 @@ function cleanDeck(raw, id) {
   const tallies = (value) => Object.fromEntries(Object.entries(value && typeof value === 'object' ? value : {}).filter(([key, count]) => known.has(key) && Number.isInteger(count) && count >= 0));
   deck.day = pastDay(raw.day) ? raw.day : null;
   deck.cursor = Number.isInteger(raw.cursor) && raw.cursor >= 0 ? Math.min(raw.cursor, cards.length) : 0;
+  if (raw.order !== ORDER_VERSION && actor !== PLAYER) deck.cursor = 0;
   deck.certified = days(raw.certified);
   deck.weak = Object.fromEntries(Object.entries(days(raw.weak)).filter(([key]) => deck.certified[key] !== undefined));
   deck.batch = keys(raw.batch).filter((key) => deck.certified[key] === undefined);
@@ -48,11 +89,11 @@ function cleanDeck(raw, id) {
   return deck;
 }
 
-function restoreSkipped(state, deck) {
-  const cards = DECKS[deck].cards;
-  const end = Math.min(state.cursor, cards.length);
+function restoreSkipped(state, deck, actor) {
+  const order = orderOf(actor, deck);
+  const end = Math.min(state.cursor, order.length);
   for (let i = 0; i < end; i++) {
-    const { key } = cards[i];
+    const key = order[i];
     if (state.certified[key] || state.batch.includes(key) || state.queue.includes(key)) continue;
     state.queue.push(key);
   }
@@ -67,14 +108,14 @@ function readJSON(key) {
   }
 }
 
-const cleanActor = (decks) => Object.fromEntries(DECK_IDS.map((deck) => [deck, restoreSkipped(cleanDeck(decks?.[deck], deck), deck)]));
+const cleanActor = (decks, actor) => Object.fromEntries(DECK_IDS.map((deck) => [deck, restoreSkipped(cleanDeck(decks?.[deck], deck, actor), deck, actor)]));
 
 function load() {
   const world = readJSON(WORLD_KEY);
   const mine = readJSON(SELF_KEY);
   const actors = {};
-  if (world && typeof world === 'object') for (const [id, decks] of Object.entries(world)) actors[id] = cleanActor(decks);
-  if (mine && typeof mine === 'object') actors[PLAYER] = cleanActor(mine);
+  if (world && typeof world === 'object') for (const [id, decks] of Object.entries(world)) actors[id] = cleanActor(decks, id);
+  if (mine && typeof mine === 'object') actors[PLAYER] = cleanActor(mine, PLAYER);
   return actors;
 }
 
@@ -87,14 +128,14 @@ function changed(actor) {
   for (const listener of listeners) listener(actor);
 }
 
-function fill(state, deck) {
-  const cards = DECKS[deck].cards;
+function fill(actor, state, deck) {
+  const order = orderOf(actor, deck);
   state.batch = state.batch.filter((key) => !state.certified[key]);
   state.carry = state.carry.filter((key) => state.batch.includes(key));
   while (state.batch.length < CERTIFY.batch) {
     let key = null;
     if (state.queue.length) key = state.queue.shift();
-    else if (state.cursor < cards.length) key = cards[state.cursor++].key;
+    else if (state.cursor < order.length) key = order[state.cursor++];
     else break;
     if (state.certified[key] || state.batch.includes(key)) continue;
     state.batch.push(key);
@@ -111,7 +152,7 @@ function deckState(actor, deck) {
     state.viewed = [];
     state.qualified = null;
     state.tries = 0;
-    fill(state, deck);
+    fill(actor, state, deck);
     store.save();
   }
   return state;

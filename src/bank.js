@@ -231,8 +231,9 @@ export function createBank({ ledger, estate, now }) {
 
   function limitFor(owner, account) {
     const base = Math.min(BANK.credit.cap, BANK.credit.base + BANK.credit.perRepaid * account.repaid);
+    const learning = Math.min(BANK.credit.certCap, BANK.credit.perCert * certify.certifiedTotal(owner));
     const house = estate.houseOf(owner);
-    return Math.floor(base + (house ? house.price * BANK.credit.house : 0));
+    return Math.floor(base + learning + (house ? house.price * BANK.credit.house : 0));
   }
 
   function roomFor(owner, account, t) {

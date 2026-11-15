@@ -6,20 +6,38 @@ import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examHall.js';
 import { SELF_STUDY } from './villagerData.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
+import { fluency } from './fluency.js';
+import { traits } from './traits.js';
 import { NPC } from './npcIds.js';
 
 const INTERNAL_SEAT_RETRY = 1;
 
-export const simulate = (member, keys) => keys.map((key) => ({ key, correct: absorption.answer(member.id, key) }));
+function recallOf(member, key) {
+  const correct = absorption.answer(member.id, key);
+  fluency.recall(member.id, key, member.town.context?.day, correct);
+  return { key, correct };
+}
+
+export const simulate = (member, keys) => keys.map((key) => recallOf(member, key));
 
 export function simulateExam(member, deck, keys) {
   const results = [];
   for (const key of keys) {
-    const result = { key, correct: absorption.answer(member.id, key) };
+    const result = recallOf(member, key);
     results.push(result);
     if (certify.examStops(member.id, deck, result)) break;
   }
   return results;
+}
+
+function sample(list, count) {
+  const copy = [...list];
+  const taken = Math.min(count, copy.length);
+  for (let i = 0; i < taken; i++) {
+    const j = i + Math.floor(Math.random() * (copy.length - i));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, taken);
 }
 
 export class SchoolBehavior {
@@ -138,6 +156,11 @@ export class SchoolBehavior {
     return best;
   }
 
+  goPrep(deck) {
+    this.prepping = true;
+    this.goReview(deck);
+  }
+
   goReview(deck) {
     this.reviewing = true;
     const wait = this.town.seatWait;
@@ -153,6 +176,7 @@ export class SchoolBehavior {
 
   goSelfStudy(deck = this.studyDeckWanted()) {
     this.reviewing = false;
+    this.prepping = false;
     if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;
@@ -200,6 +224,7 @@ export class SchoolBehavior {
 
   quitSelfStudy() {
     this.reviewing = false;
+    this.prepping = false;
     this.town.studySeats.unreserve(this.targetSeat, this);
     this.targetSeat = null;
     this.task = null;
@@ -301,6 +326,7 @@ export class SchoolBehavior {
   learnWord(deck, left = certify.learnLeft(this.id, deck)) {
     const key = left[(this.learnTurn = (this.learnTurn ?? 0) + 1) % left.length];
     absorption.note(this.id, 'study', this.town.context.day);
+    traits.note(this.id, 'study', this.town.context.day);
     if (absorption.forgets(this.id)) {
       certify.forget(this.id, deck, key);
       return false;
@@ -386,6 +412,7 @@ export class SchoolBehavior {
     this.examDeck = null;
     this.examResults = null;
     const result = certify.gradeExam(this.id, deck, results);
+    traits.note(this.id, result.passed ? 'pass' : 'fail', this.town.context.day);
     this.say(result.passed ? '🎓' : '📄', 2.4);
     this.rise(() => {
       this.task = null;
@@ -398,7 +425,9 @@ export class SchoolBehavior {
     if (this.reviewing) {
       if (t < this.studyUntil && !this.needsSleep(ctx)) return;
       this.reviewing = false;
-      this.drillWeak(this.seatRef.deck, t - this.studyMark);
+      if (this.prepping) this.drillCertified(this.seatRef.deck, t - this.studyMark);
+      else this.drillWeak(this.seatRef.deck, t - this.studyMark);
+      this.prepping = false;
       this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
       this.studyRestAt = t + SELF_STUDY.cooldown;
       this.rise(() => {
@@ -465,10 +494,16 @@ export class SchoolBehavior {
     if (keys.length) certify.gradeReview(this.id, deck, simulate(this, keys));
   }
 
+  drillCertified(deck, seconds) {
+    const keys = sample(certify.certified(this.id, deck), Math.floor(seconds / (CERTIFY.seconds[deck] * between(0.4, 0.8))));
+    if (keys.length) simulate(this, keys);
+  }
+
   payReview() {
     if (!this.purse.spend(CERTIFY.reviewFee)) return false;
     economy.income(NPC.teacher, CERTIFY.reviewFee, this.id);
     absorption.note(this.id, 'study', this.town.context.day);
+    traits.note(this.id, 'study', this.town.context.day);
     return true;
   }
 

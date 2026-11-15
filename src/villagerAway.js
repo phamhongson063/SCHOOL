@@ -11,6 +11,7 @@ import { simulate, simulateExam } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
+import { traits } from './traits.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -118,7 +119,7 @@ export function createAwaySim({ town, contextAt }) {
     const deck = member.examDeckWanted(ctx);
     if (deck) {
       const keys = member.beginExam(deck, CERTIFY.seconds[deck] * between(0.4, 0.8));
-      if (keys) certify.gradeExam(member.id, deck, simulateExam(member, deck, keys));
+      if (keys) traits.note(member.id, certify.gradeExam(member.id, deck, simulateExam(member, deck, keys)).passed ? 'pass' : 'fail', ctx.day);
     }
     for (const other of DECK_IDS) {
       if (!member.wantsInternal(other)) continue;
@@ -192,7 +193,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function hunt(member, slots) {
     slots.hunters.add(member);
-    if (member.purse.spendEnergy(HUNTING.energy) && Math.random() < (HUNTING.villagerSkill[member.kind] ?? 0.5)) {
+    if (member.purse.spendEnergy(HUNTING.energy) && Math.random() < traits.skill(member.id, 'hunt')) {
       member.purse.add(gameId(pickPrey()), 1);
       member.luckyIntellect();
     }
@@ -222,6 +223,20 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview()) return AWAY.walk;
     member.drillWeak(deck, CERTIFY.sitSeconds);
+    memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
+    return AWAY.walk + SIT;
+  }
+
+  function prepDeck(member, ctx, slots) {
+    if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
+    const deck = member.prepDeckWanted(ctx);
+    return deck && (slots.study.get(member) === deck || slots.seats[deck] > 0) ? deck : null;
+  }
+
+  function prep(member, ctx, deck, slots) {
+    takeSeat(member, deck, slots);
+    if (!member.payReview()) return AWAY.walk;
+    member.drillCertified(deck, CERTIFY.sitSeconds);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -271,6 +286,8 @@ export function createAwaySim({ town, contextAt }) {
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
     if (reviewing) options.push({ kind: 'study', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
+    const prepping = prepDeck(member, ctx, slots);
+    if (prepping) options.push({ kind: 'study', as: 'study', rate: member.prepGain(need, SIT, prepping, ctx.day) / (AWAY.walk + SIT), run: () => prep(member, ctx, prepping, slots) });
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {
@@ -290,6 +307,7 @@ export function createAwaySim({ town, contextAt }) {
     while (clock < end && member.purse.energy >= ENERGY.workMin) {
       const option = choose(member, ctx, slots, clock, end);
       if (!option) break;
+      traits.did(member.id, option.kind, ctx.day);
       const spent = option.run();
       used[option.as] += Math.min(spent, end - clock);
       clock += spent;

@@ -34,6 +34,8 @@ export const FARMING = {
   missPenalty: 0.18,
   minVigor: 0.25,
   villagerHoles: 10,
+  villagerHolesMax: 20,
+  holesPerCoins: 150,
   leases: [
     { days: 3, perHole: 2.7 },
     { days: 7, perHole: 5.4 },
@@ -63,7 +65,6 @@ export const FISHING = {
   biteSeconds: 3,
   villagerAnswer: [2, 6],
   quizSeconds: 20,
-  villagerSkill: { student: 0.6, farmer: 0.45 },
   villagerAnglers: 3,
   villagerCasts: [3, 7],
   villagerSellAt: 3,
@@ -93,7 +94,6 @@ export const HUNTING = {
   boarCooldown: 6,
   knockback: 6,
   villagerHunters: 2,
-  villagerSkill: { student: 0.45, farmer: 0.55 },
 };
 
 export const HOUSE_PRICES = { small: 700000, medium: 1200000, large: 2000000 };
@@ -130,8 +130,7 @@ export const MIND = {
   queueSeconds: 60,
   harvestShare: { harvest: 1, plant: 0.5, lease: 0.5, water: 0.18, fertilize: 0.18, clear: 0.1, clearOther: 0.05 },
   crowdCut: 0.4,
-  taste: [0.75, 1.25],
-  farmerFarmTaste: 0.15,
+  prepValue: 6,
   noise: [0.85, 1.15],
   stick: 1.2,
   stickSeconds: 120,
@@ -294,6 +293,36 @@ export const TRADE = {
 
 export const QUIZ = { seconds: 5 * 60, reward: 1 };
 
+export const TRAITS = {
+  anchor: [0.5, 0.7],
+  startSpread: 0.15,
+  diligence: [0.3, 0.97],
+  skill: [0.35, 0.75],
+  skillStart: [0.45, 0.55],
+  skillUsed: 0.75,
+  skillIdle: 0.4,
+  taste: [0.75, 1.25],
+  habitGain: 0.03,
+  habitFade: 0.01,
+  innGoer: 0.35,
+  rate: 0.1,
+  catchUp: 30,
+  studyPull: 0.2,
+  idlePull: 0.1,
+  passPull: 0.1,
+  failPull: 0.15,
+  tiredPull: 0.1,
+  debtPull: 0.05,
+};
+
+export const FLUENCY = { gain: 0.3, slip: 0.2, keep: 0.97, floor: 0.45 };
+
+export const STIPEND = { share: 0.3, top: 3, minCerts: 20 };
+
+export const FATE = { sick: 0.02, sickEnergy: 15, medicine: 12 };
+
+export const CENSUS = { days: 31, tiers: 3 };
+
 export const ABSORB = {
   min: 0.3,
   max: 1,
@@ -327,20 +356,21 @@ export const ARENA = {
   fee: 2,
   hp: 140,
   hit: 18,
-  speed: 0.6,
+  speed: 0.4,
   seconds: 15,
   hardSeconds: 10,
   read: 5,
   turns: 12,
   finalSets: 3,
   tiers: { easy: 2, hard: 6 },
-  combo: { step: 0.2, max: 3 },
+  combo: { step: 0.15, max: 3 },
   rage: { below: 0.3, boost: 1.5 },
   guard: 0.5,
   reward: { base: 1, perWin: 1, champion: 1 },
   champions: 30,
   rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
   npc: { reserve: 10, eager: 0.15, rethink: 5 },
+  prep: { before: 120, minCards: 5 },
 };
 
 export const HERALD = { lead: 15, every: 3 };
@@ -394,7 +424,7 @@ export const BANK = {
     { days: 15, bonus: 0.003 },
   ],
   overdue: 1.5,
-  credit: { base: 200, perRepaid: 100, cap: 1500, house: 0.5 },
+  credit: { base: 200, perRepaid: 100, cap: 1500, house: 0.5, perCert: 2, certCap: 300 },
   minDeposit: 10,
   minLoan: 20,
   maxLoans: 3,

@@ -1,6 +1,7 @@
 import { ARENA, DAYLIGHT } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
+import { fluency } from './fluency.js';
 import { economy } from './economy.js';
 import { DECKS } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
@@ -15,6 +16,13 @@ const SIDES = ['a', 'b'];
 const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
 
 const other = (side) => (side === 'a' ? 'b' : 'a');
+
+function npcAnswer(id, key, limit, at) {
+  const day = Number.isFinite(at) ? dayOf(at) : null;
+  const answer = absorption.respond(id, key, limit, day);
+  fluency.recall(id, key, day, answer.correct);
+  return answer;
+}
 const isHuman = (id) => id === PLAYER;
 const sideOf = (match, id) => (match.a === id ? 'a' : match.b === id ? 'b' : null);
 const signature = (event) => `${event.phase}:${event.round}:${event.rounds[event.round]?.filter((match) => match.winner).length ?? 0}`;
@@ -162,7 +170,7 @@ function pickKey(match, deck, tier = 'normal') {
   const source = match.asked.length % 2 === 0 ? mine : theirs;
   const own = source.size ? [...source] : pool;
   const weak = (key) => certify.familiarity(match.a, key) === 'weak' || certify.familiarity(match.b, key) === 'weak';
-  const preferred = tier === 'easy' ? pool.filter((key) => mine.has(key) && theirs.has(key)) : tier === 'hard' ? own.filter((key) => mine.has(key) !== theirs.has(key) || weak(key)) : own;
+  const preferred = tier === 'easy' ? pool.filter((key) => mine.has(key) && theirs.has(key)) : tier === 'hard' ? own.filter(weak) : own;
   for (const list of [preferred.filter((key) => !asked.has(key)), own.filter((key) => !asked.has(key)), pool.filter((key) => !asked.has(key)), pool]) {
     if (list.length) return list[Math.floor(Math.random() * list.length)];
   }
@@ -246,7 +254,7 @@ function resolveTurn(match, key, answers, tier = 'normal') {
   return turn;
 }
 
-function simulate(match, deck) {
+function simulate(match, deck, at) {
   while (!match.winner) {
     const tier = tierOf(match);
     const key = pickKey(match, deck, tier);
@@ -255,7 +263,7 @@ function simulate(match, deck) {
       break;
     }
     const limit = limitOf(tier);
-    resolveTurn(match, key, { a: absorption.respond(match.a, key, limit), b: absorption.respond(match.b, key, limit) }, tier);
+    resolveTurn(match, key, { a: npcAnswer(match.a, key, limit, at), b: npcAnswer(match.b, key, limit, at) }, tier);
   }
 }
 
@@ -287,7 +295,7 @@ function startMatch(match, at, present, deck) {
     else forfeit(match, human, at);
     return;
   }
-  simulate(match, deck);
+  simulate(match, deck, at);
   match.endAt = at + matchMinutes(match);
 }
 
@@ -534,12 +542,12 @@ export function createArena({ ledger, roster = () => [] }) {
           return null;
         }
         match.tier = tier;
-        match.rival = absorption.respond(match[rival], match.pending, limitOf(tier));
+        match.rival = npcAnswer(match[rival], match.pending, limitOf(tier), now);
         store.save();
       }
       match.tier ??= tierOf(match);
       const limit = limitOf(match.tier);
-      match.rival ??= absorption.respond(match[rival], match.pending, limit);
+      match.rival ??= npcAnswer(match[rival], match.pending, limit, now);
       return {
         key: match.pending,
         seconds: limit,
@@ -561,7 +569,7 @@ export function createArena({ ledger, roster = () => [] }) {
       const rival = other(side);
       const key = match.pending;
       const tier = match.tier ?? tierOf(match);
-      const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? absorption.respond(match[rival], key, limitOf(tier)) }, tier);
+      const turn = resolveTurn(match, key, { [side]: answer, [rival]: match.rival ?? npcAnswer(match[rival], key, limitOf(tier), now) }, tier);
       if (match.winner) match.endAt = now;
       store.save();
       return turn;

@@ -1,4 +1,4 @@
-import { ARENA, AWAY, BLESSING, ECONOMY, VILLAGER } from './config.js';
+import { ARENA, AWAY, BLESSING, ECONOMY, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -8,6 +8,10 @@ import { nextBlessingRate, planDay, pruneBook, record, sumBook } from './townhal
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
 import { LEGACY_NPC_IDS, NPC } from './npcIds.js';
 import { trade } from './trade.js';
+import { certify } from './certify.js';
+import { traits } from './traits.js';
+import { fate } from './fate.js';
+import { census } from './census.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -43,10 +47,11 @@ function load() {
         blessingRate: Number.isFinite(saved.blessingRate) ? saved.blessingRate : BLESSING.cost,
         blessingCaps: saved.blessingCaps && typeof saved.blessingCaps === 'object' ? saved.blessingCaps : {},
         blessingCarry: saved.blessingCarry && typeof saved.blessingCarry === 'object' ? saved.blessingCarry : {},
+        tuition: Number.isFinite(saved.tuition) ? saved.tuition : 0,
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingRate: BLESSING.cost, blessingCaps: {}, blessingCarry: {} };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingRate: BLESSING.cost, blessingCaps: {}, blessingCarry: {}, tuition: 0 };
 }
 
 let ctx = null;
@@ -233,14 +238,61 @@ function manageSavings() {
   }
 }
 
+const villagers = () => (ctx.villagers ? ctx.villagers() : []);
+
+function payStipends() {
+  const teacher = ctx.ledger.purse(NPC.teacher);
+  const pot = Math.min(teacher.money, Math.floor(state.tuition * STIPEND.share));
+  state.tuition = 0;
+  if (!(pot > 0)) return;
+  const scholars = villagers()
+    .map((id) => ({ id, certs: certify.certifiedTotal(id) }))
+    .filter((row) => row.certs >= STIPEND.minCerts)
+    .sort((a, b) => b.certs - a.certs)
+    .slice(0, STIPEND.top);
+  const each = scholars.length ? Math.floor(pot / scholars.length) : 0;
+  if (!(each > 0) || !teacher.spend(each * scholars.length)) return;
+  for (const { id } of scholars) {
+    ctx.ledger.purse(id).earn(each);
+    trackEarn(id, each);
+  }
+}
+
+function strikeShocks(day) {
+  for (const id of villagers()) {
+    const hit = fate.roll(day);
+    if (!hit) continue;
+    const purse = ctx.ledger.purse(id);
+    purse.shiftEnergy(Math.min(0, hit.energy - purse.energy));
+    if (purse.spend(hit.cost)) economy.retail(NPC.grocer, hit.cost, 0, id);
+    traits.note(id, 'tired', day);
+  }
+}
+
+function worthOf(id) {
+  return Math.floor(ctx.ledger.purse(id).money) + ctx.bank.deposited(id) - ctx.bank.debt(id) - Math.ceil(trade.debtOf(id)) + (ctx.estate.houseOf(id)?.price ?? 0);
+}
+
+function supplyOf() {
+  return ctx.people().reduce((sum, id) => sum + Math.floor(ctx.ledger.purse(id).money) + ctx.bank.deposited(id) - ctx.bank.debt(id), 0);
+}
+
+function takeCensus(day) {
+  const worth = Object.fromEntries(villagers().map((id) => [id, worthOf(id)]));
+  census.record(day, worth, supplyOf(), ctx.ledger.purse(FUND).money);
+}
+
 function settleDay(day) {
   payWages();
+  payStipends();
   collectTaxes();
+  strikeShocks(day);
   trade.meals(SHOPKEEPERS.map((keeper) => keeper.id));
   trade.daily();
   sellDistressedHouses();
   manageSavings();
   planFor(day);
+  takeCensus(day);
 }
 
 function settleThrough(t) {
@@ -307,8 +359,8 @@ export const economy = {
   get catching() {
     return catching;
   },
-  async start({ ledger, bank, estate, staff, people, now, away, progress = null }) {
-    ctx = { ledger, bank, estate, staff, people, now, away };
+  async start({ ledger, bank, estate, staff, people, villagers: roster = null, now, away, progress = null }) {
+    ctx = { ledger, bank, estate, staff, people, villagers: roster, now, away };
     if (!state.seeded) {
       state.seeded = true;
       pay(FUND, ECONOMY.fundSeed);
@@ -321,9 +373,11 @@ export const economy = {
   },
   income(seller, price, payer = null) {
     if (!ctx || !(price > 0)) return;
-    const keep = price * (ECONOMY.keep[ROLE_OF.get(seller)] ?? 0);
+    const role = ROLE_OF.get(seller);
+    const keep = price * (ECONOMY.keep[role] ?? 0);
     const tax = price * ECONOMY.vat;
     const cut = payEarner(seller, keep);
+    if (role === 'teacher') state.tuition += keep - cut;
     deposit(tax, 'vat');
     trackSpend(payer, price, { [seller]: keep - cut, [FUND]: tax + cut });
     store.save();
@@ -360,6 +414,19 @@ export const economy = {
     pay(seller, net - cut);
     trackSpend(payer, price, { [seller]: net - cut, [FUND]: tax + cut });
     store.save();
+  },
+  census() {
+    if (!ctx) return null;
+    const ids = villagers();
+    const day = today();
+    return census.report({
+      day,
+      worth: Object.fromEntries(ids.map((id) => [id, worthOf(id)])),
+      traits: ids.map((id) => traits.snapshot(id)),
+      acts: ids.map((id) => traits.lastActs(id)),
+      supply: supplyOf(),
+      fund: ctx.ledger.purse(FUND).money,
+    });
   },
   dailyFlow(id) {
     const flow = state.flows[id];

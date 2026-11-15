@@ -1,4 +1,5 @@
-import { ABSORB } from './config.js';
+import { ABSORB, FLUENCY } from './config.js';
+import { fluency } from './fluency.js';
 import { certify } from './certify.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
@@ -93,11 +94,12 @@ export const absorption = {
   answer(id, key) {
     return Math.random() < this.chance(id, key);
   },
-  respond(id, key, limit) {
+  respond(id, key, limit, day = null) {
     const { think } = ABSORB;
     const hold = holdOf(id, key);
     const correct = Math.random() < chanceOf(hold);
-    const share = correct && hold > 0 ? think.sure + (think.slow - think.sure) * (1 - hold) : between(...think.guess);
+    const fluent = hold * (FLUENCY.floor + (1 - FLUENCY.floor) * fluency.of(id, key, day));
+    const share = correct && hold > 0 ? think.sure + (think.slow - think.sure) * (1 - fluent) : between(...think.guess);
     return { correct, seconds: Math.min(limit, limit * share * between(...think.jitter)) };
   },
   forgets(id) {

@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
@@ -8,8 +8,8 @@ import { blessingAskScore } from './blessingRules.js';
 import { averageYield } from './market.js';
 import { trade } from './trade.js';
 import { SELF_STUDY } from './villagerData.js';
-
-const KINDS = ['farm', 'fish', 'hunt', 'study', 'blessing'];
+import { traits } from './traits.js';
+import { fluency } from './fluency.js';
 
 const weighted = (entries) => {
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -38,11 +38,7 @@ export function blessingStayMinutes(from, close, roll = between(...BLESSING.vill
 
 export class MindBehavior {
   tasteFor(kind) {
-    if (!this.taste) {
-      this.taste = Object.fromEntries(KINDS.map((name) => [name, between(...MIND.taste)]));
-      if (this.kind === 'farmer') this.taste.farm += MIND.farmerFarmTaste;
-    }
-    return this.taste[kind] ?? 1;
+    return traits.taste(this.id, kind);
   }
 
   moneyNeed() {
@@ -62,12 +58,12 @@ export class MindBehavior {
   }
 
   fishGain(need, casts) {
-    const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
+    const skill = traits.skill(this.id, 'fish');
     return casts * ((skill * FISH_VALUE * trade.payRate('fish') - BAIT_PER_CAST) * need - ENERGY.costs.fish * MIND.energyCoin);
   }
 
   huntGain(need) {
-    const skill = HUNTING.villagerSkill[this.kind] ?? 0.5;
+    const skill = traits.skill(this.id, 'hunt');
     return skill * GAME_VALUE * trade.payRate('game') * need - HUNTING.energy * MIND.energyCoin;
   }
 
@@ -79,6 +75,20 @@ export class MindBehavior {
     const fresh = this.studiedToday() ? 0 : MIND.reviewValue * sit;
     const weak = certify.reviewQuestions(this.id, deck).length * MIND.weakValue;
     return (fresh + weak) * this.diligence - CERTIFY.reviewFee * need;
+  }
+
+  prepDeckWanted(ctx = this.town.context) {
+    const event = this.town.arena?.event;
+    if (!event || event.phase !== 'open' || !event.entrants.includes(this.id)) return null;
+    const left = event.at - ctx.minutes;
+    if (left > ARENA.prep.before || left < (CERTIFY.sitSeconds / 60) * 1.5) return null;
+    if (certify.certifiedCount(this.id, event.deck) < ARENA.prep.minCards || this.purse.money < CERTIFY.reviewFee) return null;
+    return event.deck;
+  }
+
+  prepGain(need, sit, deck, day) {
+    const dull = 1 - fluency.average(this.id, certify.certified(this.id, deck), day);
+    return MIND.prepValue * sit * dull * this.diligence - CERTIFY.reviewFee * need;
   }
 
   answerOdds() {
@@ -166,9 +176,19 @@ export class MindBehavior {
     return { kind: 'study', rate: (this.reviewGain(need, sit, deck) / (this.walkMinutes(seat.spot) + sit)) * crowd, go: () => this.goReview(deck) };
   }
 
+  prepOption(ctx, need) {
+    if (!this.seated || this.now < this.studyRestAt) return null;
+    const deck = this.prepDeckWanted(ctx);
+    const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
+    if (!seat) return null;
+    const sit = CERTIFY.sitSeconds / 60;
+    const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
+    return { kind: 'study', rate: (this.prepGain(need, sit, deck, ctx.day) / (this.walkMinutes(seat.spot) + sit)) * crowd, go: () => this.goPrep(deck) };
+  }
+
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.blessingOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {
@@ -183,6 +203,7 @@ export class MindBehavior {
   follow(option) {
     this.lastPlan = option.kind;
     this.lastPlanAt = this.now;
+    traits.did(this.id, option.kind, this.town.context?.day);
     option.go();
   }
 }

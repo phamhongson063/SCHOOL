@@ -12,6 +12,7 @@ import { PLAYER } from './inventory.js';
 import { certify } from './certify.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
+import { traits } from './traits.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
@@ -112,8 +113,15 @@ export class Town {
     const day = this.context?.day;
     for (const member of this.all) {
       if (Number.isInteger(day)) {
-        if (member.purse.energy < ENERGY.low) absorption.note(member.id, 'tired', day);
-        if (member.debt() > 0) absorption.note(member.id, 'debt', day);
+        const villager = member.kind === 'villager';
+        if (member.purse.energy < ENERGY.low) {
+          absorption.note(member.id, 'tired', day);
+          if (villager) traits.note(member.id, 'tired', day);
+        }
+        if (member.debt() > 0) {
+          absorption.note(member.id, 'debt', day);
+          if (villager) traits.note(member.id, 'debt', day);
+        }
       }
       if (!member.answerPool()) continue;
       economy.reward(member.purse, QUIZ.reward);

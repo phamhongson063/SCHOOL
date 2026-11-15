@@ -95,21 +95,21 @@ const FARMERS = [
 ];
 
 const NEWCOMERS = [
-  { id: 'v-sqz3dux2', name: 'Sora', kind: 'student', look: { shirt: 0x3a5a8a, pants: 0xf1ebdc, skin: 0xf0c09a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
-  { id: 'v-hula1fyg', name: 'Hana', kind: 'student', look: { shirt: 0xa0604a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e } },
-  { id: 'v-bojm575a', name: 'Daniel', kind: 'student', look: { shirt: 0xc89a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
-  { id: 'v-fwh6qovx', name: 'Eunji', kind: 'student', look: { shirt: 0x3a8a7a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'bui', hairColor: 0x2a201b, iris: 0x6a3a1e } },
-  { id: 'v-u1eheepu', name: 'Kenji', kind: 'student', look: { shirt: 0x7a5236, pants: 0xf1ebdc, skin: 0xe6b08a, style: 'bachom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
-  { id: 'v-081sseh2', name: 'Meiling', kind: 'student', look: { shirt: 0xa83a2a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e } },
-  { id: 'v-40lhd03r', name: 'Noah', kind: 'student', look: { shirt: 0x5a6a3a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
-  { id: 'v-83bas3vc', name: 'Takeshi', kind: 'farmer', look: { shirt: 0x5a4a3a, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xe2d29c } },
-  { id: 'v-jwkvwby6', name: 'Grace', kind: 'farmer', look: { shirt: 0x6a5a7a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8, scarf: 0x7a5236 } },
-  { id: 'v-i822927q', name: 'Dongwoo', kind: 'farmer', look: { shirt: 0x4a5a6a, pants: 0x3a3430, skin: 0xd9a479, style: 'khan', khan: 0x8a2a1a, iris: 0x4a2a18, hat: 0xe5d6a2 } },
-  { id: 'v-runpspd8', name: 'Yumi', kind: 'farmer', look: { shirt: 0x3a3450, pants: 0x2f2a26, skin: 0xf0c09a, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
-  { id: 'v-0psn2cox', name: 'Henry', kind: 'farmer', look: { shirt: 0x8a6a4a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24, hat: 0xe9dbab, scarf: 0x4a6a9a } },
-  { id: 'v-ezb8w5p1', name: 'Minji', kind: 'farmer', look: { shirt: 0xb06a3a, pants: 0x2f2a26, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
-  { id: 'v-uh3279au', name: 'Zhiwei', kind: 'farmer', look: { shirt: 0x4a7a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18, hat: 0xe2d29c } },
-  { id: 'v-qy7m2o15', name: 'Clara', kind: 'farmer', look: { shirt: 0x6a3a3a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe8d9a8, scarf: 0x9a2a1a } },
+  { id: 'v-sqz3dux2', name: 'Sora', look: { shirt: 0x3a5a8a, pants: 0xf1ebdc, skin: 0xf0c09a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
+  { id: 'v-hula1fyg', name: 'Hana', look: { shirt: 0xa0604a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e } },
+  { id: 'v-bojm575a', name: 'Daniel', look: { shirt: 0xc89a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
+  { id: 'v-fwh6qovx', name: 'Eunji', look: { shirt: 0x3a8a7a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'bui', hairColor: 0x2a201b, iris: 0x6a3a1e } },
+  { id: 'v-u1eheepu', name: 'Kenji', look: { shirt: 0x7a5236, pants: 0xf1ebdc, skin: 0xe6b08a, style: 'bachom', hairColor: 0x2a201b, iris: 0x4a2a18 } },
+  { id: 'v-081sseh2', name: 'Meiling', look: { shirt: 0xa83a2a, pants: 0x3a3430, skin: 0xf5caa6, style: 'bob', hairColor: 0x2a201b, iris: 0x6a3a1e } },
+  { id: 'v-40lhd03r', name: 'Noah', look: { shirt: 0x5a6a3a, pants: 0xe0d4b8, skin: 0xf0c09a, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24 } },
+  { id: 'v-83bas3vc', name: 'Takeshi', look: { shirt: 0x5a4a3a, pants: 0x2f2a26, skin: 0xcf9a70, style: 'toc', hairColor: 0xe6e2da, old: true, beardColor: 0xf2efe8, iris: 0x3a2214, hat: 0xe2d29c } },
+  { id: 'v-jwkvwby6', name: 'Grace', look: { shirt: 0x6a5a7a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0xdcd8d0, old: true, iris: 0x3a2214, hat: 0xe8d9a8, scarf: 0x7a5236 } },
+  { id: 'v-i822927q', name: 'Dongwoo', look: { shirt: 0x4a5a6a, pants: 0x3a3430, skin: 0xd9a479, style: 'khan', khan: 0x8a2a1a, iris: 0x4a2a18, hat: 0xe5d6a2 } },
+  { id: 'v-runpspd8', name: 'Yumi', look: { shirt: 0x3a3450, pants: 0x2f2a26, skin: 0xf0c09a, style: 'curly', hairColor: 0x2a201b, iris: 0x6a3a1e, hat: 0xeadcae } },
+  { id: 'v-0psn2cox', name: 'Henry', look: { shirt: 0x8a6a4a, pants: 0x4a3a30, skin: 0xf2c4a0, style: 'toc', hairColor: 0x4a2e1e, iris: 0x7a4a24, hat: 0xe9dbab, scarf: 0x4a6a9a } },
+  { id: 'v-ezb8w5p1', name: 'Minji', look: { shirt: 0xb06a3a, pants: 0x2f2a26, skin: 0xf5caa6, style: 'bob', hairColor: 0x3a2418, iris: 0x6a3a1e, hat: 0xece0b4 } },
+  { id: 'v-uh3279au', name: 'Zhiwei', look: { shirt: 0x4a7a3a, pants: 0x3a3430, skin: 0xe6b08a, style: 'chom', hairColor: 0x2a201b, iris: 0x4a2a18, hat: 0xe2d29c } },
+  { id: 'v-qy7m2o15', name: 'Clara', look: { shirt: 0x6a3a3a, pants: 0x2f2a26, skin: 0xe0ad84, style: 'bui', hairColor: 0x3a2418, iris: 0x5a3220, hat: 0xe8d9a8, scarf: 0x9a2a1a } },
 ];
 
 export const TEACHER = {
@@ -172,13 +172,14 @@ export function villagerProfiles() {
   const students = STUDENTS.map(([id, name, model]) => {
     const look = { shirt: choose(SHIRTS), pants: choose(PANTS), skin: choose(SKINS), style: choose(STYLES), khan: choose(KHANS), iris: choose(IRISES) };
     look.hairColor = HAIRS[Math.floor(tint() * HAIRS.length)];
-    return { id, name, kind: 'student', model, look, diligence: 0.82 + rand() * 0.15, exit: rand() < 0.5 ? 0 : 1 };
+    return { id, name, kind: 'villager', model, look, seed: rand(), exit: rand() < 0.5 ? 0 : 1 };
   });
-  const farmers = FARMERS.map((farmer) => ({ ...farmer, kind: 'farmer', diligence: 0.3 + rand() * 0.3, exit: rand() < 0.5 ? 0 : 1 }));
+  const farmers = FARMERS.map((farmer) => ({ ...farmer, kind: 'villager', seed: rand(), exit: rand() < 0.5 ? 0 : 1 }));
   const later = makeRandom(131);
   const newcomers = NEWCOMERS.map((villager) => ({
     ...villager,
-    diligence: villager.kind === 'student' ? 0.82 + later() * 0.15 : 0.3 + later() * 0.3,
+    kind: 'villager',
+    seed: later(),
     exit: later() < 0.5 ? 0 : 1,
   }));
   return [...students, ...farmers, ...newcomers];

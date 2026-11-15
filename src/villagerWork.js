@@ -6,6 +6,7 @@ import { FISHING, ENERGY, HUNTING, CERTIFY } from './config.js';
 import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
+import { traits } from './traits.js';
 
 const SIGN_SECONDS = 2.4;
 
@@ -76,8 +77,7 @@ export class WorkBehavior {
     }
     const prey = session.prey;
     this.facing = Math.atan2(prey.x - this.position.x, prey.z - this.position.z);
-    const skill = HUNTING.villagerSkill[this.kind] ?? 0.5;
-    if (Math.random() < skill) {
+    if (Math.random() < traits.skill(this.id, 'hunt')) {
       const item = wildlife.capture(prey);
       this.purse.add(item, 1);
       this.luckyIntellect();
@@ -171,8 +171,7 @@ export class WorkBehavior {
   }
 
   landFish(spot, minutes) {
-    const skill = FISHING.villagerSkill[this.kind] ?? 0.5;
-    if (!(Math.random() < skill && this.town.river.take(spot))) return null;
+    if (!(Math.random() < traits.skill(this.id, 'fish') && this.town.river.take(spot))) return null;
     const fish = this.town.river.rollFish(minutes);
     this.purse.add(fishId(fish), 1);
     this.luckyIntellect();
@@ -253,12 +252,13 @@ export class WorkBehavior {
         return;
       }
     }
-    if (r < 0.75 || this.kind === 'student') {
-      const point = this.kind === 'student' ? this.town.strollPoint() : this.town.fieldEdgePoint();
+    const townie = this.tasteFor('farm') < 1;
+    if (r < 0.75 || townie) {
+      const point = townie ? this.town.strollPoint() : this.town.fieldEdgePoint();
       this.travel(point, {
         speed: this.walkSpeed,
         then: () => {
-          if (this.kind !== 'student' && Math.random() < 0.2) this.say(pick(FIELD), 2.2);
+          if (!townie && Math.random() < 0.2) this.say(pick(FIELD), 2.2);
           this.wait(between(2, 5));
         },
       });

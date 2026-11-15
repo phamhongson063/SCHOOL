@@ -12,6 +12,8 @@ import { between } from './random.js';
 import { VILLAGER, ENERGY, MOVE, CERTIFY } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
+import { fluency } from './fluency.js';
+import { traits } from './traits.js';
 import { leaveRoom } from './lodging.js';
 import { layDown, restEase } from './walk.js';
 import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
@@ -30,12 +32,8 @@ export class Villager {
     this.name = profile.name;
     this.kind = profile.kind;
     this.town = town;
-    this.diligence = profile.diligence ?? 0;
-    this.innGoer = Math.random() < 0.35;
     this.studyUntil = 0;
     this.studyRestAt = 0;
-    this.comfort = Math.random();
-    this.thrift = Math.random();
     this.lodge = null;
     this.lodgeNight = false;
     this.sleepingOut = false;
@@ -60,7 +58,7 @@ export class Villager {
     this.glow = town.restGlow.spawn();
     town.root.add(this.glow);
     this.seated = null;
-    if (this.kind === 'student' || this.kind === 'farmer') {
+    if (this.kind === 'villager') {
       this.seated = model ? createModel(model, { seated: true }) : createStudent(profile.look);
       this.seated.group.visible = false;
       town.root.add(this.seated.group);
@@ -71,7 +69,7 @@ export class Villager {
     }
     this.fx = null;
 
-    const adult = this.kind !== 'student';
+    const adult = (profile.seed ?? Math.random()) >= 0.45;
     this.walkSpeed = MOVE.walk;
     this.runSpeed = MOVE.run;
     this.lane = between(-LANE, LANE);
@@ -117,6 +115,22 @@ export class Villager {
     return this.town.ledger.purse(this.id);
   }
 
+  get diligence() {
+    return traits.diligence(this.id);
+  }
+
+  get innGoer() {
+    return traits.innGoer(this.id);
+  }
+
+  get comfort() {
+    return traits.comfort(this.id);
+  }
+
+  get thrift() {
+    return traits.thrift(this.id);
+  }
+
   get effects() {
     this.fx ??= {
       water: createWatering(this.town.root, this.walker),
@@ -149,7 +163,11 @@ export class Villager {
 
   answerPool() {
     const keys = certify.pool(this.id);
-    return keys.length > 0 && absorption.answer(this.id, keys[Math.floor(Math.random() * keys.length)]);
+    if (!keys.length) return false;
+    const key = keys[Math.floor(Math.random() * keys.length)];
+    const correct = absorption.answer(this.id, key);
+    fluency.recall(this.id, key, this.town.context?.day, correct);
+    return correct;
   }
 
   luckyIntellect() {

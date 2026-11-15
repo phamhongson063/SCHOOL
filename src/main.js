@@ -760,11 +760,13 @@ await economy.start({
     ...town.guards.map((guard) => ({ id: guard.id, role: 'guard' })),
   ],
   people: () => everyone.map((person) => person.id),
+  villagers: () => town.members.map((member) => member.id),
   now: gameNow,
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
 createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow });
+window.census = () => economy.census();
 
 let context = null;
 
