@@ -23,6 +23,8 @@ const FARM = MIND.workSeconds / 60;
 const SWAT = FIREFLY.villagerSwat / 60;
 const COOLDOWN = SELF_STUDY.cooldown / 60;
 const QUIZ_MINUTES = QUIZ.seconds / 60;
+const INTERNAL_TRIP = AWAY.walk + MIND.queueSeconds / 60;
+const examPace = (deck) => CERTIFY.seconds[deck] * between(0.4, 0.8);
 const PREY = Object.entries(WILDLIFE).filter(([, animal]) => animal.gentle);
 const PREY_TOTAL = PREY.reduce((sum, [, animal]) => sum + animal.count, 0);
 
@@ -71,6 +73,9 @@ function blessingAnswers(member, minutes) {
 export function createAwaySim({ town, contextAt }) {
   const { farm, market, river, bank, estate } = town;
   const seatsOf = Object.fromEntries(DECK_IDS.map((deck) => [deck, town.studySeats.list.filter((seat) => seat.deck === deck).length]));
+  const examSeats = town.seats.list.map(() => []);
+  const internalSeats = Object.fromEntries(DECK_IDS.map((deck) => [deck, town.internalSeats.list.filter((seat) => seat.deck === deck).map(() => [])]));
+  const allSeats = () => [examSeats, ...Object.values(internalSeats)].flat();
   const memos = new Map();
   let quizCarry = 0;
 
@@ -126,15 +131,36 @@ export function createAwaySim({ town, contextAt }) {
     if (town.started || !(study?.left > 0) || !Number.isFinite(from)) return;
     const until = from + study.left / 60;
     if (until <= memo.busyUntil) return;
-    memo.busyUntil = until;
-    memo.busyAs = 'study';
+    occupy(memo, -Infinity, until, 'study');
+  }
+
+  function occupy(memo, from, to, as) {
+    const start = Math.max(from, memo.busyUntil);
+    if (to > start) memo.busy.push({ from: start, to, as });
+    memo.busyUntil = Math.max(memo.busyUntil, to);
+  }
+
+  function busyTime(memo, from, end, used) {
+    for (const part of memo.busy) used[part.as] += Math.max(0, Math.min(part.to, end) - Math.max(part.from, from));
+    memo.busy = memo.busy.filter((part) => part.to > end);
+  }
+
+  const seatFree = (bookings, from, to) => bookings.every(([start, stop]) => stop <= from || start >= to);
+
+  function earliestSeat(seats, from, length) {
+    const times = [from, ...seats.flat().map(([, stop]) => stop).filter((stop) => stop > from)].sort((a, b) => a - b);
+    for (const at of times) {
+      const seat = seats.find((bookings) => seatFree(bookings, at, at + length));
+      if (seat) return { seat, at };
+    }
+    return null;
   }
 
   function memoOf(member) {
     if (!memos.has(member.id)) {
-      const memo = { night: null, room: null, stay: null, studyAt: -Infinity, busyUntil: -Infinity, busyAs: 'walk', lantern: savedLanternJob(member) };
+      const memo = { night: null, room: null, stay: null, studyAt: -Infinity, busyUntil: -Infinity, busy: [], lantern: savedLanternJob(member) };
       if (memo.lantern) {
-        memo.busyUntil = memo.lantern.at;
+        occupy(memo, -Infinity, memo.lantern.at, 'walk');
         town.lanterns?.claim(member.id, memo.lantern.id);
       }
       const entry = town.started ? null : savedEntry(member);
@@ -205,35 +231,63 @@ export function createAwaySim({ town, contextAt }) {
     if (!(member.wantsFood(ctx) && member.feast(FOODS, NPC.cook).length)) member.snack();
   }
 
-  function exams(member, ctx) {
-    if (!member.seated) return;
+  function examAt(member, at) {
+    if (!member.seated) return false;
+    const ctx = contextAt(at);
     const deck = member.examDeckWanted(ctx);
-    if (deck) {
-      const keys = member.beginExam(deck, CERTIFY.seconds[deck] * between(0.4, 0.8));
-      if (keys) traits.note(member.id, certify.gradeExam(member.id, deck, simulateExam(member, deck, keys)).passed ? 'pass' : 'fail', ctx.day);
-    }
-    for (const other of DECK_IDS) {
-      if (!member.wantsInternal(other)) continue;
-      const keys = member.beginInternal(other, CERTIFY.seconds[other] * between(0.4, 0.8));
-      if (keys) certify.gradeInternal(member.id, other, simulate(member, keys));
-    }
+    if (!deck) return false;
+    const pace = examPace(deck);
+    const arrive = at + AWAY.walk;
+    const longest = (Math.ceil((CERTIFY.examMinutes * 60) / pace) * pace) / 60;
+    const seat = examSeats.find((bookings) => seatFree(bookings, at, arrive + longest));
+    if (!seat) return false;
+    const keys = member.beginExam(deck, pace);
+    if (!keys) return false;
+    const results = simulateExam(member, deck, keys);
+    const done = arrive + (results.length * pace) / 60;
+    seat.push([at, done]);
+    traits.note(member.id, certify.gradeExam(member.id, deck, results).passed ? 'pass' : 'fail', ctx.day);
+    occupy(memoOf(member), at, done, 'study');
+    return true;
+  }
+
+  function exams(member, ctx, end) {
+    const memo = memoOf(member);
+    let at = Math.max(ctx.minutes, memo.busyUntil);
+    while (at < end && examAt(member, at)) at = memo.busyUntil;
+  }
+
+  function internalDeck(member, clock) {
+    if (!member.seated || contextAt(clock).night) return null;
+    return DECK_IDS.find((deck) => internalSeats[deck].length && member.wantsInternal(deck)) ?? null;
+  }
+
+  function takeInternal(member, deck, clock) {
+    const pace = examPace(deck);
+    const keys = member.beginInternal(deck, pace);
+    if (!keys) return AWAY.walk;
+    const length = (keys.length * pace) / 60;
+    const { seat, at } = earliestSeat(internalSeats[deck], clock + INTERNAL_TRIP, length);
+    seat.push([at, at + length]);
+    certify.gradeInternal(member.id, deck, simulate(member, keys));
+    return at + length - clock;
   }
 
   function signUp(member, ctx) {
     const arena = town.arena;
     if (!town.arenaDesk || !arena?.consider(member.id, ctx.minutes, member.arenaCost(ctx.minutes))) return;
     const memo = memoOf(member);
-    const arrive = Math.max(ctx.minutes, memo.busyUntil) + AWAY.walk;
-    memo.busyUntil = arrive;
-    memo.busyAs = 'walk';
+    const leave = Math.max(ctx.minutes, memo.busyUntil);
+    const arrive = leave + AWAY.walk;
+    occupy(memo, leave, arrive, 'walk');
     if (arrive < arena.event.at) arena.register(member.id);
   }
 
   function signLanterns(member, ctx) {
     if (!member.wantsLanternSignup(ctx)) return;
     const memo = memoOf(member);
-    memo.busyUntil = Math.max(ctx.minutes, memo.busyUntil) + AWAY.walk;
-    memo.busyAs = 'walk';
+    const leave = Math.max(ctx.minutes, memo.busyUntil);
+    occupy(memo, leave, leave + AWAY.walk, 'walk');
     town.lanterns.register(member.id, ctx.minutes);
   }
 
@@ -264,11 +318,11 @@ export function createAwaySim({ town, contextAt }) {
     member.bankRoll = Math.random();
   }
 
-  function errands(member, ctx) {
+  function errands(member, ctx, end) {
     const purse = member.purse;
     eat(member, ctx);
     if (ctx.martOpen && member.wantsMart()) member.buySnacks();
-    exams(member, ctx);
+    exams(member, ctx, end);
     signUp(member, ctx);
     signLanterns(member, ctx);
     banking(member, ctx);
@@ -412,6 +466,8 @@ export function createAwaySim({ town, contextAt }) {
     }
     if (canHunt(member, slots)) options.push({ kind: 'hunt', as: 'walk', rate: member.huntGain(need) / (AWAY.walk + HUNT), run: () => hunt(member, slots) });
     if (ctx.night && flyDensity() > 0) options.push({ kind: 'firefly', as: 'walk', rate: member.fireflyGain() / swatMinutes(), run: () => swat(member) });
+    const internal = internalDeck(member, clock);
+    if (internal) options.push({ kind: 'study', as: 'study', rate: (MIND.internalValue * member.diligence - CERTIFY.internalFee * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
     const deck = studyDeck(member, ctx, slots);
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
@@ -431,19 +487,21 @@ export function createAwaySim({ town, contextAt }) {
   function work(member, ctx, minutes, slots) {
     const memo = memoOf(member);
     const end = ctx.minutes + minutes;
-    const used = { walk: 0, study: 0, idle: 0 };
-    if (memo.busyUntil > ctx.minutes) used[memo.busyAs] += Math.min(memo.busyUntil, end) - ctx.minutes;
     let clock = Math.max(ctx.minutes, memo.busyUntil);
     while (clock < end && member.purse.energy >= ENERGY.workMin) {
+      if (examAt(member, clock)) {
+        clock = memo.busyUntil;
+        continue;
+      }
       const option = choose(member, ctx, slots, clock, end);
       if (!option) break;
       traits.did(member.id, option.kind, ctx.day);
       const spent = option.run();
-      used[option.as] += Math.min(spent, end - clock);
+      occupy(memo, clock, clock + spent, option.as);
       clock += spent;
-      memo.busyAs = option.as;
     }
-    memo.busyUntil = clock;
+    const used = { walk: 0, study: 0, idle: 0 };
+    busyTime(memo, ctx.minutes, end, used);
     return used;
   }
 
@@ -469,14 +527,16 @@ export function createAwaySim({ town, contextAt }) {
       memo.night = null;
       keepInn(member, null);
     }
+    memo.busy = [];
     memo.busyUntil = hold.to;
-    memo.busyAs = 'idle';
     member.purse.tickEnergy(hold.to, energyRate('idle', ctx.night));
     if (hold.to < end) live(member, contextAt(hold.to), end - hold.to, slots);
   }
 
   function live(member, ctx, minutes, slots) {
     const end = ctx.minutes + minutes;
+    const memo = memoOf(member);
+    memo.busy = memo.busy.filter((part) => part.to > ctx.minutes);
     const hold = town.arena?.holdOf(member.id, ctx.minutes, end);
     if (hold) {
       if (hold.from > ctx.minutes) live(member, ctx, hold.from - ctx.minutes, slots);
@@ -484,10 +544,10 @@ export function createAwaySim({ town, contextAt }) {
     }
     finishLantern(member, end);
     member.settleBlessing();
-    if (memoOf(member).busyUntil < end) {
+    if (memo.busyUntil < end) {
       if (ctx.night && member.needsSleep(ctx)) return sleep(member, ctx, end);
       if (!ctx.night) {
-        errands(member, ctx);
+        errands(member, ctx, end);
         if (lodged(member, end)) return;
       }
       if (member.purse.energy < ENERGY.workMin) return member.purse.tickEnergy(end, energyRate('rest', ctx.night));
@@ -502,6 +562,7 @@ export function createAwaySim({ town, contextAt }) {
     begin() {
       town.suspend();
       memos.clear();
+      for (const bookings of allSeats()) bookings.length = 0;
     },
     during(run) {
       const before = town.context;
@@ -522,6 +583,7 @@ export function createAwaySim({ town, contextAt }) {
       town.lanterns?.tick(from);
       farm.grow();
       river.restock(from);
+      for (const bookings of allSeats()) bookings.splice(0, bookings.length, ...bookings.filter(([, stop]) => stop > from));
       const slots = { anglers: new Set(), hunters: new Set(), study: new Map(), seats: { ...seatsOf } };
       for (const member of shuffled(town.members)) live(member, ctx, minutes, slots);
       quizCarry += minutes;
