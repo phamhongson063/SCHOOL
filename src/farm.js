@@ -6,7 +6,7 @@ import { bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { BEDS, FIELDS, FIELD_OF, FIRST_SPOT, SPOT_BED, bedHead, bedPlace, bedPoint, bedsOf, fieldObstacles, fieldOf, layoutSpots, leasePrice, leasesFromSave, leasesToSave, signPoint, spotAt, spotsFromSave, spotsToSave, standFor, standsAt } from './fieldPlan.js';
 import { CROPS, RIPE, SPENT, mound } from './crops.js';
 import { LOW_POWER } from './quality.js';
-import { gameNow, durationText, DAY_MINUTES } from './clock.js';
+import { gameNow, durationText, countdownText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, VILLAGER, growDays } from './config.js';
 import { holesWanted } from './holdings.js';
 import { PLAYER, seedId } from './inventory.js';
@@ -311,14 +311,14 @@ class FarmState {
   stakeLabel(bed, now) {
     const lease = this.leases.holder(bed, now);
     if (!lease) return null;
-    return lease.owner === PLAYER ? `Còn ${durationText(lease.until - now)}` : `Luống của ${this.nameOf(lease.owner)}`;
+    return lease.owner === PLAYER ? `Còn ${countdownText(lease.until - now)}` : `Luống của ${this.nameOf(lease.owner)}`;
   }
 
   label(index, now) {
     if (this.spots[index].stage !== 0) return null;
     const lease = this.leases.holder(bedOf(index), now);
     if (lease?.owner !== PLAYER || lease.until - now >= DAY_MINUTES) return null;
-    return `Còn ${durationText(lease.until - now)}`;
+    return `Còn ${countdownText(lease.until - now)}`;
   }
 
   act(name, index, now, choice, actor = PLAYER) {

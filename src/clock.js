@@ -51,8 +51,8 @@ export function countdownText(minutes) {
   const days = Math.floor(total / DAY_MINUTES);
   const hours = Math.floor((total % DAY_MINUTES) / 60);
   const mins = total % 60;
-  if (days > 0) return hours ? `${days}d ${hours}h` : `${days}d`;
-  if (hours > 0) return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  if (days > 0) return hours ? `${days}d${hours}h` : `${days}d`;
+  if (hours > 0) return mins ? `${hours}h${mins}m` : `${hours}h`;
   return `${mins}m`;
 }
 

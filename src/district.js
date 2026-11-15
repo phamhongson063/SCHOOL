@@ -393,8 +393,10 @@ export function createDistrict() {
             update() {
               const block = pending.shift();
               if (!block) return;
+              const meshes = buildBlock(block);
+              if (!meshes.length) return;
               const holder = new THREE.Group();
-              holder.add(...buildBlock(block));
+              holder.add(...meshes);
               lift(holder);
               freeze(holder);
               group.add(holder);
