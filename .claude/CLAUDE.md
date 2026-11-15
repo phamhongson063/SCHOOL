@@ -25,7 +25,8 @@
   - Mỗi từ có: `word`, `reading`, `hanViet`, `meaning`, `wrong` (đúng 3 cách đọc sai, khác đáp án), `example`, `vi`.
   - Câu ví dụ chứa `[từ]` đúng một lần, ở **dạng từ điển** (không chia động từ), không ghi furigana cho từ đó. Mọi chữ kanji khác trong câu đều có furigana `漢字{よみ}` và không được để lộ cách đọc của chữ đang hỏi.
   - `like` gồm đúng 3 chữ trông giống: 2 chữ cùng nhóm + 1 chữ ngoài nhóm. Đáp án sai của câu chọn cách viết được tạo tự động từ đây.
-  - Âm Kun: dùng `・` để tách okurigana, dùng `、` giữa các cách đọc (`に・げる、のが・す`).
+  - Âm On và âm Kun: dùng `、` giữa các cách đọc (`セイ、ショウ`, `に・げる、のが・す`), `・` chỉ dùng để tách okurigana.
+  - Trên thẻ học, thông tin chữ hiện 2 dòng: dòng 1 là chữ + Hán Việt + bộ ghép, dòng 2 là âm đọc có nhãn tròn 音 / 訓 (loại nào trống thì ẩn). Không gộp lại thành một dòng nối bằng dấu `·`.
   - Từ sách chỉ lấy danh sách chữ, cách nhóm, cách đọc và từ. **Câu ví dụ và câu chuyện ghi nhớ phải tự viết**, không chép từ sách.
   - Lý do: câu hỏi chọn cách đọc / chọn cách viết dùng chính câu ví dụ và lấy `word` làm đáp án; chia động từ hay lộ furigana sẽ làm câu hỏi sai hoặc tự lộ đáp án.
 - **Thêm bộ học mới**: khai báo `quiz` (`vocab` / `phrase` / `kanji`) và `choices` trong `DECKS`, thêm `name` cho phòng trong `STUDY_HALLS` và thêm số giây trong `CERTIFY.seconds`. Không viết `deck === 'n2'` hay `'sugu1'` trong logic.

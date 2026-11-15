@@ -3212,6 +3212,49 @@ dialog.paper.phrase-quiz {
   font: 500 13px/1.5 var(--font-ui);
 }
 
+.study-kanji-head,
+.study-kanji-reads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 14px;
+}
+
+.study-kanji-head {
+  font-weight: 700;
+}
+
+.study-kanji-parts {
+  color: var(--tan);
+  font-weight: 500;
+}
+
+.study-kanji-reads {
+  margin-top: 4px;
+  font-family: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+.study-kanji-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.study-kanji-tag {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--wood);
+  color: #fbf5e4;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .study-word ruby {
   ruby-position: over;
 }

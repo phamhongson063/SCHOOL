@@ -3,7 +3,7 @@ export const KANJI_N2 = [
     no: 1,
     kanji: '井',
     hanViet: 'TỈNH',
-    on: 'セイ・ショウ',
+    on: 'セイ、ショウ',
     kun: 'い',
     parts: '',
     like: ['丼', '囲', '并'],

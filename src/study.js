@@ -190,6 +190,20 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     example.replaceChildren(...examples.flatMap(exampleNodes));
   }
 
+  function kanjiLines({ char, hanViet: name, parts, on, kun }) {
+    const head = el('span', 'study-kanji-head', `${char} ${name}`);
+    if (parts) head.append(el('span', 'study-kanji-parts', parts));
+    const reads = el('span', 'study-kanji-reads');
+    reads.lang = 'ja';
+    for (const [tag, text] of [['音', on], ['訓', kun]]) {
+      if (!text) continue;
+      const group = el('span', 'study-kanji-read');
+      group.append(el('span', 'study-kanji-tag', tag), text);
+      reads.append(group);
+    }
+    return [head, reads];
+  }
+
   function fill(key) {
     current = key;
     const card = unitOf(key);
@@ -200,7 +214,8 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     hanViet.classList.remove('show');
     word.classList.toggle('has-hint', Boolean(card.hanViet));
     meaning.textContent = card.meaning;
-    note.textContent = card.note;
+    if (card.kanji) note.replaceChildren(...kanjiLines(card.kanji));
+    else note.textContent = card.note;
     showExamples(card.examples);
   }
 

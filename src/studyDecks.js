@@ -59,8 +59,6 @@ function rubyOf(word, reading) {
   return parts.map((part) => (KANJI.test(part) ? `${part}{${match[next++]}}` : part)).join('');
 }
 
-const kanjiNote = (kanji) => [`${kanji.kanji} ${kanji.hanViet}`, kanji.on, kanji.kun, kanji.parts].filter(Boolean).join(' · ');
-
 const kanjiCards = () =>
   KANJI_N2.flatMap((kanji) =>
     kanji.words.map((entry, i) => ({
@@ -72,7 +70,8 @@ const kanjiCards = () =>
       meaning: entry.meaning,
       distractors: entry.wrong,
       writeChoices: kanji.like.map((other) => entry.word.replaceAll(kanji.kanji, other)),
-      note: kanjiNote(kanji),
+      note: '',
+      kanji: { char: kanji.kanji, hanViet: kanji.hanViet, parts: kanji.parts, on: kanji.on, kun: kanji.kun },
       examples: [{ title: '', lines: [['', entry.example.replace(`[${entry.word}]`, `[${rubyOf(entry.word, entry.reading)}]`), entry.vi]] }],
     })),
   );
