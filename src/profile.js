@@ -8,13 +8,7 @@ import { homelandOf, netWorth, habitsOf, abilitiesOf, certifiedDecks, certifiedR
 const ROW = 50;
 const OVERSCAN = 6;
 const RADAR = 40;
-const HABITS = {
-  farm: { icon: '🌾', label: 'Làm ruộng' },
-  fish: { icon: '🎣', label: 'Câu cá' },
-  hunt: { icon: '🏹', label: 'Săn bắt' },
-  study: { icon: '📖', label: 'Học' },
-  blessing: { icon: '🙏', label: 'Chúc phúc' },
-};
+const HABITS = { farm: '🌾', fish: '🎣', hunt: '🏹', study: '📖', blessing: '🙏' };
 const SKILL_LABELS = { farm: 'Làm ruộng', fish: 'Câu cá', hunt: 'Săn bắt' };
 
 function el(tag, className, text) {
@@ -47,10 +41,8 @@ function radarMarkup(habits) {
   const shape = `<polygon class="radar-shape" points="${polygon(count, (i) => RADAR * (0.12 + 0.88 * habits[i].share))}"/>`;
   const labels = habits
     .map((habit, i) => {
-      const [x, y] = point(i, count, RADAR + 13);
-      const { icon, label } = HABITS[habit.kind];
-      const anchor = Math.abs(x) < 4 ? 'middle' : x > 0 ? 'start' : 'end';
-      return `<text class="radar-label${i === top ? ' top' : ''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle"><tspan class="radar-icon">${icon}</tspan> ${label}</text>`;
+      const [x, y] = point(i, count, RADAR + 11);
+      return `<text class="radar-icon${i === top ? ' top' : ''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${HABITS[habit.kind]}</text>`;
     })
     .join('');
   return rings + spokes + shape + labels;

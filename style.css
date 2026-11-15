@@ -5042,11 +5042,6 @@ dialog.paper.phrase-quiz.closing::backdrop {
   cursor: pointer;
 }
 
-.rank-name:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 dialog.profile {
   width: min(720px, calc(100vw - 32px));
   height: min(560px, calc(100dvh - 32px));
@@ -5156,18 +5151,12 @@ dialog.profile::backdrop {
   stroke-linejoin: round;
 }
 
-.radar-label {
-  fill: #cbbf9f;
-  font: 600 8.5px var(--font-ui);
-}
-
-.radar-label.top {
-  fill: var(--amber);
-  font-weight: 800;
-}
-
 .radar-icon {
-  font-size: 10px;
+  font: 12px/1 var(--font-ui);
+}
+
+.radar-icon.top {
+  font-size: 16px;
 }
 
 .profile-book {

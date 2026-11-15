@@ -55,7 +55,7 @@ function textOf(deck, card) {
   if (DECKS[deck].quiz === 'phrase') {
     const lines = card.examples.flatMap((example) => example.lines);
     const line = lines.find((entry) => PHRASE_LINE.test(entry[1])) ?? lines[0];
-    text = { title: line ? plainText(line[1]).replace(/[[\]]/g, '') : card.word, reading: '', meaning: card.word };
+    text = { title: line ? plainText(line[1]).replace(/[[\]]/g, '') : card.word, reading: '', meaning: plainText(card.word) };
   } else {
     text = { title: card.word, reading: card.reading, meaning: card.meaning };
   }

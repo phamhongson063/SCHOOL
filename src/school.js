@@ -202,12 +202,15 @@ export function buildWorld(world) {
   return layout;
 }
 
+const DESK_VIEW_HEIGHT = 0.5;
+const PLATFORM_VIEW_HEIGHT = 1.2;
+
 export function populate(scene) {
   const root = new THREE.Group();
   scene.add(root);
   const obstacles = [];
-  const block = (minX, minZ, maxX, maxZ, minY = FLOOR) => {
-    obstacles.push({ minX, minZ, maxX, maxZ, minY, maxY: minY + 3 });
+  const block = (minX, minZ, maxX, maxZ, minY = FLOOR, height = 3) => {
+    obstacles.push({ minX, minZ, maxX, maxZ, minY, maxY: minY + height });
   };
 
   const area = new THREE.Group();
@@ -224,7 +227,7 @@ export function populate(scene) {
   area.add(teacher.group);
   const teacherAttention = createAttention(teacher.group, { range: 5 });
   root.add(area);
-  block(CX - 1.55, TEACHER_Z - 1.2, CX + 1.55, TEACHER_Z + 1.2);
+  block(CX - 1.55, TEACHER_Z - 1.2, CX + 1.55, TEACHER_Z + 1.2, FLOOR, PLATFORM_VIEW_HEIGHT);
 
   const seats = [];
   let seed = 1000;
@@ -237,7 +240,7 @@ export function populate(scene) {
       furniture.rotation.y = Math.PI;
       furniture.add(studentFurniture(seed));
       root.add(furniture);
-      block(x - 0.5, sz - 0.8, x + 0.5, sz + 0.42);
+      block(x - 0.5, sz - 0.8, x + 0.5, sz + 0.42, FLOOR, DESK_VIEW_HEIGHT);
       seats.push({
         index: seats.length,
         x,
