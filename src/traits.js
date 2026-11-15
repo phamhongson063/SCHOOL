@@ -2,6 +2,7 @@ import { TRAITS } from './config.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { makeRandom, between } from './random.js';
+import { dayOf } from './clock.js';
 
 const KEY = worldKey('traits');
 export const SKILLS = ['farm', 'fish', 'hunt'];
@@ -71,6 +72,7 @@ function load() {
 
 const entries = load();
 const store = createStore(KEY, () => entries);
+const practicedAt = new Map();
 
 function entryOf(id) {
   if (!entries[id]) {
@@ -132,6 +134,27 @@ export const traits = {
     if (entry.day !== day) return;
     entry.acts[kind] = (entry.acts[kind] ?? 0) + 1;
     store.save();
+  },
+  practice(id, kind, minutes) {
+    if (!Number.isFinite(minutes)) return;
+    const key = `${id}:${kind}`;
+    if (minutes - (practicedAt.get(key) ?? -Infinity) < TRAITS.practiceGap) return;
+    practicedAt.set(key, minutes);
+    traits.did(id, kind, dayOf(minutes));
+  },
+  settle(id, day, { tired = false, debt = false } = {}) {
+    if (!Number.isInteger(day)) return;
+    const entry = entryOf(id);
+    const before = entry.day;
+    roll(entry, day);
+    if (entry.day !== day) return;
+    let changed = entry.day !== before;
+    for (const [fact, on] of [['tired', tired], ['debt', debt]]) {
+      if (!on || entry.facts[fact]) continue;
+      entry.facts[fact] = true;
+      changed = true;
+    }
+    if (changed) store.save();
   },
   diligence(id) {
     return entryOf(id).diligence;

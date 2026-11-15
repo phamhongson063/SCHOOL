@@ -27,12 +27,14 @@ export function netWorth(id, { ledger, bank, estate }) {
 
 const share = (value, [lo, hi]) => Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
 
-export function habitsOf(id) {
+export function habitsOf(id, takesPart = true) {
+  if (!takesPart) return TASTES.map((kind) => ({ kind, share: 0 }));
   const { taste } = traits.view(id);
   return TASTES.map((kind) => ({ kind, share: share(taste[kind], TRAITS.taste) }));
 }
 
-export function abilitiesOf(id) {
+export function abilitiesOf(id, takesPart = true) {
+  if (!takesPart) return { diligence: 0, skills: SKILLS.map((kind) => ({ kind, share: 0 })) };
   const { diligence, skill } = traits.view(id);
   return {
     diligence: share(diligence, [0, 1]),

@@ -30,7 +30,7 @@ const polygon = (count, radiusOf) =>
 
 function radarMarkup(habits) {
   const count = habits.length;
-  const top = habits.reduce((best, habit, i) => (habit.share > habits[best].share ? i : best), 0);
+  const top = habits.some((habit) => habit.share > 0) ? habits.reduce((best, habit, i) => (habit.share > habits[best].share ? i : best), 0) : -1;
   const rings = [0.25, 0.5, 0.75, 1].map((ring) => `<polygon class="radar-ring" points="${polygon(count, () => RADAR * ring)}"/>`).join('');
   const spokes = habits
     .map((_, i) => {
@@ -110,7 +110,7 @@ function createCertList(scroller, track) {
   };
 }
 
-export function createProfile({ ledger, bank, estate, arena, people, portraitOf }) {
+export function createProfile({ ledger, bank, estate, arena, people, portraitOf, takesPart = () => true }) {
   const dialog = document.getElementById('profileDialog');
   const title = document.getElementById('profileName');
   const portrait = document.getElementById('profilePortrait');
@@ -148,7 +148,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf 
     const { id } = current;
     const land = homelandOf(id, names.get(id));
     const house = estate.houseOf(id);
-    const { diligence, skills } = abilitiesOf(id);
+    const { diligence, skills } = abilitiesOf(id, takesPart(id));
     info.replaceChildren();
     if (land) infoRow('Quốc gia', `${land.flag} ${land.name}`);
     infoRow('Tài sản', coins(netWorth(id, { ledger, bank, estate })));
@@ -193,7 +193,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf 
     initial.hidden = !!src;
     if (src) portrait.src = src;
     else initial.textContent = (names.get(id) ?? '?').slice(0, 1).toUpperCase();
-    radar.innerHTML = radarMarkup(habitsOf(id));
+    radar.innerHTML = radarMarkup(habitsOf(id, takesPart(id)));
   }
 
   for (const node of tabs) {

@@ -317,6 +317,7 @@ export const TRAITS = {
   failPull: 0.15,
   tiredPull: 0.1,
   debtPull: 0.05,
+  practiceGap: 2,
 };
 
 export const FLUENCY = { gain: 0.3, slip: 0.2, keep: 0.97, floor: 0.45 };

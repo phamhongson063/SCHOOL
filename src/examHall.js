@@ -5,7 +5,8 @@ import { closable } from './dialog.js';
 import { coins } from './format.js';
 import { setRich } from './goldArt.js';
 import { economy } from './economy.js';
-import { hoursText, isOpenAt } from './clock.js';
+import { hoursText, isOpenAt, dayOf } from './clock.js';
+import { traits } from './traits.js';
 import { PLAYER } from './inventory.js';
 import { NPC } from './npcIds.js';
 
@@ -118,6 +119,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       stops: (result) => certify.examStops(PLAYER, deck, result),
     });
     const result = certify.gradeExam(PLAYER, deck, results);
+    traits.note(PLAYER, result.passed ? 'pass' : 'fail', dayOf(minutes()));
     mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true });
     if (!result.passed && !certify.examTaken(PLAYER, deck) && certify.qualified(PLAYER, deck)) onRetakeReady?.(deck);
     say?.(result.passed ? '🎓 Đậu khảo thí! Xem kết quả trong hộp thư nhé.' : '📄 Đã có kết quả khảo thí, xem hộp thư nhé.');

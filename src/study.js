@@ -37,7 +37,7 @@ function el(tag, className, text) {
   return node;
 }
 
-export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null, arenaClash = () => null }) {
+export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null, onPaid = null, arenaClash = () => null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -127,6 +127,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     }
     economy.income(NPC.teacher, fee);
     paid.add(name);
+    onPaid?.();
     showNotice(null);
     return true;
   }

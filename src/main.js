@@ -87,6 +87,7 @@ import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
 import { createProfile } from './profile.js';
+import { traits } from './traits.js';
 import { economy, SHOPKEEPERS } from './economy.js';
 import { trade } from './trade.js';
 import { loadingStep, loadingDone, hasEntered } from './loading.js';
@@ -372,7 +373,11 @@ regions.add(
   river.region({
     player,
     day: () => context.day,
-    startFishing: (spot, berth) => fishing.start(spot, berth),
+    startFishing: (spot, berth) => {
+      const problem = fishing.start(spot, berth);
+      if (!problem) playerDid('fish');
+      return problem;
+    },
   }),
 );
 const PLACE_KEY = 'langsch.player';
@@ -569,6 +574,7 @@ function perform(task, cost) {
     const reply = task.region.act(task.action.id, task.target, task.choice);
     const farmed = task.region.farmland && task.region.didChange?.();
     if (farmed) {
+      playerDid('farm');
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
@@ -755,6 +761,7 @@ const blessingDialog = createBlessingDialog({
     }
     const joined = blessing.join(PLAYER, context.minutes);
     if (joined) {
+      playerDid('blessing');
       dropBlessingMail();
       openTally(blessing.session(context.minutes));
     }
@@ -808,7 +815,8 @@ await economy.start({
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
-const profileDialog = createProfile({ ledger, bank, estate, arena, people: everyone, portraitOf });
+const traitHolders = new Set([PLAYER, ...town.members.map((member) => member.id)]);
+const profileDialog = createProfile({ ledger, bank, estate, arena, people: everyone, portraitOf, takesPart: (id) => traitHolders.has(id) });
 createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
 
@@ -829,6 +837,15 @@ function contextAt(minutes) {
   };
 }
 context = contextAt(gameNow());
+
+function playerDid(kind) {
+  traits.practice(PLAYER, kind, context.minutes);
+}
+
+function settlePlayerTraits() {
+  traits.settle(PLAYER, context.day, { tired: purse.energy < ENERGY.low, debt: bank.debt(PLAYER) > 0 });
+}
+settlePlayerTraits();
 
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz();
@@ -865,7 +882,10 @@ const quiz = createQuiz({
     regen.coin(QUIZ.reward, player.position);
   },
   onEmpty: () => sayPlayer('📖 Chưa có từ nào để ôn, hãy tới phòng tự học nhé!', 3),
-  onVillagers: () => town?.quizRound(),
+  onVillagers: () => {
+    town?.quizRound();
+    settlePlayerTraits();
+  },
 });
 const fishing = createPlayerFishing({
   river,
@@ -886,6 +906,7 @@ const mountain = createMountain({
   player,
   say: (text, seconds) => sayPlayer(text, seconds),
   day: () => context.day,
+  onHunt: () => playerDid('hunt'),
   onBoarHit(dx, dz) {
     stopWork();
     leaveLine();
@@ -932,6 +953,10 @@ const study = createStudy({
   music: studyMusic,
   exams,
   arenaClash: (span) => arena.clash(PLAYER, gameNow(), span),
+  onPaid() {
+    playerDid('study');
+    traits.note(PLAYER, 'study', context.day);
+  },
   onQualified(deck) {
     sendQualifyMail(deck, `Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay.`);
   },
