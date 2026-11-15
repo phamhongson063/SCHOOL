@@ -7048,6 +7048,14 @@ body.in-duel > :not(#app):not(#duelDialog) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+#lanternBtn {
+  position: fixed;
+  left: var(--hud-edge);
+  top: calc(var(--hud-clock-top) + 40px);
+  z-index: var(--z-scene-ui);
+  width: var(--hud-face);
+}
+
 .lantern-btn span {
   font-size: 30px;
   line-height: 1;

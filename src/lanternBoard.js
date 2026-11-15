@@ -57,7 +57,7 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
     const spot = button.getBoundingClientRect();
     const top = Math.max(MARGIN, Math.min(spot.top, innerHeight - board.offsetHeight - MARGIN));
     board.style.top = `${top}px`;
-    board.style.left = `${Math.max(MARGIN, spot.left - board.offsetWidth - GAP)}px`;
+    board.style.left = `${Math.max(MARGIN, Math.min(spot.right + GAP, innerWidth - board.offsetWidth - MARGIN))}px`;
   }
 
   function refresh() {
