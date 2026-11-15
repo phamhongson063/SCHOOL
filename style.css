@@ -7039,4 +7039,6 @@ body.in-duel > :not(#app):not(#duelDialog) {
 
 .name-flag {
   margin-left: 0.3em;
+  font-size: 1.3em;
+  vertical-align: -0.08em;
 }
