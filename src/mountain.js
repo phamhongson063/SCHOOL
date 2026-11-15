@@ -38,7 +38,7 @@ function monkGround(x, z) {
   return onPlatform ? terrainHeight(PAGODA.x, PAGODA.z) + PAGODA.porch : terrainHeight(x, z);
 }
 
-export function createMountain({ nav, stepSound = null, purse, quiz, player, say, day, onBoarHit, onHunt = null }) {
+export function createMountain({ nav, stepSound = null, purse, quiz, player, say, day, onBoarHit, train = null }) {
   const scenery = createMountainScenery();
   const wildlife = createWildlife({ nav, onBoarHit });
   const group = new THREE.Group();
@@ -140,7 +140,7 @@ export function createMountain({ nav, stepSound = null, purse, quiz, player, say
     if (busy || quiz.open) return null;
     if (!wildlife.reachable(animal, player.position)) return animal.state === 'flee' || animal.state === 'gone' ? 'Nó chạy mất rồi!' : 'Xa quá, lại gần thêm chút!';
     if (!purse.spendEnergy(HUNTING.energy)) return 'Mệt quá, không đuổi nổi nữa!';
-    onHunt?.();
+    train?.('hunt', HUNTING.energy);
     busy = true;
     wildlife.freeze(animal);
     player.faceToward(animal.x, animal.z);

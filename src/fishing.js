@@ -7,7 +7,7 @@ const CROWDED = 'Chỗ này đông người rồi, tìm chỗ khác nhé!';
 const NO_BAIT = 'Hết mồi rồi! Ra hàng cá mua mồi giun nhé.';
 const NO_ENERGY = 'Đói quá, hết sức câu rồi! Ra quán ăn nạp năng lượng nhé.';
 
-export function createPlayerFishing({ river, purse, angler, quiz, harvest, player, say, now, minutes }) {
+export function createPlayerFishing({ river, purse, angler, quiz, harvest, player, say, now, minutes, train = null }) {
   let session = null;
 
   function stop() {
@@ -53,6 +53,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     }
     purse.spendEnergy(ENERGY.costs.fish);
     purse.take('bait', 1);
+    train?.('fish', ENERGY.costs.fish);
     const float = session.berth.float;
     player.faceToward(float.x, float.z);
     angler.cast(float);

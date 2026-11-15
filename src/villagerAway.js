@@ -219,7 +219,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function hunt(member, slots) {
     slots.hunters.add(member);
-    if (member.purse.spendEnergy(HUNTING.energy) && Math.random() < traits.skill(member.id, 'hunt')) {
+    if (member.payHunt() && Math.random() < traits.skill(member.id, 'hunt')) {
       member.purse.add(gameId(pickPrey()), 1);
       member.luckyIntellect();
     }

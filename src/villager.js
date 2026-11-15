@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createWalker, createStudent } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble, nameColor } from './bubble.js';
+import { homelandOf } from './profileRules.js';
 import { Gait } from './gait.js';
 import { createBlobShadow } from './groundfx.js';
 import { createWatering } from './watering.js';
@@ -52,7 +53,7 @@ export class Villager {
     this.skipDt = 0;
     this.bubble = createBubble();
     this.bubble.sprite.position.set(0, 2.05, 0);
-    this.bubble.setName(this.name, nameColor(this.id));
+    this.bubble.setName(this.name, nameColor(this.id), homelandOf(this.id, this.name)?.flag);
     this.walker.group.add(this.bubble.sprite);
     this.shadow = createBlobShadow(town.root);
     this.shadow.setVisible(false);
@@ -65,7 +66,7 @@ export class Villager {
       town.root.add(this.seated.group);
       this.seatBubble = createBubble();
       this.seatBubble.sprite.position.set(0, model ? 1.85 : 1.55, 0);
-      this.seatBubble.setName(this.name, nameColor(this.id));
+      this.seatBubble.setName(this.name, nameColor(this.id), homelandOf(this.id, this.name)?.flag);
       this.seated.group.add(this.seatBubble.sprite);
     }
     this.fx = null;

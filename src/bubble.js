@@ -240,9 +240,10 @@ export function createBubble() {
     toggle(turnBadge, turn !== null);
   }
 
-  function setName(next, color = null) {
+  function setName(next, color = null, flag = '') {
     name = next ?? '';
     nameTag.textContent = name;
+    if (name && flag) nameTag.append(Object.assign(document.createElement('span'), { className: 'name-flag', textContent: flag }));
     nameTag.style.color = color ?? '';
     nameHeight = 0;
     if (!name) {

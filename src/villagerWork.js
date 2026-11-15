@@ -72,7 +72,7 @@ export class WorkBehavior {
     const session = this.hunting;
     const ctx = this.town.context;
     const wildlife = this.town.wildlife;
-    if (!session || this.needsSleep(ctx) || !wildlife.reachable(session.prey, this.position) || !this.purse.spendEnergy(HUNTING.energy)) {
+    if (!session || this.needsSleep(ctx) || !wildlife.reachable(session.prey, this.position) || !this.payHunt()) {
       this.endHunt();
       return;
     }
@@ -88,6 +88,12 @@ export class WorkBehavior {
       if (Math.random() < 0.6) this.say(pick(MISSED), 1.6);
     }
     this.endHunt();
+  }
+
+  payHunt() {
+    if (!this.purse.spendEnergy(HUNTING.energy)) return false;
+    traits.train(this.id, 'hunt', HUNTING.energy, this.town.context?.day);
+    return true;
   }
 
   endHunt() {
@@ -209,7 +215,9 @@ export class WorkBehavior {
   }
 
   payCast() {
-    return this.purse.spendEnergy(ENERGY.costs.fish) && this.purse.take('bait', 1);
+    if (!(this.purse.spendEnergy(ENERGY.costs.fish) && this.purse.take('bait', 1))) return false;
+    traits.train(this.id, 'fish', ENERGY.costs.fish, this.town.context?.day);
+    return true;
   }
 
   landFish(spot, minutes) {
@@ -335,6 +343,7 @@ export class WorkBehavior {
   }
 
   tend(job) {
+    traits.train(this.id, 'farm', ENERGY.costs[job.action] ?? 0, this.town.context?.day);
     const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
     if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) this.luckyIntellect();
     return reply;

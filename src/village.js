@@ -7,6 +7,7 @@ import { createEatery, setEateryGlow } from './eatery.js';
 import { createWalker } from './characters.js';
 import { hasModel, createModel } from './characterModels.js';
 import { createBubble } from './bubble.js';
+import { homelandOf } from './profileRules.js';
 import { SHOPKEEPERS } from './economy.js';
 import { SHOP, CHIEF, EATERY, FISH_SHOP, LODGE_ROOMS, FLUORESCENT } from './config.js';
 import { roomTier, lodgeLabel } from './lodging.js';
@@ -278,7 +279,7 @@ export function keeperNPC(look, model, name = '') {
   walker.group.rotation.order = 'YXZ';
   const bubble = createBubble();
   bubble.sprite.position.set(0, 2.05, 0);
-  bubble.setName(name);
+  bubble.setName(name, null, homelandOf(null, name)?.flag);
   walker.group.add(bubble.sprite);
   return { walker, bubble, phase: Math.random() * Math.PI * 2 };
 }

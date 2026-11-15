@@ -373,11 +373,7 @@ regions.add(
   river.region({
     player,
     day: () => context.day,
-    startFishing: (spot, berth) => {
-      const problem = fishing.start(spot, berth);
-      if (!problem) playerDid('fish');
-      return problem;
-    },
+    startFishing: (spot, berth) => fishing.start(spot, berth),
   }),
 );
 const PLACE_KEY = 'langsch.player';
@@ -574,7 +570,7 @@ function perform(task, cost) {
     const reply = task.region.act(task.action.id, task.target, task.choice);
     const farmed = task.region.farmland && task.region.didChange?.();
     if (farmed) {
-      playerDid('farm');
+      playerWorked('farm', cost);
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
@@ -842,6 +838,11 @@ function playerDid(kind) {
   traits.practice(PLAYER, kind, context.minutes);
 }
 
+function playerWorked(kind, effort) {
+  playerDid(kind);
+  traits.train(PLAYER, kind, effort, context.day);
+}
+
 function settlePlayerTraits() {
   traits.settle(PLAYER, context.day, { tired: purse.energy < ENERGY.low, debt: bank.debt(PLAYER) > 0 });
 }
@@ -897,6 +898,7 @@ const fishing = createPlayerFishing({
   say: (text, seconds) => sayPlayer(text, seconds),
   now: () => clock.elapsedTime,
   minutes: () => context.minutes,
+  train: playerWorked,
 });
 const mountain = createMountain({
   nav: () => player.nav,
@@ -906,7 +908,7 @@ const mountain = createMountain({
   player,
   say: (text, seconds) => sayPlayer(text, seconds),
   day: () => context.day,
-  onHunt: () => playerDid('hunt'),
+  train: playerWorked,
   onBoarHit(dx, dz) {
     stopWork();
     leaveLine();

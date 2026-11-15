@@ -7036,3 +7036,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
     opacity: 0;
   }
 }
+
+.name-flag {
+  margin-left: 0.3em;
+}

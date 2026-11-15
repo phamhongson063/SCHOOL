@@ -35,6 +35,7 @@ const LANTERN_LOT = { picks: ['north:5', 'north:6'], width: 12, depth: 10, seed:
 const LANTERN_KEEPER_LOOK = { shirt: 0x8a2a1c, pants: 0x2a2420, skin: 0xe8b890, style: 'bun', hairColor: 0xd8d4cc, iris: 0x3a2214 };
 const LANTERN_KEEPER = { model: 'granny-navy', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const EMPTY_PICKS = new Set(['south:4']);
+const SETBACKS = { 'south:3': 3 };
 const PLAZA_LOT = 'south:2';
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
@@ -85,7 +86,8 @@ function layout() {
   for (const row of rows) {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
-      const house = { ...frame(row.side, x, row.front), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
+      const setback = SETBACKS[`${row.side}:${index}`] ?? 0;
+      const house = { ...frame(row.side, x, row.front + (row.side === 'north' ? -setback : setback)), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
       if (EMPTY_PICKS.has(`${row.side}:${index}`)) return;
       if (`${row.side}:${index}` === PLAZA_LOT) {
         plazaWest = (row.xs[index - 1] + x) / 2;
@@ -313,7 +315,7 @@ export function createDistrict() {
       const toWorld = (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z });
       const at = toWorld(built.door);
       const keeper = keeperNPC(LANTERN_KEEPER_LOOK, LANTERN_KEEPER.model);
-      keeper.walker.group.position.set(at.x, 0, at.z);
+      keeper.walker.group.position.set(at.x, built.rise, at.z);
       keeper.walker.group.rotation.y = house.turn;
       clickables.push(keeper.walker.group);
       obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });

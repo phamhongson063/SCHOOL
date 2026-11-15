@@ -9,6 +9,7 @@ import { PAGODA, SHELTERS } from './terrain.js';
 import { BANK_POINTS } from './fishZones.js';
 import { Villager } from './villager.js';
 import { createBubble, nameColor } from './bubble.js';
+import { homelandOf } from './profileRules.js';
 import { trade } from './trade.js';
 
 export class Teacher extends Villager {
@@ -16,7 +17,7 @@ export class Teacher extends Villager {
     super(profile, town);
     this.seatBubble = createBubble();
     this.seatBubble.sprite.position.set(0, 1.85, 0);
-    this.seatBubble.setName(this.name, nameColor(this.id));
+    this.seatBubble.setName(this.name, nameColor(this.id), homelandOf(this.id, this.name)?.flag);
     town.school.teacher.group.add(this.seatBubble.sprite);
   }
 

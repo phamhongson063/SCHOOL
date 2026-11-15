@@ -2176,18 +2176,18 @@ function weaponRack(kit, x, z, floor) {
   }
 }
 
-function registrationDesk(kit, x, z) {
+function registrationDesk(kit, x, z, floor = 0) {
   const b = kit.body;
-  b.add(shapes.box(2.2, 0.72, 0.5), PAL.lacquer, { p: [x, 0.36, z] });
-  b.add(shapes.box(2.3, 0.06, 0.6), PAL.woodDark, { p: [x, 0.75, z] });
-  b.add(shapes.box(2.24, 0.05, 0.54), PAL.gold, { p: [x, 0.05, z] });
-  textSign(kit, x, 0.42, z + 0.27, 1.2, 0.36, { text: 'Ghi Danh', bg: PAL.ink, fg: PAL.gold });
-  b.add(shapes.cylinder(0.05, 0.05, 0.5, 8), PAL.cream, { p: [x - 0.55, 0.81, z], r: [0, 0, Math.PI / 2] });
-  b.add(shapes.box(0.5, 0.01, 0.34), PAL.cream, { p: [x - 0.1, 0.785, z + 0.02] });
-  b.add(shapes.box(0.16, 0.03, 0.12), PAL.ink, { p: [x + 0.35, 0.795, z] });
-  b.add(shapes.cylinder(0.05, 0.05, 0.14, 8), PAL.jade, { p: [x + 0.7, 0.85, z - 0.05] });
-  for (const dx of [-0.02, 0.02]) b.add(shapes.cylinder(0.008, 0.008, 0.26, 4), PAL.woodMid, { p: [x + 0.7 + dx, 0.98, z - 0.05] });
-  block(kit, x - 1.15, z - 0.3, x + 1.15, z + 0.3, 1);
+  b.add(shapes.box(2.2, 0.72, 0.5), PAL.lacquer, { p: [x, floor + 0.36, z] });
+  b.add(shapes.box(2.3, 0.06, 0.6), PAL.woodDark, { p: [x, floor + 0.75, z] });
+  b.add(shapes.box(2.24, 0.05, 0.54), PAL.gold, { p: [x, floor + 0.05, z] });
+  textSign(kit, x, floor + 0.42, z + 0.27, 1.2, 0.36, { text: 'Ghi Danh', bg: PAL.ink, fg: PAL.gold });
+  b.add(shapes.cylinder(0.05, 0.05, 0.5, 8), PAL.cream, { p: [x - 0.55, floor + 0.81, z], r: [0, 0, Math.PI / 2] });
+  b.add(shapes.box(0.5, 0.01, 0.34), PAL.cream, { p: [x - 0.1, floor + 0.785, z + 0.02] });
+  b.add(shapes.box(0.16, 0.03, 0.12), PAL.ink, { p: [x + 0.35, floor + 0.795, z] });
+  b.add(shapes.cylinder(0.05, 0.05, 0.14, 8), PAL.jade, { p: [x + 0.7, floor + 0.85, z - 0.05] });
+  for (const dx of [-0.02, 0.02]) b.add(shapes.cylinder(0.008, 0.008, 0.26, 4), PAL.woodMid, { p: [x + 0.7 + dx, floor + 0.98, z - 0.05] });
+  block(kit, x - 1.15, z - 0.3, x + 1.15, z + 0.3, floor + 1);
 }
 
 function arenaHall(kit, { half, front, back }) {
@@ -2332,37 +2332,35 @@ function lanternString(kit, x, z0, z1, height) {
 
 function lanternGate(kit, x, z, half) {
   const b = kit.body;
-  const height = 3.3;
+  const height = 4;
+  const bar = height - 0.15;
   for (const side of [-1, 1]) {
-    lacquerColumn(kit, x + side * half, z, height);
-    block(kit, x + side * half - 0.25, z - 0.25, x + side * half + 0.25, z + 0.25, height);
+    const px = x + side * half;
+    b.add(shapes.cylinder(0.11, 0.13, 0.24, 8), PAL.stone, { p: [px, 0.12, z], flat: true });
+    b.add(shapes.cylinder(0.07, 0.08, height, 8), LANTERN_ART.bamboo, { p: [px, height / 2, z] });
+    for (let y = 0.7; y < height - 0.2; y += 0.7) b.add(shapes.cylinder(0.085, 0.085, 0.04, 8), shade(LANTERN_ART.bamboo, 0.8), { p: [px, y, z] });
+    b.add(shapes.cone(0.1, 0.22, 8), PAL.gold, { p: [px, height + 0.11, z] });
+    block(kit, px - 0.2, z - 0.2, px + 0.2, z + 0.2, height);
+    silkLantern(kit, x + side * (half - 0.32), bar, z, LANTERN_ART.silk[side > 0 ? 1 : 0], 1.05);
   }
-  b.add(shapes.box(half * 2 + 0.8, 0.26, 0.3), PAL.lacquer, { p: [x, height - 0.1, z] });
-  b.add(shapes.box(half * 2 + 0.84, 0.05, 0.32), PAL.gold, { p: [x, height - 0.26, z] });
-  b.add(shapes.box(half * 2 - 0.3, 0.14, 0.2), PAL.lacquer, { p: [x, height - 0.72, z] });
-  const tint = PAL.roofTints[0];
-  const slope = 0.5;
-  const run = 0.7;
-  const ridgeY = height + 0.12 + run * slope;
-  roofPitch(kit, { x0: x - half - 0.7, x1: x + half + 0.7, ridgeZ: z, ridgeY, run, slope, facing: 1, tint, tileEnds: true });
-  roofPitch(kit, { x0: x - half - 0.7, x1: x + half + 0.7, ridgeZ: z, ridgeY, run, slope, facing: -1, tint, tileEnds: true });
-  ridgeCrest(kit, x - half - 0.4, x + half + 0.4, z, ridgeY, 'disc');
-  for (const facing of [-1, 1]) for (const [ex, side] of [[x - half - 0.7, -1], [x + half + 0.7, 1]]) eaveTip(kit, ex, ridgeY - run * slope, z + facing * run, side);
-  textSign(kit, x, height - 0.46, z + 0.16, half * 2 - 0.5, 0.42, { text: 'Hội Đèn Trời' });
-  for (const side of [-1, 1]) silkLantern(kit, x + side * (half - 0.45), height - 0.8, z, LANTERN_ART.silk[side > 0 ? 1 : 0], 1.1);
+  b.limb([x - half, bar, z], [x + half, bar, z], 0.04, LANTERN_ART.bamboo, { capsule: false, seg: 6 });
+  const signW = half * 2 - 1.2;
+  const signY = bar - 0.42;
+  for (const side of [-1, 1]) b.limb([x + side * (signW / 2 - 0.2), bar, z], [x + side * (signW / 2 - 0.2), signY + 0.2, z], 0.008, PAL.ink, { capsule: false, seg: 4 });
+  textSign(kit, x, signY, z + 0.04, signW, 0.4, { text: 'Hội Đèn Trời' });
 }
 
-function lanternHall(kit, { half, front, back }) {
+function lanternHall(kit, { half, front, back, rise }) {
   const b = kit.body;
-  const g = 3.2;
+  const g = 3.2 + rise;
   const depth = front - back;
   const ridgeZ = (front + back) / 2;
-  b.add(shapes.box(half * 2 + 0.5, 0.1, depth + 0.5), PAL.stone, { p: [0, 0.05, ridgeZ] });
-  b.add(shapes.box(half * 2 + 0.56, 0.04, depth + 0.56), PAL.stoneDark, { p: [0, 0.02, ridgeZ] });
+  b.add(shapes.box(half * 2 + 0.6, rise, depth + 0.6), PAL.stone, { p: [0, rise / 2, ridgeZ] });
+  b.add(shapes.box(half * 2 + 0.66, 0.06, depth + 0.66), PAL.stoneDark, { p: [0, rise - 0.03, ridgeZ] });
   const posts = [-(half - 0.2), -1.25, 1.25, half - 0.2];
   for (const z of [front, back]) {
     for (const x of posts) {
-      lacquerColumn(kit, x, z, g, 0.1);
+      lacquerColumn(kit, x, z, g, rise);
       block(kit, x - 0.25, z - 0.25, x + 0.25, z + 0.25, g);
     }
     b.add(shapes.box(half * 2, 0.28, 0.3), PAL.lacquer, { p: [0, g - 0.14, z] });
@@ -2398,7 +2396,7 @@ function lanternHall(kit, { half, front, back }) {
   textSign(kit, 0, g - 0.62, front + 0.06, 2.3, 0.44, { text: 'Thả Đèn Đố Chữ', bg: PAL.ink, fg: PAL.gold });
   const couplets = [['Đèn', 'Sáng', 'Muôn', 'Nhà'], ['Chữ', 'Hay', 'Vạn', 'Lối']];
   for (const [k, side] of [-1, 1].entries()) {
-    textSign(kit, side * (half - 0.2), 1.75, front + 0.2, 0.3, 1.6, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
+    textSign(kit, side * (half - 0.2), 1.75 + rise, front + 0.2, 0.3, 1.6, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
     silkLantern(kit, side * 2.3, g - 0.3, front + 0.1, LANTERN_ART.silk[k], 1.15);
   }
   silkLantern(kit, -1.7, g - 0.3, back + 0.6, LANTERN_ART.silk[2], 1);
@@ -2408,17 +2406,20 @@ function lanternHall(kit, { half, front, back }) {
 
 export function createLanternPavilion({ seed = 1, width = 10.4, depth = 10 } = {}) {
   const kit = createKit(seed);
+  const b = kit.body;
   const edge = width / 2 - 0.25;
   const front = -0.3;
   const back = -depth;
-  const hall = { half: 3.1, front: -4.3, back: -8.6 };
-  const keeperZ = -6.1;
+  const rise = 0.45;
+  const hall = { half: 3.1, front: -6.7, back: -9.3, rise };
+  const keeperZ = -5.3;
   const deskZ = keeperZ + 0.55;
+  const dais = { half: 1.9, front: deskZ + 0.35 };
 
   const ground = new Batch();
   ground.add(shapes.box(edge * 2, 0.04, front - back), LANTERN_ART.paving, { p: [0, 0.02, (front + back) / 2] });
-  ground.add(shapes.box(1.5, 0.05, front - hall.front), LANTERN_ART.path, { p: [0, 0.035, (front + hall.front) / 2] });
-  for (let z = front - 0.5; z > hall.front + 0.3; z -= 0.8) ground.add(shapes.box(1.7, 0.055, 0.12), PAL.gold, { p: [0, 0.04, z] });
+  ground.add(shapes.box(1.5, 0.05, front - dais.front), LANTERN_ART.path, { p: [0, 0.035, (front + dais.front) / 2] });
+  for (let z = front - 0.5; z > dais.front + 0.3; z -= 0.8) ground.add(shapes.box(1.7, 0.055, 0.12), PAL.gold, { p: [0, 0.04, z] });
 
   balustrade(kit, -edge, front, -2.3, front);
   balustrade(kit, 2.3, front, edge, front);
@@ -2426,24 +2427,28 @@ export function createLanternPavilion({ seed = 1, width = 10.4, depth = 10 } = {
 
   lanternGate(kit, 0, front - 0.15, 1.75);
   const ridgeY = lanternHall(kit, hall);
-  registrationDesk(kit, 0, deskZ);
-  skyLantern(kit, -0.7, 0.78, deskZ - 0.08, 0.26, LANTERN_ART.sky[0]);
-  skyLantern(kit, 0.95, 0.78, deskZ - 0.1, 0.22, LANTERN_ART.sky[2]);
+  const daisDepth = dais.front - hall.front;
+  b.add(shapes.box(dais.half * 2, rise, daisDepth), PAL.stone, { p: [0, rise / 2, hall.front + daisDepth / 2] });
+  b.add(shapes.box(dais.half * 2 + 0.06, 0.06, daisDepth + 0.06), PAL.stoneDark, { p: [0, rise - 0.03, hall.front + daisDepth / 2] });
+  for (const side of [-1, 1]) b.add(shapes.box(0.36, rise / 2, daisDepth - 0.3), PAL.stoneDark, { p: [side * (dais.half + 0.18), rise / 4, hall.front + daisDepth / 2 - 0.15] });
+  registrationDesk(kit, 0, deskZ, rise);
+  skyLantern(kit, -0.7, rise + 0.78, deskZ - 0.08, 0.26, LANTERN_ART.sky[0]);
+  skyLantern(kit, 0.95, rise + 0.78, deskZ - 0.1, 0.22, LANTERN_ART.sky[2]);
 
   for (const side of [-1, 1]) {
-    lanternStand(kit, side * 3.0, -2.3, LANTERN_ART.sky[side > 0 ? 1 : 0]);
-    stoneLantern(kit, side * 1.55, front - 1.3);
+    lanternStand(kit, side * 3.2, -3.4, LANTERN_ART.sky[side > 0 ? 1 : 0]);
+    stoneLantern(kit, side * 2.3, front - 1.4);
     lanternString(kit, side * (edge - 0.45), front - 1.1, back + 1.6, 3.4);
   }
-  skyLantern(kit, -2.4, ridgeY + 2.4, -5.2, 0.85, LANTERN_ART.sky[0]);
-  skyLantern(kit, 2.1, ridgeY + 3.1, -7.2, 0.7, LANTERN_ART.sky[1]);
-  skyLantern(kit, 0.4, ridgeY + 3.8, -3.6, 0.55, LANTERN_ART.sky[2]);
+  skyLantern(kit, -2.4, ridgeY + 2.4, -7.4, 0.85, LANTERN_ART.sky[0]);
+  skyLantern(kit, 2.1, ridgeY + 3.1, -8.6, 0.7, LANTERN_ART.sky[1]);
+  skyLantern(kit, 0.4, ridgeY + 3.8, -6.2, 0.55, LANTERN_ART.sky[2]);
 
   blossomTree(kit, -(edge - 1.0), back + 0.9, 0.95);
   pineTree(kit, edge - 1.0, back + 0.9, 0.9);
 
-  block(kit, -hall.half - 0.25, back - 0.2, hall.half + 0.25, keeperZ - 0.45, 4);
-  for (const side of [-1, 1]) block(kit, side > 0 ? 1.15 : -hall.half - 0.25, keeperZ - 0.45, side > 0 ? hall.half + 0.25 : -1.15, deskZ + 0.3, 1.2);
+  block(kit, -hall.half - 0.3, back - 0.2, hall.half + 0.3, hall.front + 0.3, 4);
+  block(kit, -dais.half - 0.36, hall.front, dais.half + 0.36, dais.front, 2);
 
   return {
     group: assemble(kit),
@@ -2451,6 +2456,7 @@ export function createLanternPavilion({ seed = 1, width = 10.4, depth = 10 } = {
     obstacles: kit.obstacles,
     door: { x: 0, z: keeperZ },
     desk: { x: 0, z: deskZ },
+    rise,
   };
 }
 
