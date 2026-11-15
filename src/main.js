@@ -80,6 +80,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
+import { createProfile } from './profile.js';
 import { economy, SHOPKEEPERS } from './economy.js';
 import { trade } from './trade.js';
 import { loadingStep, loadingDone, hasEntered } from './loading.js';
@@ -700,7 +701,7 @@ town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
 function portraitOf(id) {
   if (portraits.has(id)) return portraits.get(id);
-  const profile = town.members.find((member) => member.id === id)?.profile;
+  const profile = town.all.find((member) => member.id === id)?.profile;
   const model = id === PLAYER ? (modelReady ? createModel('player') : createPlayer()) : profile ? (profile.model && hasModel(profile.model) ? createModel(profile.model) : createWalker(profile.look)) : null;
   const img = new Image();
   if (model) paintPortrait(renderer, model, img);
@@ -766,7 +767,8 @@ await economy.start({
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
-createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow });
+const profileDialog = createProfile({ ledger, bank, estate, arena, people: everyone, portraitOf });
+createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
 
 let context = null;

@@ -678,6 +678,37 @@
       </div>
     </div>
   </dialog>
+  <dialog id="profileDialog" class="profile" aria-labelledby="profileName">
+    <div class="profile-body">
+      <header class="profile-head">
+        <h2 id="profileName"></h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="profile-main">
+        <aside class="profile-side">
+          <div class="profile-frame">
+            <img id="profilePortrait" alt="" draggable="false" hidden>
+            <span id="profileInitial" class="profile-initial" aria-hidden="true"></span>
+          </div>
+          <svg id="profileRadar" class="profile-radar" viewBox="-96 -62 192 114" aria-hidden="true"></svg>
+        </aside>
+        <section class="profile-book">
+          <div class="bag-tabs profile-tabs" role="tablist">
+            <button class="bag-tab" type="button" role="tab" data-tab="info" aria-selected="true" aria-label="Thông tin" title="Thông tin">📜</button>
+            <button class="bag-tab" type="button" role="tab" data-tab="certs" aria-selected="false" aria-label="Chứng chỉ" title="Chứng chỉ">🎓</button>
+          </div>
+          <div class="profile-well">
+            <dl id="profileInfo" class="profile-info"></dl>
+            <div id="profileCerts" class="profile-certs" hidden>
+              <div id="profileDecks" class="profile-decks" role="tablist"></div>
+              <div id="profileScroll" class="profile-scroll"><div class="profile-track"></div></div>
+              <p id="profileEmpty" class="profile-empty" hidden>Chưa có chứng chỉ.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </dialog>
   <dialog id="hallDialog" class="paper wide bank rank" aria-label="Tòa thị chính">
     <div class="paper-body">
       <header class="sched-head bank-head">

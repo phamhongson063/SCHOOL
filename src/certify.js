@@ -253,6 +253,9 @@ export const certify = {
   certified(actor, deck) {
     return Object.keys(deckState(actor, deck).certified);
   },
+  certifiedDays(actor, deck) {
+    return Object.entries(actors[actor]?.[deck]?.certified ?? {});
+  },
   certifiedCount(actor, deck) {
     return Object.keys(deckState(actor, deck).certified).length;
   },

@@ -154,6 +154,10 @@ export const traits = {
   lastActs(id) {
     return { ...entryOf(id).last };
   },
+  view(id) {
+    const entry = entries[id] ?? freshEntry(id);
+    return { diligence: entry.diligence, skill: { ...entry.skill }, taste: { ...entry.taste } };
+  },
   snapshot(id) {
     const entry = entryOf(id);
     return { anchor: entry.anchor, diligence: entry.diligence, skill: { ...entry.skill }, taste: { ...entry.taste }, thrift: entry.thrift, comfort: entry.comfort };

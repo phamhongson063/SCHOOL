@@ -7,7 +7,7 @@ import { setRich } from './goldArt.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
-import { trade } from './trade.js';
+import { netWorth } from './profileRules.js';
 
 const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -42,7 +42,7 @@ function richSpan(className, text) {
   return node;
 }
 
-export function createRanking({ ledger, bank, estate, arena, people, now }) {
+export function createRanking({ ledger, bank, estate, arena, people, now, onPick = () => {} }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
@@ -52,7 +52,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
   let tab = 'worth';
 
   const titlesOf = (id) => arena.champions.filter((item) => item.id === id).length;
-  const worthOf = (id) => Math.floor(ledger.accounts[id]?.money ?? 0) + bank.deposited(id) - bank.debt(id) - Math.ceil(trade.debtOf(id)) + (estate.houseOf(id)?.price ?? 0);
+  const worthOf = (id) => netWorth(id, { ledger, bank, estate });
 
   function standings(score, previous) {
     const before = new Map((previous ?? []).map((row) => [row.id, row.score]));
@@ -86,12 +86,19 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
     arena: (count) => el('span', 'rank-worth', `🏆 ${amount(count)}`),
   };
 
+  function nameButton(id) {
+    const node = el('button', 'rank-name', `${names.get(id) ?? 'người khác'}${id === arena.champions[0]?.id ? ' ⚔️' : ''}`);
+    node.type = 'button';
+    node.dataset.id = id;
+    return node;
+  }
+
   function row({ id, score, rank, prev }) {
     const item = el('li', id === PLAYER ? 'rank-row mine' : 'rank-row');
     const change = Number.isFinite(prev) ? score - prev : 0;
     item.append(
       el('span', 'rank-place', MEDALS[rank - 1] ?? String(rank)),
-      el('span', 'rank-name', `${names.get(id) ?? 'người khác'}${id === arena.champions[0]?.id ? ' ⚔️' : ''}`),
+      nameButton(id),
       scoreCell[tab](score),
       el('span', change > 0 ? 'rank-trend up' : change < 0 ? 'rank-trend down' : 'rank-trend', change > 0 ? `+${amount(change)}` : change < 0 ? `-${amount(-change)}` : ''),
     );
@@ -127,5 +134,9 @@ export function createRanking({ ledger, bank, estate, arena, people, now }) {
       render();
     });
   }
+  list.addEventListener('click', (event) => {
+    const name = event.target.closest('.rank-name');
+    if (name) onPick(name.dataset.id);
+  });
   closable(dialog);
 }
