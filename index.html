@@ -175,6 +175,7 @@
       </svg>
       <span id="mailDot" class="mail-dot" hidden></span>
     </button>
+    <button id="lanternBtn" class="icon-btn lantern-btn" type="button" title="Hội đèn trời" aria-label="Hội đèn trời" aria-expanded="false" aria-controls="lanternBoard" hidden><span aria-hidden="true">🏮</span></button>
   </div>
   <div id="bagVeil" class="bag-veil" hidden></div>
   <section id="bagPanel" class="bag-panel" role="dialog" aria-modal="true" aria-labelledby="bagTitle" hidden>
@@ -248,6 +249,13 @@
     <p class="sleep-title">💤 Đang ngủ...</p>
     <p id="sleepEnergy" class="sleep-energy"></p>
     <button id="wakeBtn" class="sleep-wake" type="button">☀️ Thức dậy</button>
+  </div>
+  <div id="lanternBoard" class="picker menu tailless lantern-board" role="dialog" aria-label="Hội đèn trời" hidden>
+    <div class="picker-head">
+      <span class="picker-title">Hội đèn trời</span>
+      <button class="picker-x" type="button" aria-label="Đóng">×</button>
+    </div>
+    <ol class="lantern-board-list"></ol>
   </div>
   <div id="picker" class="picker" role="dialog" hidden>
     <div class="picker-head" hidden>
@@ -671,6 +679,7 @@
         <button type="button" role="tab" data-tab="worth" aria-selected="true" aria-label="Tài sản"><span class="rank-tab-art" aria-hidden="true">💰</span></button>
         <button type="button" role="tab" data-tab="certs" aria-selected="false" aria-label="Chứng chỉ"><span class="rank-tab-art" aria-hidden="true">🎓</span></button>
         <button type="button" role="tab" data-tab="arena" aria-selected="false" aria-label="Lôi đài"><span class="rank-tab-art" aria-hidden="true">⚔️</span></button>
+        <button type="button" role="tab" data-tab="lantern" aria-selected="false" aria-label="Đèn trời"><span class="rank-tab-art" aria-hidden="true">🏮</span></button>
       </div>
       <div class="bank-panel">
         <ol id="rankList" class="rank-list"></ol>

@@ -106,11 +106,22 @@ export function lanternSignWorth(id, need, diligence, points) {
   return each * share * LANTERN.count * 0.3 - LANTERN.fee * need;
 }
 
-const blank = () => ({ day: null, seq: 0, solved: 0, list: [], locks: {} });
+const blank = () => ({ day: null, seq: 0, solved: 0, list: [], locks: {}, tally: {} });
 const blankSignup = () => ({ day: null, ids: [] });
 
 function validLantern(raw) {
   return raw && Number.isInteger(raw.id) && typeof raw.key === 'string' && unitOf(raw.key) && ['x', 'y', 'z', 'dropAt'].every((name) => Number.isFinite(raw[name]));
+}
+
+function counts(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw).filter(([, value]) => Number.isInteger(value) && value > 0));
+}
+
+export function lanternStandings(ids, tally) {
+  return ids.map((id, order) => ({ id, score: tally[id] ?? 0, order }))
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .map(({ id, score }) => ({ id, score }));
 }
 
 function load() {
@@ -123,11 +134,13 @@ function load() {
         solved: Number.isInteger(saved.solved) ? saved.solved : 0,
         list: Array.isArray(saved.list) ? saved.list.filter(validLantern).map((raw) => ({ ...raw, doneAt: Number.isFinite(raw.doneAt) ? raw.doneAt : null, by: raw.by ?? null })) : [],
         locks: saved.locks && typeof saved.locks === 'object' ? saved.locks : {},
+        tally: counts(saved.tally),
+        totals: counts(saved.totals),
         signup: Number.isInteger(saved.signup?.day) && Array.isArray(saved.signup?.ids) ? { day: saved.signup.day, ids: saved.signup.ids.filter((id) => typeof id === 'string') } : blankSignup(),
       };
     }
   } catch {}
-  return { ...blank(), signup: blankSignup() };
+  return { ...blank(), signup: blankSignup(), totals: {} };
 }
 
 export function createLanterns({ ground, roster, reward, charge, budget }) {
@@ -197,7 +210,7 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
       const slot = lanternWindow(now);
       let changed = false;
       if (slot && state.day !== slot.day) {
-        state = { ...blank(), signup: state.signup };
+        state = { ...blank(), signup: state.signup, totals: state.totals };
         state.day = slot.day;
         claims.clear();
         changed = true;
@@ -215,6 +228,12 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
       if (changed || state.list.length !== before) store.save();
     },
     active: (now) => lanternWindow(now) !== null,
+    standings(now) {
+      const slot = lanternWindow(now);
+      if (!slot) return [];
+      return lanternStandings(signedOn(slot.day), state.day === slot.day ? state.tally : {});
+    },
+    totalOf: (who) => state.totals[who] ?? 0,
     energyAt,
     signed: (who, now) => signed(who, dayOf(now)),
     register(who, now) {
@@ -250,6 +269,8 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
       lantern.doneAt = now;
       lantern.by = who;
       state.solved += 1;
+      state.tally[who] = (state.tally[who] ?? 0) + 1;
+      state.totals[who] = (state.totals[who] ?? 0) + 1;
       delete state.locks[id];
       releaseLantern(id);
       const prize = reward(who, now, energy);

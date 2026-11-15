@@ -86,6 +86,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
+import { createLanternBoard } from './lanternBoard.js';
 import { createProfile } from './profile.js';
 import { traits } from './traits.js';
 import { economy, SHOPKEEPERS } from './economy.js';
@@ -813,7 +814,8 @@ await economy.start({
 });
 const traitHolders = new Set([PLAYER, ...town.members.map((member) => member.id)]);
 const profileDialog = createProfile({ ledger, bank, estate, arena, people: everyone, portraitOf, takesPart: (id) => traitHolders.has(id) });
-createRanking({ ledger, bank, estate, arena, people: everyone, now: gameNow, onPick: profileDialog.open });
+createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
+createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
 
 let context = null;

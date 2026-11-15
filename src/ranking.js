@@ -42,7 +42,7 @@ function richSpan(className, text) {
   return node;
 }
 
-export function createRanking({ ledger, bank, estate, arena, people, now, onPick = () => {} }) {
+export function createRanking({ ledger, bank, estate, arena, lanterns, people, now, onPick = () => {} }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
@@ -65,6 +65,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now, onPick
   }
 
   const certsOf = (id) => certify.certifiedTotal(id);
+  const lanternsOf = (id) => lanterns.totalOf(id);
 
   function certsBaseFor(day) {
     if (board?.certsBase?.day === day) return board.certsBase;
@@ -74,7 +75,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now, onPick
 
   function snapshot({ slot, at }) {
     const certsBase = certsBaseFor(dayOf(at));
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version };
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -84,6 +85,7 @@ export function createRanking({ ledger, bank, estate, arena, people, now, onPick
     worth: (worth) => richSpan(worth < 0 ? 'rank-worth debt' : 'rank-worth', coins(worth)),
     certs: (count) => el('span', 'rank-worth', `🎓 ${amount(count)}`),
     arena: (count) => el('span', 'rank-worth', `🏆 ${amount(count)}`),
+    lantern: (count) => el('span', 'rank-worth', `🏮 ${amount(count)}`),
   };
 
   function nameButton(id) {
@@ -107,14 +109,15 @@ export function createRanking({ ledger, bank, estate, arena, people, now, onPick
 
   function render() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
-    const rows = (tab === 'certs' ? board.certs : tab === 'arena' ? board.arena.filter((entry) => entry.score > 0) : board.rows).filter((entry) => names.has(entry.id));
+    const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0) };
+    const rows = (pick[tab] ?? board.rows).filter((entry) => names.has(entry.id));
     list.replaceChildren(...(rows.length ? rows.map(row) : [el('li', 'rank-empty', 'Chưa có nhà vô địch.')]));
     stamp.textContent = `Cập nhật lúc ${clockText(board.at)}`;
   }
 
   function update() {
     const checkpoint = latestCheckpoint(now());
-    if (board?.slot === checkpoint.slot && board.certs && board.arena && board.arenaVersion === arena.version) return;
+    if (board?.slot === checkpoint.slot && board.certs && board.arena && board.lantern && board.arenaVersion === arena.version) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }
