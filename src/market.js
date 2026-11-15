@@ -155,10 +155,13 @@ function createStallUI({ market, purse, ids, sellItems, buyItems, greeting }) {
       price,
       unit: info.unit,
       tag: `có ${have}`,
-      actions: [
-        { label: 'Bán 1', disabled: have < 1 || !buying, run: sellSome(1) },
-        { label: 'Bán hết', disabled: have < 1 || !buying, run: sellSome(have) },
-      ],
+      actions:
+        have >= 1 && !buying
+          ? [{ label: 'Hết tiền', disabled: true, run: () => {} }]
+          : [
+              { label: 'Bán 1', disabled: have < 1, run: sellSome(1) },
+              { label: 'Bán hết', disabled: have < 1, run: sellSome(have) },
+            ],
     });
   }
 

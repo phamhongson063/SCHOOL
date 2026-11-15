@@ -285,6 +285,7 @@ export const TRADE = {
   stock: { seed: 30, fertilizer: 20, bait: 60, rod: 3, snack: 20 },
   restockBelow: 0.5,
   capital: 400,
+  cashFloor: 0.25,
   richLift: 0.5,
   marketFee: 0.05,
   scarce: { protein: 1.5 },

@@ -13,6 +13,8 @@ const MERCHANTS = new Set([NPC.keeper, NPC.fishmonger, ...Object.keys(KITCHENS)]
 const MENUS = { [NPC.cook]: FOODS, [NPC.vendor]: VENDOR.foods };
 const GOODS = [...Object.keys(CROP_ECONOMY).map(seedId), 'fertilizer', 'bait', 'rod', ...Object.keys(SNACKS).map(snackId)];
 const RAW = Object.fromEntries(Object.keys(WHOLESALE).map((kind) => [kind, Object.keys(ITEMS).filter((item) => ITEMS[item].kind === kind)]));
+const BUYERS = [...new Set(Object.values(WHOLESALE))];
+const RAW_OF = Object.fromEntries(BUYERS.map((holder) => [holder, Object.keys(RAW).filter((kind) => WHOLESALE[kind] === holder).flatMap((kind) => RAW[kind])]));
 
 export function priceOf(item) {
   const info = ITEMS[item];
@@ -118,9 +120,14 @@ function earned(id, value) {
   state.sales[id] = (state.sales[id] ?? 0) + value;
 }
 
+const cashFloor = () => TRADE.capital * TRADE.cashFloor;
+const short = (holder) => purseOf(holder).money < cashFloor();
+
 function fillRate(item) {
-  const fill = Math.min(1, purseOf(WHOLESALE[ITEMS[item].kind]).count(item) / itemCap(item));
-  return TRADE.buyHigh - (TRADE.buyHigh - TRADE.buyLow) * fill;
+  const holder = WHOLESALE[ITEMS[item].kind];
+  const fill = Math.min(1, purseOf(holder).count(item) / itemCap(item));
+  const rate = TRADE.buyHigh - (TRADE.buyHigh - TRADE.buyLow) * fill;
+  return short(holder) ? Math.min(rate, TRADE.exportRate) : rate;
 }
 
 function quote(item) {
@@ -136,6 +143,41 @@ function payRate(kind) {
   return (items.reduce((sum, item) => sum + fillRate(item), 0) / items.length) * lift(WHOLESALE[kind]);
 }
 
+function exportStock(holder, item, units) {
+  if (!(units > 0)) return;
+  const purse = purseOf(holder);
+  const gross = units * priceOf(item) * TRADE.exportRate;
+  const cost = costOf(holder, item, units);
+  purse.take(item, units);
+  economy.trade(purse, gross, cost);
+  earned(holder, gross);
+}
+
+function fullestOf(holder) {
+  let best = null;
+  let most = 0;
+  for (const item of RAW_OF[holder]) {
+    const count = purseOf(holder).count(item);
+    const fill = count / itemCap(item);
+    if (count >= 1 && fill > most) {
+      best = item;
+      most = fill;
+    }
+  }
+  return best;
+}
+
+function raiseCash(holder, need) {
+  const purse = purseOf(holder);
+  while (purse.money < need) {
+    const item = fullestOf(holder);
+    if (!item) return;
+    exportStock(holder, item, 1);
+  }
+}
+
+const exportValue = (holder) => RAW_OF[holder].reduce((sum, item) => sum + Math.floor(purseOf(holder).count(item)) * priceOf(item) * TRADE.exportRate, 0);
+
 function buyRaw(purse, item, count) {
   const holder = WHOLESALE[ITEMS[item]?.kind];
   if (!ledger || !holder || purse.id === holder) return { sold: 0, earned: 0 };
@@ -143,7 +185,11 @@ function buyRaw(purse, item, count) {
   let gross = 0;
   while (sold < count && purse.count(item) > 0) {
     const price = quote(item);
-    if (!(price > 0) || !spendFine(holder, price)) break;
+    if (!(price > 0)) break;
+    if (!spendFine(holder, price)) {
+      raiseCash(holder, Math.ceil(price));
+      if (!spendFine(holder, price)) break;
+    }
     purse.take(item, 1);
     receive(holder, item, 1, price);
     sold += 1;
@@ -253,17 +299,9 @@ function restockGood(item, need = 0) {
 }
 
 function exportSurplus() {
-  for (const [kind, holder] of Object.entries(WHOLESALE)) {
-    const purse = purseOf(holder);
-    for (const item of RAW[kind]) {
-      const units = Math.floor(purse.count(item) - itemCap(item));
-      if (units <= 0) continue;
-      const gross = units * priceOf(item) * TRADE.exportRate;
-      const cost = costOf(holder, item, units);
-      purse.take(item, units);
-      economy.trade(purse, gross, cost);
-      earned(holder, gross);
-    }
+  for (const holder of BUYERS) {
+    for (const item of RAW_OF[holder]) exportStock(holder, item, Math.floor(purseOf(holder).count(item) - itemCap(item)));
+    raiseCash(holder, cashFloor());
   }
 }
 
@@ -325,7 +363,7 @@ export const trade = {
   },
   buying(item) {
     const holder = WHOLESALE[ITEMS[item]?.kind];
-    return !!ledger && !!holder && purseOf(holder).money >= Math.ceil(quote(item));
+    return !!ledger && !!holder && purseOf(holder).money + exportValue(holder) >= Math.ceil(quote(item));
   },
   stockOf(item) {
     return ledger ? purseOf(sellerOf(item)).count(item) : 0;
