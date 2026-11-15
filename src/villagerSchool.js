@@ -76,7 +76,7 @@ export class SchoolBehavior {
 
   canWaitForSeat(deck) {
     const ctx = this.town.context;
-    if (!deck || !this.town.seatWait?.hasRoom(deck) || ctx.night || this.needsSleep(ctx)) return false;
+    if (!deck || !this.town.seatWait?.hasRoom(deck) || this.needsSleep(ctx)) return false;
     return this.purse.money >= CERTIFY.learnFee && certify.learnLeft(this.id, deck).length > 0;
   }
 
@@ -98,7 +98,7 @@ export class SchoolBehavior {
   holdSeatWait() {
     const ctx = this.town.context;
     const wait = this.town.seatWait;
-    if (!wait.has(this) || ctx.night || this.needsSleep(ctx) || this.now >= this.seatWaitUntil) {
+    if (!wait.has(this) || this.needsSleep(ctx) || this.now >= this.seatWaitUntil) {
       this.dropSeatWait();
       return;
     }

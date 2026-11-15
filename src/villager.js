@@ -324,6 +324,8 @@ export class Villager {
     this.fishing = null;
     this.town.wildlife?.release(this);
     this.hunting = null;
+    this.town.fireflies?.release(this);
+    this.fireflyUntil = null;
     if (this.fx) for (const effect of Object.values(this.fx)) effect.busy && effect.cancel();
     this.town.seatWait?.leave(this);
     if (this.targetSeat) this.town.seats.unreserve(this.targetSeat, this);

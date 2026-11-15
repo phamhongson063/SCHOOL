@@ -1,11 +1,9 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
-import { FIREFLY } from './config.js';
 import { between } from './random.js';
 
 const GLOW = new THREE.Color(0xd9ff6a);
 const FADE_RATE = 0.6;
-const SAFE_SPAWN = 8;
 const LAMP_FLIES = 6;
 
 function glowTexture() {
@@ -54,60 +52,21 @@ const blink = (t, fly) => {
   return 0.15 + 0.85 * Math.max(0, wave) ** 3;
 };
 
-export function createFireflies({ scene, zones, heightAt }) {
-  const swarm = glowPoints(FIREFLY.count, 0.22);
+export function createFireflies({ scene, field }) {
+  const flies = field.flies;
+  const swarm = glowPoints(flies.length, 0.22);
   swarm.points.visible = false;
   scene.add(swarm.points);
-  const totalArea = zones.reduce((sum, zone) => sum + zone.weight, 0);
   let shown = 0;
 
-  function randomHome(avoid) {
-    for (let tries = 0; tries < 12; tries++) {
-      let pick = Math.random() * totalArea;
-      const zone = zones.find((z) => (pick -= z.weight) <= 0) ?? zones[0];
-      const x = between(zone.x0, zone.x1);
-      const z = between(zone.z0, zone.z1);
-      if (avoid && Math.hypot(x - avoid.x, z - avoid.z) < SAFE_SPAWN) continue;
-      const ground = heightAt(x, z);
-      if (ground == null) continue;
-      return { x, y: ground + between(0.55, 1.5), z };
-    }
-    return null;
-  }
-
-  const flies = Array.from({ length: FIREFLY.count }, () => ({
-    home: randomHome(null),
-    rate: between(1.4, 3.2),
-    phase: Math.random() * Math.PI * 2,
-    drift: [between(0.2, 0.5), between(0.3, 0.7), between(0.2, 0.5)],
-    reach: between(0.5, 1.2),
-    respawnAt: 0,
-    x: 0,
-    y: 0,
-    z: 0,
-  }));
-
   return {
-    update(t, dt, { night, player, catching }) {
+    update(t, dt, night) {
       shown += ((night ? 1 : 0) - shown) * Math.min(1, dt * FADE_RATE * 3);
       swarm.points.visible = shown > 0.02;
-      if (!swarm.points.visible) return 0;
-      let caught = 0;
+      if (!swarm.points.visible) return;
       const { positions, colors } = swarm;
       for (const [i, fly] of flies.entries()) {
-        if (!fly.home && t >= fly.respawnAt) fly.home = randomHome(player);
         if (!fly.home) {
-          colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = 0;
-          continue;
-        }
-        const [a, b, c] = fly.drift;
-        fly.x = fly.home.x + Math.sin(t * a + fly.phase) * fly.reach;
-        fly.y = fly.home.y + Math.sin(t * b + fly.phase * 1.7) * 0.3;
-        fly.z = fly.home.z + Math.cos(t * c + fly.phase * 0.6) * fly.reach;
-        if (catching && night && Math.hypot(fly.x - player.x, fly.z - player.z) < FIREFLY.catchRadius && Math.abs(fly.y - (player.y + 0.8)) < 1.2) {
-          caught += 1;
-          fly.home = null;
-          fly.respawnAt = t + between(...FIREFLY.respawn);
           colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = 0;
           continue;
         }
@@ -121,7 +80,6 @@ export function createFireflies({ scene, zones, heightAt }) {
       }
       swarm.geometry.attributes.position.needsUpdate = true;
       swarm.geometry.attributes.color.needsUpdate = true;
-      return caught;
     },
   };
 }

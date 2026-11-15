@@ -26,9 +26,11 @@ import { createWatering } from './watering.js';
 import { createHarvesting } from './harvesting.js';
 import { createClearing } from './clearing.js';
 import { createQuiz } from './quiz.js';
-import { createFarm, FARM_X } from './farm.js';
+import { createFarm } from './farm.js';
 import { FIELDS } from './fieldPlan.js';
 import { createFireflies, createFireflyLamp } from './fireflies.js';
+import { createFireflyField } from './fireflyField.js';
+import { createLampBurner } from './fireflyRules.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
 import { createBubble, updateBubbles, setBubbleOcclusion, setNamesShown } from './bubble.js';
@@ -39,7 +41,7 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, FIREFLY, QUIZ, BLESSING, CERTIFY } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY } from './config.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { blessingScore } from './blessingRules.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
@@ -913,48 +915,41 @@ player.onStand = () => {
 };
 
 
-const fireflies = createFireflies({
-  scene,
-  zones: [
-    { x0: -30 + FARM_X, x1: 31 + FARM_X, z0: 40, z1: 62, weight: 3 },
-    ...BANK_POINTS.map((stand) => ({ x0: stand.x - 4, x1: stand.x + 4, z0: stand.z - 2.5, z1: stand.z + 1, weight: 1 })),
-  ],
+const fireflyField = createFireflyField({
+  bounds: { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
   heightAt: (x, z) => player.nav.heightAt(x, z),
+  allowed: (x, y, z) => !inStudyRoom({ x, y, z }),
 });
+town.fireflies = fireflyField;
+const fireflies = createFireflies({ scene, field: fireflyField });
 const fireflyLamp = createFireflyLamp(scene);
+const playerLamp = createLampBurner();
+const catchFrom = player.position.clone();
 let lampSeat = null;
-let lampMinutes = 0;
-let lampAt = null;
 
-function lampLit() {
-  return context.night && player.posture === 'seated' && !!player.seat?.study && purse.count('firefly') >= FIREFLY.lampMin;
+function playerLampLit() {
+  return playerLamp.lit(context.night, player.posture === 'seated' && !!player.seat?.study, purse.count('firefly'));
 }
 
 function updateLamp(t) {
-  const lit = lampLit();
+  const lit = playerLampLit();
   const seat = lit ? player.seat : null;
   if (seat !== lampSeat) {
     lampSeat = seat;
     fireflyLamp.show(seat);
   }
   fireflyLamp.update(t);
-  const now = context.minutes;
-  if (lit && lampAt !== null && now > lampAt) {
-    lampMinutes += now - lampAt;
-    if (lampMinutes >= FIREFLY.lampMinutesPerFly) {
-      lampMinutes -= FIREFLY.lampMinutesPerFly;
-      purse.take('firefly', 1);
-    }
-  }
-  lampAt = lit ? now : null;
+  playerLamp.tick(lit, context.minutes, purse);
 }
 
 function catchFireflies(t, dt) {
-  const caught = fireflies.update(t, dt, {
-    night: context.night,
-    player: player.position,
-    catching: mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !exams.running,
-  });
+  fireflyField.step(t, player.position);
+  fireflies.update(t, dt, context.night);
+  const catching = context.night && mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !exams.running;
+  const from = { x: catchFrom.x, z: catchFrom.z };
+  catchFrom.copy(player.position);
+  if (!catching) return;
+  const caught = fireflyField.catchAlong(from, player.position);
   if (!caught) return;
   purse.add('firefly', caught);
   sayPlayer(`✨ ${purse.count('firefly')}`, 1.2);
@@ -1822,7 +1817,7 @@ function drainEnergy() {
   const resting = lodging || homeActivity(estate.houseOf(PLAYER));
   const lying = nearShelter(player.position.x, player.position.z) ? 'shelter' : inStudyRoom(player.position) ? 'studyRest' : 'rest';
   const studying = !!player.seat?.study;
-  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (lampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
+  const activity = asleep ? resting : player.resting ? lying : player.posture === 'seated' ? (studying ? (playerLampLit() ? 'lampStudy' : 'study') : 'seated') : moving;
   const offline = asleep ? lodging || 'idle' : player.resting ? lying : 'idle';
   purse.liveEnergy(context.minutes, activity, asleep ? resting : offline, offline);
   player.tired = purse.energy <= 0;

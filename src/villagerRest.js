@@ -10,6 +10,7 @@ import { economy } from './economy.js';
 import { realSeconds } from './clock.js';
 import { blessingCloseAt, blessingStayMinutes } from './villagerMind.js';
 import { blessingScore } from './blessingRules.js';
+import { createLampBurner } from './fireflyRules.js';
 import { NPC } from './npcIds.js';
 import { trade } from './trade.js';
 
@@ -129,13 +130,22 @@ export class RestBehavior {
     if (this.state === 'away') return ctx.night ? this.homeSleep() : 'idle';
     if (this.state === 'inn') return this.lodge?.id ?? 'inn';
     if (this.state === 'resting') return this.lyingDown ? (inStudyRoom(this.position) ? 'studyRest' : 'rest') : 'idle';
-    if (this.state === 'seated' && this.studying) return 'study';
+    if (this.state === 'seated' && this.studying) return this.lampOn(ctx) ? 'lampStudy' : 'study';
     if (this.state === 'seated' || this.state === 'teaching') return 'seated';
     return activityOf(this.velocity, this.walkSpeed, this.runSpeed);
   }
 
+  lampOn(ctx) {
+    return this.lampBurner().lit(ctx.night, this.state === 'seated' && this.studying && !!this.seatRef?.study, this.purse.count('firefly'));
+  }
+
+  lampBurner() {
+    return (this.lamp ??= createLampBurner());
+  }
+
   tickEnergy(ctx) {
     const activity = this.activityNow(ctx);
+    this.lampBurner().tick(this.lampOn(ctx), ctx.minutes, this.purse);
     const stay = this.state === 'inn' ? activity : null;
     const blessed = this.town.blessing?.blessed(this.id, this.position, ctx.minutes) ?? false;
     this.purse.liveEnergy(ctx.minutes, activity, stay ?? this.homeSleep(), stay ?? 'idle');

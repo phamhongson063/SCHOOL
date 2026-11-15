@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { between } from './random.js';
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
-import { FISHING, ENERGY, HUNTING, CERTIFY } from './config.js';
+import { FISHING, ENERGY, FIREFLY, HUNTING, CERTIFY } from './config.js';
 import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
 import { traits } from './traits.js';
 
 const SIGN_SECONDS = 2.4;
+const SWAT_POLL = 0.25;
 
 export class WorkBehavior {
   nearby(radius) {
@@ -94,6 +95,47 @@ export class WorkBehavior {
     this.hunting = null;
     this.task = null;
     this.wait(between(1, 2));
+  }
+
+  goFirefly() {
+    const fly = this.town.fireflies?.claim(this, this.position);
+    if (!fly) return false;
+    this.task = 'firefly';
+    this.fireflyUntil = null;
+    this.chaseFirefly();
+    return true;
+  }
+
+  chaseFirefly() {
+    const ctx = this.town.context;
+    const fly = this.town.fireflies.claimOf(this);
+    if (!fly || !ctx.night || this.needsSleep(ctx)) {
+      this.endFirefly();
+      return;
+    }
+    this.travel(new THREE.Vector3(fly.x, 0, fly.z), { then: () => this.swatFirefly(), fail: () => this.endFirefly() });
+  }
+
+  swatFirefly() {
+    const field = this.town.fireflies;
+    this.fireflyUntil ??= this.now + FIREFLY.villagerSwat;
+    const fly = field.claimOf(this);
+    if (!fly || this.now >= this.fireflyUntil) {
+      this.endFirefly();
+      return;
+    }
+    if (Math.hypot(fly.x - this.position.x, fly.z - this.position.z) >= FIREFLY.catchRadius) {
+      this.chaseFirefly();
+      return;
+    }
+    this.wait(SWAT_POLL, () => this.swatFirefly());
+  }
+
+  endFirefly() {
+    this.town.fireflies?.release(this);
+    this.fireflyUntil = null;
+    this.task = null;
+    this.wait(between(0.5, 1.5));
   }
 
   canFish() {

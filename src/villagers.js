@@ -4,6 +4,7 @@ import { ENERGY, QUIZ, VILLAGER } from './config.js';
 import { INN_STAND } from './inn.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
+import { createFireflyLamp } from './fireflies.js';
 import { AVOID_PROBE, AVOID_RANGE, BED_GAP, BED_REACH, BED_SCATTER, BLOCKED, FAR_MAX_DT, FAR_STEP, FIELD_EDGES, GUARDS, HANGOUTS, NO_REST_RADIUS, PASS_SPACING, PATHS_PER_FRAME, PEDDLER, PLAYER_AVOID_RANGE, SPACING, STOP_SPACING, STREET, STREET_MID, TEACHER, VISIBLE_DISTANCE, YARD, canMove, clamp, pick, villagerProfiles } from './villagerData.js';
 import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
@@ -75,6 +76,7 @@ export class Town {
     this.viewProjection = new THREE.Matrix4();
     this.probe = new THREE.Sphere(new THREE.Vector3(), 1.4);
     this.lastNight = null;
+    this.lamps = new Map();
     this.reviewAt = 0;
     this.started = false;
   }
@@ -542,6 +544,7 @@ export class Town {
       this.review(ctx);
     }
     for (const member of this.all) member.tickEnergy(ctx);
+    this.catchFireflies(ctx);
     this.updateLod(camera);
     for (const member of this.all) {
       if (!member.near) {
@@ -556,5 +559,33 @@ export class Town {
     }
     this.separate(player, dt);
     this.restGlow.update(t);
+    this.updateLamps(t, ctx);
+  }
+
+  catchFireflies(ctx) {
+    const field = this.fireflies;
+    for (const member of this.members) {
+      const from = member.catchFrom;
+      member.catchFrom = { x: member.position.x, z: member.position.z };
+      if (!field || !ctx.night || !from || !member.present || !member.roaming) continue;
+      const caught = field.catchAlong(from, member.position);
+      if (!caught) continue;
+      member.purse.add('firefly', caught);
+      member.say(`✨ ${member.purse.count('firefly')}`, 1.2);
+    }
+  }
+
+  updateLamps(t, ctx) {
+    for (const member of this.members) {
+      let lamp = this.lamps.get(member);
+      const seat = member.near && member.lampOn(ctx) ? member.seatRef : null;
+      if (!seat && !lamp) continue;
+      if (!lamp) this.lamps.set(member, (lamp = { view: createFireflyLamp(this.root), seat: null }));
+      if (lamp.seat !== seat) {
+        lamp.seat = seat;
+        lamp.view.show(seat);
+      }
+      if (seat) lamp.view.update(t);
+    }
   }
 }

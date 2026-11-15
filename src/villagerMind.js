@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
@@ -10,6 +10,7 @@ import { trade } from './trade.js';
 import { SELF_STUDY } from './villagerData.js';
 import { traits } from './traits.js';
 import { fluency } from './fluency.js';
+import { LAMP_SAVING } from './fireflyRules.js';
 
 const weighted = (entries) => {
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -65,6 +66,11 @@ export class MindBehavior {
   huntGain(need) {
     const skill = traits.skill(this.id, 'hunt');
     return skill * GAME_VALUE * trade.payRate('game') * need - HUNTING.energy * MIND.energyCoin;
+  }
+
+  fireflyGain() {
+    if (!this.seated || this.purse.count('firefly') >= FIREFLY.villagerKeep) return 0;
+    return LAMP_SAVING * MIND.energyCoin * this.diligence;
   }
 
   studyGain(need, sit) {
@@ -144,6 +150,17 @@ export class MindBehavior {
     return { kind: 'hunt', rate: (gain / minutes) * crowd, go: () => this.goHunt() || this.leisure() };
   }
 
+  fireflyOption(ctx) {
+    const field = this.town.fireflies;
+    if (!ctx.night || !field) return null;
+    const gain = this.fireflyGain();
+    if (!(gain > 0)) return null;
+    const fly = field.nearest(this.position, this);
+    if (!fly) return null;
+    const minutes = this.walkMinutes(fly) + FIREFLY.villagerSwat / 60;
+    return { kind: 'firefly', rate: gain / minutes, go: () => this.goFirefly() || this.leisure() };
+  }
+
   studyOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt || this.purse.money < CERTIFY.learnFee) return null;
     const deck = this.studyDeckWanted(ctx);
@@ -188,7 +205,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

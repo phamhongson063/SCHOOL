@@ -248,11 +248,13 @@ export const GUARD = {
 export const PRAYER = { energy: 10 };
 
 export const FIREFLY = {
-  count: 40,
+  density: 0.004,
   catchRadius: 0.9,
   respawn: [25, 60],
   lampMin: 3,
   lampMinutesPerFly: 60,
+  villagerKeep: 6,
+  villagerSwat: 8,
 };
 
 export const ECONOMY = {

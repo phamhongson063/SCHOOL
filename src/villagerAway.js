@@ -1,4 +1,4 @@
-import { AWAY, BANK, BLESSING, CERTIFY, ENERGY, FISHING, FOODS, HUNTING, MIND, QUIZ, ROUTINE, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { AWAY, BANK, BLESSING, CERTIFY, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, ROUTINE, VENDOR, VILLAGER, WILDLIFE } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
@@ -12,12 +12,14 @@ import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
+import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
 const CAST = MIND.castSeconds / 60;
 const HUNT = MIND.huntSeconds / 60;
 const FARM = MIND.workSeconds / 60;
+const SWAT = FIREFLY.villagerSwat / 60;
 const COOLDOWN = SELF_STUDY.cooldown / 60;
 const QUIZ_MINUTES = QUIZ.seconds / 60;
 const PREY = Object.entries(WILDLIFE).filter(([, animal]) => animal.gentle);
@@ -200,6 +202,20 @@ export function createAwaySim({ town, contextAt }) {
     return AWAY.walk + HUNT;
   }
 
+  const flyDensity = () => town.fireflies?.density ?? 0;
+  const swatMinutes = () => nearestFlyGap(flyDensity()) / MOVE.walk / 60 + SWAT;
+
+  function swat(member) {
+    member.purse.add('firefly', 1);
+    return swatMinutes();
+  }
+
+  function sweep(member, walked) {
+    const expected = passingCatch(walked * 60, MOVE.walk, flyDensity());
+    const caught = Math.floor(expected) + (Math.random() < expected % 1 ? 1 : 0);
+    if (caught > 0) member.purse.add('firefly', caught);
+  }
+
   function studyDeck(member, ctx, slots) {
     if (!member.seated || ctx.minutes < memoOf(member).studyAt || member.purse.money < CERTIFY.learnFee) return null;
     const deck = member.studyDeckWanted(ctx);
@@ -282,6 +298,7 @@ export function createAwaySim({ town, contextAt }) {
       options.push({ kind: 'fish', as: 'walk', rate: member.fishGain(need, casts) / (AWAY.walk + casts * CAST), run: () => fish(member, ctx, slots) });
     }
     if (canHunt(member, slots)) options.push({ kind: 'hunt', as: 'walk', rate: member.huntGain(need) / (AWAY.walk + HUNT), run: () => hunt(member, slots) });
+    if (ctx.night && flyDensity() > 0) options.push({ kind: 'firefly', as: 'walk', rate: member.fireflyGain() / swatMinutes(), run: () => swat(member) });
     const deck = studyDeck(member, ctx, slots);
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
@@ -320,7 +337,10 @@ export function createAwaySim({ town, contextAt }) {
   function drain(member, ctx, end, minutes, used) {
     const idle = Math.max(0, minutes - used.walk - used.study);
     const total = used.walk + used.study + idle;
-    const rate = (energyRate('walk', ctx.night) * used.walk + energyRate('study', ctx.night) * used.study + energyRate('idle', ctx.night) * idle) / total;
+    const burner = member.lampBurner();
+    const lamp = burner.lit(ctx.night, used.study > 0, member.purse.count('firefly'));
+    if (lamp) burner.spend(member.purse, used.study);
+    const rate = (energyRate('walk', ctx.night) * used.walk + energyRate(lamp ? 'lampStudy' : 'study', ctx.night) * used.study + energyRate('idle', ctx.night) * idle) / total;
     member.purse.tickEnergy(end, rate);
   }
 
@@ -336,6 +356,7 @@ export function createAwaySim({ town, contextAt }) {
     }
     const used = work(member, ctx, minutes, slots);
     if (ctx.night && !used.walk && !used.study) return sleep(member, ctx, end);
+    if (ctx.night) sweep(member, used.walk);
     drain(member, ctx, end, minutes, used);
   }
 
