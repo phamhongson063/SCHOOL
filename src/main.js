@@ -116,6 +116,7 @@ import { createArenaSummon } from './arenaSummon.js';
 import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } from './arenaBoard.js';
 import { arenaLines, arenaMenu, createArenaDesk } from './arenaDesk.js';
 import { NPC } from './npcIds.js';
+import { stashPopups } from './popupStash.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -1585,6 +1586,7 @@ const mapLabels = createMapLabels({
   camera,
   zoom: () => camera.position.distanceTo(orbit.target),
   onPick: (stand) => {
+    if (mapFocus) return;
     setMode('play');
     const lantern = lanterns.list.find((item) => item.doneAt === null && item.x === stand.x && item.z === stand.z);
     if (lantern) {
@@ -1673,23 +1675,42 @@ function stopMapFocus() {
   mapClose.hidden = true;
   if (!mapFocus) return;
   clearInterval(mapFocus.timer);
-  mapLabels.move(mapFocus.label, null);
+  if (mapFocus.label) mapLabels.move(mapFocus.label, null);
   mapFocus = null;
 }
 
 function showOnMap(id) {
   const at = whereIs(id);
   if (!at) return;
+  const earlier = mapFocus?.restore;
+  const stashed = stashPopups();
+  const restore = () => {
+    earlier?.();
+    stashed();
+  };
   stopMapFocus();
   setMode('overview');
   aimMap(at);
   mapClose.hidden = false;
-  if (id === PLAYER) return;
-  mapFocus = { id, label: faceLabelOf(id), timer: setInterval(refreshMapFocus, FOCUS_REFRESH_MS) };
+  if (id === PLAYER) {
+    mapFocus = { id, label: null, timer: null, restore };
+    return;
+  }
+  mapFocus = { id, label: faceLabelOf(id), timer: setInterval(refreshMapFocus, FOCUS_REFRESH_MS), restore };
   refreshMapFocus();
 }
 
-mapClose.addEventListener('click', () => setMode('play'));
+function closeMap() {
+  const restore = mapFocus?.restore;
+  setMode('play');
+  restore?.();
+}
+
+mapClose.addEventListener('click', closeMap);
+window.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !mapFocus || popupOpen()) return;
+  closeMap();
+});
 
 function refreshHomeLabel() {
   const house = estate.houseOf(PLAYER);
@@ -1709,7 +1730,7 @@ function mapPoint(clientX, clientY) {
 }
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
-  if (mode === 'overview') mapPress = { x: event.clientX, y: event.clientY };
+  if (mode === 'overview' && !mapFocus) mapPress = { x: event.clientX, y: event.clientY };
 });
 renderer.domElement.addEventListener('pointerup', (event) => {
   if (mode !== 'overview' || !mapPress) return;
@@ -1728,7 +1749,7 @@ renderer.domElement.addEventListener('pointerup', (event) => {
   if (point) player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
 });
 
-ui.modeBtn.addEventListener('click', () => setMode(mode === 'play' ? 'overview' : 'play'));
+ui.modeBtn.addEventListener('click', () => (mode === 'play' ? setMode('overview') : closeMap()));
 
 const restBtn = document.getElementById('restBtn');
 const actionBar = document.getElementById('actionBar');

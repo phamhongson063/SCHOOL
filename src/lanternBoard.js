@@ -1,5 +1,6 @@
 import { amount } from './format.js';
 import { PLAYER } from './inventory.js';
+import { isStashed, unstash } from './popupStash.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 const CHECK_MS = 500;
@@ -48,6 +49,7 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
     board.hidden = !open;
     button.setAttribute('aria-expanded', String(open));
     if (!open) return;
+    unstash(board);
     if (!rows) capture();
     render();
     place();
@@ -72,7 +74,7 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
     capture();
     if (!board.hidden) {
       render();
-      place();
+      if (!isStashed(board)) place();
     }
   }
 
@@ -86,11 +88,11 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
     if (name) onPick(name.dataset.id);
   });
   document.addEventListener('pointerdown', (event) => {
-    if (board.hidden || board.contains(event.target) || button.contains(event.target)) return;
+    if (board.hidden || isStashed(board) || board.contains(event.target) || button.contains(event.target)) return;
     if (event.target.closest?.('dialog')) return;
     setOpen(false);
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !board.hidden) setOpen(false);
+    if (event.key === 'Escape' && !board.hidden && !isStashed(board)) setOpen(false);
   });
 }

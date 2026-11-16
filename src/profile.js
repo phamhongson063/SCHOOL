@@ -211,7 +211,6 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
   });
   locate.addEventListener('click', () => {
     if (!current) return;
-    dialog.close();
     onLocate(current.id);
   });
   closable(dialog);

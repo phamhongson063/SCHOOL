@@ -1,5 +1,6 @@
 import { paintIcon } from './itemArt.js';
 import { setRich } from './goldArt.js';
+import { isStashed, unstash } from './popupStash.js';
 
 const MARGIN = 12;
 const MIN_TITLE_SIZE = 11;
@@ -55,6 +56,7 @@ export function createPicker() {
     list.replaceChildren(...options.map(option));
     onPick = pick;
     panel.hidden = false;
+    unstash(panel);
     if (menu) fitTitle();
     const width = panel.offsetWidth;
     const height = panel.offsetHeight;
@@ -70,10 +72,10 @@ export function createPicker() {
   head.querySelector('.picker-x').addEventListener('click', close);
 
   document.addEventListener('pointerdown', (event) => {
-    if (!panel.hidden && !panel.contains(event.target)) close();
+    if (!panel.hidden && !isStashed(panel) && !panel.contains(event.target)) close();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !panel.hidden) close();
+    if (event.key === 'Escape' && !panel.hidden && !isStashed(panel)) close();
   });
 
   return { open, close };
