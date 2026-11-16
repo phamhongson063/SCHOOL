@@ -554,7 +554,7 @@ function skyLayout() {
   };
 }
 
-export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night = () => 0, overview = () => false, shown = () => true }) {
+export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night = () => 0, shown = () => true }) {
   const obstacles = obstacleBoxes();
   const canvas = document.createElement('canvas');
   canvas.width = boardSize.width;
@@ -723,7 +723,6 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
             sky.holder.rotation.y = Math.atan2(look.x - ISLAND.x, look.z - ISLAND.z);
             gateMotes.update(dt);
             islandMotes.update(dt);
-            heaven.showBackdrop(!overview());
             const dark = Math.min(1, Math.max(0, night()));
             heaven.update(t, dt, dark);
             const pulse = 1 + ORB_LIGHT.pulse * Math.sin(t * ORB_LIGHT.speed);

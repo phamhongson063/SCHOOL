@@ -4810,19 +4810,67 @@ dialog.paper.phrase-quiz.closing::backdrop {
   -webkit-touch-callout: none;
 }
 
-.map-labels {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
+dialog.paper.map {
+  width: min(960px, calc(100vw - 24px));
+  height: min(720px, calc(100dvh - 24px));
+  max-height: none;
+}
+
+dialog.paper.map[open] {
+  display: flex;
+}
+
+.map-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.map-body .sched-head {
+  margin-bottom: 12px;
+}
+
+.map-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 8px;
+  background: #263444;
+  cursor: grab;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-.map-labels[hidden] {
+.map-view::-webkit-scrollbar {
   display: none;
+}
+
+.map-view.dragging {
+  cursor: grabbing;
+}
+
+.map-sheet {
+  position: relative;
+}
+
+.map-ground {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .map-label {
@@ -4833,7 +4881,7 @@ dialog.paper.phrase-quiz.closing::backdrop {
   border: 0;
   background: none;
   color: #fff3d2;
-  font: 400 clamp(21px, 5.6vw, 30px)/1 "Water Brush", "Dancing Script", cursive;
+  font: 400 clamp(20px, 5vw, 28px)/1 "Water Brush", "Dancing Script", cursive;
   white-space: nowrap;
   text-shadow:
     0 0 2px #2a170b,
@@ -4861,6 +4909,14 @@ dialog.paper.phrase-quiz.closing::backdrop {
 .map-label:focus-visible {
   color: #ffd76a;
   outline: none;
+}
+
+dialog.map.locked .map-label {
+  cursor: inherit;
+}
+
+dialog.map.locked .map-label:hover {
+  color: #fff3d2;
 }
 
 .speech {
@@ -5172,14 +5228,6 @@ dialog.profile::backdrop {
 
 .profile-locate:active {
   transform: scale(0.95);
-}
-
-.map-close {
-  position: fixed;
-  top: 16px;
-  left: 50%;
-  z-index: var(--z-scene-ui);
-  translate: -50% 0;
 }
 
 .profile-head h2 {

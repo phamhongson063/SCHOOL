@@ -5,7 +5,7 @@ import { setRich } from './goldArt.js';
 
 const HOVER_INTERVAL = 0.1;
 
-export function createHoverTip({ renderer, camera, regions, player, playing, working }) {
+export function createHoverTip({ renderer, camera, regions, player, working }) {
   const tip = document.getElementById('hoverTip');
   const tipText = document.getElementById('hoverTipText');
   const tipBar = document.getElementById('hoverTipBar');
@@ -77,7 +77,7 @@ export function createHoverTip({ renderer, camera, regions, player, playing, wor
     nextAt = t + HOVER_INTERVAL;
     let region = null;
     let target = null;
-    if (hovering && playing()) {
+    if (hovering) {
       if (dirty || !lastCamera.equals(camera.matrixWorld)) {
         dirty = false;
         lastCamera.copy(camera.matrixWorld);
@@ -95,7 +95,7 @@ export function createHoverTip({ renderer, camera, regions, player, playing, wor
       shownRegion?.highlight?.(null);
       shownRegion = null;
       renderer.domElement.style.cursor = '';
-      const near = playing() ? nearbyTimer() : null;
+      const near = nearbyTimer();
       text = near?.text ?? null;
       progress = near?.progress ?? null;
       anchor = near?.anchor ?? null;

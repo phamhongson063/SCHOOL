@@ -42,7 +42,6 @@ const screen = new THREE.Vector3();
 const low = new THREE.Vector3();
 let layer = null;
 let blocked = () => false;
-let namesShown = true;
 
 function speechLayer() {
   if (layer) return layer;
@@ -77,10 +76,6 @@ function inScene(object) {
 
 export function setBubbleOcclusion(test) {
   blocked = test;
-}
-
-export function setNamesShown(on) {
-  namesShown = on;
 }
 
 export function updateBubbles(camera, now) {
@@ -172,7 +167,7 @@ export function createBubble() {
         hiddenBehind = blocked(camera.position, head);
       }
       visible &&= !hiddenBehind;
-      const named = visible && namesShown && !!name;
+      const named = visible && !!name;
       element.hidden = !visible || !shown;
       nameTag.hidden = !named;
       for (const badge of badges) badge.el.hidden = !visible || !badge.on;

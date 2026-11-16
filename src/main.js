@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VoxelWorld } from './world.js';
 import { buildWorld, populate, stairHeight, CX, HOUSE, PLAZA, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
@@ -37,7 +36,7 @@ import { createLanternDialog } from './lanternDialog.js';
 import { createLampBurner } from './fireflyRules.js';
 import { createRoad, SPAWN } from './road.js';
 import { createStreetLamps } from './streetLamps.js';
-import { createBubble, updateBubbles, setBubbleOcclusion, setNamesShown } from './bubble.js';
+import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
 import { ITEMS, Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
 import { createMailbox } from './mailbox.js';
@@ -73,7 +72,8 @@ import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
-import { createMapLabels } from './mapLabels.js';
+import { createWorldMap } from './worldMap.js';
+import { createMapGround } from './mapGround.js';
 import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
@@ -345,7 +345,7 @@ const districtRegion = district.region({
 regions.add(districtRegion);
 const farm = createFarm({ ledger, nameOf, nav: () => player.nav });
 regions.add(farm);
-const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, overview: () => mode === 'overview', shown: () => onIsland(player.position) });
+const arenaIsland = createArenaIsland({ onPortal: () => arenaTrip?.leave(), onBoard: () => bracketDialog.open(), boardSize: BOARD_SIZE, camera, night: () => shownNight, shown: () => onIsland(player.position) });
 regions.add(arenaIsland.region);
 const townGate = district.arenaDesk ? createTownGate({ desk: district.arenaDesk, isOpen: () => arena.event?.phase === 'running', onEnter: () => arenaTrip?.enter() ?? null }) : null;
 if (townGate) regions.add(townGate.region);
@@ -408,7 +408,7 @@ scene.add(villagerRoot);
 
 const picker = createPicker();
 const regionControls = [...document.querySelectorAll('[data-region]')];
-const hoverTip = createHoverTip({ renderer, camera, regions, player, playing: () => mode === 'play', working: () => effectTask });
+const hoverTip = createHoverTip({ renderer, camera, regions, player, working: () => effectTask });
 regions.onChange = (region) => {
   if (region) soundRegion = region.id;
   for (const control of regionControls) control.hidden = control.dataset.region !== region?.id;
@@ -642,7 +642,7 @@ player.onTarget = (point) => {
 };
 function travelTo(point, visit = null) {
   stopWork();
-  setMode('play');
+  closeMap();
   tripPending = true;
   if (visit === 'teacher') {
     leaveLine();
@@ -712,7 +712,7 @@ town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
 const arenaFx = createArenaFx(scene);
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!'), closeMap: () => setMode('play') });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!'), closeMap });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -1024,7 +1024,7 @@ function updateLamp(t) {
 function catchFireflies(t, dt) {
   fireflyField.step(t, player.position);
   fireflies.update(t, dt, context.night);
-  const catching = context.night && mode === 'play' && player.posture === 'free' && !player.lying && !purse.sleeping && !exams.running;
+  const catching = context.night && player.posture === 'free' && !player.lying && !purse.sleeping && !exams.running;
   const from = { x: catchFrom.x, z: catchFrom.z };
   catchFrom.copy(player.position);
   if (!catching) return;
@@ -1504,90 +1504,21 @@ player.onClick = (clientX, clientY, run) => {
   if (sceneClick(clientX, clientY, run)) uiSounds.click();
 };
 
-const MAP_VIEW = { height: 95, tilt: 0.45, near: 2, min: 25, max: 170, fogNear: 400, fogFar: 900, tapGap: 350, tapSlop: 12 };
-const orbit = new OrbitControls(camera, renderer.domElement);
-orbit.enableDamping = true;
-orbit.enableRotate = false;
-orbit.minPolarAngle = MAP_VIEW.tilt;
-orbit.maxPolarAngle = MAP_VIEW.tilt;
-orbit.minDistance = MAP_VIEW.min;
-orbit.maxDistance = MAP_VIEW.max;
-orbit.screenSpacePanning = false;
-orbit.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-orbit.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
-orbit.enabled = false;
 const ui = {
   modeBtn: document.getElementById('modeBtn'),
 };
-
-let mode = 'play';
 
 function setLabel(button, text) {
   button.title = text;
   button.setAttribute('aria-label', text);
 }
 
-function refreshUI() {
-  frameCamera();
-  ui.modeBtn.classList.toggle('active', mode === 'overview');
-  setLabel(ui.modeBtn, mode === 'overview' ? 'Quay lại nhập vai' : 'Xem toàn cảnh');
-}
-
-function clampMapView() {
-  const x = THREE.MathUtils.clamp(orbit.target.x, NAV_BOUNDS.x0, NAV_BOUNDS.x1);
-  const z = THREE.MathUtils.clamp(orbit.target.z, NAV_BOUNDS.z0, NAV_BOUNDS.z1);
-  if (x === orbit.target.x && z === orbit.target.z) return;
-  camera.position.x += x - orbit.target.x;
-  camera.position.z += z - orbit.target.z;
-  orbit.target.x = x;
-  orbit.target.z = z;
-}
-
-function aimMap(at) {
-  orbit.target.set(at.x, 0, at.z);
-  camera.position.set(at.x, MAP_VIEW.height, at.z + MAP_VIEW.height * Math.tan(MAP_VIEW.tilt));
-  clampMapView();
-  orbit.update();
-}
-
-function setMode(next) {
-  if (next === mode) return;
-  mode = next;
-  if (mode === 'overview') {
-    player.setEnabled(false);
-    aimMap(player.position);
-    savedFog = { near: scene.fog.near, far: scene.fog.far };
-    scene.fog.near = MAP_VIEW.fogNear;
-    scene.fog.far = MAP_VIEW.fogFar;
-    savedNear = camera.near;
-    camera.near = MAP_VIEW.near;
-    camera.updateProjectionMatrix();
-    orbit.enabled = true;
-    orbit.update();
-  } else {
-    orbit.enabled = false;
-    if (savedFog) Object.assign(scene.fog, savedFog);
-    savedFog = null;
-    if (savedNear !== null) camera.near = savedNear;
-    savedNear = null;
-    camera.updateProjectionMatrix();
-    player.setEnabled(true);
-    stopMapFocus();
-  }
-  if (mode === 'overview') {
-    refreshHomeLabel();
-    refreshSelfLabel();
-  }
-  mapLabels.setShown(mode === 'overview');
-  refreshUI();
-}
-
-const mapLabels = createMapLabels({
-  camera,
-  zoom: () => camera.position.distanceTo(orbit.target),
+const paintMap = createMapGround();
+const worldMap = createWorldMap({
+  bounds: NAV_BOUNDS,
+  ground: () => paintMap(player.nav),
   onPick: (stand) => {
-    if (mapFocus) return;
-    setMode('play');
+    worldMap.close();
     const lantern = lanterns.list.find((item) => item.doneAt === null && item.x === stand.x && item.z === stand.z);
     if (lantern) {
       stopWork();
@@ -1596,18 +1527,23 @@ const mapLabels = createMapLabels({
     }
     player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
   },
+  onWalk: (point) => {
+    worldMap.close();
+    player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+  },
+  onClose: mapClosed,
 });
 const HOME_NAME = 'Nhà của bạn';
 const midRiver = BANK_POINTS[Math.floor(BANK_POINTS.length / 2)] ?? null;
 let homeLabel = null;
-for (const [name, at, stand, lift] of [
-  ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND, 9],
+for (const [name, at, stand] of [
+  ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND],
   ...STUDY_HALLS.map((hall) => {
     const { out } = hallBounds(hall);
-    return [hall.name, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }, 7];
+    return [hall.name, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }];
   }),
   [HOME_NAME, null],
-  ['Tượng thần', blessing.statueAt, blessing.official.stand, 8],
+  ['Tượng thần', blessing.statueAt, blessing.official.stand],
   ['Siêu thị', quarter.martStand],
   ['Quán ăn', village.places.eatery],
   ['Tiệm buôn', village.places.shop],
@@ -1615,16 +1551,16 @@ for (const [name, at, stand, lift] of [
   ['Ngân hàng', district.bankDoor],
   ['Lôi đài', district.arenaStand],
   ['Hội đèn trời', district.lanternStand],
-  ['Tòa thị chính', district.hallLook, district.hallStand, 12],
+  ['Tòa thị chính', district.hallLook, district.hallStand],
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
-  ['Bến sông Hoài', midRiver, midRiver, 3],
+  ['Bến sông Hoài', midRiver],
 ]) {
-  const label = mapLabels.add(name, at, stand ?? at, lift);
+  const label = worldMap.add(name, at, stand ?? at);
   if (name === HOME_NAME) homeLabel = label;
 }
 
-const lanternLabels = Array.from({ length: LANTERN.count }, () => mapLabels.add('🏮', null, null, 4, { lead: true, kind: 'lantern' }));
+const lanternLabels = Array.from({ length: LANTERN.count }, () => worldMap.add('🏮', null, null, { lead: true, kind: 'lantern' }));
 let lanternLabelKey = '';
 
 function updateLanternLabels(now) {
@@ -1635,22 +1571,14 @@ function updateLanternLabels(now) {
   lanternLabels.forEach((label, i) => {
     const lantern = shown[i];
     const spot = lantern ? { x: lantern.x, z: lantern.z } : null;
-    mapLabels.move(label, spot, spot);
+    worldMap.move(label, spot);
   });
 }
 
 let selfLabel = null;
-
-function refreshSelfLabel() {
-  selfLabel ??= mapLabels.add('Bạn', null, null, 2.6, { lead: true, kind: 'self', image: portraitOf(PLAYER) });
-  const spot = { x: player.position.x, z: player.position.z };
-  mapLabels.move(selfLabel, spot, spot);
-}
-
-const FOCUS_REFRESH_MS = 10000;
-const mapClose = document.getElementById('mapClose');
 const faceLabels = new Map();
 let mapFocus = null;
+let mapBaked = -1;
 
 function whereIs(id) {
   if (id === PLAYER) return player.position;
@@ -1660,96 +1588,53 @@ function whereIs(id) {
 function faceLabelOf(id) {
   if (!faceLabels.has(id)) {
     const name = town.all.find((member) => member.id === id)?.name ?? '';
-    faceLabels.set(id, mapLabels.add(name, null, null, 2.6, { lead: true, kind: 'face', image: portraitOf(id) }));
+    faceLabels.set(id, worldMap.add(name, null, null, { lead: true, kind: 'face', image: portraitOf(id) }));
   }
   return faceLabels.get(id);
 }
 
-function refreshMapFocus() {
-  const at = whereIs(mapFocus.id);
-  const spot = at ? { x: at.x, z: at.z } : null;
-  mapLabels.move(mapFocus.label, spot, spot);
+function refreshHomeLabel() {
+  const house = estate.houseOf(PLAYER);
+  const door = house ? town.places.homes.get(house.id) ?? null : null;
+  worldMap.move(homeLabel, door);
 }
 
-function stopMapFocus() {
-  mapClose.hidden = true;
-  if (!mapFocus) return;
-  clearInterval(mapFocus.timer);
-  if (mapFocus.label) mapLabels.move(mapFocus.label, null);
-  mapFocus = null;
+function openMap(at, locked = false) {
+  if (worldMap.isOpen) return;
+  if (mapBaked !== player.nav.baked) {
+    mapBaked = player.nav.baked;
+    worldMap.invalidate();
+  }
+  refreshHomeLabel();
+  selfLabel ??= worldMap.add('Bạn', null, null, { lead: true, kind: 'self', image: portraitOf(PLAYER) });
+  worldMap.move(selfLabel, player.position);
+  updateLanternLabels(context.minutes);
+  worldMap.open(at, { locked });
 }
 
 function showOnMap(id) {
   const at = whereIs(id);
-  if (!at) return;
-  const earlier = mapFocus?.restore;
-  const stashed = stashPopups();
-  const restore = () => {
-    earlier?.();
-    stashed();
-  };
-  stopMapFocus();
-  setMode('overview');
-  aimMap(at);
-  mapClose.hidden = false;
-  if (id === PLAYER) {
-    mapFocus = { id, label: null, timer: null, restore };
-    return;
-  }
-  mapFocus = { id, label: faceLabelOf(id), timer: setInterval(refreshMapFocus, FOCUS_REFRESH_MS), restore };
-  refreshMapFocus();
+  if (!at || worldMap.isOpen) return;
+  const label = id === PLAYER ? null : faceLabelOf(id);
+  mapFocus = { label, restore: stashPopups() };
+  if (label) worldMap.move(label, at);
+  openMap(at, true);
+}
+
+function mapClosed() {
+  const focus = mapFocus;
+  mapFocus = null;
+  if (!focus) return;
+  if (focus.label) worldMap.move(focus.label, null);
+  focus.restore?.();
 }
 
 function closeMap() {
-  const restore = mapFocus?.restore;
-  setMode('play');
-  restore?.();
+  if (mapFocus) mapFocus.restore = null;
+  worldMap.close();
 }
 
-mapClose.addEventListener('click', closeMap);
-window.addEventListener('keydown', (event) => {
-  if (event.key !== 'Escape' || !mapFocus || popupOpen()) return;
-  closeMap();
-});
-
-function refreshHomeLabel() {
-  const house = estate.houseOf(PLAYER);
-  const door = house ? town.places.homes.get(house.id) ?? null : null;
-  mapLabels.move(homeLabel, door, door);
-}
-
-let savedFog = null;
-let savedNear = null;
-let mapPress = null;
-let mapTap = null;
-
-function mapPoint(clientX, clientY) {
-  pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
-  raycaster.setFromCamera(pointer, camera);
-  return raycaster.intersectObjects(clickTargets(), true)[0]?.point ?? null;
-}
-
-renderer.domElement.addEventListener('pointerdown', (event) => {
-  if (mode === 'overview' && !mapFocus) mapPress = { x: event.clientX, y: event.clientY };
-});
-renderer.domElement.addEventListener('pointerup', (event) => {
-  if (mode !== 'overview' || !mapPress) return;
-  const moved = Math.hypot(event.clientX - mapPress.x, event.clientY - mapPress.y) > MAP_VIEW.tapSlop;
-  mapPress = null;
-  if (moved) {
-    mapTap = null;
-    return;
-  }
-  const now = performance.now();
-  const second = mapTap && now - mapTap.at < MAP_VIEW.tapGap && Math.hypot(event.clientX - mapTap.x, event.clientY - mapTap.y) <= MAP_VIEW.tapSlop * 2;
-  mapTap = second ? null : { at: now, x: event.clientX, y: event.clientY };
-  if (!second) return;
-  const point = mapPoint(event.clientX, event.clientY);
-  setMode('play');
-  if (point) player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
-});
-
-ui.modeBtn.addEventListener('click', () => (mode === 'play' ? setMode('overview') : closeMap()));
+ui.modeBtn.addEventListener('click', () => openMap(player.position));
 
 const restBtn = document.getElementById('restBtn');
 const actionBar = document.getElementById('actionBar');
@@ -1758,7 +1643,7 @@ function refreshRest() {
   const lying = player.resting;
   const seated = player.posture !== 'free';
   const blessed = blessing.blessed(PLAYER, player.position, context.minutes);
-  const usable = lying || (mode === 'play' && !seated && !purse.sleeping && !town.restBlocked(player.position));
+  const usable = lying || (!seated && !purse.sleeping && !town.restBlocked(player.position));
   const key = `${lying}|${usable}|${seated}|${blessed}`;
   if (key === restShown) return;
   restShown = key;
@@ -1789,9 +1674,8 @@ function frameCamera() {
   const width = window.innerWidth;
   const height = window.innerHeight;
   const narrow = Math.max(0, 1 - width / height);
-  const following = mode === 'play';
   camera.fov = BASE_FOV + narrow * 32;
-  camera.setViewOffset(width, height, 0, following ? -narrow * 0.3 * height : 0, width, height);
+  camera.setViewOffset(width, height, 0, -narrow * 0.3 * height, width, height);
   player.distanceScale = 1 + narrow * 0.75;
 }
 function fitView() {
@@ -1801,7 +1685,6 @@ function fitView() {
 window.addEventListener('resize', fitView);
 fitView();
 
-refreshUI();
 scheduleBoard.refresh(true);
 
 const clock = new THREE.Clock();
@@ -1940,7 +1823,7 @@ function updateLanterns() {
     if (!lantern || lantern.doneAt !== null || !near) lanternTrip = null;
     else if (now >= landedAt(lantern)) openLantern(lanternTrip);
   }
-  if (mode === 'overview') updateLanternLabels(now);
+  if (worldMap.isOpen) updateLanternLabels(now);
   announceLanterns();
 }
 
@@ -2004,7 +1887,7 @@ function remindBlessing() {
 let blessingQuizIn = BLESSING.firstQuiz;
 let blessingAsk = null;
 function updateBlessingQuiz(dt) {
-  if (mode !== 'play' || purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes) || !blessing.testing(PLAYER, context.minutes)) {
+  if (purse.sleeping || !blessing.blessed(PLAYER, player.position, context.minutes) || !blessing.testing(PLAYER, context.minutes)) {
     blessingQuizIn = BLESSING.firstQuiz;
     return;
   }
@@ -2084,7 +1967,7 @@ const sleepEnergy = document.getElementById('sleepEnergy');
 
 function showSleep(on) {
   sleepVeil.classList.toggle('on', on);
-  player.setEnabled(!on && mode === 'play');
+  player.setEnabled(!on);
 }
 
 function drainEnergy() {
@@ -2188,7 +2071,7 @@ renderer.setAnimationLoop((time) => {
     placeSavedAt = t + 3;
     savePlace();
   }
-  const night = sky.update(context.minutes, camera, mode === 'overview' ? orbit.target : player.position, SHADOW_SPAN);
+  const night = sky.update(context.minutes, camera, player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
@@ -2251,16 +2134,14 @@ renderer.setAnimationLoop((time) => {
   player.update(dt);
   arenaDuel.frame(camera);
   placeBubble();
-  setNamesShown(mode !== 'overview');
   updateBubbles(camera, t);
   regen.update(dt, t, player.position, player.restAmount, player.resting, context.minutes);
   for (const effect of Object.values(effects)) effect.update(dt);
   fishing.update();
-  mountain.update(dt, { camera, night, rest: context.night, canHit: mode === 'play' && player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
+  mountain.update(dt, { camera, night, rest: context.night, canHit: player.posture === 'free' && !player.lying && !kanjiQuiz.open && !purse.sleeping });
   angler.update(dt);
-  const focus = mode === 'overview' ? orbit.target : player.position;
-  regions.update(t, dt, focus);
-  updateSoundscape(focus);
+  regions.update(t, dt, player.position);
+  updateSoundscape(player.position);
   quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
   updateBlessingQuiz(dt);
@@ -2289,12 +2170,7 @@ renderer.setAnimationLoop((time) => {
     seatedAvatar.pose?.();
   }
   if (avatar.group.visible) avatar.pose?.();
-  if (mode === 'overview') {
-    orbit.update();
-    clampMapView();
-  }
   marker.update(t);
   if (!study.dimmed) renderer.render(scene, camera);
-  mapLabels.update();
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });

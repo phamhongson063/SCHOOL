@@ -139,7 +139,6 @@
     </div>
   </div>
   <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
-  <button id="mapClose" class="sched-x map-close" type="button" aria-label="Đóng bản đồ" title="Đóng bản đồ" hidden>×</button>
   <div id="toolbar">
     <div id="wallet" class="wallet" role="status" aria-live="polite" title="Tiền">
       <span id="walletAmount">0</span>
@@ -152,7 +151,7 @@
         <path d="M9.5 6.5C6 8.5 4 12 4 15.5 4 19 7.5 21 12 21s8-2 8-5.5c0-3.5-2-7-5.5-9" />
       </svg>
     </button>
-    <button id="modeBtn" class="icon-btn" type="button">
+    <button id="modeBtn" class="icon-btn" type="button" title="Bản đồ" aria-label="Bản đồ" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
         <path d="M9 4v14M15 6v14" />
@@ -701,6 +700,20 @@
       <div class="bank-panel">
         <ol id="rankList" class="rank-list"></ol>
         <p id="rankStamp" class="paper-note rank-stamp"></p>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="mapDialog" class="paper map" aria-labelledby="mapTitle">
+    <div class="paper-body map-body">
+      <header class="sched-head">
+        <h2 id="mapTitle">Bản đồ</h2>
+        <button class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <div class="map-view">
+        <div class="map-sheet">
+          <canvas class="map-ground"></canvas>
+          <div class="map-labels notranslate" translate="no"></div>
+        </div>
       </div>
     </div>
   </dialog>

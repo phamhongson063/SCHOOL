@@ -31,3 +31,6 @@
   - Lý do: câu hỏi chọn cách đọc / chọn cách viết dùng chính câu ví dụ và lấy `word` làm đáp án; chia động từ hay lộ furigana sẽ làm câu hỏi sai hoặc tự lộ đáp án.
 - **Thêm bộ học mới**: khai báo `quiz` (`vocab` / `phrase` / `kanji`) và `choices` trong `DECKS`, thêm `name` cho phòng trong `STUDY_HALLS` và thêm số giây trong `CERTIFY.seconds`. Không viết `deck === 'n2'` hay `'sugu1'` trong logic.
   - Lý do: học, ôn, thi nội bộ, khảo thí, chứng chỉ và giả lập offline đều chạy theo `DECK_IDS`; ghi cứng tên deck thì bộ mới sẽ bị thiếu chức năng.
+- **Công trình mới có tên phải được thêm vào bản đồ**: khi thêm công trình, cửa hàng, địa điểm có tên (nhà, quán, sảnh, bến…), phải thêm một nhãn vào danh sách nhãn bản đồ trong `main.js` (đoạn `for (const [name, at, stand] of [...])` gọi `worldMap.add`), với `at` là chỗ hiện tên và `stand` là chỗ người chơi đi tới khi bấm vào tên.
+  - Vật cản của công trình phải khai báo tĩnh (đẩy vào `school.obstacles` hoặc `obstacles` của region), không trả về trong `load()`, để bản đồ luôn vẽ được công trình kể cả khi người chơi ở xa.
+  - Lý do: nền bản đồ tự vẽ từ lưới đi lại nhưng tên địa điểm thì không tự có; thiếu nhãn thì người chơi không tìm và không bấm đi tới được công trình mới.
