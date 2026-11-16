@@ -24,6 +24,7 @@ export function createExams({ quiz, sounds = null }) {
           level: `${title} · ${count}`,
           clock,
           brief: true,
+          exam: true,
           closeAfter: ANSWER_PAUSE_MS,
           kind: Math.random() < 0.5 ? 'reading' : 'meaning',
           choices: DECKS[deck].choices,

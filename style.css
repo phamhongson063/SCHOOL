@@ -2417,6 +2417,18 @@ dialog.paper.kanji {
   display: none;
 }
 
+.kanji.exam .kanji-options {
+  gap: 12px;
+}
+
+.kanji.exam .kanji-options button {
+  font-size: clamp(17px, calc(4.2vw + 2px), 20px);
+}
+
+.kanji.exam .kanji-options.meanings button {
+  font-size: 18px;
+}
+
 dialog.paper.phrase-quiz {
   width: min(420px, calc(100vw - 24px));
   outline: none;
@@ -2707,6 +2719,18 @@ dialog.paper.phrase-quiz {
 
 .phrase-quiz.brief .phrase-result {
   display: none;
+}
+
+.phrase-quiz.exam .phrase-options {
+  gap: 8px;
+}
+
+.phrase-quiz.exam .phrase-options button {
+  font-size: 18px;
+}
+
+.phrase-quiz.exam .phrase-options.meanings button {
+  font-size: 16px;
 }
 
 .sleep-veil {
@@ -4814,6 +4838,7 @@ dialog.paper.map {
   width: min(960px, calc(100vw - 24px));
   height: min(720px, calc(100dvh - 24px));
   max-height: none;
+  overflow: hidden;
 }
 
 dialog.paper.map[open] {
@@ -4826,17 +4851,17 @@ dialog.paper.map[open] {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  padding: 0;
 }
 
 .map-body .sched-head {
-  margin-bottom: 12px;
+  margin: 0;
 }
 
 .map-view {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border-radius: 8px;
   background: #263444;
   cursor: grab;
   touch-action: pan-x pan-y;
