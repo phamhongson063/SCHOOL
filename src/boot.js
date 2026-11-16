@@ -2,6 +2,8 @@ import { cloudEnabled, connect, signedIn, signIn, signOut } from './cloud.js';
 import { RELEASE, VERSION } from './version.js';
 import { migrateSaves } from './saveMigrate.js';
 
+navigator.serviceWorker?.register('sw.js').catch(() => {});
+
 const LOCK = 'langsch.game';
 performance.setResourceTimingBufferSize?.(1000);
 const loader = document.getElementById('loader');
