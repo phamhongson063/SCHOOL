@@ -119,8 +119,13 @@ export async function connect() {
   const tampered = auditSeal();
   if (tampered.length) dropTampered(tampered);
   const continuing = !tampered.length && saved?.uid === user.uid;
-  const world = await claim(store, db, refs.world, 'world', continuing ? saved.worldRev : null, id);
-  const mine = await claim(store, db, refs.self, 'self', continuing ? saved.rev : null, id);
+  const claims = await Promise.allSettled([
+    claim(store, db, refs.world, 'world', continuing ? saved.worldRev : null, id),
+    claim(store, db, refs.self, 'self', continuing ? saved.rev : null, id),
+  ]);
+  const failed = claims.find((claimed) => claimed.status === 'rejected');
+  if (failed) throw failed.reason;
+  const [world, mine] = claims.map((claimed) => claimed.value);
   saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: mine.rev, worldRev: world.rev });
   startSync(store, refs, id, { self: mine.data, world: world.data });
   upload();

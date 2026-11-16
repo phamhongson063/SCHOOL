@@ -52,12 +52,19 @@ async function enter() {
   }
 }
 
+function launch() {
+  import('./characterModels.js')
+    .then((models) => models.loadCharacterModels())
+    .catch(() => {});
+  enter().then(migrateSaves).then(() => import('./main.js'));
+}
+
 function startGame() {
   if (loader?.classList.contains('blocked')) {
     loader.classList.remove('blocked');
     label.textContent = idleLabel;
   }
-  enter().then(migrateSaves).then(() => import('./main.js'));
+  launch();
   return holdWhileOpen();
 }
 
@@ -77,7 +84,7 @@ addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload();
 });
 
-if (!navigator.locks) enter().then(migrateSaves).then(() => import('./main.js'));
+if (!navigator.locks) launch();
 else {
   navigator.locks.request(LOCK, { ifAvailable: true }, (lock) => {
     if (lock) return startGame();

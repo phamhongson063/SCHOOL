@@ -39,6 +39,7 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const templates = new Map();
 const textures = new Map();
 let gradient = null;
+let loading = null;
 
 function softGradient() {
   if (!gradient) {
@@ -51,7 +52,12 @@ function softGradient() {
   return gradient;
 }
 
-export async function loadCharacterModels() {
+export function loadCharacterModels() {
+  loading ??= fetchCharacterModels();
+  return loading;
+}
+
+async function fetchCharacterModels() {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const images = new THREE.TextureLoader();
   await Promise.all([

@@ -161,6 +161,7 @@ sun.shadow.normalBias = 0.03;
 const tuning = createRenderTuning({ renderer, scene, camera, sun, frameRate: FRAME_RATE });
 
 const itemImages = loadItemImages();
+const characterModels = loadCharacterModels();
 await loadingStep(0.4, 'Dựng trường khảo thí');
 const world = new VoxelWorld();
 const layout = buildWorld(world);
@@ -173,7 +174,7 @@ for (const child of scene.children) {
 }
 
 await loadingStep(0.52, 'Dựng nhà, khơi sông');
-await loadCharacterModels();
+await characterModels;
 const school = populate(scene);
 const clouds = createClouds(scene);
 const notice = createNoticeBoard(scene);
