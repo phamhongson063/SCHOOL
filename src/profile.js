@@ -110,9 +110,10 @@ function createCertList(scroller, track) {
   };
 }
 
-export function createProfile({ ledger, bank, estate, arena, people, portraitOf, takesPart = () => true }) {
+export function createProfile({ ledger, bank, estate, arena, people, portraitOf, takesPart = () => true, canLocate = () => false, onLocate = () => {} }) {
   const dialog = document.getElementById('profileDialog');
   const title = document.getElementById('profileName');
+  const locate = document.getElementById('profileLocate');
   const portrait = document.getElementById('profilePortrait');
   const initial = document.getElementById('profileInitial');
   const radar = document.getElementById('profileRadar');
@@ -208,6 +209,11 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     deck = node.dataset.deck;
     renderDecks();
   });
+  locate.addEventListener('click', () => {
+    if (!current) return;
+    dialog.close();
+    onLocate(current.id);
+  });
   closable(dialog);
 
   return {
@@ -216,6 +222,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
       current = { id };
       deck = null;
       title.textContent = names.get(id);
+      locate.hidden = !canLocate(id);
       renderSide();
       if (!dialog.open) dialog.showModal();
       renderTab();

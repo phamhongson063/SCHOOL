@@ -711,7 +711,7 @@ town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
 const arenaFx = createArenaFx(scene);
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!') });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!'), closeMap: () => setMode('play') });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -733,7 +733,7 @@ arena.onFinish((event) => {
   mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
 });
 if (arena.purged) mailbox.removeWhere((mail) => mail.tag === 'arena' || mail.icon === '⚔️');
-const arenaPresent = (id) => id === PLAYER && mode === 'play' && !purse.sleeping;
+const arenaPresent = (id) => id === PLAYER && !purse.sleeping;
 
 function watchStage(stage) {
   if (arenaTrip.fighting || purse.sleeping) return;
@@ -817,7 +817,17 @@ await economy.start({
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
 const traitHolders = new Set([PLAYER, ...town.members.map((member) => member.id)]);
-const profileDialog = createProfile({ ledger, bank, estate, arena, people: everyone, portraitOf, takesPart: (id) => traitHolders.has(id) });
+const profileDialog = createProfile({
+  ledger,
+  bank,
+  estate,
+  arena,
+  people: everyone,
+  portraitOf,
+  takesPart: (id) => traitHolders.has(id),
+  canLocate: (id) => !!whereIs(id),
+  onLocate: (id) => showOnMap(id),
+});
 createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
@@ -1532,13 +1542,19 @@ function clampMapView() {
   orbit.target.z = z;
 }
 
+function aimMap(at) {
+  orbit.target.set(at.x, 0, at.z);
+  camera.position.set(at.x, MAP_VIEW.height, at.z + MAP_VIEW.height * Math.tan(MAP_VIEW.tilt));
+  clampMapView();
+  orbit.update();
+}
+
 function setMode(next) {
   if (next === mode) return;
   mode = next;
   if (mode === 'overview') {
     player.setEnabled(false);
-    orbit.target.set(player.position.x, 0, player.position.z);
-    camera.position.set(player.position.x, MAP_VIEW.height, player.position.z + MAP_VIEW.height * Math.tan(MAP_VIEW.tilt));
+    aimMap(player.position);
     savedFog = { near: scene.fog.near, far: scene.fog.far };
     scene.fog.near = MAP_VIEW.fogNear;
     scene.fog.far = MAP_VIEW.fogFar;
@@ -1555,6 +1571,7 @@ function setMode(next) {
     savedNear = null;
     camera.updateProjectionMatrix();
     player.setEnabled(true);
+    stopMapFocus();
   }
   if (mode === 'overview') {
     refreshHomeLabel();
@@ -1627,6 +1644,52 @@ function refreshSelfLabel() {
   const spot = { x: player.position.x, z: player.position.z };
   mapLabels.move(selfLabel, spot, spot);
 }
+
+const FOCUS_REFRESH_MS = 10000;
+const mapClose = document.getElementById('mapClose');
+const faceLabels = new Map();
+let mapFocus = null;
+
+function whereIs(id) {
+  if (id === PLAYER) return player.position;
+  return town.all.find((member) => member.id === id)?.position ?? null;
+}
+
+function faceLabelOf(id) {
+  if (!faceLabels.has(id)) {
+    const name = town.all.find((member) => member.id === id)?.name ?? '';
+    faceLabels.set(id, mapLabels.add(name, null, null, 2.6, { lead: true, kind: 'face', image: portraitOf(id) }));
+  }
+  return faceLabels.get(id);
+}
+
+function refreshMapFocus() {
+  const at = whereIs(mapFocus.id);
+  const spot = at ? { x: at.x, z: at.z } : null;
+  mapLabels.move(mapFocus.label, spot, spot);
+}
+
+function stopMapFocus() {
+  mapClose.hidden = true;
+  if (!mapFocus) return;
+  clearInterval(mapFocus.timer);
+  mapLabels.move(mapFocus.label, null);
+  mapFocus = null;
+}
+
+function showOnMap(id) {
+  const at = whereIs(id);
+  if (!at) return;
+  stopMapFocus();
+  setMode('overview');
+  aimMap(at);
+  mapClose.hidden = false;
+  if (id === PLAYER) return;
+  mapFocus = { id, label: faceLabelOf(id), timer: setInterval(refreshMapFocus, FOCUS_REFRESH_MS) };
+  refreshMapFocus();
+}
+
+mapClose.addEventListener('click', () => setMode('play'));
 
 function refreshHomeLabel() {
   const house = estate.houseOf(PLAYER);

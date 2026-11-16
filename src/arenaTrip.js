@@ -57,7 +57,7 @@ function nearest(list, from) {
   return best;
 }
 
-export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null, gate = null, wake = null }) {
+export function createArenaTrip({ arena, player, town, busy = () => false, say = null, warp = null, summon = null, gate = null, wake = null, closeMap = null }) {
   const where = new Map();
   const lives = new Map();
   const fought = new Map();
@@ -115,7 +115,10 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
   }
 
   function goUp(ceremony = true) {
-    if (ceremony) wake?.();
+    if (ceremony) {
+      wake?.();
+      closeMap?.();
+    }
     if (summon?.busy || !ready()) return false;
     wantUp = false;
     goingHome = false;
@@ -262,6 +265,7 @@ export function createArenaTrip({ arena, player, town, busy = () => false, say =
     if (live && !playerHere() && !arena.away(PLAYER)) wantUp = true;
     if (wantUp && !playerHere()) goUp();
     if (live && playerHere() && !summon?.busy) {
+      closeMap?.();
       const round = event.rounds[event.round];
       const index = round.indexOf(live);
       const side = live.a === PLAYER ? 'a' : 'b';

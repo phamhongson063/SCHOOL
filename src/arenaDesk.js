@@ -30,7 +30,6 @@ function refusal(arena, reason, now) {
 }
 
 export function arenaLines(event, nameOf) {
-  if (!event.rounds.length) return ['Lôi đài không đủ người tranh tài, lệ phí đã được hoàn lại.'];
   const lines = [];
   const place = event.places.find((item) => item.id === PLAYER);
   const exit = exitOf(event, PLAYER);

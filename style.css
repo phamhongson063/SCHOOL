@@ -2684,12 +2684,14 @@ dialog.paper.phrase-quiz {
   font: 400 26px/1 system-ui, sans-serif;
 }
 
-.map-label.self {
+.map-label.self,
+.map-label.face {
   padding: 0;
   line-height: 0;
 }
 
-.map-label.self img {
+.map-label.self img,
+.map-label.face img {
   width: 26px;
   height: 26px;
   border: 2px solid #fff3d2;
@@ -5147,6 +5149,36 @@ dialog.profile::backdrop {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.profile-locate {
+  flex: none;
+  margin-left: auto;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 20px/1 system-ui, sans-serif;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+  transition: transform 0.15s ease;
+}
+
+.profile-locate:hover {
+  transform: scale(1.12);
+}
+
+.profile-locate:active {
+  transform: scale(0.95);
+}
+
+.map-close {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: var(--z-scene-ui);
+  translate: -50% 0;
 }
 
 .profile-head h2 {

@@ -1,6 +1,6 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arena', 'arenaFee', 'blessing', 'lantern', 'capital'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arenaFee', 'blessing', 'lantern', 'capital'];
 export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'arena', 'buyback', 'capital'];
 
 export function planDay({ fund, wages, starts }) {
@@ -27,6 +27,18 @@ export function record(book, day, side, kind, value) {
   if (!(value > 0)) return;
   const page = bookDay(book, day);
   page[side][kind] = (page[side][kind] ?? 0) + value;
+}
+
+export function foldArenaSurplus(book) {
+  for (const page of Object.values(book)) {
+    const surplus = page?.in?.arena;
+    if (surplus === undefined) continue;
+    delete page.in.arena;
+    const spent = (page.out?.arena ?? 0) - surplus;
+    if (spent > 0) page.out.arena = spent;
+    else if (page.out) delete page.out.arena;
+  }
+  return book;
 }
 
 export function pruneBook(book, today) {

@@ -93,6 +93,7 @@ export function createMapLabels({ camera, zoom, onPick }) {
     if (lead) labels.unshift(label);
     else labels.push(label);
     move(label, at, stand);
+    relayout();
     return label;
   }
 

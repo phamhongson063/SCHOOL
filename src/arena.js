@@ -54,7 +54,7 @@ export function arenaMinutes(size) {
 
 export const arenaWindow = (event) => ({ from: event.at, to: event.at + arenaMinutes(capacityOf(event)) });
 
-const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
+const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
 
 function slotOf(now) {
   const day = dayOf(now);
@@ -102,7 +102,6 @@ function validEvent(raw) {
     PHASES.includes(raw.phase) &&
     DECKS[raw.deck] &&
     isIdList(raw.entrants) &&
-    isIdList(raw.drafted) &&
     (raw.away === undefined || isIdList(raw.away)) &&
     Number.isFinite(raw.pot) &&
     Number.isInteger(raw.round) &&
@@ -351,11 +350,6 @@ export function createArena({ ledger, roster = () => [] }) {
     return state.event;
   }
 
-  function refund(event) {
-    for (const id of event.entrants) if (!event.drafted.includes(id)) economy.payOut(ARENA.fee, ledger.purse(id), 'arena');
-    event.pot = 0;
-  }
-
   function draft(event) {
     const taken = new Set(event.entrants);
     const count = new Map(roster().map((id) => [id, certify.certifiedCount(id, event.deck)]));
@@ -363,7 +357,6 @@ export function createArena({ ledger, roster = () => [] }) {
     for (const id of pool) {
       if (event.entrants.length >= capacityOf(event)) break;
       event.entrants.push(id);
-      event.drafted.push(id);
     }
   }
 
@@ -390,12 +383,12 @@ export function createArena({ ledger, roster = () => [] }) {
     event.places = places
       .map(({ rank, id, weight }) => {
         const money = total > 0 ? Math.floor((event.pot * weight) / total) : 0;
-        if (money > 0) economy.reward(ledger.purse(id), money);
+        economy.payArena(ledger.purse(id), money);
         paid += money;
         return { rank, id, money };
       })
       .sort((a, b) => a.rank - b.rank);
-    if (event.pot - paid > 0) economy.collect(event.pot - paid, null, event.pot - paid, 'arena');
+    economy.returnArena(event.pot - paid);
     const champion = event.places.find((place) => place.rank === 1);
     if (champion) state.champions = [{ at: event.at, id: champion.id }, ...state.champions].slice(0, ARENA.champions);
     event.phase = 'done';
@@ -404,12 +397,6 @@ export function createArena({ ledger, roster = () => [] }) {
 
   function begin(event, at, present) {
     draft(event);
-    if (event.entrants.length < 2) {
-      refund(event);
-      event.phase = 'done';
-      for (const listener of finished) listener(event);
-      return;
-    }
     event.pot += economy.sponsorArena(event.at);
     draw(event);
     event.phase = 'running';

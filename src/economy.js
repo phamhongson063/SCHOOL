@@ -4,7 +4,7 @@ import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
-import { planDay, pruneBook, record, sumBook } from './townhall.js';
+import { foldArenaSurplus, planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
 import { LEGACY_NPC_IDS, NPC } from './npcIds.js';
 import { trade } from './trade.js';
@@ -41,7 +41,7 @@ function load() {
         seen: Number.isFinite(saved.seen) ? saved.seen : null,
         observed: Number.isFinite(saved.observed) ? saved.observed : 0,
         flows: saved.flows && typeof saved.flows === 'object' ? saved.flows : {},
-        book: saved.book && typeof saved.book === 'object' ? saved.book : {},
+        book: saved.book && typeof saved.book === 'object' ? foldArenaSurplus(saved.book) : {},
         plans: saved.plans && typeof saved.plans === 'object' ? saved.plans : {},
         blessingPool: Number.isFinite(saved.blessingPool) ? saved.blessingPool : 0,
         blessingCaps: saved.blessingCaps && typeof saved.blessingCaps === 'object' ? saved.blessingCaps : {},
@@ -79,9 +79,15 @@ function deposit(value, kind) {
   record(state.book, today(), 'in', kind, value);
 }
 
+function takeFund(value) {
+  const fund = ctx.ledger.purse(FUND);
+  const amount = Math.min(Math.floor(value), fund.money);
+  if (!(amount > 0) || !fund.spend(amount)) return 0;
+  return amount;
+}
+
 function withdraw(value, kind) {
-  const amount = Math.min(Math.floor(value), ctx.ledger.purse(FUND).money);
-  if (!(amount > 0) || !ctx.ledger.purse(FUND).spend(amount)) return 0;
+  const amount = takeFund(value);
   record(state.book, today(), 'out', kind, amount);
   return amount;
 }
@@ -194,10 +200,8 @@ function grantBlessing(session, value) {
 }
 
 function openBlessingPool(value) {
-  const fund = ctx.ledger.purse(FUND);
-  const amount = Math.min(Math.floor(value), fund.money);
-  if (!(amount > 0) || !fund.spend(amount)) return 0;
-  state.blessingPool = amount;
+  const amount = takeFund(value);
+  if (amount > 0) state.blessingPool = amount;
   return amount;
 }
 
@@ -507,10 +511,18 @@ export const economy = {
     return planOf(dayOf(at))?.arenaPrize ?? 0;
   },
   sponsorArena(at) {
-    if (!ctx) return 0;
-    const paid = withdraw(economy.arenaPrize(at), 'arena');
-    if (paid > 0) store.save();
-    return paid;
+    return ctx ? takeFund(economy.arenaPrize(at)) : 0;
+  },
+  payArena(purse, amount) {
+    if (!(amount > 0)) return;
+    purse.earn(amount);
+    if (!ctx) return;
+    trackEarn(purse.id, amount);
+    record(state.book, today(), 'out', 'arena', amount);
+    store.save();
+  },
+  returnArena(value) {
+    if (ctx && value > 0) ctx.ledger.purse(FUND).earn(value);
   },
   get treasury() {
     return ctx ? ctx.ledger.purse(FUND).money : 0;
