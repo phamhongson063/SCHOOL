@@ -9,6 +9,7 @@ import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, countdownText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, VILLAGER, growDays } from './config.js';
 import { holesWanted } from './holdings.js';
+import { cropWorth } from './farmTrip.js';
 import { PLAYER, seedId } from './inventory.js';
 import { iconTag } from './itemArt.js';
 import { coins, notEnough } from './format.js';
@@ -760,6 +761,57 @@ export function createFarm({ ledger, nameOf, nav }) {
     return { action: 'lease', bed, offer, index: FIRST_SPOT[bed], stand: bedHead(bed) };
   }
 
+  const worthAt = (plant, action) => cropWorth(action, { fruits: varietyOf(plant).fruits, price: CROP_ECONOMY[plant.crop]?.price ?? 1, missed: plant.missed });
+
+  function jobsFor(worker, seedChoice) {
+    const purse = ledger.purse(worker.id);
+    let fertilizer = purse.count('fertilizer');
+    let owned = 0;
+    const found = [];
+    const consider = (index, action, rank, choice, worth = null) => {
+      if ((ENERGY.costs[action] ?? 0) > purse.energy) return false;
+      const claimant = claims.get(index);
+      if (claimant && claimant !== worker.id) return false;
+      const spot = spots[index];
+      const score = rank * 1000 + Math.hypot(spot.x - worker.position.x, spot.z - worker.position.z) + Math.random() * 6;
+      found.push({ index, action, choice, score, worth });
+      return true;
+    };
+    state.spots.forEach((plant, index) => {
+      if (plant.stage === SPENT && plant.owner !== worker.id) {
+        consider(index, 'clear', 3.5);
+        return;
+      }
+      if (plant.stage === 0 || plant.owner !== worker.id) return;
+      owned += 1;
+      if (plant.stage === RIPE) consider(index, 'harvest', 0, undefined, worthAt(plant, 'harvest'));
+      else if (plant.stage === SPENT) consider(index, 'clear', 1);
+      else if (state.thirsty(plant)) {
+        const worth = worthAt(plant, 'water');
+        if (worth > 0) consider(index, 'water', 2, undefined, worth);
+      } else if (fertilizer > 0 && plant.missed > 0 && worthFertilizing(plant) && consider(index, 'fertilize', 3, undefined, worthAt(plant, 'fertilize'))) fertilizer -= 1;
+    });
+    const byScore = () => found.sort((a, b) => a.score - b.score);
+    const want = holesWanted(purse.money);
+    if (owned < want && seedChoice) {
+      const beds = state.leases.heldBy(worker.id, gameNow());
+      const renew = found.length || !beds.length ? null : renewJob(worker.id, beds, purse, seedChoice);
+      if (renew) return [renew];
+      let seeds = Math.min(purse.count(seedId(seedChoice)), want - owned);
+      let empty = 0;
+      state.spots.forEach((plant, index) => {
+        if (plant.stage !== 0 || !beds.includes(bedOf(index))) return;
+        empty += 1;
+        if (seeds > 0 && consider(index, 'plant', 4, seedChoice)) seeds -= 1;
+      });
+      if (!found.length && owned + empty < want) {
+        const lease = leaseJob(worker.id, purse, worker.position, seedChoice, want - owned - empty);
+        return lease ? [lease] : [];
+      }
+    }
+    return byScore();
+  }
+
   const crew = {
     nav,
     grow: () => tick(),
@@ -819,44 +871,10 @@ export function createFarm({ ledger, nameOf, nav }) {
       return { owned, ripe };
     },
     jobFor(worker, seedChoice) {
-      const purse = ledger.purse(worker.id);
-      const fertilizer = purse.count('fertilizer') > 0;
-      let owned = 0;
-      let best = null;
-      const consider = (index, action, rank, choice) => {
-        if ((ENERGY.costs[action] ?? 0) > purse.energy) return;
-        const claimant = claims.get(index);
-        if (claimant && claimant !== worker.id) return;
-        const spot = spots[index];
-        const score = rank * 1000 + Math.hypot(spot.x - worker.position.x, spot.z - worker.position.z) + Math.random() * 6;
-        if (!best || score < best.score) best = { index, action, choice, score };
-      };
-      state.spots.forEach((plant, index) => {
-        if (plant.stage === SPENT && plant.owner !== worker.id) {
-          consider(index, 'clear', 3.5);
-          return;
-        }
-        if (plant.stage === 0 || plant.owner !== worker.id) return;
-        owned += 1;
-        if (plant.stage === RIPE) consider(index, 'harvest', 0);
-        else if (plant.stage === SPENT) consider(index, 'clear', 1);
-        else if (state.thirsty(plant)) consider(index, 'water', 2);
-        else if (fertilizer && plant.missed > 0 && worthFertilizing(plant)) consider(index, 'fertilize', 3);
-      });
-      const want = holesWanted(purse.money);
-      if (owned < want && seedChoice) {
-        const beds = state.leases.heldBy(worker.id, gameNow());
-        const renew = best || !beds.length ? null : renewJob(worker.id, beds, purse, seedChoice);
-        if (renew) return renew;
-        let empty = 0;
-        state.spots.forEach((plant, index) => {
-          if (plant.stage !== 0 || !beds.includes(bedOf(index))) return;
-          empty += 1;
-          consider(index, 'plant', 4, seedChoice);
-        });
-        if (!best && owned + empty < want) return leaseJob(worker.id, purse, worker.position, seedChoice, want - owned - empty);
-      }
-      return best;
+      return jobsFor(worker, seedChoice)[0] ?? null;
+    },
+    tripFor(worker, seedChoice) {
+      return jobsFor(worker, seedChoice);
     },
   };
 

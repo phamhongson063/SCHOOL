@@ -2,7 +2,7 @@ import { between } from './random.js';
 import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
-import { book, isFree, leaveRoom, roomTier } from './lodging.js';
+import { book, isFree, leaveRoom, lodgeNightOf, release, roomTier } from './lodging.js';
 import { activityOf, energyRate, homeActivity, moodOf, nextShift } from './stamina.js';
 import { REST_TIME } from './walk.js';
 import { inStudyRoom } from './rooms.js';
@@ -111,17 +111,35 @@ export class RestBehavior {
   restUpdate(dt) {
     this.velocity = 0;
     const ctx = this.town.context;
-    if (this.lyingDown && (this.sleepingOut ? !ctx.night : ctx.night || this.purse.energy >= VILLAGER.restUntil)) {
-      this.lyingDown = false;
-      this.sleepingOut = false;
-      this.bed = null;
-    }
+    if (this.lyingDown && (this.sleepingOut ? !ctx.night : ctx.night || this.purse.energy >= VILLAGER.restUntil)) this.getUp();
     this.restBlend = Math.min(1, Math.max(0, this.restBlend + (this.lyingDown ? dt : -dt) / REST_TIME));
     if (this.lyingDown || this.restBlend > 0) return;
     this.state = 'idle';
     this.timer = 0;
     this.afterWait = null;
     this.think();
+  }
+
+  getUp() {
+    this.lyingDown = false;
+    this.sleepingOut = false;
+    this.bed = null;
+  }
+
+  sleepingAtNight() {
+    if (this.state === 'away') return this.wakeAt === null;
+    if (this.state === 'inn') return true;
+    return this.state === 'resting' && this.lyingDown && this.sleepingOut;
+  }
+
+  stirAtNight(ctx) {
+    if (!ctx.night || this.now < (this.stirAt ?? 0) || !this.sleepingAtNight()) return;
+    this.stirAt = this.now + between(...VILLAGER.nightStir);
+    if (this.state === 'inn' && !this.purse.full) return;
+    if (this.wantsSleep(ctx)) return;
+    if (this.state === 'away') this.wakeAt = this.now + between(0.5, 3);
+    else if (this.state === 'inn') this.leaveInn(true);
+    else this.getUp();
   }
 
   homeSleep() {
@@ -261,8 +279,9 @@ export class RestBehavior {
     this.goLodge(spot);
   }
 
-  goLodge(spot) {
+  goLodge(spot, paid = false) {
     this.cancel();
+    if (this.heldRoom?.spot !== spot) this.heldRoom = null;
     if (!book(spot.id, this)) {
       if (this.town.context.night) this.sleepOut();
       else this.wait(between(1, 2));
@@ -270,19 +289,19 @@ export class RestBehavior {
     }
     this.task = 'inn';
     this.travel(spot.stand, {
-      then: () => this.checkIn(spot),
+      then: () => this.checkIn(spot, paid),
       fail: () => (this.town.context.night ? this.sleepOut() : this.wait(between(2, 4))),
     });
   }
 
-  checkIn(spot) {
+  checkIn(spot, paid = false) {
     if (!isFree(spot.id, this)) {
       this.say('Phòng có người rồi...', 1.8);
       if (this.town.context.night) this.goNight();
       else this.wait(between(1.5, 3));
       return;
     }
-    if (!this.payRoom(spot.id)) {
+    if (!paid && !this.payRoom(spot.id)) {
       leaveRoom(this);
       this.say('Hết tiền thuê phòng rồi...', 2);
       if (this.town.context.night) this.sleepOut();
@@ -307,6 +326,7 @@ export class RestBehavior {
   enterRoom(spot, night) {
     this.cancel();
     book(spot.id, this);
+    this.heldRoom = null;
     this.task = 'inn';
     this.lodge = spot;
     this.lodgeNight = night;
@@ -323,8 +343,9 @@ export class RestBehavior {
     return true;
   }
 
-  leaveInn() {
-    leaveRoom(this);
+  leaveInn(keep = false) {
+    if (keep && this.lodge) this.heldRoom = { spot: this.lodge, night: lodgeNightOf(this.town.context.minutes) };
+    else leaveRoom(this);
     const stand = (this.lodge ?? this.town.lodgeSpots[0]).stand;
     this.lodge = null;
     this.lodgeNight = false;
@@ -353,7 +374,29 @@ export class RestBehavior {
     return this.needsSleep(ctx) || !this.plan(ctx);
   }
 
+  heldSpot() {
+    const held = this.heldRoom;
+    if (!held) return null;
+    const ctx = this.town.context;
+    if (ctx.night && held.night === lodgeNightOf(ctx.minutes) && isFree(held.spot.id, this)) return held.spot;
+    this.dropRoom();
+    return null;
+  }
+
+  holdRoom(spot) {
+    if (!spot || !book(spot.id, this)) return;
+    this.heldRoom = { spot, night: lodgeNightOf(this.town.context.minutes) };
+  }
+
+  dropRoom() {
+    if (!this.heldRoom) return;
+    release(this.heldRoom.spot.id, this);
+    this.heldRoom = null;
+  }
+
   goNight() {
+    const held = this.heldSpot();
+    if (held) return this.goLodge(held, true);
     const spot = this.pickLodge(true);
     if (spot) this.goLodge(spot);
     else this.sleepOut();
@@ -371,6 +414,8 @@ export class RestBehavior {
       this.vanish();
       return;
     }
+    const held = this.heldSpot();
+    if (held) return this.settleAt(held, true);
     this.settleAt(this.pickLodge(true));
   }
 

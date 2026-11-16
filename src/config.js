@@ -110,6 +110,7 @@ export const VILLAGER = {
   lodgeNights: 3,
   frugalFull: 0.5,
   nightAwakeHours: 1,
+  nightStir: [20, 40],
   morningEnergy: 60,
   resumeMinutes: 10,
 };
@@ -156,10 +157,10 @@ export const MOVE = { walk: 2, run: 3 };
 export const AWAY = { step: 15, walk: 1.5 };
 
 export const LODGES = {
-  inn: { price: 25, perHour: 28, comfort: 0.6 },
-  cheap: { price: 20, perHour: 20, comfort: 0.2 },
-  cozy: { price: 30, perHour: 36, comfort: 0.7 },
-  grand: { price: 45, perHour: 52, comfort: 1 },
+  inn: { price: 18, perHour: 28, comfort: 0.6 },
+  cheap: { price: 14, perHour: 20, comfort: 0.2 },
+  cozy: { price: 21, perHour: 36, comfort: 0.7 },
+  grand: { price: 32, perHour: 52, comfort: 1 },
 };
 
 export const LODGE_ROOMS = {
@@ -307,8 +308,8 @@ export const TRAITS = {
   skillForget: 0.02,
   fullDayEffort: 120,
   taste: [0.75, 1.25],
-  habitGain: 0.03,
-  habitFade: 0.01,
+  habitPull: 0.25,
+  habitRate: 0.15,
   innGoer: 0.35,
   rate: 0.1,
   catchUp: 30,

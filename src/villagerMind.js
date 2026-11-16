@@ -11,6 +11,7 @@ import { SELF_STUDY } from './villagerData.js';
 import { traits } from './traits.js';
 import { fluency } from './fluency.js';
 import { LAMP_SAVING } from './fireflyRules.js';
+import { affordableJobs, tripMinutes } from './farmTrip.js';
 
 const weighted = (entries) => {
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -55,7 +56,14 @@ export class MindBehavior {
     const action = job.action === 'clear' && this.town.farm.ownerOf(job.index) !== this.id ? 'clearOther' : job.action;
     const share = MIND.harvestShare[action] ?? MIND.harvestShare.clear;
     const supplies = job.action === 'fertilize' ? SHOP.fertilizer : 0;
-    return (HARVEST_VALUE * trade.payRate('produce') * share - supplies) * need - (ENERGY.costs[job.action] ?? 0) * MIND.energyCoin;
+    const worth = job.worth ?? HARVEST_VALUE * share;
+    return (worth * trade.payRate('produce') - supplies) * need - (ENERGY.costs[job.action] ?? 0) * MIND.energyCoin;
+  }
+
+  farmTrip(need) {
+    const jobs = affordableJobs(this.town.farm.tripFor(this, this.seedChoice()), this.purse.energy);
+    const worthy = jobs.map((job) => ({ job, gain: this.farmGain(need, job) })).filter(({ gain }) => gain > 0);
+    return { jobs: worthy.map(({ job }) => job), gain: worthy.reduce((sum, { gain }) => sum + gain, 0) };
   }
 
   fishGain(need, casts) {
@@ -115,16 +123,16 @@ export class MindBehavior {
     const walk = this.walkMinutes(blessing.official.at);
     const stay = Math.min(blessingMinutesLeft(ctx.minutes) - walk, BLESSING_STAY);
     if (stay <= 0) return null;
-    return { kind: 'blessing', rate: this.blessingGain(need, stay, blessing.session(ctx.minutes)) / (walk + stay), go: () => this.goBlessing() };
+    return { kind: 'blessing', minutes: walk + stay, rate: this.blessingGain(need, stay, blessing.session(ctx.minutes)) / (walk + stay), go: () => this.goBlessing() };
   }
 
   farmOption(need) {
-    const job = this.town.farm.jobFor(this, this.seedChoice());
-    if (!job) return null;
-    const spot = job.stand ?? this.town.farm.spot(job.index);
-    const gain = this.farmGain(need, job);
-    const minutes = this.walkMinutes(spot) + MIND.workSeconds / 60;
-    return { kind: 'farm', rate: gain / minutes, go: () => this.goFarm(() => this.leisure(), job) };
+    const { jobs, gain } = this.farmTrip(need);
+    if (!jobs.length) return null;
+    const farm = this.town.farm;
+    const stops = jobs.map((job) => job.stand ?? farm.spot(job.index));
+    const minutes = this.walkMinutes(stops[0]) + MIND.workSeconds / 60;
+    return { kind: 'farm', minutes, rate: gain / tripMinutes(this.position, stops, MIND.workSeconds), go: () => this.goFarm(() => this.leisure(), jobs[0]) };
   }
 
   fishOption(need) {
@@ -136,7 +144,7 @@ export class MindBehavior {
     const gain = this.fishGain(need, casts);
     const minutes = this.walkMinutes(berth.stand) + (casts * MIND.castSeconds) / 60;
     const crowd = 1 - MIND.crowdCut * (river.anglers / FISHING.villagerAnglers);
-    return { kind: 'fish', rate: (gain / minutes) * crowd, go: () => this.goFish() || this.leisure() };
+    return { kind: 'fish', minutes, rate: (gain / minutes) * crowd, go: () => this.goFish() || this.leisure() };
   }
 
   huntOption(need) {
@@ -147,7 +155,7 @@ export class MindBehavior {
     const gain = this.huntGain(need);
     const minutes = this.walkMinutes(prey) + MIND.huntSeconds / 60;
     const crowd = 1 - MIND.crowdCut * (wildlife.hunters / HUNTING.villagerHunters);
-    return { kind: 'hunt', rate: (gain / minutes) * crowd, go: () => this.goHunt() || this.leisure() };
+    return { kind: 'hunt', minutes, rate: (gain / minutes) * crowd, go: () => this.goHunt() || this.leisure() };
   }
 
   fireflyOption(ctx) {
@@ -158,7 +166,7 @@ export class MindBehavior {
     const fly = field.nearest(this.position, this);
     if (!fly) return null;
     const minutes = this.walkMinutes(fly) + FIREFLY.villagerSwat / 60;
-    return { kind: 'firefly', rate: gain / minutes, go: () => this.goFirefly() || this.leisure() };
+    return { kind: 'firefly', minutes, rate: gain / minutes, go: () => this.goFirefly() || this.leisure() };
   }
 
   studyOption(ctx, need) {
@@ -169,7 +177,7 @@ export class MindBehavior {
       const queue = this.town.queues[`teacher:${deck}`];
       const minutes = this.walkMinutes(queue.line[0]) + (MIND.queueSeconds * (queue.members.length + 1)) / 60;
       const gain = MIND.internalValue * this.diligence - CERTIFY.internalFee * need;
-      return { kind: 'study', rate: gain / minutes, go: () => this.goInternal(deck) };
+      return { kind: 'study', minutes, rate: gain / minutes, go: () => this.goInternal(deck) };
     }
     if (!certify.learnLeft(this.id, deck).length) return null;
     const seat = this.studySeatFor(deck);
@@ -180,7 +188,7 @@ export class MindBehavior {
     const minutes = this.walkMinutes(target) + sit + (waiting ? SELF_STUDY.waitMax / 60 : 0);
     const gain = this.studyGain(need, sit);
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
+    return { kind: 'study', minutes, rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
   }
 
   reviewOption(ctx, need) {
@@ -189,8 +197,9 @@ export class MindBehavior {
     const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
     if (!seat) return null;
     const sit = CERTIFY.sitSeconds / 60;
+    const minutes = this.walkMinutes(seat.spot) + sit;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', rate: (this.reviewGain(need, sit, deck) / (this.walkMinutes(seat.spot) + sit)) * crowd, go: () => this.goReview(deck) };
+    return { kind: 'study', minutes, rate: (this.reviewGain(need, sit, deck) / minutes) * crowd, go: () => this.goReview(deck) };
   }
 
   prepOption(ctx, need) {
@@ -199,8 +208,9 @@ export class MindBehavior {
     const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
     if (!seat) return null;
     const sit = CERTIFY.sitSeconds / 60;
+    const minutes = this.walkMinutes(seat.spot) + sit;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', rate: (this.prepGain(need, sit, deck, ctx.day) / (this.walkMinutes(seat.spot) + sit)) * crowd, go: () => this.goPrep(deck) };
+    return { kind: 'study', minutes, rate: (this.prepGain(need, sit, deck, ctx.day) / minutes) * crowd, go: () => this.goPrep(deck) };
   }
 
   plan(ctx) {
@@ -220,7 +230,7 @@ export class MindBehavior {
   follow(option) {
     this.lastPlan = option.kind;
     this.lastPlanAt = this.now;
-    traits.did(this.id, option.kind, this.town.context?.day);
+    traits.did(this.id, option.kind, this.town.context?.day, option.minutes);
     option.go();
   }
 }

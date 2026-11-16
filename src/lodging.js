@@ -17,6 +17,10 @@ export function leaveRoom(who) {
   for (const [id, guest] of guests) if (guest === who) guests.delete(id);
 }
 
+export function release(id, who) {
+  if (guests.get(id) === who) guests.delete(id);
+}
+
 export function book(id, who) {
   if (!isFree(id, who)) return false;
   leaveRoom(who);

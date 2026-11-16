@@ -331,10 +331,12 @@ export function createAwaySim({ town, contextAt }) {
     if (ctx.chiefOpen && estate.affordableFor(member.id, purse.money - VILLAGER.houseReserve)) estate.buyFor(member.id, purse, VILLAGER.houseReserve);
   }
 
-  function tend(member, job) {
-    if (job.action === 'lease') farm.signLease(job.bed, member.id, job.offer);
-    else if (member.purse.spendEnergy(ENERGY.costs[job.action] ?? 0)) member.tend(job);
-    return AWAY.walk + FARM;
+  function tend(member, jobs) {
+    for (const job of jobs) {
+      if (job.action === 'lease') farm.signLease(job.bed, member.id, job.offer);
+      else if (member.purse.spendEnergy(ENERGY.costs[job.action] ?? 0)) member.tend(job);
+    }
+    return AWAY.walk + jobs.length * FARM;
   }
 
   const canFish = (member, slots) => {
@@ -458,8 +460,8 @@ export function createAwaySim({ town, contextAt }) {
     if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay, blessing.window.session) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
     const lantern = lanternPlan(member, clock);
     if (lantern) options.push({ kind: 'lantern', as: 'walk', rate: lanternWorth(member.id, lantern.lantern.key, need, member.diligence, town.lanterns.energyAt(clock)) / (lantern.ready + lantern.solve), run: () => solveLantern(member, clock, end, lantern) });
-    const job = farm.jobFor(member, member.seedChoice());
-    if (job) options.push({ kind: 'farm', as: 'walk', rate: member.farmGain(need, job) / (AWAY.walk + FARM), run: () => tend(member, job) });
+    const trip = member.farmTrip(need);
+    if (trip.jobs.length) options.push({ kind: 'farm', as: 'walk', rate: trip.gain / (AWAY.walk + trip.jobs.length * FARM), run: () => tend(member, trip.jobs) });
     if (canFish(member, slots)) {
       const casts = Math.min(AVERAGE_CASTS, member.purse.count('bait'));
       options.push({ kind: 'fish', as: 'walk', rate: member.fishGain(need, casts) / (AWAY.walk + casts * CAST), run: () => fish(member, ctx, slots) });
@@ -495,8 +497,8 @@ export function createAwaySim({ town, contextAt }) {
       }
       const option = choose(member, ctx, slots, clock, end);
       if (!option) break;
-      traits.did(member.id, option.kind, ctx.day);
       const spent = option.run();
+      traits.did(member.id, option.kind, ctx.day, spent);
       occupy(memo, clock, clock + spent, option.as);
       clock += spent;
     }

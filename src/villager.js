@@ -38,6 +38,7 @@ export class Villager {
     this.studyRestAt = 0;
     this.lodge = null;
     this.lodgeNight = false;
+    this.heldRoom = null;
     this.sleepingOut = false;
     this.bed = null;
     this.bankAt = null;
@@ -389,6 +390,7 @@ export class Villager {
   }
 
   suspend() {
+    this.dropRoom();
     this.clearActivity();
     this.lodge = null;
     this.lodgeNight = false;

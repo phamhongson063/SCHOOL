@@ -411,6 +411,7 @@ export class Town {
       if (job) entry.lantern = job;
       if (member.state === 'inn' && member.lodge) entry.inn = { room: member.lodge.id, night: member.lodgeNight ? lodgeNightOf(minutes) : null };
       else if (member.state === 'resting' && member.lyingDown && member.sleepingOut) entry.inn = { room: null, night: lodgeNightOf(minutes) };
+      else if (member.heldRoom) entry.inn = { room: member.heldRoom.spot.id, night: member.heldRoom.night };
       if (member.studyRestAt > t) entry.studyRest = Math.round(member.studyRestAt - t);
       if (member.state === 'seated' && member.task === 'selfstudy' && member.seatRef?.study) {
         entry.study = { seat: seats.indexOf(member.seatRef), left: Math.round(member.studyUntil - t), words: member.sitWords ?? 0, mark: Math.round(t - member.studyMark) };
@@ -477,6 +478,11 @@ export class Town {
     };
   }
 
+  nightLodge(stay, ctx) {
+    if (typeof stay?.room !== 'string' || stay.night === null || !ctx.night || lodgeNightOf(ctx.minutes) !== stay.night) return null;
+    return this.lodgeSpots.find((item) => item.id === stay.room) ?? null;
+  }
+
   resumeInn(member, stay, ctx) {
     if (!stay) return false;
     const night = stay.night !== null;
@@ -520,7 +526,10 @@ export class Town {
     }
     for (const member of this.members) {
       if (member.state === 'arena') continue;
-      if (this.resumeMember(member, saved.members.get(member.id), ctx, t, saved.gap)) continue;
+      if (this.resumeMember(member, saved.members.get(member.id), ctx, t, saved.gap)) {
+        member.holdRoom(this.nightLodge(jobs.inns.get(member.id), ctx));
+        continue;
+      }
       if (this.resumeInn(member, jobs.inns.get(member.id), ctx)) continue;
       if (member.wantsSleep(ctx)) {
         member.settleNight();
@@ -547,6 +556,7 @@ export class Town {
     for (const worker of this.shiftWorkers) {
       if (worker.state === 'away' && worker.onDuty(ctx) && worker.wakeAt === null) worker.wakeAt = worker.now + 0.5 + (worker.lag ?? between(0, 2.5));
     }
+    for (const member of this.members) member.stirAtNight(ctx);
   }
 
   anyMoving() {
@@ -588,6 +598,7 @@ export class Town {
         }
       } else {
         for (const member of this.members) {
+          member.dropRoom();
           if (member.state === 'away') member.wakeAt = t + between(0.5, 40);
         }
       }

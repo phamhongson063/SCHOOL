@@ -75,9 +75,9 @@ function cleanEntry(raw, id) {
   const facts = raw.facts && typeof raw.facts === 'object' ? raw.facts : {};
   entry.facts = Object.fromEntries(FACTS.filter((fact) => facts[fact] === true).map((fact) => [fact, true]));
   const acts = raw.acts && typeof raw.acts === 'object' ? raw.acts : {};
-  entry.acts = Object.fromEntries(TASTES.filter((name) => Number.isInteger(acts[name]) && acts[name] > 0).map((name) => [name, acts[name]]));
+  entry.acts = Object.fromEntries(TASTES.filter((name) => isAmount(acts[name]) && acts[name] > 0).map((name) => [name, acts[name]]));
   const last = raw.last && typeof raw.last === 'object' ? raw.last : {};
-  entry.last = Object.fromEntries(TASTES.filter((name) => Number.isInteger(last[name]) && last[name] > 0).map((name) => [name, last[name]]));
+  entry.last = Object.fromEntries(TASTES.filter((name) => isAmount(last[name]) && last[name] > 0).map((name) => [name, last[name]]));
   const work = raw.work && typeof raw.work === 'object' ? raw.work : {};
   entry.work = Object.fromEntries(SKILLS.filter((name) => isAmount(work[name]) && work[name] > 0).map((name) => [name, work[name]]));
   return withSkills(entry);
@@ -121,26 +121,34 @@ function practiceDay(entry, name) {
   entry.xp[name] = entry.xp[name] * (1 - TRAITS.skillForget) + share;
 }
 
-function driftDay(entry) {
+function settleTaste(entry, id) {
+  const total = TASTES.reduce((sum, name) => sum + (entry.acts[name] ?? 0), 0);
+  if (!(total > 0)) return;
+  const base = freshEntry(id).taste;
+  for (const name of TASTES) {
+    const share = (entry.acts[name] ?? 0) / total;
+    const target = base[name] + TRAITS.habitPull * (share - 1 / TASTES.length);
+    entry.taste[name] = clamp(entry.taste[name] + (target - entry.taste[name]) * TRAITS.habitRate, TRAITS.taste);
+  }
+}
+
+function driftDay(entry, id) {
   const { rate } = TRAITS;
   entry.diligence = clamp(entry.diligence + (diligenceTarget(entry) - entry.diligence) * rate, TRAITS.diligence);
   for (const name of SKILLS) practiceDay(entry, name);
   withSkills(entry);
-  const busiest = TASTES.reduce((best, name) => ((entry.acts[name] ?? 0) > (entry.acts[best] ?? 0) ? name : best), TASTES[0]);
-  if ((entry.acts[busiest] ?? 0) > 0) {
-    for (const name of TASTES) entry.taste[name] = clamp(entry.taste[name] + (name === busiest ? TRAITS.habitGain : -TRAITS.habitFade), TRAITS.taste);
-  }
+  settleTaste(entry, id);
   entry.last = { ...entry.acts };
   entry.facts = {};
   entry.acts = {};
   entry.work = {};
 }
 
-function roll(entry, day) {
+function roll(entry, day, id) {
   if (entry.day !== null && day <= entry.day) return;
   if (entry.day !== null) {
     const gap = Math.min(day - entry.day, TRAITS.catchUp);
-    for (let i = 0; i < gap; i++) driftDay(entry);
+    for (let i = 0; i < gap; i++) driftDay(entry, id);
   }
   entry.day = day;
   entry.facts = {};
@@ -152,23 +160,23 @@ export const traits = {
   note(id, fact, day) {
     if (!FACTS.includes(fact) || !Number.isInteger(day)) return;
     const entry = entryOf(id);
-    roll(entry, day);
+    roll(entry, day, id);
     if (entry.day !== day || entry.facts[fact]) return;
     entry.facts[fact] = true;
     store.save();
   },
-  did(id, kind, day) {
-    if (!TASTES.includes(kind) || !Number.isInteger(day)) return;
+  did(id, kind, day, minutes) {
+    if (!TASTES.includes(kind) || !Number.isInteger(day) || !(minutes > 0)) return;
     const entry = entryOf(id);
-    roll(entry, day);
+    roll(entry, day, id);
     if (entry.day !== day) return;
-    entry.acts[kind] = (entry.acts[kind] ?? 0) + 1;
+    entry.acts[kind] = (entry.acts[kind] ?? 0) + minutes;
     store.save();
   },
   train(id, kind, effort, day) {
     if (!SKILLS.includes(kind) || !(effort > 0) || !Number.isInteger(day)) return;
     const entry = entryOf(id);
-    roll(entry, day);
+    roll(entry, day, id);
     if (entry.day !== day) return;
     entry.work[kind] = (entry.work[kind] ?? 0) + effort;
     store.save();
@@ -178,13 +186,13 @@ export const traits = {
     const key = `${id}:${kind}`;
     if (minutes - (practicedAt.get(key) ?? -Infinity) < TRAITS.practiceGap) return;
     practicedAt.set(key, minutes);
-    traits.did(id, kind, dayOf(minutes));
+    traits.did(id, kind, dayOf(minutes), TRAITS.practiceGap);
   },
   settle(id, day, { tired = false, debt = false } = {}) {
     if (!Number.isInteger(day)) return;
     const entry = entryOf(id);
     const before = entry.day;
-    roll(entry, day);
+    roll(entry, day, id);
     if (entry.day !== day) return;
     let changed = entry.day !== before;
     for (const [fact, on] of [['tired', tired], ['debt', debt]]) {

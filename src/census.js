@@ -95,7 +95,7 @@ export const census = {
         fish: spread(traits.map((row) => row.skill.fish)),
         hunt: spread(traits.map((row) => row.skill.hunt)),
       },
-      activity: { counts: sums, entropy: entropy(sums) },
+      activity: { minutes: Object.fromEntries(Object.entries(sums).map(([kind, minutes]) => [kind, Math.round(minutes)])), entropy: entropy(sums) },
       supply: { now: supply, fund, history: days.map((past) => ({ day: past, supply: state.days[past].supply, fund: state.days[past].fund })) },
     };
   },
