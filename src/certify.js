@@ -140,6 +140,7 @@ function fill(actor, state, deck) {
     if (state.certified[key] || state.batch.includes(key)) continue;
     state.batch.push(key);
   }
+  state.counts = Object.fromEntries(Object.entries(state.counts).filter(([key]) => state.batch.includes(key)));
 }
 
 function deckState(actor, deck) {
@@ -148,7 +149,6 @@ function deckState(actor, deck) {
   const day = today();
   if (state.day !== day) {
     state.day = day;
-    state.counts = {};
     state.viewed = [];
     state.qualified = null;
     state.tries = 0;

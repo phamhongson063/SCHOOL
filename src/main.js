@@ -73,7 +73,8 @@ import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
 import { createWorldMap } from './worldMap.js';
-import { captureMap } from './mapPhoto.js';
+import { captureMap, restoreMap, showMap } from './mapPhoto.js';
+import { VERSION } from './version.js';
 import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
@@ -2017,13 +2018,14 @@ if (purse.sleeping) showSleep(true);
 
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
+const mapKey = VERSION === 'dev' ? null : `${VERSION}-${dayOf(context.minutes)}`;
+const mapRestored = restoreMap(worldMap.ground, mapKey);
 function photographMap() {
   const minutes = dayOf(context.minutes) * DAY_MINUTES + MAP_HOUR * 60;
-  captureMap({
+  return captureMap({
     renderer,
     scene,
     bounds: MAP_BOUNDS,
-    canvas: worldMap.canvas,
     tile: SHADOW_SPAN * 1.3,
     hide: [villagerRoot, avatar.group, seatedAvatar.group, player.shadow.mesh, clouds.group, arenaIsland.region.handle?.group].filter(Boolean),
     light: (view, at) => sky.update(minutes, view, at, SHADOW_SPAN),
@@ -2033,7 +2035,8 @@ function photographMap() {
 await regions
   .warmUp(async () => {
     await arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera));
-    photographMap();
+    if (await mapRestored) return;
+    showMap(photographMap(), worldMap.ground, mapKey);
   })
   .catch(() => {});
 await loadingStep(0.95);

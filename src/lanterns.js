@@ -53,10 +53,14 @@ export function lanternTiles(lantern) {
   return shuffle([...answer, ...extras], rand);
 }
 
-export const lanternSeconds = (key) => Array.from(answerOf(key)).length * LANTERN.tileSeconds;
+const tilesOf = (key) => Array.from(answerOf(key)).length;
+const handSeconds = (key) => LANTERN.readSeconds + tilesOf(key) * LANTERN.tapSeconds;
+
+export const lanternSeconds = (key) => handSeconds(key) + LANTERN.thinkSeconds;
 
 export function lanternTry(id, key, day) {
-  return absorption.respond(id, key, lanternSeconds(key), day);
+  const { correct, seconds } = absorption.respond(id, key, LANTERN.thinkSeconds, day);
+  return { correct, seconds: handSeconds(key) + seconds };
 }
 
 export function lanternEnergy(left, solved, now, start, end) {

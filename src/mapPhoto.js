@@ -3,8 +3,49 @@ import * as THREE from 'three';
 const PIXELS_PER_METER = 6;
 const HEIGHT = 160;
 const DEPTH = 260;
+const STORE = 'map-photo';
+const QUALITY = 0.92;
 
-export function captureMap({ renderer, scene, bounds, canvas, tile, hide, light }) {
+const photoUrl = (key) => new URL(`map-photo/${encodeURIComponent(key)}`, document.baseURI).href;
+
+const show = (image, blob) => (image.src = URL.createObjectURL(blob));
+
+async function store(blob, key) {
+  try {
+    const cache = await caches.open(STORE);
+    const url = photoUrl(key);
+    const stale = (await cache.keys()).filter((request) => request.url !== url);
+    await Promise.all(stale.map((request) => cache.delete(request)));
+    await cache.put(url, new Response(blob));
+  } catch {}
+}
+
+export async function restoreMap(image, key) {
+  if (!key || !globalThis.caches) return false;
+  try {
+    const found = await (await caches.open(STORE)).match(photoUrl(key));
+    if (!found) return false;
+    show(image, await found.blob());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function showMap(canvas, image, key) {
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      show(image, blob);
+      if (key && globalThis.caches) store(blob, key);
+    },
+    'image/webp',
+    QUALITY,
+  );
+}
+
+export function captureMap({ renderer, scene, bounds, tile, hide, light }) {
+  const canvas = document.createElement('canvas');
   canvas.width = Math.round((bounds.x1 - bounds.x0) * PIXELS_PER_METER);
   canvas.height = Math.round((bounds.z1 - bounds.z0) * PIXELS_PER_METER);
   const context = canvas.getContext('2d');
@@ -41,4 +82,5 @@ export function captureMap({ renderer, scene, bounds, canvas, tile, hide, light 
     if (fog) Object.assign(scene.fog, fog);
     renderer.setViewport(0, 0, size.x, size.y);
   }
+  return canvas;
 }

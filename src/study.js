@@ -12,7 +12,7 @@ import { NPC } from './npcIds.js';
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
-const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
+const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -42,6 +42,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
   const status = document.getElementById('studyStatus');
+  const learnName = document.getElementById('studyLearnName');
   const learnInfo = document.getElementById('studyLearnInfo');
   const reviewInfo = document.getElementById('studyReviewInfo');
   const notice = document.getElementById('studyNotice');
@@ -111,10 +112,13 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     const learning = batch.filter((item) => !item.ready);
     const done = learning.filter((item) => item.count >= CERTIFY.remember).length;
     const certified = certify.certifiedCount(PLAYER, deckId);
+    const examTaken = certify.examTaken(PLAYER, deckId);
+    const learnedAll = learning.length > 0 && !examTaken && !certify.learnLeft(PLAYER, deckId).length;
     status.textContent = statusText();
+    learnName.textContent = MODES[learnedAll ? 'today' : 'learn'].name;
     learnInfo.textContent = learning.length ? `${done}/${learning.length}` : '—';
     reviewInfo.textContent = `🎓 ${certified}`;
-    learnPick.disabled = learning.length === 0 || certify.examTaken(PLAYER, deckId);
+    learnPick.disabled = learning.length === 0 || examTaken;
     reviewPick.disabled = certified === 0;
   }
 
@@ -285,11 +289,12 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
       .map((item) => item.key);
 
   function beginLearn() {
-    if (certify.examTaken(PLAYER, deckId) || !pay('learn')) return;
+    if (certify.examTaken(PLAYER, deckId)) return;
     if (!certify.learnLeft(PLAYER, deckId).length) {
-      browse(learnedToday(), 'learn');
+      browse(learnedToday(), 'today');
       return;
     }
+    if (!pay('learn')) return;
     mode = 'learn';
     music?.start();
     setStudying(true);

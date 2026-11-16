@@ -10,7 +10,7 @@ export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
   const dialog = document.getElementById('mapDialog');
   const view = dialog.querySelector('.map-view');
   const sheet = dialog.querySelector('.map-sheet');
-  const canvas = dialog.querySelector('.map-ground');
+  const ground = dialog.querySelector('.map-ground');
   const layer = dialog.querySelector('.map-labels');
   const labels = [];
   let measured = false;
@@ -173,7 +173,7 @@ export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
   return {
     add,
     move,
-    canvas,
+    ground,
     get isOpen() {
       return dialog.open;
     },
