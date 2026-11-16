@@ -6,14 +6,13 @@ const GAP = 6;
 const TAP_GAP = 350;
 const TAP_SLOP = 12;
 
-export function createWorldMap({ bounds, ground, onPick, onWalk, onClose }) {
+export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
   const dialog = document.getElementById('mapDialog');
   const view = dialog.querySelector('.map-view');
   const sheet = dialog.querySelector('.map-sheet');
   const canvas = dialog.querySelector('.map-ground');
   const layer = dialog.querySelector('.map-labels');
   const labels = [];
-  let stale = true;
   let measured = false;
   let locked = false;
   let press = null;
@@ -25,17 +24,11 @@ export function createWorldMap({ bounds, ground, onPick, onWalk, onClose }) {
 
   const toSheet = (at) => ({ x: (at.x - bounds.x0) * SCALE, y: (at.z - bounds.z0) * SCALE });
 
-  function paint() {
-    const { width, height, data } = ground();
-    canvas.width = width;
-    canvas.height = height;
-    canvas.getContext('2d').putImageData(new ImageData(data, width, height), 0, 0);
-    stale = false;
-  }
+  const inside = (at) => at.x >= bounds.x0 && at.x <= bounds.x1 && at.z >= bounds.z0 && at.z <= bounds.z1;
 
   function place(label) {
-    label.el.hidden = !label.stand;
-    if (!label.stand) return;
+    label.el.hidden = !label.stand || !inside(label.at);
+    if (label.el.hidden) return;
     const { x, y } = toSheet(label.at);
     label.x = x;
     label.y = y;
@@ -53,7 +46,7 @@ export function createWorldMap({ bounds, ground, onPick, onWalk, onClose }) {
     }
     const kept = [];
     for (const label of labels) {
-      let clear = !!label.stand;
+      let clear = !label.el.hidden;
       if (clear) {
         const box = { x0: label.x - label.w / 2 - GAP, x1: label.x + label.w / 2 + GAP, y0: label.y - label.h / 2 - GAP, y1: label.y + label.h / 2 + GAP };
         clear = !kept.some((other) => box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0);
@@ -180,12 +173,12 @@ export function createWorldMap({ bounds, ground, onPick, onWalk, onClose }) {
   return {
     add,
     move,
+    canvas,
     get isOpen() {
       return dialog.open;
     },
     open(at, { locked: lock = false } = {}) {
       if (dialog.open) return;
-      if (stale) paint();
       locked = lock;
       dialog.classList.toggle('locked', lock);
       layer.classList.add('settling');
@@ -196,9 +189,6 @@ export function createWorldMap({ bounds, ground, onPick, onWalk, onClose }) {
     },
     close() {
       if (dialog.open) dialog.close();
-    },
-    invalidate() {
-      stale = true;
     },
   };
 }

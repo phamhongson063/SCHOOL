@@ -97,7 +97,6 @@ export class NavGrid {
     this.markId = 0;
     this.marking = 0;
     this.heap = new MinHeap();
-    this.baked = 0;
     this.bake(bounds);
   }
 
@@ -119,7 +118,6 @@ export class NavGrid {
       }
     }
     this.components = this.label();
-    this.baked++;
   }
 
   walkable(n) {

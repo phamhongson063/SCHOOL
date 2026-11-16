@@ -73,7 +73,7 @@ import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
 import { createWorldMap } from './worldMap.js';
-import { createMapGround } from './mapGround.js';
+import { captureMap } from './mapPhoto.js';
 import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
@@ -132,6 +132,8 @@ const SIM_SPAN = 0.6;
 const IDLE_AFTER = 20000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: 84 };
+const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
+const MAP_HOUR = 14;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(MAX_PIXEL_RATIO);
@@ -1513,10 +1515,8 @@ function setLabel(button, text) {
   button.setAttribute('aria-label', text);
 }
 
-const paintMap = createMapGround();
 const worldMap = createWorldMap({
-  bounds: NAV_BOUNDS,
-  ground: () => paintMap(player.nav),
+  bounds: MAP_BOUNDS,
   onPick: (stand) => {
     worldMap.close();
     const lantern = lanterns.list.find((item) => item.doneAt === null && item.x === stand.x && item.z === stand.z);
@@ -1578,7 +1578,6 @@ function updateLanternLabels(now) {
 let selfLabel = null;
 const faceLabels = new Map();
 let mapFocus = null;
-let mapBaked = -1;
 
 function whereIs(id) {
   if (id === PLAYER) return player.position;
@@ -1601,10 +1600,6 @@ function refreshHomeLabel() {
 
 function openMap(at, locked = false) {
   if (worldMap.isOpen) return;
-  if (mapBaked !== player.nav.baked) {
-    mapBaked = player.nav.baked;
-    worldMap.invalidate();
-  }
   refreshHomeLabel();
   selfLabel ??= worldMap.add('Bạn', null, null, { lead: true, kind: 'self', image: portraitOf(PLAYER) });
   worldMap.move(selfLabel, player.position);
@@ -2021,7 +2016,25 @@ if (purse.sleeping) showSleep(true);
 
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
-await regions.warmUp(() => arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera))).catch(() => {});
+function photographMap() {
+  const minutes = dayOf(context.minutes) * DAY_MINUTES + MAP_HOUR * 60;
+  captureMap({
+    renderer,
+    scene,
+    bounds: MAP_BOUNDS,
+    canvas: worldMap.canvas,
+    tile: SHADOW_SPAN * 1.3,
+    hide: [villagerRoot, avatar.group, seatedAvatar.group, player.shadow.mesh, clouds.group, arenaIsland.region.handle?.group].filter(Boolean),
+    light: (view, at) => sky.update(minutes, view, at, SHADOW_SPAN),
+  });
+}
+
+await regions
+  .warmUp(async () => {
+    await arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera));
+    photographMap();
+  })
+  .catch(() => {});
 await loadingStep(0.95);
 renderer.shadowMap.needsUpdate = true;
 renderer.render(scene, camera);

@@ -392,6 +392,7 @@ export function createClouds(scene) {
   scene.add(group);
 
   return {
+    group,
     update(dt, night = 0) {
       material.emissive.copy(dayEmissive).lerp(nightEmissive, night);
       group.position.x += dt * 1.5;
