@@ -381,7 +381,7 @@ export class Villager {
     this.studying = false;
     this.examResults = null;
     this.examDeck = null;
-    this.internalKeys = null;
+    this.internalResults = null;
     this.internalDeck = null;
     this.lyingDown = false;
     this.restBlend = 0;

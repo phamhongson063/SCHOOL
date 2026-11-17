@@ -493,7 +493,7 @@ export function createVillage() {
     if (target.kind === 'chief') return bound.isChiefOpen() ? 'Nhà Lý trưởng · mua bán nhà' : `Nhà Lý trưởng · nghỉ (làm việc ${bound.chiefHours()})`;
     if (target.kind === 'fish') return bound.isFishShopOpen() ? 'Hàng cá · bán thủy sản, mua đồ câu' : `Hàng cá · đóng cửa (mở ${bound.fishShopHours()})`;
     if (target.kind === 'eatery') return bound.isEateryOpen() ? 'Quán ăn · ăn uống nạp năng lượng' : `Quán ăn · đóng cửa (mở ${bound.eateryHours()})`;
-    if (target.kind === 'lodge') return lodgeLabel(target.id);
+    if (target.kind === 'lodge') return lodgeLabel(target.id, PLAYER);
     const house = bound.estate.houses.find((item) => item.id === target.id);
     return house ? houseLabel(bound.estate, house, bound.nameOf) : null;
   }

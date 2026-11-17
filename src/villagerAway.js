@@ -6,7 +6,7 @@ import { energyRate, homeActivity } from './stamina.js';
 import { between } from './random.js';
 import { AVERAGE_CASTS, BLESSING_STAY, blessingStayMinutes } from './villagerMind.js';
 import { blessingSlots, economy } from './economy.js';
-import { simulate, simulateExam } from './villagerSchool.js';
+import { simulateExam, simulateInternal } from './villagerSchool.js';
 import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
@@ -279,10 +279,11 @@ export function createAwaySim({ town, contextAt }) {
     const pace = examPace(deck);
     const keys = member.beginInternal(deck, pace);
     if (!keys) return AWAY.walk;
-    const length = (keys.length * pace) / 60;
+    const results = simulateInternal(member, deck, keys);
+    const length = (results.length * pace) / 60;
     const { seat, at } = earliestSeat(internalSeats[deck], clock + INTERNAL_TRIP, length);
     seat.push([at, at + length]);
-    certify.gradeInternal(member.id, deck, simulate(member, keys));
+    certify.gradeInternal(member.id, deck, results);
     return at + length - clock;
   }
 

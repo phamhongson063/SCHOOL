@@ -339,6 +339,9 @@ export const certify = {
     if (cleared.length) changed(actor);
     return { cleared };
   },
+  internalStops(actor, deck, { correct }) {
+    return !correct;
+  },
   examStops(actor, deck, { key, correct }) {
     return !correct && deckState(actor, deck).batch.includes(key);
   },

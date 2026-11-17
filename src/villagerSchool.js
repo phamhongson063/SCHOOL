@@ -20,15 +20,19 @@ function recallOf(member, key) {
 
 export const simulate = (member, keys) => keys.map((key) => recallOf(member, key));
 
-export function simulateExam(member, deck, keys) {
+function simulateUntil(member, keys, stops) {
   const results = [];
   for (const key of keys) {
     const result = recallOf(member, key);
     results.push(result);
-    if (certify.examStops(member.id, deck, result)) break;
+    if (stops(result)) break;
   }
   return results;
 }
+
+export const simulateExam = (member, deck, keys) => simulateUntil(member, keys, (result) => certify.examStops(member.id, deck, result));
+
+export const simulateInternal = (member, deck, keys) => simulateUntil(member, keys, (result) => certify.internalStops(member.id, deck, result));
 
 function sample(list, count) {
   const copy = [...list];
@@ -293,18 +297,18 @@ export class SchoolBehavior {
       }, between(0.5, 2));
       return;
     }
-    this.internalKeys = keys;
-    this.internalUntil = this.now + this.internalKeys.length * pace;
+    this.internalResults = simulateInternal(this, deck, keys);
+    this.internalUntil = this.now + this.internalResults.length * pace;
     this.studying = true;
   }
 
   internalUpdate(t) {
-    if (!this.internalKeys || t < this.internalUntil) return;
+    if (!this.internalResults || t < this.internalUntil) return;
     const deck = this.internalDeck;
-    const keys = this.internalKeys;
+    const results = this.internalResults;
     this.internalDeck = null;
-    this.internalKeys = null;
-    const { passed } = certify.gradeInternal(this.id, deck, simulate(this, keys));
+    this.internalResults = null;
+    const { passed } = certify.gradeInternal(this.id, deck, results);
     this.say(passed ? '📝✓' : '📝✗', 1.8);
     this.rise(() => {
       this.task = null;

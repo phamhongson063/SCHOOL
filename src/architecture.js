@@ -2330,9 +2330,8 @@ function lanternString(kit, x, z0, z1, height) {
   }
 }
 
-function lanternGate(kit, x, z, half) {
+function lanternGate(kit, x, z, half, height) {
   const b = kit.body;
-  const height = 4;
   const bar = height - 0.15;
   for (const side of [-1, 1]) {
     const px = x + side * half;
@@ -2356,7 +2355,7 @@ function lanternHall(kit, { half, front, back, rise }) {
   const depth = front - back;
   const ridgeZ = (front + back) / 2;
   b.add(shapes.box(half * 2 + 0.6, rise, depth + 0.6), PAL.stone, { p: [0, rise / 2, ridgeZ] });
-  b.add(shapes.box(half * 2 + 0.66, 0.06, depth + 0.66), PAL.stoneDark, { p: [0, rise - 0.03, ridgeZ] });
+  b.add(shapes.box(half * 2 + 0.66, 0.06, depth + 0.66), PAL.stoneDark, { p: [0, rise - 0.05, ridgeZ] });
   const posts = [-(half - 0.2), -1.25, 1.25, half - 0.2];
   for (const z of [front, back]) {
     for (const x of posts) {
@@ -2425,11 +2424,13 @@ export function createLanternPavilion({ seed = 1, width = 10.4, depth = 10 } = {
   balustrade(kit, 2.3, front, edge, front);
   for (const side of [-1, 1]) balustrade(kit, side * edge, back + 0.2, side * edge, front);
 
-  lanternGate(kit, 0, front - 0.15, 1.75);
+  lanternGate(kit, 0, front - 0.15, 2, 4.5);
   const ridgeY = lanternHall(kit, hall);
   const daisDepth = dais.front - hall.front;
-  b.add(shapes.box(dais.half * 2, rise, daisDepth), PAL.stone, { p: [0, rise / 2, hall.front + daisDepth / 2] });
-  b.add(shapes.box(dais.half * 2 + 0.06, 0.06, daisDepth + 0.06), PAL.stoneDark, { p: [0, rise - 0.03, hall.front + daisDepth / 2] });
+  const slabBack = hall.front + 0.3;
+  const slabDepth = dais.front - slabBack;
+  b.add(shapes.box(dais.half * 2, rise, slabDepth), PAL.stone, { p: [0, rise / 2, slabBack + slabDepth / 2] });
+  b.add(shapes.box(dais.half * 2 + 0.06, 0.06, slabDepth), PAL.stoneDark, { p: [0, rise - 0.05, slabBack + 0.03 + slabDepth / 2] });
   for (const side of [-1, 1]) b.add(shapes.box(0.36, rise / 2, daisDepth - 0.3), PAL.stoneDark, { p: [side * (dais.half + 0.18), rise / 4, hall.front + daisDepth / 2 - 0.15] });
   registrationDesk(kit, 0, deskZ, rise);
   skyLantern(kit, -0.7, rise + 0.78, deskZ - 0.08, 0.26, LANTERN_ART.sky[0]);

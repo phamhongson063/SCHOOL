@@ -15,7 +15,7 @@ export function createExams({ quiz, sounds = null }) {
         const left = Math.ceil((endAt - performance.now()) / 1000);
         const key = i < keys.length ? keys[i] : left > 0 ? more?.(results.at(-1)?.key ?? null) : null;
         if (!key) break;
-        const count = i < keys.length ? `${i + 1}/${keys.length}` : `${i + 1}`;
+        const count = i < keys.length ? `Câu ${i + 1}/${keys.length}` : `Câu ${i + 1}`;
         const clock = left > 0 ? `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
         const { correct } = await quiz.ask({
           key,

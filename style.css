@@ -1965,6 +1965,11 @@ dialog.paper.bracket {
   font: 500 13px/1.35 var(--font-ui);
 }
 
+.exam-info.short {
+  color: var(--lacquer);
+  font-weight: 700;
+}
+
 .exam-row button {
   grid-area: action;
   padding: 9px 14px;

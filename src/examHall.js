@@ -55,9 +55,12 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
     if (certify.finished(PLAYER, deck)) return 'Bạn đã học hết bộ này.';
     if (!certify.qualified(PLAYER, deck)) return 'Bạn chưa đủ điều kiện: cần đậu thi nội bộ ở phòng học trước.';
     if (purse.intellect < CERTIFY.examIntellect) return `Bạn không đủ điều kiện: cần ${CERTIFY.examIntellect} 💡 trí lực (đang có ${purse.intellect}).`;
+    return feeShort(deck);
+  }
+
+  function feeShort(deck) {
     const fee = certify.examFee(PLAYER, deck);
-    if (purse.money < fee) return `Bạn không đủ tiền lệ phí ${coins(fee)}.`;
-    return null;
+    return purse.money < fee ? `Bạn không đủ tiền lệ phí ${coins(fee)}.` : null;
   }
 
   function render() {
@@ -73,6 +76,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
         info.className = 'exam-info';
         const reason = blocker(deck, now);
         info.textContent = reason ?? `${certify.batch(PLAYER, deck).length} ${DECKS[deck].unit} mới · 🎓 ${certify.certifiedCount(PLAYER, deck)}`;
+        info.classList.toggle('short', !!reason && reason === feeShort(deck));
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'sched-primary';

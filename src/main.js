@@ -1787,7 +1787,8 @@ function registerLantern(choice) {
   const outcome = lanterns.register(PLAYER, context.minutes);
   if (outcome === 'ok') {
     uiSounds.pop();
-    desk?.say(`Ghi danh xong! ${clockText(LANTERN.start)} nhớ ra đón đèn nhé con.`, 2.6);
+    const later = lanternWindow(context.minutes) ? 'Đèn đang rơi rồi, mau đi đón đèn nhé con.' : `${clockText(LANTERN.start)} nhớ ra đón đèn nhé con.`;
+    desk?.say(`Ghi danh xong! ${later}`, 2.6);
     return;
   }
   const lines = {

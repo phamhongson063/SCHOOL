@@ -441,7 +441,8 @@ export class PlayerController {
       this.postureTimer += dt;
       const k = Math.min(1, this.postureTimer / 0.4);
       p.lerpVectors(this.postureFrom, this.posture === 'sitting' ? this.seat.sit : this.seat.spot, k * k * (3 - 2 * k));
-      this.facing += Math.atan2(Math.sin(Math.PI - this.facing), Math.cos(Math.PI - this.facing)) * (1 - Math.exp(-12 * dt));
+      const seatFacing = this.seat.facing ?? Math.PI;
+      this.facing += Math.atan2(Math.sin(seatFacing - this.facing), Math.cos(seatFacing - this.facing)) * (1 - Math.exp(-12 * dt));
       if (k >= 1) {
         if (this.posture === 'sitting') this.finishSit();
         else this.finishStand();

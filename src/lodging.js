@@ -33,8 +33,8 @@ export function book(id, who) {
   return true;
 }
 
-export function lodgeLabel(id) {
+export function lodgeLabel(id, who) {
   const tier = roomTier(id);
-  const busy = full(id) ? ' · hết phòng' : '';
+  const busy = isFree(id, who) ? '' : ' · hết phòng';
   return `${LODGE_ROOMS[id].name} · ${coins(tier.price)} · +${tier.perHour}⚡/giờ${busy}`;
 }
