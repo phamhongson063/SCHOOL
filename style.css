@@ -300,9 +300,11 @@ body {
   stroke-linejoin: round;
 }
 
-.icon-btn:hover:not(:disabled) {
-  color: var(--cream);
-  transform: scale(1.08);
+@media (hover: hover) {
+  .icon-btn:hover:not(:disabled) {
+    color: var(--cream);
+    transform: scale(1.08);
+  }
 }
 
 .icon-btn.active {
@@ -458,12 +460,20 @@ body {
   transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.picker-option:hover,
 .picker-option:focus-visible {
   border-color: var(--amber);
   box-shadow: inset 0 2px 6px var(--shadow-soft), 0 0 0 2px rgba(242, 207, 99, 0.25), 0 4px 10px var(--shadow-soft);
   transform: translateY(-2px);
   outline: none;
+}
+
+@media (hover: hover) {
+  .picker-option:hover {
+    border-color: var(--amber);
+    box-shadow: inset 0 2px 6px var(--shadow-soft), 0 0 0 2px rgba(242, 207, 99, 0.25), 0 4px 10px var(--shadow-soft);
+    transform: translateY(-2px);
+    outline: none;
+  }
 }
 
 .picker-option:active {
@@ -544,10 +554,16 @@ body {
   transform: translateY(-50%);
 }
 
-.picker-x:hover,
 .picker-x:focus-visible {
   color: var(--amber);
   outline: none;
+}
+
+@media (hover: hover) {
+  .picker-x:hover {
+    color: var(--amber);
+    outline: none;
+  }
 }
 
 .picker.menu .picker-options {
@@ -572,11 +588,18 @@ body {
   text-align: left;
 }
 
-.picker.menu .picker-option:hover,
 .picker.menu .picker-option:focus-visible {
   background: rgba(255, 226, 160, 0.1);
   box-shadow: none;
   transform: none;
+}
+
+@media (hover: hover) {
+  .picker.menu .picker-option:hover {
+    background: rgba(255, 226, 160, 0.1);
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 .picker.menu .picker-option:active {
@@ -603,9 +626,14 @@ body {
   white-space: nowrap;
 }
 
-.picker.menu .picker-option:hover .picker-option-label,
 .picker.menu .picker-option:focus-visible .picker-option-label {
   color: var(--amber);
+}
+
+@media (hover: hover) {
+  .picker.menu .picker-option:hover .picker-option-label {
+    color: var(--amber);
+  }
 }
 
 .picker.menu .picker-info {
@@ -615,12 +643,16 @@ body {
   cursor: default;
 }
 
-.picker.menu .picker-info:hover {
-  background: transparent;
+@media (hover: hover) {
+  .picker.menu .picker-info:hover {
+    background: transparent;
+  }
 }
 
-.picker.menu .picker-info:hover .picker-option-label {
-  color: var(--cream);
+@media (hover: hover) {
+  .picker.menu .picker-info:hover .picker-option-label {
+    color: var(--cream);
+  }
 }
 
 @keyframes picker-pop {
@@ -713,8 +745,10 @@ body.mail-open #toolbar {
   transition: background 0.15s, opacity 0.15s, transform 0.15s;
 }
 
-.bag-tab:hover {
-  background: #2e2014;
+@media (hover: hover) {
+  .bag-tab:hover {
+    background: #2e2014;
+  }
 }
 
 .bag-tab[aria-selected="true"] {
@@ -772,8 +806,10 @@ body.mail-open #toolbar {
   cursor: pointer;
 }
 
-.bag-slot.filled:hover {
-  border-color: var(--gold);
+@media (hover: hover) {
+  .bag-slot.filled:hover {
+    border-color: var(--gold);
+  }
 }
 
 .bag-slot.filled[aria-pressed="true"] {
@@ -948,8 +984,10 @@ body.mail-open #toolbar {
   opacity: 0.75;
 }
 
-.mail-place:hover {
-  color: #9dd0ff;
+@media (hover: hover) {
+  .mail-place:hover {
+    color: #9dd0ff;
+  }
 }
 
 .mail-claim {
@@ -964,8 +1002,10 @@ body.mail-open #toolbar {
   cursor: pointer;
 }
 
-.mail-claim:hover:not(:disabled) {
-  background: #7d5230;
+@media (hover: hover) {
+  .mail-claim:hover:not(:disabled) {
+    background: #7d5230;
+  }
 }
 
 .mail-claim:disabled {
@@ -1136,8 +1176,10 @@ dialog.paper::backdrop {
   display: none;
 }
 
-.sched-x:hover {
-  filter: brightness(1.12);
+@media (hover: hover) {
+  .sched-x:hover {
+    filter: brightness(1.12);
+  }
 }
 
 .sched-x:active {
@@ -1190,8 +1232,10 @@ dialog.paper::backdrop {
   transition: transform 0.08s, background 0.15s;
 }
 
-.step:hover {
-  background: #8a5a34;
+@media (hover: hover) {
+  .step:hover {
+    background: #8a5a34;
+  }
 }
 
 .step:active {
@@ -1279,8 +1323,10 @@ dialog.paper::backdrop {
   transition: border-color 0.15s, background 0.15s, transform 0.08s;
 }
 
-.mode-option:hover {
-  border-color: var(--gold);
+@media (hover: hover) {
+  .mode-option:hover {
+    border-color: var(--gold);
+  }
 }
 
 .mode-option:active {
@@ -1365,8 +1411,10 @@ dialog.paper::backdrop {
   color: var(--cream);
 }
 
-.sched-primary:hover {
-  background: #a3271b;
+@media (hover: hover) {
+  .sched-primary:hover {
+    background: #a3271b;
+  }
 }
 
 .sched-ghost {
@@ -1375,8 +1423,10 @@ dialog.paper::backdrop {
   color: var(--wood);
 }
 
-.sched-ghost:hover {
-  background: rgba(107, 68, 37, 0.1);
+@media (hover: hover) {
+  .sched-ghost:hover {
+    background: rgba(107, 68, 37, 0.1);
+  }
 }
 
 @keyframes pop-in {
@@ -1512,8 +1562,10 @@ dialog.paper::backdrop {
   cursor: pointer;
 }
 
-.lesson-hint:hover {
-  background: #f2e3bd;
+@media (hover: hover) {
+  .lesson-hint:hover {
+    background: #f2e3bd;
+  }
 }
 
 .lesson-furigana[aria-pressed="true"],
@@ -1522,9 +1574,11 @@ dialog.paper::backdrop {
   color: #fffaf0;
 }
 
-.lesson-furigana[aria-pressed="true"]:hover,
-.lesson-translate[aria-pressed="true"]:hover {
-  background: #b5842a;
+@media (hover: hover) {
+  .lesson-furigana[aria-pressed="true"]:hover,
+  .lesson-translate[aria-pressed="true"]:hover {
+    background: #b5842a;
+  }
 }
 
 .lesson-vi {
@@ -1599,8 +1653,10 @@ dialog.paper::backdrop {
   cursor: pointer;
 }
 
-.lesson-close:hover {
-  background: rgba(107, 68, 37, 0.12);
+@media (hover: hover) {
+  .lesson-close:hover {
+    background: rgba(107, 68, 37, 0.12);
+  }
 }
 
 .lesson-phrase {
@@ -1704,9 +1760,11 @@ dialog.paper::backdrop {
   cursor: pointer;
 }
 
-#lessonOpen:hover,
-#studyOpen:hover {
-  background: #a3271b;
+@media (hover: hover) {
+  #lessonOpen:hover,
+  #studyOpen:hover {
+    background: #a3271b;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1887,8 +1945,10 @@ dialog.paper::backdrop {
   cursor: pointer;
 }
 
-.pay-row button:hover {
-  background: #a3271b;
+@media (hover: hover) {
+  .pay-row button:hover {
+    background: #a3271b;
+  }
 }
 
 .pay-row button:disabled {
@@ -2079,8 +2139,10 @@ dialog.paper.bracket {
   cursor: pointer;
 }
 
-.shop-actions button:hover {
-  background: #a3271b;
+@media (hover: hover) {
+  .shop-actions button:hover {
+    background: #a3271b;
+  }
 }
 
 .shop-actions button:disabled {
@@ -2176,8 +2238,10 @@ dialog.paper.bracket {
   cursor: pointer;
 }
 
-.danger-btn:hover {
-  background: rgba(138, 29, 20, 0.16);
+@media (hover: hover) {
+  .danger-btn:hover {
+    background: rgba(138, 29, 20, 0.16);
+  }
 }
 
 .settings-group {
@@ -2203,8 +2267,10 @@ dialog.paper.bracket {
   cursor: pointer;
 }
 
-.paper-btn:hover {
-  background: rgba(201, 150, 47, 0.2);
+@media (hover: hover) {
+  .paper-btn:hover {
+    background: rgba(201, 150, 47, 0.2);
+  }
 }
 
 .music-toggle .music-label {
@@ -2371,8 +2437,10 @@ dialog.paper.kanji {
   font: 600 16px/1.35 var(--font-ui);
 }
 
-.kanji-options button:hover:not(:disabled) {
-  border-color: var(--gold);
+@media (hover: hover) {
+  .kanji-options button:hover:not(:disabled) {
+    border-color: var(--gold);
+  }
 }
 
 .kanji-options button:active:not(:disabled) {
@@ -2606,8 +2674,10 @@ dialog.paper.phrase-quiz {
   font: 700 12px/1 var(--font-ui);
 }
 
-.phrase-options button:hover:not(:disabled) {
-  border-color: var(--gold);
+@media (hover: hover) {
+  .phrase-options button:hover:not(:disabled) {
+    border-color: var(--gold);
+  }
 }
 
 .phrase-options button:active:not(:disabled) {
@@ -2680,8 +2750,10 @@ dialog.paper.phrase-quiz {
   transition: background 0.15s, opacity 0.15s, transform 0.08s;
 }
 
-.kana-tiles button:hover:not(:disabled) {
-  background: #fff6dc;
+@media (hover: hover) {
+  .kana-tiles button:hover:not(:disabled) {
+    background: #fff6dc;
+  }
 }
 
 .kana-tiles button:active:not(:disabled) {
@@ -3007,9 +3079,11 @@ dialog.paper.phrase-quiz {
   cursor: default;
 }
 
-.study-pick:disabled:hover {
-  border-color: #d9c49a;
-  background: rgba(255, 252, 240, 0.85);
+@media (hover: hover) {
+  .study-pick:disabled:hover {
+    border-color: #d9c49a;
+    background: rgba(255, 252, 240, 0.85);
+  }
 }
 
 .study-step:disabled {
@@ -3036,9 +3110,11 @@ dialog.paper.phrase-quiz {
   line-height: 1;
 }
 
-.study-pick:hover {
-  border-color: var(--lacquer);
-  background: #fff3df;
+@media (hover: hover) {
+  .study-pick:hover {
+    border-color: var(--lacquer);
+    background: #fff3df;
+  }
 }
 
 .study-pack-note {
@@ -3146,16 +3222,25 @@ dialog.paper.phrase-quiz {
   font: 600 13px/1.2 var(--font-ui);
 }
 
-.study-card:has(.study-body[hidden]) .study-pick:hover,
 .study-card:has(.study-body[hidden]) .study-pick:focus-visible {
   background: rgba(255, 226, 160, 0.1);
   color: var(--amber);
   outline: none;
 }
 
-.study-card:has(.study-body[hidden]) .study-pick:disabled:hover {
-  background: transparent;
-  color: var(--cream);
+@media (hover: hover) {
+  .study-card:has(.study-body[hidden]) .study-pick:hover {
+    background: rgba(255, 226, 160, 0.1);
+    color: var(--amber);
+    outline: none;
+  }
+}
+
+@media (hover: hover) {
+  .study-card:has(.study-body[hidden]) .study-pick:disabled:hover {
+    background: transparent;
+    color: var(--cream);
+  }
 }
 
 .study-card:has(.study-body[hidden]) .study-pack-note {
@@ -3286,8 +3371,10 @@ dialog.paper.phrase-quiz {
   cursor: pointer;
 }
 
-.study-step:hover {
-  background: #f2e3bd;
+@media (hover: hover) {
+  .study-step:hover {
+    background: #f2e3bd;
+  }
 }
 
 .study-step.remembered {
@@ -3296,8 +3383,10 @@ dialog.paper.phrase-quiz {
   color: #1f5534;
 }
 
-.study-step.remembered:hover {
-  background: rgba(31, 85, 52, 0.12);
+@media (hover: hover) {
+  .study-step.remembered:hover {
+    background: rgba(31, 85, 52, 0.12);
+  }
 }
 
 .study-body.covered {
@@ -3941,10 +4030,12 @@ dialog.paper.phrase-quiz {
   stroke-linejoin: round;
 }
 
-.slot-btn:hover:not(:disabled) {
-  border-color: var(--amber);
-  color: var(--cream);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), 0 0 8px rgba(242, 207, 99, 0.35);
+@media (hover: hover) {
+  .slot-btn:hover:not(:disabled) {
+    border-color: var(--amber);
+    color: var(--cream);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), 0 0 8px rgba(242, 207, 99, 0.35);
+  }
 }
 
 .slot-btn:active:not(:disabled) {
@@ -4441,8 +4532,10 @@ dialog.paper.bank {
   cursor: pointer;
 }
 
-.bank-go:hover {
-  filter: brightness(1.08);
+@media (hover: hover) {
+  .bank-go:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .bank-go:active {
@@ -4657,8 +4750,10 @@ dialog.paper.bank {
   text-shadow: 0 1px 0 rgba(60, 10, 4, 0.5);
 }
 
-.bank-btn:hover:not(:disabled) {
-  filter: brightness(1.06);
+@media (hover: hover) {
+  .bank-btn:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
 }
 
 .bank-btn:disabled {
@@ -4946,18 +5041,26 @@ dialog.paper.map[open] {
   transition: none;
 }
 
-.map-label:hover,
 .map-label:focus-visible {
   color: #ffd76a;
   outline: none;
+}
+
+@media (hover: hover) {
+  .map-label:hover {
+    color: #ffd76a;
+    outline: none;
+  }
 }
 
 dialog.map.locked .map-label {
   cursor: inherit;
 }
 
-dialog.map.locked .map-label:hover {
-  color: #fff3d2;
+@media (hover: hover) {
+  dialog.map.locked .map-label:hover {
+    color: #fff3d2;
+  }
 }
 
 .speech {
@@ -5263,8 +5366,10 @@ dialog.profile::backdrop {
   transition: transform 0.15s ease;
 }
 
-.profile-locate:hover {
-  transform: scale(1.12);
+@media (hover: hover) {
+  .profile-locate:hover {
+    transform: scale(1.12);
+  }
 }
 
 .profile-locate:active {
@@ -7292,10 +7397,16 @@ body.in-duel > :not(#app):not(#duelDialog) {
   cursor: pointer;
 }
 
-.lantern-board-name:hover,
 .lantern-board-name:focus-visible {
   color: var(--amber);
   outline: none;
+}
+
+@media (hover: hover) {
+  .lantern-board-name:hover {
+    color: var(--amber);
+    outline: none;
+  }
 }
 
 .lantern-board-score {
