@@ -373,7 +373,8 @@ export class WorkBehavior {
     const effect = farm.effectFor(job.index, job.action, this.id);
     const finish = () => {
       const reply = this.tend(job);
-      const next = job.action === 'harvest' && farm.nextAction(job.index, this.id) === 'clear' ? { index: job.index, action: 'clear' } : null;
+      const follow = farm.followUp(job.action, job.index, this.id);
+      const next = follow ? { index: job.index, action: follow } : null;
       if (!next) farm.release(job, this.id);
       this.job = next;
       if (reply && (job.action === 'harvest' || Math.random() < 0.25)) this.say(reply);

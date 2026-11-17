@@ -131,6 +131,8 @@ function worthFertilizing(spot) {
   return varietyOf(spot).fruits * price * FARMING.missPenalty >= SHOP.fertilizer;
 }
 
+const FOLLOW_UP = { plant: 'water', harvest: 'clear' };
+
 const ACTIONS = {
   plant(spot, now, farm, choice, actor) {
     if (spot.stage > 0) return 'Chỗ này trồng rồi!';
@@ -286,6 +288,11 @@ class FarmState {
     if (this.thirsty(spot)) return { id: 'water', hint: 'water', effect: { kind: 'water', duration: 2 } };
     if (spot.missed > 0 && purse.count('fertilizer') > 0) return { id: 'fertilize', hint: 'hoe', effect: { kind: 'clear', duration: 1 } };
     return { id: 'look', hint: null };
+  }
+
+  followUp(name, index, actor = PLAYER) {
+    const next = FOLLOW_UP[name];
+    return next && this.actionFor(index, actor).id === next ? next : null;
   }
 
   rent(index, now, choice, actor) {
@@ -834,7 +841,7 @@ export function createFarm({ ledger, nameOf, nav }) {
       const [map, key] = holderOfJob(job);
       map.set(key, who);
     },
-    nextAction: (index, actor) => state.actionFor(index, actor).id,
+    followUp: (action, index, actor) => state.followUp(action, index, actor),
     release(job, who) {
       const [map, key] = holderOfJob(job);
       if (map.get(key) === who) map.delete(key);
@@ -905,6 +912,9 @@ export function createFarm({ ledger, nameOf, nav }) {
         if (takenIn(...holderOfTarget(target), PLAYER)) return { id: 'busy', hint: null };
         if (target.stake !== undefined) return state.leaseAction(target.stake);
         return placed(target.index, state.actionFor(target.index));
+      },
+      followUp(action, target) {
+        return target.stake !== undefined ? null : state.followUp(action, target.index);
       },
       hold(target) {
         const [map, key] = holderOfTarget(target);

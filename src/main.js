@@ -566,7 +566,7 @@ player.onArrive = () => {
   player.faceToward(task.target.x, task.target.z);
   const cost = task.region.farmland ? ENERGY.costs[task.action.id] ?? 0 : 0;
   if (cost && purse.energy < cost) {
-    sayPlayer('Đói quá, hết sức làm rồi! Ra quán ăn nạp năng lượng nhé.', 2.6);
+    sayTired();
     return;
   }
   const stand = { x: player.position.x, z: player.position.z };
@@ -589,6 +589,22 @@ function stopWork() {
   effectTask = null;
 }
 
+function sayTired() {
+  sayPlayer('Đói quá, hết sức làm rồi! Ra quán ăn nạp năng lượng nhé.', 2.6);
+}
+
+function followUp(task) {
+  const next = task.region.followUp?.(task.action.id, task.target);
+  if (!next) return;
+  const cost = ENERGY.costs[next] ?? 0;
+  if (cost && purse.energy < cost) {
+    sayTired();
+    return;
+  }
+  const action = task.region.actionFor(task.target);
+  if (action.id === next) perform({ ...task, action, choice: null }, cost);
+}
+
 function perform(task, cost) {
   const finish = () => {
     const reply = task.region.act(task.action.id, task.target, task.choice);
@@ -602,6 +618,7 @@ function perform(task, cost) {
     } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
     if (heldFarm === task.target && task.region.actionFor(task.target).id !== 'clear') holdFarm(null);
+    if (farmed) followUp(task);
   };
   const settings = task.action.effect;
   const effect = settings && effects[settings.kind];

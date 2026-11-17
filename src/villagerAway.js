@@ -350,7 +350,8 @@ export function createAwaySim({ town, contextAt }) {
       if (job.action === 'lease') farm.signLease(job.bed, member.id, job.offer);
       else if (member.purse.spendEnergy(ENERGY.costs[job.action] ?? 0)) {
         member.tend(job);
-        if (job.action === 'harvest' && farm.nextAction(job.index, member.id) === 'clear' && member.purse.spendEnergy(ENERGY.costs.clear ?? 0)) member.tend({ index: job.index, action: 'clear' });
+        const follow = farm.followUp(job.action, job.index, member.id);
+        if (follow && member.purse.spendEnergy(ENERGY.costs[follow] ?? 0)) member.tend({ index: job.index, action: follow });
       }
     }
     return AWAY.walk + jobs.length * FARM;
