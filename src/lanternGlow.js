@@ -111,6 +111,7 @@ export function createLanternGlow(lights, { warmth = 0.55, steady = false } = {}
   });
   const points = new THREE.Points(geometry, material);
   points.renderOrder = 5;
+  points.raycast = () => {};
   const buffer = new THREE.Vector2();
   points.onBeforeRender = (renderer, scene, camera) => {
     renderer.getDrawingBufferSize(buffer);
