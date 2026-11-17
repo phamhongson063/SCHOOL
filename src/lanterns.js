@@ -166,11 +166,30 @@ export function createLanterns({ ground, zones = null, roster, reward, charge, b
   const signedOn = (day) => (state.signup.day === day ? state.signup.ids : []);
   const signed = (who, day) => signedOn(day).includes(who);
 
-  function knownKeys() {
-    const taken = new Set(live().map((lantern) => lantern.key));
+  function nextKey(rand) {
+    const lit = live();
+    const taken = new Set(lit.map((lantern) => lantern.key));
     const entrants = signedOn(state.day);
     const ids = entrants.length ? entrants : roster();
-    return PHRASE_KEYS.filter((key) => !taken.has(key) && ids.some((id) => knowsLantern(id, key)));
+    const knowers = new Map();
+    for (const key of PHRASE_KEYS) {
+      if (taken.has(key)) continue;
+      const who = ids.filter((id) => knowsLantern(id, key));
+      if (who.length) knowers.set(key, who);
+    }
+    if (!knowers.size) return null;
+    const able = new Set([...knowers.values()].flat());
+    const held = new Map([...able].map((id) => [id, lit.filter((lantern) => knowsLantern(id, lantern.key)).length]));
+    const fewest = Math.min(...held.values());
+    const needy = [...able].filter((id) => held.get(id) === fewest);
+    const target = needy[Math.floor(rand() * needy.length)];
+    const keys = [...knowers].filter(([, who]) => who.includes(target));
+    let roll = rand() * keys.reduce((sum, [, who]) => sum + who.length, 0);
+    for (const [key, who] of keys) {
+      roll -= who.length;
+      if (roll < 0) return key;
+    }
+    return keys[keys.length - 1][0];
   }
 
   function zoneFor(others, rand) {
@@ -186,11 +205,10 @@ export function createLanterns({ ground, zones = null, roster, reward, charge, b
   }
 
   function spawn(dropAt) {
-    const keys = knownKeys();
-    if (!keys.length) return false;
+    const rand = makeRandom(hashOf(`${state.day}:${state.seq + 1}`));
+    const key = nextKey(rand);
+    if (!key) return false;
     state.seq += 1;
-    const rand = makeRandom(hashOf(`${state.day}:${state.seq}`));
-    const key = keys[Math.floor(rand() * keys.length)];
     const others = live();
     const apart = (x, z) => others.every((other) => Math.hypot(other.x - x, other.z - z) >= LANTERN.gap);
     const zone = zoneFor(others, rand);

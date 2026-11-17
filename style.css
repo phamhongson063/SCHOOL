@@ -2700,6 +2700,17 @@ dialog.paper.phrase-quiz {
 
 .map-label.lantern {
   font: 400 26px/1 system-ui, sans-serif;
+  filter: drop-shadow(0 0 5px rgba(255, 196, 110, 0.95));
+}
+
+.map-label.lantern.unknown {
+  font-size: 19px;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+
+.map-label.lantern.unknown:not(.muted) {
+  opacity: 0.35;
 }
 
 .map-label.self,

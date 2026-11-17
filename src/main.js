@@ -1587,14 +1587,17 @@ const lanternLabels = Array.from({ length: LANTERN.count }, () => worldMap.add('
 let lanternLabelKey = '';
 
 function updateLanternLabels(now) {
-  const shown = lanterns.list.filter((lantern) => lantern.doneAt === null && now >= lantern.dropAt);
-  const key = shown.map((lantern) => lantern.id).join(',');
+  const shown = lanterns.list
+    .filter((lantern) => lantern.doneAt === null && now >= lantern.dropAt)
+    .map((lantern) => ({ lantern, known: knowsLantern(PLAYER, lantern.key) }))
+    .sort((a, b) => a.known - b.known);
+  const key = shown.map(({ lantern, known }) => `${lantern.id}${known ? '+' : '-'}`).join(',');
   if (key === lanternLabelKey) return;
   lanternLabelKey = key;
   lanternLabels.forEach((label, i) => {
-    const lantern = shown[i];
-    const spot = lantern ? { x: lantern.x, z: lantern.z } : null;
-    worldMap.move(label, spot);
+    const item = shown[i];
+    label.el.classList.toggle('unknown', Boolean(item && !item.known));
+    worldMap.move(label, item ? { x: item.lantern.x, z: item.lantern.z } : null);
   });
 }
 
