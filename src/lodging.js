@@ -8,28 +8,33 @@ export const roomTier = (id) => LODGES[LODGE_ROOMS[id].tier];
 
 export const lodgeNightOf = (minutes) => dayOf(minutes - ROUTINE.wake);
 
+export const heldTonight = (held, { night, minutes }) => !!held && night && held.night === lodgeNightOf(minutes);
+
+const full = (id) => (guests.get(id)?.size ?? 0) >= roomTier(id).beds;
+
 export function isFree(id, who) {
-  const guest = guests.get(id);
-  return !guest || guest === who;
+  return !!guests.get(id)?.has(who) || !full(id);
 }
 
 export function leaveRoom(who) {
-  for (const [id, guest] of guests) if (guest === who) guests.delete(id);
+  for (const [id, stay] of guests) if (stay.delete(who) && !stay.size) guests.delete(id);
 }
 
 export function release(id, who) {
-  if (guests.get(id) === who) guests.delete(id);
+  const stay = guests.get(id);
+  if (stay?.delete(who) && !stay.size) guests.delete(id);
 }
 
 export function book(id, who) {
   if (!isFree(id, who)) return false;
   leaveRoom(who);
-  guests.set(id, who);
+  if (!guests.has(id)) guests.set(id, new Set());
+  guests.get(id).add(who);
   return true;
 }
 
 export function lodgeLabel(id) {
   const tier = roomTier(id);
-  const busy = guests.has(id) ? ' · có người' : '';
+  const busy = full(id) ? ' · hết phòng' : '';
   return `${LODGE_ROOMS[id].name} · ${coins(tier.price)} · +${tier.perHour}⚡/giờ${busy}`;
 }

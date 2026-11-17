@@ -316,7 +316,7 @@ export class Villager {
   }
 
   dropJob() {
-    if (this.job) this.town.farm.release(this.job.index, this.id);
+    if (this.job) this.town.farm.release(this.job, this.id);
     this.job = null;
   }
 
@@ -404,7 +404,9 @@ export class Villager {
   }
 
   enterArena(spot) {
+    const room = this.state === 'inn' && this.town.context.night ? this.lodge : null;
     this.clearActivity();
+    this.holdRoom(room);
     this.task = 'arena';
     this.state = 'arena';
     this.placeArena(spot);

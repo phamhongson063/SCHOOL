@@ -157,10 +157,10 @@ export const MOVE = { walk: 2, run: 3 };
 export const AWAY = { step: 15, walk: 1.5 };
 
 export const LODGES = {
-  inn: { price: 18, perHour: 28, comfort: 0.6 },
-  cheap: { price: 14, perHour: 20, comfort: 0.2 },
-  cozy: { price: 21, perHour: 36, comfort: 0.7 },
-  grand: { price: 32, perHour: 52, comfort: 1 },
+  inn: { price: 18, perHour: 28, comfort: 0.6, beds: 5 },
+  cheap: { price: 14, perHour: 20, comfort: 0.2, beds: 2 },
+  cozy: { price: 21, perHour: 36, comfort: 0.7, beds: 2 },
+  grand: { price: 32, perHour: 52, comfort: 1, beds: 2 },
 };
 
 export const LODGE_ROOMS = {

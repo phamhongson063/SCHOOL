@@ -14,10 +14,11 @@ import { certify } from './certify.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 import { traits } from './traits.js';
-import { lodgeNightOf } from './lodging.js';
+import { leaveRoom, lodgeNightOf } from './lodging.js';
 
 const MOVING_SPEED = 0.1;
 const bodyBox = new THREE.Box3();
+const placeOf = (point, facing) => [point.x, point.z, facing].map((value) => Math.round(value * 100) / 100);
 
 export class Town {
   constructor({ root, nav, seats, studySeats, internalSeats, seatWait = null, school, farm, ledger, market, estate, places, lodges = [], river, bank = null, bankDesk = null, atms = [], classrooms = [], dust = null, stepSound = null }) {
@@ -409,14 +410,15 @@ export class Town {
       const entry = { id: member.id };
       const job = member.lanternJob(minutes);
       if (job) entry.lantern = job;
+      const bed = member.outdoorBed();
       if (member.state === 'inn' && member.lodge) entry.inn = { room: member.lodge.id, night: member.lodgeNight ? lodgeNightOf(minutes) : null };
-      else if (member.state === 'resting' && member.lyingDown && member.sleepingOut) entry.inn = { room: null, night: lodgeNightOf(minutes) };
+      else if (bed) entry.inn = { room: null, night: lodgeNightOf(minutes), at: placeOf(bed, member.facing) };
       else if (member.heldRoom) entry.inn = { room: member.heldRoom.spot.id, night: member.heldRoom.night };
       if (member.studyRestAt > t) entry.studyRest = Math.round(member.studyRestAt - t);
       if (member.state === 'seated' && member.task === 'selfstudy' && member.seatRef?.study) {
         entry.study = { seat: seats.indexOf(member.seatRef), left: Math.round(member.studyUntil - t), words: member.sitWords ?? 0, mark: Math.round(t - member.studyMark) };
       } else if (member.present && member.roaming) {
-        entry.at = [Math.round(member.position.x * 100) / 100, Math.round(member.position.z * 100) / 100, Math.round(member.facing * 100) / 100];
+        entry.at = placeOf(member.position, member.facing);
         const blessed = this.blessing?.standing(member.id, minutes);
         if (blessed) entry.blessing = member.task === 'blessing' && Number.isFinite(member.blessingUntil) ? { ...blessed, until: Math.round(member.blessingUntil * 100) / 100 } : blessed;
       }
@@ -489,7 +491,7 @@ export class Town {
     if (night ? !ctx.night || lodgeNightOf(ctx.minutes) !== stay.night : ctx.night) return false;
     const spot = stay.room === null ? null : this.lodgeSpots.find((item) => item.id === stay.room);
     if (spot === undefined || this.estate.houseOf(member.id)) return false;
-    return member.resumeRoom(spot, night);
+    return member.resumeRoom(spot, night, stay.at);
   }
 
   suspend() {
@@ -524,6 +526,7 @@ export class Town {
       else this.teacher.vanish();
       for (const worker of this.shiftWorkers) worker.vanish();
     }
+    for (const member of this.members) if (member.state !== 'arena') leaveRoom(member);
     for (const member of this.members) {
       if (member.state === 'arena') continue;
       if (this.resumeMember(member, saved.members.get(member.id), ctx, t, saved.gap)) {

@@ -1,13 +1,13 @@
 import { LODGE_ROOMS, ECONOMY } from './config.js';
 import { PLAYER } from './inventory.js';
-import { book, isFree, roomTier } from './lodging.js';
+import { book, heldTonight, isFree, roomTier } from './lodging.js';
 import { amount, notEnough } from './format.js';
 import { closable } from './dialog.js';
 import { economy } from './economy.js';
 import { stallCard, paintStallArt } from './stallCard.js';
 import { setRich } from './goldArt.js';
 
-export function createLodgeDesk({ purse, onRent }) {
+export function createLodgeDesk({ purse, context, onRent }) {
   const dialog = document.getElementById('lodgeDialog');
   const title = document.getElementById('lodgeTitle');
   const money = document.getElementById('lodgeMoney');
@@ -16,17 +16,30 @@ export function createLodgeDesk({ purse, onRent }) {
   paintStallArt(dialog);
   let offer = null;
 
-  function problemWith(id) {
+  const paidFor = (id) => purse.heldRoom?.room === id && heldTonight(purse.heldRoom, context());
+
+  function problemWith(id, paid = false) {
     const tier = roomTier(id);
-    if (!isFree(id, PLAYER)) return 'Phòng có người ở rồi, tìm chỗ khác nhé!';
+    if (!isFree(id, PLAYER)) return 'Hết phòng rồi, tìm chỗ khác nhé!';
     if (purse.full) return 'Còn khoẻ lắm, chưa cần nghỉ!';
-    if (purse.money < tier.price) return notEnough(tier.price);
+    if (!paid && purse.money < tier.price) return notEnough(tier.price);
     return null;
   }
 
+  function checkIn(id) {
+    purse.dropHeldRoom();
+    book(id, PLAYER);
+    onRent(id);
+  }
+
   function rent(id) {
-    const problem = problemWith(id);
+    const paid = paidFor(id);
+    const problem = problemWith(id, paid);
     if (problem) return problem;
+    if (paid) {
+      checkIn(id);
+      return null;
+    }
     const tier = roomTier(id);
     offer = id;
     title.textContent = LODGE_ROOMS[id].name;
@@ -61,8 +74,7 @@ export function createLodgeDesk({ purse, onRent }) {
     economy.collect(roomTier(id).price * ECONOMY.vat);
     offer = null;
     dialog.close();
-    book(id, PLAYER);
-    onRent(id);
+    checkIn(id);
   }
 
   closable(dialog);

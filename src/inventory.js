@@ -69,6 +69,7 @@ function clean(raw) {
   account.energyAt = Number.isFinite(raw.energyAt) ? raw.energyAt : null;
   account.sleeping = raw.sleeping === true;
   account.lodging = account.sleeping && (raw.lodging === true ? 'inn' : LODGE_ROOMS[raw.lodging] ? raw.lodging : false);
+  if (LODGE_ROOMS[raw.held?.room] && Number.isInteger(raw.held.night)) account.held = { room: raw.held.room, night: raw.held.night };
   account.gifts = Array.isArray(raw.gifts) ? raw.gifts.filter((gift) => GIFTS.includes(gift)) : [];
   for (const [id, amount] of Object.entries(raw.items ?? {})) {
     if (ITEMS[id] && Number.isFinite(amount) && amount > 0) account.items[id] = Math.floor(amount);
@@ -167,6 +168,21 @@ export class Purse {
     if (this.data.sleeping === on && this.data.lodging === stay) return;
     this.data.sleeping = on;
     this.data.lodging = stay;
+    this.ledger.save();
+  }
+
+  get heldRoom() {
+    return this.data.held ?? null;
+  }
+
+  holdRoom(room, night) {
+    this.data.held = { room, night };
+    this.ledger.save();
+  }
+
+  dropHeldRoom() {
+    if (!this.data.held) return;
+    delete this.data.held;
     this.ledger.save();
   }
 

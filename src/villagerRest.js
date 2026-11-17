@@ -2,7 +2,7 @@ import { between } from './random.js';
 import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
-import { book, isFree, leaveRoom, lodgeNightOf, release, roomTier } from './lodging.js';
+import { book, heldTonight, isFree, leaveRoom, lodgeNightOf, release, roomTier } from './lodging.js';
 import { activityOf, energyRate, homeActivity, moodOf, nextShift } from './stamina.js';
 import { REST_TIME } from './walk.js';
 import { inStudyRoom } from './rooms.js';
@@ -98,14 +98,32 @@ export class RestBehavior {
     });
   }
 
-  lieDown(out = false) {
+  lieDown(out = false, asleep = false) {
     this.task = 'rest';
     this.route = null;
     this.velocity = 0;
     this.state = 'resting';
     this.lyingDown = true;
     this.sleepingOut = out;
-    this.say(out ? 'Ngủ tạm ngoài này vậy...' : 'Mệt quá, nằm nghỉ chút...', 2);
+    if (asleep) this.restBlend = 1;
+    else this.say(out ? 'Ngủ tạm ngoài này vậy...' : 'Mệt quá, nằm nghỉ chút...', 2);
+  }
+
+  outdoorBed() {
+    if (this.state === 'resting' && this.lyingDown && this.sleepingOut) return this.position;
+    return this.task === 'home' && this.town.context?.night ? this.bed : null;
+  }
+
+  resumeBed(bed) {
+    const [x, z, facing] = Array.isArray(bed) ? bed : [];
+    if (![x, z].every(Number.isFinite)) return false;
+    const height = this.town.nav.heightAt(x, z);
+    if (height === null) return false;
+    this.position.set(x, height, z);
+    if (Number.isFinite(facing)) this.facing = facing;
+    this.setVisible(true);
+    this.lieDown(true, true);
+    return true;
   }
 
   restUpdate(dt) {
@@ -296,7 +314,7 @@ export class RestBehavior {
 
   checkIn(spot, paid = false) {
     if (!isFree(spot.id, this)) {
-      this.say('Phòng có người rồi...', 1.8);
+      this.say('Hết phòng rồi...', 1.8);
       if (this.town.context.night) this.goNight();
       else this.wait(between(1.5, 3));
       return;
@@ -311,10 +329,10 @@ export class RestBehavior {
     this.enterRoom(spot, this.town.context.night);
   }
 
-  resumeRoom(spot, night) {
+  resumeRoom(spot, night, bed = null) {
     if (spot && !isFree(spot.id, this)) return false;
     if (night) {
-      this.settleAt(spot, true);
+      this.settleAt(spot, true, bed);
       return true;
     }
     if (!spot) return false;
@@ -377,8 +395,7 @@ export class RestBehavior {
   heldSpot() {
     const held = this.heldRoom;
     if (!held) return null;
-    const ctx = this.town.context;
-    if (ctx.night && held.night === lodgeNightOf(ctx.minutes) && isFree(held.spot.id, this)) return held.spot;
+    if (heldTonight(held, this.town.context) && isFree(held.spot.id, this)) return held.spot;
     this.dropRoom();
     return null;
   }
@@ -419,7 +436,8 @@ export class RestBehavior {
     this.settleAt(this.pickLodge(true));
   }
 
-  settleAt(spot, paid = false) {
+  settleAt(spot, paid = false, bed = null) {
+    if (!spot && this.resumeBed(bed)) return;
     const at = spot ? spot.stand : this.town.bedPoint(this.homePoint(), this);
     this.position.set(at.x, this.town.nav.heightAt(at.x, at.z) ?? 0, at.z);
     if (spot) {

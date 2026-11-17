@@ -58,7 +58,7 @@ import { createFieldMart } from './fieldMart.js';
 import { createMountain } from './mountain.js';
 import { createCountryside } from './countryside.js';
 import { createDistrict } from './district.js';
-import { book, leaveRoom } from './lodging.js';
+import { book, heldTonight, leaveRoom, lodgeNightOf, release } from './lodging.js';
 import { MOUNTAIN, terrainHeight, terrainFloor, navSurface, nearShelter } from './terrain.js';
 import { createNoticeBoard } from './notice.js';
 import { createSettings, wipeGame } from './settings.js';
@@ -251,6 +251,7 @@ const ledger = new Ledger();
 trade.start({ ledger });
 const purse = ledger.purse(PLAYER);
 if (purse.sleeping && purse.lodging) book(purse.lodging, PLAYER);
+else if (purse.heldRoom) book(purse.heldRoom.room, PLAYER);
 createBag(purse);
 const mailbox = createMailbox({
   onTravel: travelTo,
@@ -496,6 +497,23 @@ const busyEffect = () => Object.values(effects).find((effect) => effect.busy);
 let effectTask = null;
 
 let fieldTask = null;
+let heldFarm = null;
+const FARM_HOLD_REACH = 1;
+const IDLE_ACTIONS = ['look', 'busy'];
+
+function holdFarm(task) {
+  farm.crew.releaseAll(PLAYER);
+  heldFarm = null;
+  if (!task?.region.farmland || IDLE_ACTIONS.includes(task.action.id)) return;
+  if (task.region.hold(task.target)) heldFarm = task.target;
+}
+
+function keepFarmHold() {
+  if (!heldFarm || effectTask || fieldTask?.target === heldFarm) return;
+  const { stand } = heldFarm;
+  if (Math.hypot(player.position.x - stand.x, player.position.z - stand.z) > FARM_HOLD_REACH) holdFarm(null);
+}
+
 let lanternTrip = null;
 const VENDOR_MENU = {
   title: 'Gánh hàng rong',
@@ -583,6 +601,7 @@ function perform(task, cost) {
       if (task.action.id === 'harvest' && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) workQuiz.ask({ icon: '🧺', quick: true });
     } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
+    if (heldFarm === task.target && task.region.actionFor(task.target).id !== 'clear') holdFarm(null);
   };
   const settings = task.action.effect;
   const effect = settings && effects[settings.kind];
@@ -716,7 +735,7 @@ town.martStands = [quarter.martStand, fieldMart.stand];
 town.blessing = blessing;
 const arena = createArena({ ledger, roster: () => town.members.map((member) => member.id) });
 const arenaFx = createArenaFx(scene);
-arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!'), closeMap });
+arenaTrip = createArenaTrip({ arena, player, town, busy: () => exams.running || fishing.active, say: (text) => sayPlayer(text, 2.4), warp: (at, color, size) => arenaFx.beam(at, color, size), summon: createArenaSummon({ sounds: uiSounds }), gate: townGate, wake: () => purse.sleeping && wakeUp('⚔️ Dậy đi lôi đài!', true), closeMap });
 town.arena = arena;
 town.arenaDesk = district.arenaDesk;
 const portraits = new Map();
@@ -1249,7 +1268,7 @@ const noticeSpot = {
     return null;
   },
 };
-const lodgeDesk = createLodgeDesk({ purse, onRent: (id) => sleepAtLodge(id) });
+const lodgeDesk = createLodgeDesk({ purse, context: () => context, onRent: (id) => sleepAtLodge(id) });
 
 const blessingAltar = {
   act() {
@@ -1354,6 +1373,7 @@ function updateLine() {
 
 function goDo(region, target, id, run = false) {
   fieldTask = { region, target, action: { id }, choice: null };
+  holdFarm(fieldTask);
   player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), run);
 }
 
@@ -1470,6 +1490,7 @@ function sceneClick(clientX, clientY, run) {
     const action = region.actionFor(target);
     const go = (choice) => {
       fieldTask = { region, target, action, choice };
+      holdFarm(fieldTask);
       player.requestMove(new THREE.Vector3(target.stand.x, 0, target.stand.z), run);
     };
     const pick = (option) => {
@@ -1967,7 +1988,15 @@ function showSleep(on) {
   player.setEnabled(!on);
 }
 
+function dropStaleRoom() {
+  const held = purse.heldRoom;
+  if (!held || heldTonight(held, context)) return;
+  release(held.room, PLAYER);
+  purse.dropHeldRoom();
+}
+
 function drainEnergy() {
+  dropStaleRoom();
   const asleep = purse.sleeping;
   const lodging = asleep && purse.lodging;
   const moving = activityOf(Math.hypot(player.velocity.x, player.velocity.z), WALK_SPEED, RUN_SPEED);
@@ -2006,9 +2035,11 @@ function sleepAtLodge(id) {
   showSleep(true);
 }
 
-function wakeUp(message) {
+function wakeUp(message, keepRoom = false) {
+  const room = keepRoom && context.night ? purse.lodging : false;
   leaveRoom(PLAYER);
   purse.setSleeping(false);
+  if (room && book(room, PLAYER)) purse.holdRoom(room, lodgeNightOf(context.minutes));
   showSleep(false);
   sayPlayer(message, 2.4);
 }
@@ -2084,6 +2115,7 @@ renderer.setAnimationLoop((time) => {
   const t = clock.elapsedTime;
   context = contextAt(gameNow());
   drainEnergy();
+  keepFarmHold();
   if (t >= placeSavedAt) {
     placeSavedAt = t + 3;
     savePlace();

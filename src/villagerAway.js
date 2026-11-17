@@ -13,7 +13,7 @@ import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
-import { lodgeNightOf } from './lodging.js';
+import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -118,12 +118,18 @@ export function createAwaySim({ town, contextAt }) {
     else delete entry.inn;
   }
 
-  function seedInn(memo, stay) {
+  function lodgeIn(member, room) {
+    if (room) book(room, member);
+    else leaveRoom(member);
+  }
+
+  function seedInn(member, memo, stay) {
     if (!stay || town.started) return;
     if (Number.isInteger(stay.night) && (typeof stay.room === 'string' || stay.room === null)) {
       memo.night = stay.night;
       memo.room = stay.room;
     } else if (stay.night === null && typeof stay.room === 'string') memo.stay = stay.room;
+    lodgeIn(member, memo.stay ?? memo.room);
   }
 
   function seedStudy(memo, study) {
@@ -164,7 +170,7 @@ export function createAwaySim({ town, contextAt }) {
         town.lanterns?.claim(member.id, memo.lantern.id);
       }
       const entry = town.started ? null : savedEntry(member);
-      seedInn(memo, entry?.inn);
+      seedInn(member, memo, entry?.inn);
       seedStudy(memo, entry?.study);
       memos.set(member.id, memo);
     }
@@ -196,6 +202,7 @@ export function createAwaySim({ town, contextAt }) {
       memo.night = night;
       memo.room = memo.stay ?? (spot && member.payRoom(spot.id) ? spot.id : null);
       memo.stay = null;
+      lodgeIn(member, memo.room);
       keepInn(member, { room: memo.room, night });
     }
     return memo.room;
@@ -205,7 +212,10 @@ export function createAwaySim({ town, contextAt }) {
     const purse = member.purse;
     if (purse.energy < ENERGY.low && !(isOpenAt(VENDOR, ctx.minutes) && member.feast(VENDOR.foods, NPC.vendor).length)) member.snack();
     const house = estate.houseOf(member.id);
-    if (house) memoOf(member).stay = null;
+    if (house && memoOf(member).stay) {
+      memoOf(member).stay = null;
+      leaveRoom(member);
+    }
     const activity = house ? homeActivity(house) : nightRoom(member, ctx) ?? 'rest';
     purse.tickEnergy(end, energyRate(activity, true));
   }
@@ -218,7 +228,10 @@ export function createAwaySim({ town, contextAt }) {
       const spot = member.pickLodge(false);
       if (spot && member.payRoom(spot.id)) memo.stay = spot.id;
     }
-    if (memo.stay !== before) keepInn(member, memo.stay ? { room: memo.stay, night: null } : null);
+    if (memo.stay !== before) {
+      lodgeIn(member, memo.stay);
+      keepInn(member, memo.stay ? { room: memo.stay, night: null } : null);
+    }
     if (!memo.stay) return false;
     member.purse.tickEnergy(end, energyRate(memo.stay, false));
     return true;
@@ -334,7 +347,10 @@ export function createAwaySim({ town, contextAt }) {
   function tend(member, jobs) {
     for (const job of jobs) {
       if (job.action === 'lease') farm.signLease(job.bed, member.id, job.offer);
-      else if (member.purse.spendEnergy(ENERGY.costs[job.action] ?? 0)) member.tend(job);
+      else if (member.purse.spendEnergy(ENERGY.costs[job.action] ?? 0)) {
+        member.tend(job);
+        if (job.action === 'harvest' && farm.nextAction(job.index, member.id) === 'clear' && member.purse.spendEnergy(ENERGY.costs.clear ?? 0)) member.tend({ index: job.index, action: 'clear' });
+      }
     }
     return AWAY.walk + jobs.length * FARM;
   }
@@ -523,10 +539,12 @@ export function createAwaySim({ town, contextAt }) {
       memo.lantern = null;
       keepLanternJob(member, null);
     }
-    if (memo.stay || memo.room) {
+    const tonight = contextAt(hold.from).night && memo.night === lodgeNightOf(hold.from);
+    if (memo.stay || (memo.room && !tonight)) {
       memo.stay = null;
       memo.room = null;
       memo.night = null;
+      leaveRoom(member);
       keepInn(member, null);
     }
     memo.busy = [];
@@ -539,6 +557,7 @@ export function createAwaySim({ town, contextAt }) {
     const end = ctx.minutes + minutes;
     const memo = memoOf(member);
     memo.busy = memo.busy.filter((part) => part.to > ctx.minutes);
+    if (!ctx.night && !memo.stay) leaveRoom(member);
     const hold = town.arena?.holdOf(member.id, ctx.minutes, end);
     if (hold) {
       if (hold.from > ctx.minutes) live(member, ctx, hold.from - ctx.minutes, slots);
@@ -565,6 +584,7 @@ export function createAwaySim({ town, contextAt }) {
       town.suspend();
       memos.clear();
       for (const bookings of allSeats()) bookings.length = 0;
+      for (const member of town.members) memoOf(member);
     },
     during(run) {
       const before = town.context;

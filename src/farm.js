@@ -27,6 +27,8 @@ const LEGACY_LEASE_KEY = worldKey('farmLeases');
 const readJson = (key) => JSON.parse(localStorage.getItem(key) ?? 'null');
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
+const BUSY_HOLE = 'Có người đang làm hốc này rồi!';
+const BUSY_BED = 'Có người đang thuê luống này rồi!';
 const SHAPED_FROM = 3;
 const REAL_TIME_FLOOR = 1e11;
 const cropOf = (spot) => CROPS[spot.crop] ?? CROPS.tomato;
@@ -695,6 +697,13 @@ export function createFarm({ ledger, nameOf, nav }) {
   const spots = layoutSpots();
   const state = new FarmState(spots.length, { ledger, nameOf });
   const claims = new Map();
+  const bedClaims = new Map();
+  const takenIn = (map, key, who) => {
+    const claimant = map.get(key);
+    return !!claimant && claimant !== who;
+  };
+  const holderOfJob = (job) => (job.action === 'lease' ? [bedClaims, job.bed] : [claims, job.index]);
+  const holderOfTarget = (target) => (target.stake !== undefined ? [bedClaims, target.stake] : [claims, target.index]);
   const built = {};
   const views = {};
   let lastTick = 0;
@@ -735,10 +744,7 @@ export function createFarm({ ledger, nameOf, nav }) {
 
   function renewJob(actor, beds, purse, seed) {
     const now = gameNow();
-    const bed = beds.find((held) => {
-      const claimant = claims.get(FIRST_SPOT[held]);
-      return state.leases.holder(held, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && (!claimant || claimant === actor);
-    });
+    const bed = beds.find((held) => state.leases.holder(held, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && !takenIn(bedClaims, held, actor));
     if (bed === undefined) return null;
     const offer = leaseOffer(purse, seed, bed);
     if (offer < 0) return null;
@@ -750,10 +756,7 @@ export function createFarm({ ledger, nameOf, nav }) {
       const mid = bedPoint(BEDS[bed], BEDS[bed].length / 2, 0);
       return Math.hypot(mid.x - from.x, mid.z - from.z);
     };
-    const open = state.leases.free(gameNow()).filter((bed) => {
-      const claimant = claims.get(FIRST_SPOT[bed]);
-      return BEDS[bed].holes <= shortfall * 2 && (!claimant || claimant === actor);
-    });
+    const open = state.leases.free(gameNow()).filter((bed) => BEDS[bed].holes <= shortfall * 2 && !takenIn(bedClaims, bed, actor));
     const bed = open.sort((a, b) => gap(a) - gap(b))[0];
     if (bed === undefined) return null;
     const offer = leaseOffer(purse, seed, bed);
@@ -827,12 +830,17 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     spot: (index) => spots[index],
     standFor: (index, from) => standFor(spots[index], from),
-    claim: (index, who) => claims.set(index, who),
-    release(index, who) {
-      if (claims.get(index) === who) claims.delete(index);
+    claim(job, who) {
+      const [map, key] = holderOfJob(job);
+      map.set(key, who);
+    },
+    nextAction: (index, actor) => state.actionFor(index, actor).id,
+    release(job, who) {
+      const [map, key] = holderOfJob(job);
+      if (map.get(key) === who) map.delete(key);
     },
     releaseAll(who) {
-      for (const [index, owner] of claims) if (owner === who) claims.delete(index);
+      for (const map of [claims, bedClaims]) for (const [key, owner] of map) if (owner === who) map.delete(key);
     },
     effectFor(index, action, actor) {
       const planned = state.actionFor(index, actor);
@@ -894,8 +902,15 @@ export function createFarm({ ledger, nameOf, nav }) {
         return { index, x: spot.x, z: spot.z, stand: standFor(spot, from) };
       },
       actionFor(target) {
+        if (takenIn(...holderOfTarget(target), PLAYER)) return { id: 'busy', hint: null };
         if (target.stake !== undefined) return state.leaseAction(target.stake);
         return placed(target.index, state.actionFor(target.index));
+      },
+      hold(target) {
+        const [map, key] = holderOfTarget(target);
+        if (takenIn(map, key, PLAYER)) return false;
+        map.set(key, PLAYER);
+        return true;
       },
       timeLeft(target) {
         return target.stake !== undefined ? null : state.timeLeft(target.index, gameNow());
@@ -927,6 +942,10 @@ export function createFarm({ ledger, nameOf, nav }) {
         return new THREE.Vector3(spot.x, spot.y + plantTop(state.spots[target.index]) * spot.scale + 0.18, spot.z);
       },
       act(action, target, choice) {
+        if (takenIn(...holderOfTarget(target), PLAYER)) {
+          state.changed = false;
+          return target.stake !== undefined ? BUSY_BED : BUSY_HOLE;
+        }
         const reply = state.act(action, target.index, gameNow(), choice);
         refreshAll();
         return reply;

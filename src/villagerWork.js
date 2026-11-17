@@ -39,7 +39,7 @@ export class WorkBehavior {
       return;
     }
     const stand = job.stand ?? farm.standFor(job.index, this.position);
-    farm.claim(job.index, this.id);
+    farm.claim(job, this.id);
     this.job = job;
     this.task = 'farm';
     this.travel(stand, { then: () => this.work(), fail: () => {
@@ -335,7 +335,7 @@ export class WorkBehavior {
     this.wait(SIGN_SECONDS, () => {
       this.showPen(false);
       farm.signLease(job.bed, this.id, job.offer);
-      farm.release(job.index, this.id);
+      farm.release(job, this.id);
       this.job = null;
       this.wait(between(0.6, 1.2));
     });
@@ -362,7 +362,7 @@ export class WorkBehavior {
     }
     const cost = ENERGY.costs[job.action] ?? 0;
     if (!this.purse.spendEnergy(cost)) {
-      farm.release(job.index, this.id);
+      farm.release(job, this.id);
       this.job = null;
       this.say('Mệt quá, nghỉ chút đã...', 1.8);
       this.wait(between(4, 8));
@@ -373,10 +373,11 @@ export class WorkBehavior {
     const effect = farm.effectFor(job.index, job.action, this.id);
     const finish = () => {
       const reply = this.tend(job);
-      farm.release(job.index, this.id);
-      this.job = null;
+      const next = job.action === 'harvest' && farm.nextAction(job.index, this.id) === 'clear' ? { index: job.index, action: 'clear' } : null;
+      if (!next) farm.release(job, this.id);
+      this.job = next;
       if (reply && (job.action === 'harvest' || Math.random() < 0.25)) this.say(reply);
-      this.wait(0.8 + Math.random() * 1.6);
+      this.wait(0.8 + Math.random() * 1.6, next && (() => this.work()));
     };
     if (!effect) {
       finish();
