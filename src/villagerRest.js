@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, ECONOMY, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, heldTonight, isFree, leaveRoom, lodgeNightOf, release, roomTier } from './lodging.js';
@@ -357,7 +357,7 @@ export class RestBehavior {
   payRoom(room) {
     const rent = roomTier(room).price;
     if (!this.purse.spend(rent)) return false;
-    economy.collect(rent * ECONOMY.vat, this.id, rent);
+    economy.collect(rent, this.id, rent, 'lodge');
     return true;
   }
 

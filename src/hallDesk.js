@@ -16,6 +16,7 @@ const INCOME_NAMES = {
   house: ['🏠', 'Thuế nhà'],
   estate: ['🏡', 'Bán nhà'],
   land: ['🌾', 'Thuê ruộng'],
+  lodge: ['🛏️', 'Tiền phòng trọ'],
   arenaFee: ['⚔️', 'Phí lôi đài'],
   blessing: ['✨', 'Phí chúc phúc'],
   lantern: ['🏮', 'Phí hội đèn trời'],

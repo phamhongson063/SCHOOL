@@ -1,6 +1,6 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'arenaFee', 'blessing', 'lantern', 'capital'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'lodge', 'arenaFee', 'blessing', 'lantern', 'capital'];
 export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'arena', 'buyback', 'capital'];
 
 export function planDay({ fund, wages, starts }) {
