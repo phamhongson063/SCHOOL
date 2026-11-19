@@ -37,14 +37,14 @@ export const HANGOUTS = [
 ];
 
 export const YARD = [
-  [-14, 31.3, 15, 32.8],
+  [-14, 30.7, 15, 31.7],
   [-8.5, HOUSE.back + 4, 9.5, HOUSE.front - 1],
   [-11, 9, 12, 25.5],
 ];
 
 export const STREET = [
-  [-40, 34, 40, 36],
-  [48, 30.5, 97, 39.5],
+  [-40, 33.5, 40, 37.5],
+  [48, 29, 97, 42],
   ...DISTRICT_STREETS,
 ];
 
@@ -53,9 +53,9 @@ export const TEND = ['Rau lên đều quá!', 'Mai mốt là thu được rồi.
 export const GOSSIP = ['Hôm nay trời đẹp ghê!', 'Nghe nói giá dưa lên rồi.', 'Mùa này mưa nắng thất thường quá.', 'Chiều nay ra đình chơi không?', 'Ăn cơm chưa?', 'Nhà Lý trưởng mới sơn lại cổng đó.', 'Rau muống nhà tui sắp cắt được rồi!'];
 export const REST = ['Nghỉ mát chút đã.', 'Gió mát quá!', 'Mỏi lưng ghê...'];
 export const FIELD_EDGES = [
-  [-30, 37.4, 31, 37.9],
-  [-1.6, 39.5, 1.8, 59.5],
-  [-30, 60.6, 31, 61.2],
+  [-30, 38.9, 31, 39.4],
+  [-1.6, 41, 1.8, 61],
+  [-30, 62.1, 31, 62.7],
 ].map(([x0, z0, x1, z1]) => [x0 + FARM_X, z0, x1 + FARM_X, z1]);
 export const CAUGHT = ['Dính rồi!', 'Con này to ghê!', 'Hên quá!'];
 export const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này khó quá...'];

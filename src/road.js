@@ -4,17 +4,17 @@ import { Batch, freeze, shapes, shade } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, markMaterial, roundedRectGeometry, roundTree } from './scenery.js';
 
-export const ROAD = { z0: 33, z1: 37, x0: -150, x1: 151 };
-export const SPAWN = { x: 0.5, y: 0, z: 35 };
+export const ROAD = { z0: 32, z1: 39, x0: -188, x1: 188 };
+export const SPAWN = { x: 0.5, y: 0, z: 35.5 };
 
 export const TREES = [
-  [-35, 31.2],
-  [-46, 31.4],
-  [36, 31.3],
-  [47, 31.2],
-  [-35, 39.6],
-  [-42, 39.8],
-  [36, 39.6],
+  [-35, 30.2],
+  [-46, 30.4],
+  [36, 30.3],
+  [47, 30.2],
+  [-35, 40.6],
+  [-42, 40.8],
+  [36, 40.6],
 ];
 
 const PEBBLE = 0xb9ad98;
@@ -25,7 +25,7 @@ export function createRoad() {
   return {
     id: 'road',
     name: 'Đường làng',
-    bounds: { x0: -44, z0: 31, x1: 45, z1: 38.5 },
+    bounds: { x0: -44, z0: 30, x1: 45, z1: 41.5 },
     staticNav: true,
     obstacles: TREES.map(([x, z]) => ({ minX: x + 0.2, minZ: z + 0.2, maxX: x + 0.8, maxZ: z + 0.8, minY: 0, maxY: 3 })),
     load() {

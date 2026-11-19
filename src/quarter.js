@@ -8,12 +8,13 @@ import { PLAZA, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
 import { MART } from './config.js';
 
-const NORTH_FRONT = 29.4;
-const SOUTH_FRONT = 40.6;
-const DINH_FRONT = 43;
+const NORTH_FRONT = 28;
+const SOUTH_FRONT = 43;
+const PLAZA_FRONT = 40.6;
+const DINH_FRONT = 45.4;
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
-const BOUNDS = { x0: -38, z0: 20, x1: 37, z1: 66 };
+const BOUNDS = { x0: -38, z0: 19, x1: 37, z1: 66 };
 
 const HOUSES = [
   { id: 'c1', side: 'north', x: -26, width: 5.5, depth: 8, stories: 2, seed: 211, home: 9, size: 'medium' },
@@ -27,13 +28,13 @@ const HOUSES = [
 ];
 const DINH = { id: 'dinh', side: 'south', x: -27, front: DINH_FRONT, seed: 307 };
 
-const WELL = { x: -34.2, z: 46.5 };
-const BANYAN = { x: -27, z: 56.5 };
+const WELL = { x: -34.2, z: 48.9 };
+const BANYAN = { x: -27, z: 58.9 };
 const KERB = 0.4;
 const RING = 1.7;
 const LAKE = { x0: PLAZA.x0 - KERB, z0: PLAZA.z0 - KERB, x1: PLAZA.x1 + KERB, z1: PLAZA.z1 + KERB };
 const RING_OUT = { x0: LAKE.x0 - RING, z0: ROAD.z1 + 0.4, x1: LAKE.x1 + RING, z1: LAKE.z1 + RING };
-const FORECOURT = { x0: RING_OUT.x0, z0: SOUTH_FRONT - 1, x1: RING_OUT.x1, z1: SOUTH_FRONT };
+const FORECOURT = { x0: RING_OUT.x0, z0: PLAZA_FRONT - 1, x1: RING_OUT.x1, z1: PLAZA_FRONT };
 const PLAZA_STEPS = { xs: [PLAZA.x - 8, PLAZA.x, PLAZA.x + 8], width: 3, depth: 0.35, cheek: 0.2 };
 const SETTS = { grout: 0x4f4d48, stones: [0x8e8b84, 0x7f7c76, 0x9a968e, 0x86827a, 0x8a8f94, 0x968c80], perRow: 12, rows: 12 };
 
@@ -300,7 +301,7 @@ export function createQuarter() {
     block(east, z, 0.3, 0.9, 1);
   }
 
-  for (const [x, z, h] of [[-19, 53, 4], [20, 54, 5], [30, 53.5, 4], [-19, 62.5, 4]]) {
+  for (const [x, z, h] of [[-19, 55, 4], [20, 56, 5], [30, 55.5, 4], [-19, 63.5, 4]]) {
     roundTree(b, rand, { x, z, h });
     block(x + 0.5, z + 0.5, 0.3, 0.3, h);
   }

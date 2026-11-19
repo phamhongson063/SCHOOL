@@ -5,23 +5,28 @@ import { GROUND_LAYER, tileRoofMeshes } from './scenery.js';
 import { plaqueBoard } from './village.js';
 import { terrainHeight } from './terrain.js';
 import { FIELD_OF } from './fieldPlan.js';
+import { ROAD } from './road.js';
 
-const ROAD_MID = 35;
+const ROAD_MID = (ROAD.z0 + ROAD.z1) / 2;
+const GATE_HALF = (ROAD.z1 - ROAD.z0) / 2 + 0.9;
 const HEDGE_GAP = 1.7;
 const HEDGES = [
-  { id: 'west', z: 17.5, x0: -62, x1: -23.5, gaps: [[-53.5, -47]], bounds: { x0: -64, z0: 10, x1: -20, z1: 25 } },
-  { id: 'north', z: 17.5, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 16.5, x1: 101, z1: 25 } },
-  { id: 'south', z: 53.5, x0: 51, x1: 99, gaps: [], bounds: { x0: 48, z0: 48, x1: 101, z1: 59 } },
+  { id: 'west', z: 17.5, x0: -62, x1: -23.5, gaps: [[-53.5, -47]], bounds: { x0: -64, z0: 10, x1: -20, z1: 42 } },
+  { id: 'north', z: 16.8, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 16, x1: 101, z1: 41 } },
+  { id: 'south', z: 55.5, x0: 51, x1: 99, gaps: [], bounds: { x0: 48, z0: 50, x1: 101, z1: 61 } },
 ];
-const GATE_BOUNDS = { x0: -150, z0: 30, x1: -104, z1: 38.4 };
-const WEST_GATE = -118;
+const WEST_GATE = -188;
+const EAST_GATE = 188;
+const GATE_BOUNDS = { x0: -200, z0: 30, x1: -140, z1: 42 };
+const EAST_GATE_BOUNDS = { x0: 104, z0: 26, x1: 200, z1: 42 };
 const SIGNS = [
-  { region: 'west', x: -47.6, z: 31.3, toward: Math.PI, text: 'Lên núi' },
-  { region: 'north', x: 35.6, z: 38.7, toward: Math.PI, text: 'Lên núi' },
-  { region: 'south', x: 51.2, z: 37.4, toward: 0, text: 'Bến sông' },
-  { region: 'gate', x: -73.6, z: 38.2, toward: 0, text: 'Ruộng rau' },
-  { region: 'gate', x: -113.6, z: 38.4, toward: 0, text: FIELD_OF.west.name },
-  { region: 'north', x: 101.5, z: 31.3, toward: Math.PI / 2, text: 'Xóm Bàn Cờ' },
+  { region: 'west', x: -47.6, z: 30.3, toward: Math.PI, text: 'Lên núi' },
+  { region: 'north', x: 35.6, z: 40.2, toward: Math.PI, text: 'Lên núi' },
+  { region: 'south', x: 51.2, z: 40.4, toward: 0, text: 'Bến sông' },
+  { region: 'eastGate', x: 139.4, z: 40.2, toward: 0, text: FIELD_OF.farm.name },
+  { region: 'eastGate', x: 159.6, z: 30.8, toward: Math.PI, text: FIELD_OF.banco.name },
+  { region: 'gate', x: -148.6, z: 40.4, toward: 0, text: FIELD_OF.west.name },
+  { region: 'west', x: -46, z: 40.4, toward: -Math.PI / 2, text: 'Xóm Bàn Cờ' },
 ];
 
 const PAVING_ORDER = GROUND_LAYER.mark + 2;
@@ -87,14 +92,14 @@ function signpost(b, sign) {
 }
 
 function villageGate(b, x, meshes) {
-  for (const z of [ROAD_MID - 3.9, ROAD_MID + 3.9]) {
+  for (const z of [ROAD_MID - GATE_HALF, ROAD_MID + GATE_HALF]) {
     b.add(shapes.box(1.1, 4.3, 1.1), 0xb85c3e, { p: [x, 2.15, z] });
     b.add(shapes.box(1.3, 0.25, 1.3), 0xb3ab99, { p: [x, 0.12, z] });
     b.add(shapes.box(1.25, 0.2, 1.25), 0xb3ab99, { p: [x, 4.35, z] });
   }
-  b.add(shapes.box(0.7, 0.55, 8.9), 0x7a3020, { p: [x, 4.1, ROAD_MID] });
-  b.add(shapes.box(0.5, 0.12, 8.4), 0xf2c14e, { p: [x, 3.78, ROAD_MID] });
-  for (const mesh of tileRoofMeshes({ cx: 0, cz: 0, hx: 5.2, hz: 1.1, ridge: 4.3, eaveY: 4.55, height: 0.95, lift: 0.4, falloff: 1.2 })) {
+  b.add(shapes.box(0.7, 0.55, GATE_HALF * 2 + 1.1), 0x7a3020, { p: [x, 4.1, ROAD_MID] });
+  b.add(shapes.box(0.5, 0.12, GATE_HALF * 2 + 0.6), 0xf2c14e, { p: [x, 3.78, ROAD_MID] });
+  for (const mesh of tileRoofMeshes({ cx: 0, cz: 0, hx: GATE_HALF + 1.3, hz: 1.1, ridge: 4.3, eaveY: 4.55, height: 0.95, lift: 0.4, falloff: 1.2 })) {
     mesh.rotation.y = Math.PI / 2;
     mesh.position.set(x, 0, ROAD_MID);
     meshes.push(mesh);
@@ -108,7 +113,7 @@ function villageGate(b, x, meshes) {
 }
 
 export function villageGateObstacles(x) {
-  return [ROAD_MID - 3.9, ROAD_MID + 3.9].map((z) => ({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, minY: 0, maxY: 4.5 }));
+  return [ROAD_MID - GATE_HALF, ROAD_MID + GATE_HALF].map((z) => ({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, minY: 0, maxY: 4.5 }));
 }
 
 export function createVillageGate(x) {
@@ -153,6 +158,8 @@ export function createCountryside() {
 
   groupFor('gate').add(...createVillageGate(WEST_GATE));
   obstacles.push(...villageGateObstacles(WEST_GATE));
+  groupFor('eastGate').add(...createVillageGate(EAST_GATE));
+  obstacles.push(...villageGateObstacles(EAST_GATE));
 
   for (const group of groups.values()) {
     group.traverse((node) => {
@@ -166,6 +173,7 @@ export function createCountryside() {
     north: HEDGES[1].bounds,
     south: HEDGES[2].bounds,
     gate: GATE_BOUNDS,
+    eastGate: EAST_GATE_BOUNDS,
   };
 
   return {
@@ -173,7 +181,7 @@ export function createCountryside() {
     regions() {
       return [...groups.entries()].map(([id, group]) => ({
         id: `country-${id}`,
-        name: id === 'gate' ? 'Cổng làng' : 'Lũy tre',
+        name: id === 'gate' || id === 'eastGate' ? 'Cổng làng' : 'Lũy tre',
         bounds: bounds[id],
         staticNav: true,
         load() {

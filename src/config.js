@@ -1,6 +1,6 @@
 export const TIME_ZONE_MINUTES = 9 * 60;
 
-export const WORLD = { x0: -150, x1: 200 };
+export const WORLD = { x0: -200, x1: 200 };
 
 export const DAYLIGHT = { sunrise: 5 * 60 + 30, sunset: 18 * 60 };
 
@@ -473,8 +473,8 @@ export const ATM = {
   detour: 40,
   spots: [
     { id: 'school', name: 'Trường khảo thí', x: 6.6, z: 30.2 },
-    { id: 'market', name: 'Phố cổ', x: 49.3, z: 30.2 },
-    { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: -82, z: 30.3 },
+    { id: 'market', name: 'Phố cổ', x: 49.3, z: 28.8 },
+    { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: 138.5, z: 28.9 },
   ],
 };
 

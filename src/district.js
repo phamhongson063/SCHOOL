@@ -9,23 +9,22 @@ import { paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
 import { roomTier } from './lodging.js';
-import { createVillageGate, villageGateObstacles } from './countryside.js';
 import { SHOPKEEPERS } from './economy.js';
 import { buildHallPlaza, createHallLife } from './hallPlaza.js';
 import { createArenaNight } from './arenaNight.js';
 import { NPC } from './npcIds.js';
+import { ROAD } from './road.js';
 
-const AVENUES = [104, 126, 148, 170];
+const AVENUES = [-131, -109, -87, -65];
 const STREET = 3;
-const MAIN = { z0: 33, z1: 37 };
-const SOUTH_STREET = 60;
-const EAST_GATE = 181;
+const SETBACK = 2.6;
+const SOUTH_STREET = 62;
 const DEPTH = 8;
 const PLAZA_BLOCK = 1;
-const BOUNDS = { x0: 100, z0: 4, x1: 185, z1: 64 };
+const BOUNDS = { x0: -137, z0: 16, x1: -52, z1: 66 };
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
-const ROW = { x0: 102, x1: 179 };
+const ROW = { x0: -133, x1: -56 };
 const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
 const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
@@ -74,10 +73,10 @@ function spread(x0, x1, count) {
 
 function layout() {
   const rand = makeRandom(6161);
-  const plaza = { x0: AVENUES[PLAZA_BLOCK] + STREET / 2, x1: AVENUES[PLAZA_BLOCK + 1] - STREET / 2, z0: MAIN.z1 + 1.6, z1: SOUTH_STREET - STREET / 2 };
+  const plaza = { x0: AVENUES[PLAZA_BLOCK] + STREET / 2, x1: AVENUES[PLAZA_BLOCK + 1] - STREET / 2, z0: ROAD.z1 + SETBACK, z1: SOUTH_STREET - STREET / 2 };
   const rows = [
-    { side: 'north', front: MAIN.z0 - 1.6, xs: spread(ROW.x0, ROW.x1, 9) },
-    { side: 'south', front: MAIN.z1 + 1.6, xs: [...spread(ROW.x0, plaza.x0 - 1, 3), ...spread(plaza.x1 + 1, ROW.x1, 3)] },
+    { side: 'north', front: ROAD.z0 - SETBACK, xs: spread(ROW.x0, ROW.x1, 9) },
+    { side: 'south', front: ROAD.z1 + SETBACK, xs: [...spread(ROW.x0, plaza.x0 - 1, 3), ...spread(plaza.x1 + 1, ROW.x1, 3)] },
   ];
   const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
   const arenaXs = [];
@@ -175,7 +174,7 @@ function plazaMesh(plaza, obstacles, rand) {
 }
 
 function streetMesh(plaza) {
-  const parts = [roundedRectGeometry(BOUNDS.x0, MAIN.z0, EAST_GATE + 1, MAIN.z1, 0.4)];
+  const parts = [roundedRectGeometry(ROW.x0 - 3, ROAD.z0, ROW.x1 + 3, ROAD.z1, 0.4)];
   parts.push(roundedRectGeometry(plaza.x0, plaza.z0, plaza.x1, plaza.z1, 0.6));
   const merged = mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part)), false);
   return groundDecal(merged, paving(), PAVING_LAYER, 0.014);
@@ -191,7 +190,7 @@ function animateKeeper(npc, t, near) {
   npc.walker.pose?.();
 }
 
-export const DISTRICT_STREETS = [[BOUNDS.x0 + 2, MAIN.z0 + 0.5, EAST_GATE - 2, MAIN.z1 - 0.5]];
+export const DISTRICT_STREETS = [[ROW.x0 - 1, ROAD.z0 + 0.5, ROW.x1 + 1, ROAD.z1 - 0.5]];
 
 export function createDistrict() {
   const { blocks, plaza } = layout();
@@ -203,7 +202,6 @@ export function createDistrict() {
       if (!house.bank) obstacles.push(...shophousePots(house.width).map((box) => place(house, box)));
     }
   }
-  obstacles.push(...villageGateObstacles(EAST_GATE));
   const rand = makeRandom(7272);
   const group = new THREE.Group();
   const clickables = [];
@@ -353,8 +351,7 @@ export function createDistrict() {
     }
     return null;
   };
-  const gate = createVillageGate(EAST_GATE);
-  group.add(props, ...gate);
+  group.add(props);
   const lift = (node) => {
     node.traverse((child) => {
       if (child.isMesh && child !== streets) child.renderOrder = ABOVE_PAVING;

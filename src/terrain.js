@@ -4,7 +4,7 @@ import { makeRandom } from './random.js';
 import { earthMaterial, groundColorAt, groundMaterial, groundTone, patchField, smoothstep, tileRoofMeshes, GROUND_LAYER } from './scenery.js';
 import { keepCanvas } from './canvasRestore.js';
 
-export const MOUNTAIN = { x0: -152, z0: -146, x1: 84, z1: 22 };
+export const MOUNTAIN = { x0: -224, z0: -146, x1: 84, z1: 22 };
 const STEP = 1;
 const MESH_STEP = 2;
 const MESH_SPAN = MESH_STEP / STEP;
@@ -13,6 +13,8 @@ const FLAT = 0.04;
 const SINK = -0.08;
 
 const SPINE = [
+  [-216, -6, 0, 30],
+  [-185, -12, 14, 38],
   [-150, -20, 18, 40],
   [-120, -35, 26, 48],
   [-90, -60, 32, 55],
@@ -68,19 +70,19 @@ const TRAIL_WIDTH = 1.6;
 const TRAIL_CLEAR = 3;
 
 const STREAM = [
-  [-118, -30],
-  [-115, -18],
-  [-111, -4],
-  [-109, 10],
-  [-108, 24],
-  [-108, 35],
-  [-108.5, 48],
-  [-107, 60],
-  [-106, 71],
+  [-122, -30],
+  [-126, -18],
+  [-131, -4],
+  [-135, 10],
+  [-139, 24],
+  [-140, 35.5],
+  [-140.5, 48],
+  [-139, 60],
+  [-138, 71],
 ];
 const STREAM_HALF = 1.1;
 const BANK_HALF = 1.9;
-export const BRIDGE = { x: -108, z: 35, span: 3.6, rise: 1.12, step: 0.1, base: 0.25, half: 1.4, wall: 0.25, pad: 1.3, padHalf: 2.3, arch: 1.5, crown: 0.8 };
+export const BRIDGE = { x: -140, z: 35.5, span: 3.6, rise: 1.12, step: 0.1, base: 0.25, half: 2.6, wall: 0.25, pad: 1.3, padHalf: 3.6, arch: 1.5, crown: 0.8 };
 
 const COLS = Math.round((MOUNTAIN.x1 - MOUNTAIN.x0) / STEP) + 1;
 const ROWS = Math.round((MOUNTAIN.z1 - MOUNTAIN.z0) / STEP) + 1;

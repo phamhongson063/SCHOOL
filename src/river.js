@@ -10,7 +10,7 @@ import { createFishZones } from './fishZones.js';
 
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
 const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
-const PATH = { x0: 44.4, x1: 46.6, z0: 37, bypassX0: 47.8, bypassX1: 49.8, bendZ0: 53.6, bendZ1: 55.6 };
+const PATH = { x0: 44.4, x1: 46.6, z0: 39, bypassX0: 47.8, bypassX1: 49.8, bendZ0: 56, bendZ1: 58 };
 const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
 const STEP = 1;
 const FISH_PICK_RADIUS = 6;

@@ -18,15 +18,15 @@ import { keepCanvas } from './canvasRestore.js';
 import { GOLD_IMAGE, GOLD_MARK } from './goldArt.js';
 import { NPC } from './npcIds.js';
 
-export const VILLAGE_BOUNDS = { x0: 47, z0: 18, x1: 100, z1: 52 };
+export const VILLAGE_BOUNDS = { x0: 47, z0: 17, x1: 100, z1: 54 };
 
-const NORTH_FRONT = 29.4;
-const SOUTH_FRONT = 40.6;
+const NORTH_FRONT = 28;
+const SOUTH_FRONT = 43;
 const STREET_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = STREET_LAYER + 1;
 const EXITS = [
-  { x: -43, z: 35 },
-  { x: 99, z: 35 },
+  { x: -43, z: 35.5 },
+  { x: 99, z: 35.5 },
 ];
 
 const HOUSES = [
@@ -257,9 +257,9 @@ function decor() {
   for (const x of [60.6, 74.9, 89.6]) lanternString(b, glow, lights, x, rand);
   const obstacles = [];
   for (const [x, z] of [
-    [98.5, 29.8],
-    [33.6, 43.2],
-    [98.5, 40.8],
+    [98.5, 28.8],
+    [33.6, 45.6],
+    [98.5, 42.8],
   ]) {
     roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
     obstacles.push({ minX: x + 0.2, minZ: z + 0.2, maxX: x + 0.8, maxZ: z + 0.8, minY: 0, maxY: 3 });
