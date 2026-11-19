@@ -89,6 +89,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   let order = [];
   let pos = 0;
   let shown = 0;
+  let speakShown = 0;
   let seated = false;
   let studying = false;
   let dimmed = false;
@@ -278,10 +279,15 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     remembered.disabled = waitLeft() > 0;
   }
 
-  function restartTimer() {
+  function paintSpeakTime() {
+    timerFill.style.transform = `scaleX(${Math.min(1, speakShown / SPEAK.dialogSeconds)})`;
+    next.disabled = speakShown < SPEAK.dialogSeconds;
+  }
+
+  function restartTimer(paint = paintLearnCount) {
     timer.hidden = false;
     timerFill.style.transition = 'none';
-    paintLearnCount();
+    paint();
     void timerFill.offsetWidth;
     timerFill.style.transition = '';
   }
@@ -356,6 +362,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     setStudying(true);
     showChip(chip);
     nav.hidden = false;
+    prev.hidden = false;
+    next.disabled = false;
     start.hidden = true;
     body.hidden = false;
     body.classList.remove('covered');
@@ -459,28 +467,39 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     setMic('ready');
   }
 
-  function openDialog() {
-    fill(order[pos]);
-    modeChip.textContent = `${pos + 1}/${order.length}`;
-    speakLines = speechLines(current);
+  function replayDialog() {
     speakLine = 0;
     speakMarks = speakLines.map(() => null);
     scoreText.textContent = '';
     playLine();
   }
 
-  function finishDialog() {
-    rewardSpeech(PLAYER, deckId, current, dayOf(gameNow()));
+  function openDialog() {
+    fill(order[pos]);
+    modeChip.textContent = `${pos + 1}/${order.length}`;
+    speakLines = speechLines(current);
+    speakShown = 0;
+    restartTimer(paintSpeakTime);
+    replayDialog();
+  }
+
+  function nextDialog() {
+    if (mode !== 'speak' || speakShown < SPEAK.dialogSeconds) return;
+    speakRun += 1;
+    const recognition = listening;
+    listening = null;
+    recognition?.abort();
     pos += 1;
     if (pos >= order.length) {
-      order = speechKeys(PLAYER, deckId);
-      pos = 0;
-    }
-    if (!order.length) {
       endSit();
       return;
     }
-    later(openDialog, SPEAK_PAUSE);
+    openDialog();
+  }
+
+  function finishDialog() {
+    rewardSpeech(PLAYER, deckId, current, dayOf(gameNow()));
+    later(replayDialog, SPEAK_PAUSE);
   }
 
   function cooldown(left) {
@@ -594,7 +613,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function beginSpeak() {
     if (exams.running || !canSpeak()) return;
-    const keys = speechKeys(PLAYER, deckId);
+    const keys = speechKeys(PLAYER, deckId, dayOf(gameNow()));
     if (!keys.length || !pay('speak')) return;
     mode = 'speak';
     timer.hidden = true;
@@ -602,7 +621,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     showTranslation(false);
     setStudying(true);
     showChip('speak');
-    nav.hidden = true;
+    nav.hidden = false;
+    prev.hidden = true;
     start.hidden = true;
     body.hidden = false;
     body.classList.remove('covered');
@@ -699,6 +719,13 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   }, 1000);
 
   setInterval(() => {
+    if (mode !== 'speak' || !panel.classList.contains('show') || document.visibilityState !== 'visible') return;
+    if (speakShown >= SPEAK.dialogSeconds) return;
+    speakShown += 1;
+    paintSpeakTime();
+  }, 1000);
+
+  setInterval(() => {
     if (mode !== 'learn' || !current || !panel.classList.contains('show') || document.visibilityState !== 'visible') return;
     if (waitLeft() <= 0) return;
     shown += 1;
@@ -737,7 +764,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   });
   translateBtn.addEventListener('click', () => showTranslation(!panel.classList.contains('show-vi')));
   prev.addEventListener('click', () => go(-1));
-  next.addEventListener('click', () => go(1));
+  next.addEventListener('click', () => (mode === 'speak' ? nextDialog() : go(1)));
   remembered.addEventListener('click', answer);
   document.getElementById('studyClose').addEventListener('click', () => setVisible(false));
   reopen.addEventListener('click', () => setVisible(true));

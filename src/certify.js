@@ -328,9 +328,6 @@ export const certify = {
     const weak = shuffle(Object.keys(state.weak).filter((key) => state.certified[key] !== undefined));
     return weak.slice(0, Math.floor(seconds / CERTIFY.seconds[deck]));
   },
-  speakKeys(actor, deck, count) {
-    return oldKeys(deckState(actor, deck), count);
-  },
   gradeReview(actor, deck, results) {
     const state = deckState(actor, deck);
     const cleared = [];

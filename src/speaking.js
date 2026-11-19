@@ -241,7 +241,21 @@ export function scoreSpeech(text, pieces) {
 
 export const speechLines = (key) => unitOf(key).examples[0].lines.map(([speaker, text, vi]) => ({ speaker, text, vi }));
 
-export const speechKeys = (actor, deck) => certify.speakKeys(actor, deck, SPEAK.dialogs);
+function shuffled(list) {
+  const items = [...list];
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+export function speechKeys(actor, deck, day) {
+  const keys = shuffled(certify.certified(actor, deck));
+  if (!keys.length) return [];
+  const weakest = keys.reduce((low, key) => (fluency.of(actor, key, day) < fluency.of(actor, low, day) ? key : low));
+  return [weakest, ...keys.filter((key) => key !== weakest)].slice(0, SPEAK.dialogs);
+}
 
 export function rewardSpeech(actor, deck, key, day) {
   certify.gradeReview(actor, deck, [{ key, correct: true }]);
@@ -256,12 +270,12 @@ export function speechChance(actor, key, day) {
 const lineSeconds = (text) => between(...SPEAK.lineSeconds) + soundOf(speechReading(text)).length * SPEAK.kanaSeconds;
 
 export function planSpeech(actor, deck, seconds, day) {
+  const keys = speechKeys(actor, deck, day);
   const done = [];
   let at = 0;
-  for (;;) {
-    const keys = speechKeys(actor, deck);
-    if (!keys.length) return { done, seconds: at };
-    for (const key of keys) {
+  for (const key of keys) {
+    const opened = at;
+    while (at - opened < SPEAK.dialogSeconds) {
       for (const line of speechLines(key)) {
         at += lineSeconds(line.text);
         while (at <= seconds && Math.random() >= speechChance(actor, key, day)) at += SPEAK.retry + lineSeconds(line.text);
@@ -270,6 +284,7 @@ export function planSpeech(actor, deck, seconds, day) {
       done.push({ key, at });
     }
   }
+  return { done, seconds: at };
 }
 
 export function applySpeech(actor, deck, done, elapsed, day) {
