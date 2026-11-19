@@ -132,6 +132,7 @@ export const MIND = {
   harvestShare: { harvest: 1, plant: 0.5, lease: 0.5, water: 0.18, fertilize: 0.18, clear: 0.1, clearOther: 0.05 },
   crowdCut: 0.4,
   prepValue: 6,
+  speakValue: 3,
   noise: [0.85, 1.15],
   stick: 1.2,
   stickSeconds: 120,
@@ -190,6 +191,7 @@ export const CERTIFY = {
   viewSeconds: 5 * 60,
   learnFee: 1,
   reviewFee: 1,
+  speakFee: 1,
   sitSeconds: 15 * 60,
   sitWords: 2,
   seatRest: 5 * 60,
@@ -211,6 +213,16 @@ export const CERTIFY = {
   harvestQuiz: 0.1,
   blessingCoinPer: 10,
   blessingIntellectPer: 5,
+};
+
+export const SPEAK = {
+  pass: 0.8,
+  retry: 3,
+  dialogs: 10,
+  minLength: 5,
+  lineSeconds: [4, 8],
+  kanaSeconds: 0.18,
+  minChance: 0.15,
 };
 
 export const MART = { open: 6 * 60, close: 22 * 60, house: 'd1', reserve: 80, chance: 0.15, stock: 2 };

@@ -9,6 +9,7 @@ import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
 import { traits } from './traits.js';
 import { NPC } from './npcIds.js';
+import { SPEAK_DECKS, applySpeech, planSpeech } from './speaking.js';
 
 const INTERNAL_SEAT_RETRY = 1;
 
@@ -160,7 +161,35 @@ export class SchoolBehavior {
     return best;
   }
 
+  speakDeckWanted() {
+    if (this.purse.money < CERTIFY.speakFee) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const deck of SPEAK_DECKS) {
+      if (!certify.certifiedCount(this.id, deck) || certify.learnLeft(this.id, deck).length) continue;
+      const score = this.hallRoom(deck) + Math.random() * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = deck;
+      }
+    }
+    return best;
+  }
+
+  goSpeak(deck) {
+    this.prepping = false;
+    this.speaking = true;
+    this.goReview(deck);
+  }
+
+  goPlainReview(deck) {
+    this.prepping = false;
+    this.speaking = false;
+    this.goReview(deck);
+  }
+
   goPrep(deck) {
+    this.speaking = false;
     this.prepping = true;
     this.goReview(deck);
   }
@@ -181,6 +210,7 @@ export class SchoolBehavior {
   goSelfStudy(deck = this.studyDeckWanted()) {
     this.reviewing = false;
     this.prepping = false;
+    this.speaking = false;
     if (deck && !this.town.context.night && this.wantsInternal(deck)) {
       this.goInternal(deck);
       return;
@@ -198,7 +228,7 @@ export class SchoolBehavior {
 
   pickStudySeat(deck) {
     const seats = this.town.studySeats;
-    const seat = this.studySeatFor(deck, this.reviewing ? CERTIFY.reviewFee : CERTIFY.learnFee);
+    const seat = this.studySeatFor(deck, this.reviewing ? this.reviewFee() : CERTIFY.learnFee);
     this.cancel();
     if (!seat) {
       if (!this.reviewing && this.canWaitForSeat(deck)) this.waitForSeat(deck);
@@ -229,6 +259,7 @@ export class SchoolBehavior {
   quitSelfStudy() {
     this.reviewing = false;
     this.prepping = false;
+    this.speaking = false;
     this.town.studySeats.unreserve(this.targetSeat, this);
     this.targetSeat = null;
     this.task = null;
@@ -429,9 +460,12 @@ export class SchoolBehavior {
     if (this.reviewing) {
       if (t < this.studyUntil && !this.needsSleep(ctx)) return;
       this.reviewing = false;
-      if (this.prepping) this.drillCertified(this.seatRef.deck, t - this.studyMark);
+      if (this.speaking) applySpeech(this.id, this.seatRef.deck, this.speechRun?.done ?? [], t - this.studyMark, ctx.day);
+      else if (this.prepping) this.drillCertified(this.seatRef.deck, t - this.studyMark);
       else this.drillWeak(this.seatRef.deck, t - this.studyMark);
       this.prepping = false;
+      this.speaking = false;
+      this.speechRun = null;
       this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
       this.studyRestAt = t + SELF_STUDY.cooldown;
       this.rise(() => {
@@ -471,6 +505,8 @@ export class SchoolBehavior {
     if (this.seatRef.study) {
       if (!(this.reviewing ? this.payReview() : this.payStudy())) {
         this.reviewing = false;
+        this.prepping = false;
+        this.speaking = false;
         this.task = null;
         this.rise(() => this.think(), between(0.3, 1.5));
         return;
@@ -480,6 +516,10 @@ export class SchoolBehavior {
       this.studyUntil = this.now + CERTIFY.sitSeconds;
       this.studyMark = this.now;
       this.sitWords = 0;
+      if (this.speaking) {
+        this.speechRun = planSpeech(this.id, this.seatRef.deck, CERTIFY.sitSeconds, this.town.context.day);
+        this.studyUntil = this.now + this.speechRun.seconds;
+      }
       return;
     }
     if (this.task === 'exam') {
@@ -503,9 +543,13 @@ export class SchoolBehavior {
     if (keys.length) simulate(this, keys);
   }
 
-  payReview() {
-    if (!this.purse.spend(CERTIFY.reviewFee)) return false;
-    economy.income(NPC.teacher, CERTIFY.reviewFee, this.id);
+  reviewFee() {
+    return this.speaking ? CERTIFY.speakFee : CERTIFY.reviewFee;
+  }
+
+  payReview(fee = this.reviewFee()) {
+    if (!this.purse.spend(fee)) return false;
+    economy.income(NPC.teacher, fee, this.id);
     absorption.note(this.id, 'study', this.town.context.day);
     traits.note(this.id, 'study', this.town.context.day);
     return true;

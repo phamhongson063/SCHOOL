@@ -113,6 +113,7 @@ export const DECKS = {
     unit: 'câu ví dụ',
     quiz: 'phrase',
     choices: 0,
+    speak: true,
     cards: LESSONS.flatMap((lesson) =>
       lesson.examples.map((example, i) => ({
         key: `sugu1:${lesson.no}:${i + 1}`,

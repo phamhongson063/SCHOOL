@@ -14,6 +14,7 @@ import { traits } from './traits.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
+import { applySpeech, planSpeech } from './speaking.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -429,6 +430,22 @@ export function createAwaySim({ town, contextAt }) {
     return AWAY.walk + SIT;
   }
 
+  function speakDeck(member, ctx, slots) {
+    if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
+    const deck = member.speakDeckWanted(ctx);
+    return deck && (slots.study.get(member) === deck || slots.seats[deck] > 0) ? deck : null;
+  }
+
+  function speak(member, ctx, deck, slots) {
+    takeSeat(member, deck, slots);
+    if (!member.payReview(CERTIFY.speakFee)) return AWAY.walk;
+    const run = planSpeech(member.id, deck, CERTIFY.sitSeconds, ctx.day);
+    applySpeech(member.id, deck, run.done, run.seconds, ctx.day);
+    const sit = run.seconds / 60;
+    memoOf(member).studyAt = ctx.minutes + sit + COOLDOWN;
+    return AWAY.walk + sit;
+  }
+
   function prepDeck(member, ctx, slots) {
     if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
     const deck = member.prepDeckWanted(ctx);
@@ -492,6 +509,8 @@ export function createAwaySim({ town, contextAt }) {
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
     if (reviewing) options.push({ kind: 'study', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
+    const speaking = speakDeck(member, ctx, slots);
+    if (speaking) options.push({ kind: 'study', as: 'study', rate: member.speakGain(need, SIT, speaking, ctx.day) / (AWAY.walk + SIT), run: () => speak(member, ctx, speaking, slots) });
     const prepping = prepDeck(member, ctx, slots);
     if (prepping) options.push({ kind: 'study', as: 'study', rate: member.prepGain(need, SIT, prepping, ctx.day) / (AWAY.walk + SIT), run: () => prep(member, ctx, prepping, slots) });
     const floor = ctx.night ? 0 : MIND.leisureValue;

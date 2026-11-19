@@ -1010,6 +1010,7 @@ function sendQualifyMail(deck, reason) {
 const study = createStudy({
   purse,
   music: studyMusic,
+  sounds: uiSounds,
   exams,
   arenaClash: (span) => arena.clash(PLAYER, gameNow(), span),
   onPaid() {

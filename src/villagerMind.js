@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, SPEAK, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
@@ -89,6 +89,12 @@ export class MindBehavior {
     const fresh = this.studiedToday() ? 0 : MIND.reviewValue * sit;
     const weak = certify.reviewQuestions(this.id, deck).length * MIND.weakValue;
     return (fresh + weak) * this.diligence - CERTIFY.reviewFee * need;
+  }
+
+  speakGain(need, sit, deck, day) {
+    const weak = Math.min(certify.reviewQuestions(this.id, deck).length, SPEAK.dialogs) * MIND.weakValue;
+    const dull = 1 - fluency.average(this.id, certify.certified(this.id, deck), day);
+    return (weak + MIND.speakValue * sit * dull) * this.diligence - CERTIFY.speakFee * need;
   }
 
   prepDeckWanted(ctx = this.town.context) {
@@ -199,7 +205,18 @@ export class MindBehavior {
     const sit = CERTIFY.sitSeconds / 60;
     const minutes = this.walkMinutes(seat.spot) + sit;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (this.reviewGain(need, sit, deck) / minutes) * crowd, go: () => this.goReview(deck) };
+    return { kind: 'study', minutes, rate: (this.reviewGain(need, sit, deck) / minutes) * crowd, go: () => this.goPlainReview(deck) };
+  }
+
+  speakOption(ctx, need) {
+    if (!this.seated || this.now < this.studyRestAt) return null;
+    const deck = this.speakDeckWanted(ctx);
+    const seat = deck && this.studySeatFor(deck, CERTIFY.speakFee);
+    if (!seat) return null;
+    const sit = CERTIFY.sitSeconds / 60;
+    const minutes = this.walkMinutes(seat.spot) + sit;
+    const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
+    return { kind: 'study', minutes, rate: (this.speakGain(need, sit, deck, ctx.day) / minutes) * crowd, go: () => this.goSpeak(deck) };
   }
 
   prepOption(ctx, need) {
@@ -215,7 +232,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.speakOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

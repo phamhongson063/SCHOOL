@@ -1,18 +1,22 @@
 import { DECKS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
 import { japanese } from './ruby.js';
-import { CERTIFY } from './config.js';
+import { CERTIFY, SPEAK } from './config.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
 import { NPC } from './npcIds.js';
+import { dayOf, gameNow } from './clock.js';
+import { rewardSpeech, scoreSpeech, soundOf, speechKeys, speechLines, speechReading, speechSegments } from './speaking.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
-const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee } };
+const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee } };
+const Recognition = globalThis.SpeechRecognition ?? globalThis.webkitSpeechRecognition ?? null;
+const SPEAK_PAUSE = 900;
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -37,7 +41,7 @@ function el(tag, className, text) {
   return node;
 }
 
-export function createStudy({ purse, music = null, exams, onQualified = null, onSitOver = null, onPaid = null, arenaClash = () => null }) {
+export function createStudy({ purse, music = null, sounds = null, exams, onQualified = null, onSitOver = null, onPaid = null, arenaClash = () => null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -48,6 +52,11 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   const notice = document.getElementById('studyNotice');
   const learnPick = start.querySelector('[data-mode="learn"]');
   const reviewPick = start.querySelector('[data-mode="review"]');
+  const speakPick = start.querySelector('[data-mode="speak"]');
+  const speakInfo = document.getElementById('studySpeakInfo');
+  const speakArea = document.getElementById('studySpeak');
+  const heardText = document.getElementById('studyHeard');
+  const mic = document.getElementById('studyMic');
   for (const pick of [learnPick, reviewPick]) paintIcon(pick.querySelector('span'), { art: 'scroll' });
   const body = document.getElementById('studyBody');
   const modeChip = document.getElementById('studyMode');
@@ -81,6 +90,12 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   let weakDrilled = false;
   let sitSeconds = 0;
   let sitWords = 0;
+  let speakRun = 0;
+  let speakLines = [];
+  let speakLine = 0;
+  let speakMarks = [];
+  let micState = 'idle';
+  let listening = null;
 
   showFurigana(loadFurigana());
   showTranslation(false);
@@ -120,6 +135,9 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     reviewInfo.textContent = `🎓 ${certified}`;
     learnPick.disabled = learning.length === 0 || examTaken;
     reviewPick.disabled = certified === 0;
+    speakPick.hidden = !canSpeak();
+    speakInfo.textContent = `🎓 ${certified}`;
+    speakPick.disabled = certified === 0;
   }
 
   function pay(name) {
@@ -143,6 +161,7 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   }
 
   function stopMode() {
+    stopSpeak();
     mode = null;
     current = null;
     timer.hidden = true;
@@ -358,6 +377,233 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
     nextLearn();
   }
 
+  const canSpeak = () => Boolean(Recognition && deck.speak);
+
+  function later(run, ms) {
+    const token = speakRun;
+    setTimeout(() => {
+      if (token === speakRun && mode === 'speak') run();
+    }, ms);
+  }
+
+  function setMic(state, count = 0) {
+    micState = state;
+    mic.disabled = state === 'partner' || state === 'wait';
+    mic.classList.toggle('listening', state === 'listening');
+    mic.textContent = state === 'wait' ? String(count) : '🎤';
+  }
+
+  function stopSpeak() {
+    speakRun += 1;
+    const recognition = listening;
+    listening = null;
+    recognition?.abort();
+    globalThis.speechSynthesis?.cancel();
+    speakArea.hidden = true;
+    micState = 'idle';
+  }
+
+  function say(text, done = null) {
+    const token = speakRun;
+    const reading = speechReading(text);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(guard);
+      if (token === speakRun && mode === 'speak') done?.();
+    };
+    const guard = setTimeout(finish, (2 + soundOf(reading).length * 0.3) * 1000);
+    const synth = globalThis.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(reading);
+    utterance.lang = 'ja-JP';
+    const voice = synth.getVoices().find((item) => item.lang.replace('_', '-').startsWith('ja'));
+    if (voice) utterance.voice = voice;
+    utterance.onend = finish;
+    utterance.onerror = finish;
+    synth.speak(utterance);
+  }
+
+  function segmentNode(segment, missed) {
+    let node = document.createTextNode(segment.text);
+    if (segment.reading) {
+      const ruby = document.createElement('ruby');
+      const rt = document.createElement('rt');
+      rt.textContent = segment.reading;
+      ruby.append(node, rt);
+      node = ruby;
+    }
+    if (missed !== undefined && segment.sounds.length) {
+      const span = el('span', missed ? 'speak-miss' : 'speak-ok');
+      span.append(node);
+      node = span;
+    }
+    if (segment.mark) {
+      const mark = document.createElement('mark');
+      mark.append(node);
+      node = mark;
+    }
+    return node;
+  }
+
+  function renderSpeech() {
+    const ja = el('p', 'study-example-ja');
+    ja.lang = 'ja';
+    const vi = el('p', 'study-example-vi');
+    const situation = unitOf(current).examples[0].title;
+    if (situation) ja.append(el('span', 'study-situation', situation));
+    speakLines.forEach((item, i) => {
+      const row = el('span', 'study-line speak-line');
+      row.classList.toggle('mine', item.mine);
+      row.classList.toggle('now', i === speakLine);
+      row.dataset.line = String(i);
+      const words = el('span', 'study-words');
+      const misses = speakMarks[i];
+      words.append(...speechSegments(item.text).map((segment, at) => segmentNode(segment, misses ? misses.has(at) : undefined)));
+      row.append(el('b', 'study-speaker', item.speaker), words);
+      ja.append(row);
+    });
+    vi.append(...speakLines.filter((item) => item.vi).map((item) => el('span', 'study-line', `${item.speaker}: ${item.vi}`)));
+    example.replaceChildren(ja, vi);
+  }
+
+  function playLine() {
+    renderSpeech();
+    if (speakLine >= speakLines.length) {
+      finishDialog();
+      return;
+    }
+    const item = speakLines[speakLine];
+    if (item.mine) {
+      setMic('ready');
+      return;
+    }
+    setMic('partner');
+    say(item.text, () => {
+      speakLine += 1;
+      playLine();
+    });
+  }
+
+  function openDialog() {
+    fill(order[pos]);
+    modeChip.textContent = `${pos + 1}/${order.length}`;
+    speakLines = speechLines(current, pos);
+    speakLine = 0;
+    speakMarks = speakLines.map(() => null);
+    heardText.replaceChildren();
+    playLine();
+  }
+
+  function finishDialog() {
+    rewardSpeech(PLAYER, deckId, current, dayOf(gameNow()));
+    pos += 1;
+    if (pos >= order.length) {
+      endSit();
+      return;
+    }
+    later(openDialog, SPEAK_PAUSE);
+  }
+
+  function cooldown(left) {
+    if (left <= 0) {
+      setMic('ready');
+      return;
+    }
+    setMic('wait', left);
+    later(() => cooldown(left - 1), 1000);
+  }
+
+  function judge(heards) {
+    const result = scoreSpeech(speakLines[speakLine].text, heards);
+    speakMarks[speakLine] = result.misses;
+    heardText.replaceChildren(el('b', 'study-score', `${Math.round(result.score * 100)}%`), document.createTextNode(result.heard));
+    renderSpeech();
+    if (!result.passed) {
+      sounds?.wrong();
+      cooldown(SPEAK.retry);
+      return;
+    }
+    sounds?.correct();
+    setMic('partner');
+    speakLine += 1;
+    later(playLine, SPEAK_PAUSE);
+  }
+
+  function listen() {
+    if (mode !== 'speak') return;
+    if (micState === 'listening') {
+      listening?.stop();
+      return;
+    }
+    if (micState !== 'ready') return;
+    globalThis.speechSynthesis?.cancel();
+    const token = speakRun;
+    const recognition = new Recognition();
+    recognition.lang = 'ja-JP';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 5;
+    recognition.continuous = false;
+    let heards = null;
+    let failure = null;
+    recognition.onresult = (event) => {
+      const results = [...event.results];
+      const last = results.at(-1);
+      const before = results
+        .slice(0, -1)
+        .map((result) => result[0].transcript)
+        .join('');
+      heardText.textContent = before + last[0].transcript;
+      if (results.every((result) => result.isFinal)) heards = [...last].map((alternative) => before + alternative.transcript);
+    };
+    recognition.onerror = (event) => {
+      failure = event.error;
+    };
+    recognition.onend = () => {
+      if (listening !== recognition) return;
+      listening = null;
+      if (token !== speakRun || mode !== 'speak') return;
+      if (heards) {
+        judge(heards);
+        return;
+      }
+      if (failure === 'not-allowed' || failure === 'service-not-allowed') heardText.textContent = '🎤✗';
+      setMic('ready');
+    };
+    listening = recognition;
+    heardText.replaceChildren();
+    setMic('listening');
+    try {
+      recognition.start();
+    } catch {
+      listening = null;
+      setMic('ready');
+    }
+  }
+
+  function beginSpeak() {
+    if (exams.running || !canSpeak()) return;
+    const keys = speechKeys(PLAYER, deckId);
+    if (!keys.length || !pay('speak')) return;
+    mode = 'speak';
+    timer.hidden = true;
+    music?.stop();
+    showTranslation(false);
+    setStudying(true);
+    showChip('speak');
+    nav.hidden = true;
+    start.hidden = true;
+    body.hidden = false;
+    body.classList.remove('covered');
+    remembered.hidden = true;
+    speakArea.hidden = false;
+    order = keys;
+    pos = 0;
+    openDialog();
+  }
+
   function internalRefusal(id) {
     const unit = DECKS[id].unit;
     if (certify.finished(PLAYER, id)) return 'Con học hết bộ này rồi, giỏi lắm!';
@@ -462,6 +708,13 @@ export function createStudy({ purse, music = null, exams, onQualified = null, on
   useDeck('n2');
   learnPick.addEventListener('click', beginLearn);
   reviewPick.addEventListener('click', beginReview);
+  speakPick.addEventListener('click', beginSpeak);
+  mic.addEventListener('click', listen);
+  example.addEventListener('click', (event) => {
+    if (mode !== 'speak' || micState === 'listening' || micState === 'partner') return;
+    const row = event.target.closest('.speak-line');
+    if (row) say(speakLines[Number(row.dataset.line)].text);
+  });
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {
     if (body.classList.contains('covered')) {
