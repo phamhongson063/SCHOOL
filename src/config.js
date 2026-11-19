@@ -401,10 +401,23 @@ export const HERALD = { lead: 15, every: 3 };
 export const TOWNHALL = {
   reserveDays: 5,
   spend: 0.45,
-  blessingShare: 0.4,
-  arenaShare: 0.3,
+  blessingShare: 0.35,
+  arenaShare: 0.25,
   history: 14,
-  lanternShare: 0.3,
+  lanternShare: 0.25,
+  questShare: 0.15,
+};
+
+export const QUEST = {
+  pull: 0.5,
+  day: { count: 3 },
+  week: { count: 3, weight: 4 },
+  kinds: {
+    study: { icon: '📖', name: 'Buổi học', day: [2, 3], week: [10, 15] },
+    farm: { icon: '🌾', name: 'Việc đồng áng', day: [6, 10], week: [35, 50] },
+    fish: { icon: '🎣', name: 'Câu được cá', day: [2, 4], week: [10, 16] },
+    hunt: { icon: '🏹', name: 'Săn được thú', day: [1, 2], week: [5, 8] },
+  },
 };
 
 export const LANTERN = {

@@ -34,6 +34,7 @@ const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const LANTERN_LOT = { picks: ['north:5', 'north:6'], width: 12, depth: 10, seed: 2717 };
 const LANTERN_KEEPER_LOOK = { shirt: 0x8a2a1c, pants: 0x2a2420, skin: 0xe8b890, style: 'bun', hairColor: 0xd8d4cc, iris: 0x3a2214 };
 const LANTERN_KEEPER = { model: 'granny-navy', reach: 1.4, spots: [-0.9, 0, 0.9] };
+const HALL_SPOTS = [-2.5, -1.5, 1.5, 2.5];
 const SETBACKS = { 'south:2': 3 };
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
@@ -258,7 +259,7 @@ export function createDistrict() {
   mayor.walker.group.position.set(mayorAt.x, hallBuilt.mayor.y, mayorAt.z);
   mayor.walker.group.rotation.y = hallSpot.turn + hallBuilt.mayor.facing;
   clickables.push(mayor.walker.group);
-  const hall = { group: hallBuilt.group, mayor, look: mayorAt, stand: hallAt(hallBuilt.door) };
+  const hall = { group: hallBuilt.group, mayor, look: mayorAt, stand: hallAt(hallBuilt.door), spots: HALL_SPOTS.map((x) => hallAt({ x: hallBuilt.door.x + x, z: hallBuilt.door.z })) };
   const hallLife = createHallLife({ plaza, hallFront: hallSpot.front, built: hallBuilt, toWorld: hallAt, turn: hallSpot.turn });
   let arena = null;
   for (const block of blocks) {
@@ -368,6 +369,7 @@ export function createDistrict() {
     arenaStand: arena ? arena.stand : null,
     hallStand: hall.stand,
     hallLook: hall.look,
+    hallDesk: { at: hall.look, spots: hall.spots },
     arenaDesk: arena ? { at: arena.at, out: arena.out, spots: arena.spots, say: (text, duration = 1.8) => arena.registrar.bubble.show(text, duration, now) } : null,
     lanternStand: festival ? festival.stand : null,
     lanternDesk: festival ? { at: festival.at, out: festival.out, spots: festival.spots, say: (text, duration = 1.8) => festival.keeper.bubble.show(text, duration, now) } : null,

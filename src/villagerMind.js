@@ -9,6 +9,7 @@ import { averageYield } from './market.js';
 import { trade } from './trade.js';
 import { SELF_STUDY } from './villagerData.js';
 import { traits } from './traits.js';
+import { quests } from './quests.js';
 import { fluency } from './fluency.js';
 import { LAMP_SAVING } from './fireflyRules.js';
 import { affordableJobs, tripMinutes } from './farmTrip.js';
@@ -238,7 +239,7 @@ export class MindBehavior {
     for (const option of options) {
       if (!option || !(option.rate > 0)) continue;
       const stick = option.kind === this.lastPlan && this.now - this.lastPlanAt < MIND.stickSeconds ? MIND.stick : 1;
-      option.score = option.rate * this.tasteFor(option.kind) * stick * between(...MIND.noise);
+      option.score = option.rate * this.tasteFor(option.kind) * quests.pull(this.id, option.kind, ctx.day) * stick * between(...MIND.noise);
       if (option.score > floor && (!best || option.score > best.score)) best = option;
     }
     return best;

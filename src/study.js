@@ -164,7 +164,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   function endSit() {
     if (!seated) return;
     seated = false;
-    onSitOver?.();
+    onSitOver?.(paid.size > 0);
   }
 
   function stopMode() {

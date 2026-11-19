@@ -118,6 +118,7 @@ import { BOARD_SIZE, PALETTES, bracketKey, createBracketDialog, drawBracket } fr
 import { arenaLines, arenaMenu, createArenaDesk } from './arenaDesk.js';
 import { NPC } from './npcIds.js';
 import { stashPopups } from './popupStash.js';
+import { quests } from './quests.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
 const IDLE_FRAME_RATE = 10;
@@ -282,7 +283,26 @@ const foodUI = createFoodUI({ purse });
 const bank = createBank({ ledger, estate, now: gameNow });
 const bankUI = createBankUI({ bank, purse });
 const atmUI = createAtmUI({ bank, purse });
-const hallUI = createHallUI({ economy, now: gameNow });
+const hallUI = createHallUI({
+  economy,
+  now: gameNow,
+  quests: {
+    list: () => quests.view(PLAYER, dayOf(gameNow())),
+    act: (quest) => playerQuestDesk(quest),
+  },
+});
+function playerQuestDesk(quest) {
+  const day = dayOf(gameNow());
+  if (quest.status === 'open') {
+    if (quests.accept(PLAYER, quest.scope, quest.index, day)) uiSounds.pop();
+    return;
+  }
+  if (quest.status !== 'ready') return;
+  const paid = quests.turnIn(PLAYER, quest.scope, quest.index, day, (scope) => economy.payQuest(purse, scope));
+  if (paid === null) return;
+  uiSounds.correct();
+  if (paid > 0) regen.coin(paid, player.position);
+}
 const VENUES = {
   shop: { isOpen: shopOpen, ui: shopUI },
   fish: { isOpen: fishShopOpen, ui: fishShopUI },
@@ -610,6 +630,7 @@ function perform(task, cost) {
     const farmed = task.region.farmland && task.region.didChange?.();
     if (farmed) {
       playerWorked('farm', cost);
+      playerQuest('farm');
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
@@ -839,6 +860,7 @@ const lanterns = createLanterns({
 });
 town.lanterns = lanterns;
 town.lanternDesk = district.lanternDesk;
+town.hallDesk = district.hallDesk;
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
 await economy.start({
   ledger,
@@ -910,6 +932,10 @@ function playerWorked(kind, effort) {
   traits.train(PLAYER, kind, effort, context.day);
 }
 
+function playerQuest(kind) {
+  quests.note(PLAYER, kind, context.day);
+}
+
 function settlePlayerTraits() {
   traits.settle(PLAYER, context.day, { tired: purse.energy < ENERGY.low, debt: bank.debt(PLAYER) > 0 });
 }
@@ -966,6 +992,7 @@ const fishing = createPlayerFishing({
   now: () => clock.elapsedTime,
   minutes: () => context.minutes,
   train: playerWorked,
+  onCatch: () => playerQuest('fish'),
 });
 const mountain = createMountain({
   nav: () => player.nav,
@@ -976,6 +1003,7 @@ const mountain = createMountain({
   say: (text, seconds) => sayPlayer(text, seconds),
   day: () => context.day,
   train: playerWorked,
+  onCatch: () => playerQuest('hunt'),
   onBoarHit(dx, dz) {
     stopWork();
     leaveLine();
@@ -1030,7 +1058,8 @@ const study = createStudy({
   onQualified(deck) {
     sendQualifyMail(deck, `Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay.`);
   },
-  onSitOver() {
+  onSitOver(studied) {
+    if (studied) playerQuest('study');
     const seat = player.seat;
     if (!seat?.study) return;
     playerSeats.rest(seat, 'player', clock.elapsedTime + CERTIFY.seatRest);

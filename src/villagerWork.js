@@ -7,6 +7,8 @@ import { FIELD_TREES } from './farm.js';
 import { iconTag } from './itemArt.js';
 import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from './villagerData.js';
 import { traits } from './traits.js';
+import { quests } from './quests.js';
+import { dayOf } from './clock.js';
 
 const SIGN_SECONDS = 2.4;
 const SWAT_POLL = 0.25;
@@ -81,6 +83,7 @@ export class WorkBehavior {
     if (Math.random() < traits.skill(this.id, 'hunt')) {
       const item = wildlife.capture(prey);
       this.purse.add(item, 1);
+      quests.note(this.id, 'hunt', ctx.day);
       this.luckyIntellect();
       if (Math.random() < 0.7) this.say(`${pick(BAGGED)} ${iconTag(ITEMS[item])}`, 1.8);
     } else {
@@ -224,6 +227,7 @@ export class WorkBehavior {
     if (!(Math.random() < traits.skill(this.id, 'fish') && this.town.river.take(spot))) return null;
     const fish = this.town.river.rollFish(minutes);
     this.purse.add(fishId(fish), 1);
+    quests.note(this.id, 'fish', dayOf(minutes));
     this.luckyIntellect();
     return fish;
   }
@@ -345,6 +349,7 @@ export class WorkBehavior {
   tend(job) {
     traits.train(this.id, 'farm', ENERGY.costs[job.action] ?? 0, this.town.context?.day);
     const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
+    if (this.town.farm.changed()) quests.note(this.id, 'farm', this.town.context?.day);
     if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) this.luckyIntellect();
     return reply;
   }

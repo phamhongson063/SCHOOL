@@ -217,6 +217,7 @@ export class Villager {
     if (money) return this.goMoney(money);
     if (this.wantsArena()) return this.goArena();
     if (this.wantsLanternSignup(ctx)) return this.goLanternDesk();
+    if (this.wantsQuests(ctx)) return this.goQuests();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();

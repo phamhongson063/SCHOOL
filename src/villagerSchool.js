@@ -8,6 +8,7 @@ import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
 import { traits } from './traits.js';
+import { quests } from './quests.js';
 import { NPC } from './npcIds.js';
 import { SPEAK_DECKS, applySpeech, planSpeech } from './speaking.js';
 
@@ -459,6 +460,7 @@ export class SchoolBehavior {
     const ctx = this.town.context;
     if (this.reviewing) {
       if (t < this.studyUntil && !this.needsSleep(ctx)) return;
+      if (t >= this.studyUntil) quests.note(this.id, 'study', ctx.day);
       this.reviewing = false;
       if (this.speaking) applySpeech(this.id, this.seatRef.deck, this.speechRun?.done ?? [], t - this.studyMark, ctx.day);
       else if (this.prepping) this.drillCertified(this.seatRef.deck, t - this.studyMark);
@@ -478,7 +480,10 @@ export class SchoolBehavior {
     const sitOver = t >= this.studyUntil || this.sitWords >= CERTIFY.sitWords;
     if (!sitOver && !this.needsSleep(ctx) && !done) return;
     const deck = this.seatRef?.deck;
-    if (sitOver) this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
+    if (sitOver) {
+      this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
+      quests.note(this.id, 'study', ctx.day);
+    }
     if (done && !ctx.night && deck && this.wantsInternal(deck)) {
       this.studyRestAt = t + SELF_STUDY.cooldown;
       this.rise(() => this.goInternal(deck), between(0.3, 1.5));

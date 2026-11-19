@@ -1,4 +1,4 @@
-import { ARENA, AWAY, BLESSING, ECONOMY, ENERGY_PRICE, STIPEND, VILLAGER } from './config.js';
+import { ARENA, AWAY, BLESSING, ECONOMY, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -12,6 +12,7 @@ import { certify } from './certify.js';
 import { traits } from './traits.js';
 import { fate } from './fate.js';
 import { census } from './census.js';
+import { weekOf } from './quests.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -29,6 +30,16 @@ export const SHOPKEEPERS = [
   { id: NPC.chief, name: 'Youngsoo', role: 'chief' },
   { id: NPC.mayor, name: 'Haruto', role: 'mayor' },
 ];
+
+const QUEST_POOL = { day: { pool: 'dayPool', reward: 'dayReward' }, week: { pool: 'weekPool', reward: 'weekReward' } };
+
+function cleanQuest(raw) {
+  const quest = { day: null, week: null, dayPool: 0, dayReward: 0, weekPool: 0, weekReward: 0 };
+  if (!raw || typeof raw !== 'object') return quest;
+  for (const key of ['day', 'week']) if (Number.isInteger(raw[key])) quest[key] = raw[key];
+  for (const key of ['dayPool', 'dayReward', 'weekPool', 'weekReward']) if (Number.isFinite(raw[key]) && raw[key] > 0) quest[key] = raw[key];
+  return quest;
+}
 
 function load() {
   try {
@@ -49,10 +60,11 @@ function load() {
         blessingCarry: saved.blessingCarry && typeof saved.blessingCarry === 'object' ? saved.blessingCarry : {},
         tuition: Number.isFinite(saved.tuition) ? saved.tuition : 0,
         lanternPaid: Number.isFinite(saved.lanternPaid?.day) && Number.isFinite(saved.lanternPaid?.paid) ? saved.lanternPaid : { day: null, paid: 0 },
+        quest: cleanQuest(saved.quest),
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, lanternPaid: { day: null, paid: 0 } };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, lanternPaid: { day: null, paid: 0 }, quest: cleanQuest(null) };
 }
 
 let ctx = null;
@@ -212,11 +224,42 @@ const draftPlan = () =>
     starts: ARENA.starts.length,
   });
 
+function refundQuest(key) {
+  const left = Math.floor(state.quest[key]);
+  state.quest[key] = 0;
+  if (left > 0) ctx.ledger.purse(FUND).earn(left);
+}
+
+function closeQuests(day) {
+  refundQuest('dayPool');
+  if (state.quest.week !== weekOf(day)) refundQuest('weekPool');
+}
+
+function openQuests(day, budget) {
+  const quest = state.quest;
+  const takers = villagers().length + 1;
+  const weekSlots = (QUEST.week.count * QUEST.week.weight) / 7;
+  const amount = takeFund(budget);
+  const weekPart = Math.floor((amount * weekSlots) / (QUEST.day.count + weekSlots));
+  const dayPart = amount - weekPart;
+  const week = weekOf(day);
+  if (quest.week !== week) {
+    quest.week = week;
+    quest.weekReward = Math.floor((weekPart * 7) / (takers * QUEST.week.count));
+  }
+  quest.weekPool += weekPart;
+  quest.day = day;
+  quest.dayPool = dayPart;
+  quest.dayReward = Math.floor(dayPart / (takers * QUEST.day.count));
+}
+
 function planFor(day) {
   closeBlessingPool();
+  closeQuests(day);
   const plan = draftPlan();
   const blessingPool = openBlessingPool(plan.blessingPool);
-  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, reserve: plan.reserve, blessingPool };
+  openQuests(day, plan.questBudget);
+  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, reserve: plan.reserve, blessingPool };
   for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
   pruneBook(state.book, day);
 }
@@ -315,6 +358,12 @@ function settleThrough(t) {
   state.day = now;
   if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
   if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan().lanternBudget;
+  if (state.quest.day !== now) {
+    closeQuests(now);
+    const budget = draftPlan().questBudget;
+    state.plans[now].questBudget = budget;
+    openQuests(now, budget);
+  }
 }
 
 function mergeArenaPool() {
@@ -499,6 +548,24 @@ export const economy = {
     payEarner(NPC.cook, cost);
     store.save();
     return funded;
+  },
+  questBudget(day = today()) {
+    return planOf(day)?.questBudget ?? 0;
+  },
+  questReward(scope) {
+    const keys = QUEST_POOL[scope];
+    if (!ctx || !keys) return 0;
+    return Math.max(0, Math.floor(Math.min(state.quest[keys.reward], state.quest[keys.pool])));
+  },
+  payQuest(purse, scope) {
+    const paid = economy.questReward(scope);
+    if (!(paid > 0)) return 0;
+    state.quest[QUEST_POOL[scope].pool] -= paid;
+    record(state.book, today(), 'out', 'quest', paid);
+    purse.earn(paid);
+    trackEarn(purse.id, paid);
+    store.save();
+    return paid;
   },
   payOut(value, purse, kind = 'buyback') {
     if (!ctx || !(value > 0) || ctx.ledger.purse(FUND).money < value) return false;

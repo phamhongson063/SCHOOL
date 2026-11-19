@@ -825,6 +825,7 @@ export function createFarm({ ledger, nameOf, nav }) {
   const crew = {
     nav,
     grow: () => tick(),
+    changed: () => !!state.changed,
     quietly(run) {
       if (quiet) return run();
       quiet = true;

@@ -2,6 +2,7 @@ import { between } from './random.js';
 import { VILLAGER, BANK, ATM } from './config.js';
 import { BLOCKED, NAGS, pick } from './villagerData.js';
 import { economy } from './economy.js';
+import { quests } from './quests.js';
 
 export class ErrandBehavior {
   wantsArena() {
@@ -22,6 +23,32 @@ export class ErrandBehavior {
         this.wait(between(1.5, 2.5), () => this.think());
       },
       fail: () => this.think(),
+    });
+  }
+
+  wantsQuests(ctx) {
+    return !!this.town.hallDesk && !this.needsSleep(ctx) && this.questMissDay !== ctx.day && quests.wantsVisit(this.id, ctx.day);
+  }
+
+  serveQuests(day) {
+    return quests.visit(this.id, day, (scope) => economy.payQuest(this.purse, scope));
+  }
+
+  goQuests() {
+    const desk = this.town.hallDesk;
+    this.task = 'quests';
+    this.lookAt = null;
+    this.travel(pick(desk.spots), {
+      then: () => {
+        this.lookAt = desk.at;
+        const { taken, done } = this.serveQuests(this.town.context.day);
+        if (taken > 0 || done > 0) this.say('📋', 1.6);
+        this.wait(between(1.5, 2.5), () => this.think());
+      },
+      fail: () => {
+        this.questMissDay = this.town.context.day;
+        this.think();
+      },
     });
   }
 

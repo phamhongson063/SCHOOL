@@ -8,6 +8,10 @@ import { blessingSlots } from './economy.js';
 import { EXPENSE_KINDS, INCOME_KINDS, sideTotal } from './townhall.js';
 
 const WEEK = 7;
+const QUEST_RIBBONS = [
+  ['day', 'Hôm nay'],
+  ['week', 'Tuần này'],
+];
 const REFRESH_MS = 3000;
 const INCOME_NAMES = {
   vat: ['🧾', 'Thuế buôn bán'],
@@ -28,6 +32,7 @@ const EXPENSE_NAMES = {
   blessing: ['✨', 'Lễ chúc phúc'],
   lantern: ['🏮', 'Hội đèn trời'],
   arena: ['🏆', 'Giải lôi đài'],
+  quest: ['📋', 'Thưởng nhiệm vụ'],
   buyback: ['🏚️', 'Mua lại nhà'],
   capital: ['🏪', 'Cấp vốn tiệm'],
 };
@@ -55,12 +60,13 @@ export function hallMenu(economy) {
   return [
     { id: 'today', name: 'Thu chi hôm nay', icon: '📜', art: 'scroll' },
     { id: 'week', name: `Thu chi ${WEEK} ngày`, icon: '📊', art: 'scroll' },
+    { id: 'quests', name: 'Nhiệm vụ', icon: '📋', art: 'scroll' },
     { id: 'plan', name: 'Lịch hôm nay', icon: '🗓️', art: 'scroll' },
     { id: 'fund', name: `Ngân khố ${coins(economy.treasury)}`, icon: '🏛️', info: true },
   ];
 }
 
-export function createHallUI({ economy, now }) {
+export function createHallUI({ economy, now, quests }) {
   const dialog = document.getElementById('hallDialog');
   const list = document.getElementById('hallList');
   const money = document.getElementById('hallMoney');
@@ -96,16 +102,43 @@ export function createHallUI({ economy, now }) {
       times,
       el('h3', 'bank-ribbon', 'Lôi đài'),
       row('🏆', `Giải mỗi trận · ${ARENA.starts.length} trận`, economy.arenaPrize()),
+      el('h3', 'bank-ribbon', 'Nhiệm vụ'),
+      row('📋', 'Quỹ thưởng', economy.questBudget(day)),
       el('h3', 'bank-ribbon', 'Ngân khố'),
       row('🏛️', 'Dự trữ', economy.reserve(day)),
     ];
+  }
+
+  function questButton(quest, label, primary) {
+    const button = el('button', primary ? 'bank-btn primary' : 'bank-btn', label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      quests.act(quest);
+      render();
+    });
+    return button;
+  }
+
+  function questRow(quest) {
+    const item = el('div', `hall-row quest-row ${quest.status}`);
+    const money = el('span', 'hall-money');
+    if (quest.status !== 'done') setRich(money, coins(economy.questReward(quest.scope)));
+    const end =
+      quest.status === 'open' ? questButton(quest, 'Nhận', false) : quest.status === 'ready' ? questButton(quest, 'Trả', true) : el('span', 'quest-mark', quest.status === 'done' ? '✓' : '');
+    item.append(el('span', 'hall-icon', quest.icon), el('span', 'hall-label', `${quest.name} ${quest.count}/${quest.goal}`), money, end);
+    return item;
+  }
+
+  function questRows() {
+    const list = quests.list();
+    return QUEST_RIBBONS.flatMap(([scope, title]) => [el('h3', 'bank-ribbon', title), ...list.filter((quest) => quest.scope === scope).map(questRow)]);
   }
 
   function render() {
     setRich(money, coins(economy.treasury));
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
     const day = dayOf(now());
-    const rows = tab === 'plan' ? planRows(day) : tab === 'week' ? ledgerRows(day - WEEK + 1, day) : ledgerRows(day, day);
+    const rows = tab === 'quests' ? questRows() : tab === 'plan' ? planRows(day) : tab === 'week' ? ledgerRows(day - WEEK + 1, day) : ledgerRows(day, day);
     const scroll = list.scrollTop;
     list.replaceChildren(...rows);
     list.scrollTop = scroll;
@@ -128,7 +161,7 @@ export function createHallUI({ economy, now }) {
       return dialog.open;
     },
     open(choice) {
-      if (choice === 'today' || choice === 'week' || choice === 'plan') tab = choice;
+      if (choice === 'today' || choice === 'week' || choice === 'plan' || choice === 'quests') tab = choice;
       list.scrollTop = 0;
       render();
       dialog.showModal();

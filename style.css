@@ -5881,6 +5881,29 @@ dialog.profile::backdrop {
   margin-left: auto;
 }
 
+#hallDialog .bank-tabs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.quest-row {
+  grid-template-columns: 30px minmax(0, 1fr) auto 72px;
+}
+
+.quest-row .bank-btn {
+  min-width: 0;
+  width: 100%;
+}
+
+.quest-row.done {
+  opacity: 0.6;
+}
+
+.quest-mark {
+  justify-self: center;
+  color: #2e6e46;
+  font-weight: 800;
+}
+
 .hall-list {
   gap: 6px;
 }

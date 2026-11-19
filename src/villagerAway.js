@@ -11,6 +11,7 @@ import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
+import { quests } from './quests.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
@@ -320,6 +321,14 @@ export function createAwaySim({ town, contextAt }) {
     return at - clock;
   }
 
+  function questDesk(member, ctx) {
+    if (!member.wantsQuests(ctx)) return;
+    const memo = memoOf(member);
+    const leave = Math.max(ctx.minutes, memo.busyUntil);
+    occupy(memo, leave, leave + AWAY.walk, 'walk');
+    member.serveQuests(ctx.day);
+  }
+
   function banking(member, ctx) {
     const since = member.bankAt === null ? Infinity : ctx.minutes - member.bankAt;
     if (!bank || since < BANK.npc.urgentGap) return;
@@ -340,6 +349,7 @@ export function createAwaySim({ town, contextAt }) {
     exams(member, ctx, end);
     signUp(member, ctx);
     signLanterns(member, ctx);
+    questDesk(member, ctx);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);
@@ -384,6 +394,7 @@ export function createAwaySim({ town, contextAt }) {
     slots.hunters.add(member);
     if (member.payHunt() && Math.random() < traits.skill(member.id, 'hunt')) {
       member.purse.add(gameId(pickPrey()), 1);
+      quests.note(member.id, 'hunt', town.context.day);
       member.luckyIntellect();
     }
     return AWAY.walk + HUNT;
@@ -426,6 +437,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview()) return AWAY.walk;
     member.drillWeak(deck, CERTIFY.sitSeconds);
+    quests.note(member.id, 'study', ctx.day);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -441,6 +453,7 @@ export function createAwaySim({ town, contextAt }) {
     if (!member.payReview(CERTIFY.speakFee)) return AWAY.walk;
     const run = planSpeech(member.id, deck, CERTIFY.sitSeconds, ctx.day);
     applySpeech(member.id, deck, run.done, run.seconds, ctx.day);
+    quests.note(member.id, 'study', ctx.day);
     const sit = run.seconds / 60;
     memoOf(member).studyAt = ctx.minutes + sit + COOLDOWN;
     return AWAY.walk + sit;
@@ -456,6 +469,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview()) return AWAY.walk;
     member.drillCertified(deck, CERTIFY.sitSeconds);
+    quests.note(member.id, 'study', ctx.day);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -467,6 +481,7 @@ export function createAwaySim({ town, contextAt }) {
     for (let at = VIEW; at <= SIT && words < CERTIFY.sitWords && certify.learnLeft(member.id, deck).length; at += VIEW) {
       if (member.learnWord(deck)) words += 1;
     }
+    if (words >= CERTIFY.sitWords || certify.learnLeft(member.id, deck).length) quests.note(member.id, 'study', ctx.day);
     if (Math.random() >= member.diligence) memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -517,7 +532,7 @@ export function createAwaySim({ town, contextAt }) {
     let best = null;
     for (const option of options) {
       if (!(option.rate > 0)) continue;
-      option.score = option.rate * member.tasteFor(option.kind) * between(...MIND.noise);
+      option.score = option.rate * member.tasteFor(option.kind) * quests.pull(member.id, option.kind, ctx.day) * between(...MIND.noise);
       if (option.score > floor && (!best || option.score > best.score)) best = option;
     }
     return best;
@@ -591,7 +606,7 @@ export function createAwaySim({ town, contextAt }) {
       if (!ctx.night) {
         errands(member, ctx, end);
         if (lodged(member, end)) return;
-      }
+      } else questDesk(member, ctx);
       if (member.purse.energy < ENERGY.workMin) return member.purse.tickEnergy(end, energyRate('rest', ctx.night));
     }
     const used = work(member, ctx, minutes, slots);
