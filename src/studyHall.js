@@ -13,7 +13,7 @@ export const STUDY_HALLS = [
   { deck: 'n2', name: 'Từ vựng N2', x: 42, front: 43, turn: 0, sign: ['Từ Vựng N2'], plain: ['N2'] },
   { deck: 'sugu1', name: 'Lớp Sugu 1', x: -163.4, front: 43, turn: 0, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
-  { deck: 'kanjiN3', name: 'Kanji N3', x: 68, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
+  { deck: 'kanjiN3', name: 'Kanji N3', x: -45, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
 ];
 
 const WALL = 0xd9b46a;
