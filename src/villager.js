@@ -19,6 +19,7 @@ import { leaveRoom } from './lodging.js';
 import { layDown, restEase } from './walk.js';
 import { FEELERS, LANE, LOOKAHEAD, QUEUE_DRIFT, STUCK_TIME, TURN_RATE, canMove, clamp, wrap } from './villagerData.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
+import { ROOMY } from './nav.js';
 import { RestBehavior } from './villagerRest.js';
 import { SchoolBehavior } from './villagerSchool.js';
 import { WorkBehavior } from './villagerWork.js';
@@ -273,7 +274,9 @@ export class Villager {
       dx /= len;
       dz /= len;
       const shifted = { x: here.x - dz * this.lane, z: here.z + dx * this.lane };
-      if (nav.bodyClear(shifted.x, shifted.z) && nav.clear(prev, shifted) && nav.clear(shifted, next)) route[i] = shifted;
+      const keep = Math.min(ROOMY, nav.roomAt(here.x, here.z));
+      if (nav.roomAt(shifted.x, shifted.z) < keep - 0.5) continue;
+      if (nav.bodyClear(shifted.x, shifted.z) && nav.clear(prev, shifted, keep) && nav.clear(shifted, next, keep)) route[i] = shifted;
     }
     return route;
   }

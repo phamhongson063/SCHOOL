@@ -54,7 +54,7 @@ export function arenaMinutes(size) {
 
 export const arenaWindow = (event) => ({ from: event.at, to: event.at + arenaMinutes(capacityOf(event)) });
 
-const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
+const blankEvent = (at) => ({ at, size: sizeAt(at), phase: 'open', deck: ARENA.deck, entrants: [], drafted: [], away: [], pot: 0, rounds: [], round: -1, places: [] });
 
 function slotOf(now) {
   const day = dayOf(now);
@@ -362,13 +362,19 @@ export function createArena({ ledger, roster = () => [] }) {
     return state.event;
   }
 
+  function draftOrder(ids) {
+    const money = new Map(ids.map((id) => [id, ledger.purse(id).money]));
+    return shuffle(ids).sort((a, b) => money.get(a) - money.get(b));
+  }
+
   function draft(event) {
     const taken = new Set(event.entrants);
-    const count = new Map(roster().map((id) => [id, certify.certifiedCount(id, event.deck)]));
-    const pool = shuffle(roster().filter((id) => !isHuman(id) && !taken.has(id))).sort((a, b) => count.get(b) - count.get(a));
+    const pool = draftOrder(roster().filter((id) => !isHuman(id) && !taken.has(id)));
+    event.drafted ??= [];
     for (const id of pool) {
       if (event.entrants.length >= capacityOf(event)) break;
       event.entrants.push(id);
+      event.drafted.push(id);
     }
   }
 
@@ -391,13 +397,15 @@ export function createArena({ ledger, roster = () => [] }) {
   function finish(event) {
     const places = placesOf(event);
     const total = places.reduce((sum, place) => sum + place.weight, 0);
+    const drafted = new Set(event.drafted ?? []);
     let paid = 0;
     event.places = places
       .map(({ rank, id, weight }) => {
         const money = total > 0 ? Math.floor((event.pot * weight) / total) : 0;
-        economy.payArena(ledger.purse(id), money);
+        const cut = drafted.has(id) ? Math.round(money * ARENA.draftCut) : 0;
+        economy.payArena(ledger.purse(id), money, cut);
         paid += money;
-        return { rank, id, money };
+        return { rank, id, money: money - cut };
       })
       .sort((a, b) => a.rank - b.rank);
     economy.returnArena(event.pot - paid);
@@ -454,7 +462,7 @@ export function createArena({ ledger, roster = () => [] }) {
     const power = (who) => strength.get(who) ?? certify.certifiedCount(who, event.deck) + 1;
     const rivals = event.entrants.filter((who) => who !== id);
     const taken = new Set([id, ...rivals]);
-    const hopefuls = roster().filter((who) => !taken.has(who)).sort((a, b) => power(b) - power(a));
+    const hopefuls = draftOrder(roster().filter((who) => !taken.has(who) && !isHuman(who)));
     const field = [...rivals, ...hopefuls].slice(0, capacityOf(event) - 1);
     return power(id) / field.reduce((sum, who) => sum + power(who), power(id));
   }

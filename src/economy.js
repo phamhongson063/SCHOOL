@@ -580,12 +580,13 @@ export const economy = {
   sponsorArena(at) {
     return ctx ? takeFund(economy.arenaPrize(at)) : 0;
   },
-  payArena(purse, amount) {
+  payArena(purse, amount, cut = 0) {
     if (!(amount > 0)) return;
-    purse.earn(amount);
+    purse.earn(amount - cut);
     if (!ctx) return;
-    trackEarn(purse.id, amount);
+    trackEarn(purse.id, amount - cut);
     record(state.book, today(), 'out', 'arena', amount);
+    deposit(cut, 'arenaFee');
     store.save();
   },
   returnArena(value) {

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { shapes } from './toon.js';
 import { makeRandom } from './random.js';
+import { RIPE, SPENT } from './bedStatus.js';
 
-export const RIPE = 6;
-export const SPENT = 7;
+export { RIPE, SPENT };
 
 const C = {
   mound: 0x6b4428,

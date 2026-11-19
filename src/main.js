@@ -877,10 +877,11 @@ await economy.start({
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
+const BED_NEED_ICONS = { ripe: '🧺', water: '💧', clear: '🍂', empty: '🫘' };
 function assetsOf(id) {
   const house = estate.houseOf(id);
   const homes = house ? [{ icon: '🏡', title: `Nhà số ${house.id}`, detail: estate.sizeName(house), point: town.places.homes.get(house.id) ?? null }] : [];
-  return [...homes, ...farm.leasesOf(id).map((lease) => ({ icon: '🌾', title: lease.place, left: lease.left, point: lease.point }))];
+  return [...homes, ...farm.leasesOf(id).map((lease) => ({ icon: '🌾', title: lease.place, left: lease.left, point: lease.point, badges: lease.needs.map((need) => BED_NEED_ICONS[need]) }))];
 }
 const traitHolders = new Set([PLAYER, ...town.members.map((member) => member.id)]);
 const profileDialog = createProfile({
@@ -902,6 +903,7 @@ const profileDialog = createProfile({
   onReset: resetGame,
 });
 createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
+document.getElementById('vitals').addEventListener('click', () => profileDialog.open(PLAYER));
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
 
@@ -993,6 +995,7 @@ const fishing = createPlayerFishing({
   minutes: () => context.minutes,
   train: playerWorked,
   onCatch: () => playerQuest('fish'),
+  sounds: uiSounds,
 });
 const mountain = createMountain({
   nav: () => player.nav,

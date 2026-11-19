@@ -191,7 +191,9 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     node.disabled = !item.point;
     const text = el('span', 'profile-asset-text');
     text.append(el('span', 'profile-asset-title', item.title), el('small', 'profile-asset-detail', item.detail));
-    node.append(el('span', 'profile-asset-icon', item.icon), text, el('span', 'profile-asset-go', '➜'));
+    const badges = el('span', 'profile-asset-badges');
+    badges.append(...(item.badges ?? []).map((badge) => el('span', 'profile-asset-badge', badge)));
+    node.append(el('span', 'profile-asset-icon', item.icon), text, badges, el('span', 'profile-asset-go', '➜'));
     node.addEventListener('click', () => onTravel(item.point));
     return node;
   }

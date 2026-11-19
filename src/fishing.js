@@ -7,7 +7,7 @@ const CROWDED = 'Chỗ này đông người rồi, tìm chỗ khác nhé!';
 const NO_BAIT = 'Hết mồi rồi! Ra hàng cá mua mồi giun nhé.';
 const NO_ENERGY = 'Đói quá, hết sức câu rồi! Ra quán ăn nạp năng lượng nhé.';
 
-export function createPlayerFishing({ river, purse, angler, quiz, harvest, player, say, now, minutes, train = null, onCatch = null }) {
+export function createPlayerFishing({ river, purse, angler, quiz, harvest, player, say, now, minutes, train = null, onCatch = null, sounds = null }) {
   let session = null;
 
   function stop() {
@@ -66,7 +66,7 @@ export function createPlayerFishing({ river, purse, angler, quiz, harvest, playe
     current.phase = 'quiz';
     angler.bite();
     const fish = river.rollFish(minutes());
-    const { correct } = await quiz.ask({ fish });
+    const { correct } = await quiz.ask({ fish, brief: true, closeAfter: FISHING.quizCloseMs, onAnswer: (right) => (right ? sounds?.correct() : sounds?.wrong()) });
     if (session !== current) return;
     angler.reel();
     const float = current.berth.float;

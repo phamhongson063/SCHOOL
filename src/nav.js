@@ -2,6 +2,8 @@ const MAX_STEP = 0.55;
 const BODY_RADIUS = 0.3;
 const GOAL_RADIUS = 12;
 const FAR_GOAL_RADIUS = 40;
+export const ROOMY = 4;
+const EDGE_COST = 2;
 const DIRS = [
   [1, 0, 1],
   [-1, 0, 1],
@@ -118,6 +120,64 @@ export class NavGrid {
       }
     }
     this.components = this.label();
+    this.measureRoom(i0, j0, i1, j1);
+  }
+
+  steepTo(n, m) {
+    return this.walkable(m) && !this.canStep(n, m);
+  }
+
+  measureRoom(fromI, fromJ, toI, toJ) {
+    const { w, d } = this;
+    const pad = ROOMY + 1;
+    const i0 = Math.max(0, fromI - pad);
+    const j0 = Math.max(0, fromJ - pad);
+    const i1 = Math.min(w, toI + pad);
+    const j1 = Math.min(d, toJ + pad);
+    const room = (this.room ??= new Float32Array(w * d));
+    for (let j = j0; j < j1; j++) {
+      for (let i = i0; i < i1; i++) {
+        const n = j * w + i;
+        if (!this.walkable(n)) {
+          room[n] = 0;
+          continue;
+        }
+        const edge = (i > 0 && this.steepTo(n, n - 1)) || (i < w - 1 && this.steepTo(n, n + 1)) || (j > 0 && this.steepTo(n, n - w)) || (j < d - 1 && this.steepTo(n, n + w));
+        room[n] = edge ? 1 : ROOMY;
+      }
+    }
+    const relax = (n, i, j, di, dj) => {
+      const ni = i + di;
+      const nj = j + dj;
+      if (ni < 0 || nj < 0 || ni >= w || nj >= d) return;
+      const via = room[nj * w + ni] + (di && dj ? Math.SQRT2 : 1);
+      if (via < room[n]) room[n] = via;
+    };
+    for (let j = j0; j < j1; j++) {
+      for (let i = i0; i < i1; i++) {
+        const n = j * w + i;
+        if (room[n] <= 1) continue;
+        relax(n, i, j, -1, 0);
+        relax(n, i, j, -1, -1);
+        relax(n, i, j, 0, -1);
+        relax(n, i, j, 1, -1);
+      }
+    }
+    for (let j = j1 - 1; j >= j0; j--) {
+      for (let i = i1 - 1; i >= i0; i--) {
+        const n = j * w + i;
+        if (room[n] <= 1) continue;
+        relax(n, i, j, 1, 0);
+        relax(n, i, j, 1, 1);
+        relax(n, i, j, 0, 1);
+        relax(n, i, j, -1, 1);
+      }
+    }
+  }
+
+  roomAt(x, z) {
+    const n = this.cellIndex(x, z);
+    return n < 0 ? 0 : this.room[n];
   }
 
   walkable(n) {
@@ -256,7 +316,8 @@ export class NavGrid {
       closed[cur] = id;
       this.forEachNeighbor(cur, (n, cost) => {
         if (closed[n] === id) return;
-        const next = g[cur] + cost;
+        const tight = (ROOMY - this.room[n]) / ROOMY;
+        const next = g[cur] + cost * (1 + EDGE_COST * tight * tight);
         if (seen[n] !== id || next < g[n]) {
           seen[n] = id;
           g[n] = next;
@@ -284,12 +345,15 @@ export class NavGrid {
     return true;
   }
 
-  clear(a, b) {
+  clear(a, b, roomy = 0) {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const len = Math.hypot(dx, dz);
     if (len < 1e-6) return true;
     const steps = Math.ceil(len / 0.2);
+    const span = len / this.cell;
+    const fromRoom = roomy > 0 ? this.roomAt(a.x, a.z) : 0;
+    const toRoom = roomy > 0 ? this.roomAt(b.x, b.z) : 0;
     let prev = this.cellIndex(a.x, a.z);
     for (let s = 1; s <= steps; s++) {
       const t = s / steps;
@@ -297,6 +361,7 @@ export class NavGrid {
       const z = a.z + dz * t;
       const n = this.cellIndex(x, z);
       if (!this.walkable(n) || !this.bodyClear(x, z) || this.blocked?.({ x, y: this.heights[n], z })) return false;
+      if (roomy > 0 && this.room[n] < Math.min(roomy, fromRoom + span * t, toRoom + span * (1 - t)) - 0.5) return false;
       if (n !== prev && this.walkable(prev) && !this.canStep(prev, n)) return false;
       prev = n;
     }
@@ -308,8 +373,10 @@ export class NavGrid {
     let anchor = 0;
     while (anchor < points.length - 1) {
       let next = anchor + 1;
+      let roomy = ROOMY;
       for (let k = anchor + 2; k < points.length; k++) {
-        if (!this.clear(points[anchor], points[k])) break;
+        roomy = Math.min(roomy, this.roomAt(points[k - 1].x, points[k - 1].z));
+        if (!this.clear(points[anchor], points[k], roomy)) break;
         next = k;
       }
       out.push(points[next]);

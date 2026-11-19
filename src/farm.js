@@ -5,6 +5,7 @@ import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTre
 import { bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { BEDS, FIELDS, FIELD_OF, FIRST_SPOT, SPOT_BED, bedHead, bedPlace, bedPoint, bedsOf, fieldObstacles, fieldOf, layoutSpots, leasePrice, leasesFromSave, leasesToSave, signPoint, spotAt, spotsFromSave, spotsToSave, standFor, standsAt } from './fieldPlan.js';
 import { CROPS, RIPE, SPENT, mound } from './crops.js';
+import { bedNeeds, growing, needsCure, thirsty } from './bedStatus.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, countdownText, DAY_MINUTES } from './clock.js';
 import { CROP_ECONOMY, ENERGY, FARMING, SHOP, VILLAGER, growDays } from './config.js';
@@ -122,7 +123,6 @@ const C = {
 };
 
 const fresh = () => ({ stage: 0, stageStart: 0, watered: false, late: false, missed: 0, crop: null, variety: 0, owner: null });
-const growing = (spot) => spot.stage > 0 && spot.stage < RIPE;
 const vigor = (spot) => Math.max(FARMING.minVigor, 1 - FARMING.missPenalty * spot.missed);
 const yieldOf = (spot) => Math.max(1, Math.round(varietyOf(spot).fruits * vigor(spot)));
 
@@ -226,7 +226,7 @@ class FarmState {
   }
 
   thirsty(spot) {
-    return growing(spot) && !spot.watered && !spot.late;
+    return thirsty(spot);
   }
 
   tick(now) {
@@ -286,7 +286,7 @@ class FarmState {
     }
     if (spot.stage === SPENT) return { id: 'clear', hint: 'hoe', effect: { kind: 'clear', duration: CLEAR_SECONDS } };
     if (this.thirsty(spot)) return { id: 'water', hint: 'water', effect: { kind: 'water', duration: 2 } };
-    if (spot.missed > 0 && purse.count('fertilizer') > 0) return { id: 'fertilize', hint: 'hoe', effect: { kind: 'clear', duration: 1 } };
+    if (needsCure(spot) && purse.count('fertilizer') > 0) return { id: 'fertilize', hint: 'hoe', effect: { kind: 'clear', duration: 1 } };
     return { id: 'look', hint: null };
   }
 
@@ -389,7 +389,9 @@ const matrix = new THREE.Matrix4();
 const UP = new THREE.Vector3(0, 1, 0);
 const euler = new THREE.Euler();
 const RIPE_ICON = { scale: 0.42, lift: 0.4 };
+const CURE_ICON = '💊';
 let ripeMaterial = null;
+let cureMaterial = null;
 
 class FarmView {
   constructor(spots, state, field) {
@@ -434,19 +436,19 @@ class FarmView {
       child.matrixAutoUpdate = false;
     }
     this.ripeIcons = new THREE.Group();
-    this.group.add(this.ripeIcons);
+    this.cureIcons = new THREE.Group();
+    this.group.add(this.ripeIcons, this.cureIcons);
     this.buildStakes();
     this.refresh();
   }
 
-  placeRipeIcons(indices) {
-    ripeMaterial ??= badgeMaterial('🧺');
-    const icons = this.ripeIcons.children;
+  placeIcons(group, material, indices) {
+    const icons = group.children;
     while (icons.length < indices.length) {
-      const sprite = new THREE.Sprite(ripeMaterial);
+      const sprite = new THREE.Sprite(material);
       sprite.scale.setScalar(RIPE_ICON.scale);
       sprite.renderOrder = 6;
-      this.ripeIcons.add(sprite);
+      group.add(sprite);
     }
     icons.forEach((sprite, k) => {
       const index = indices[k];
@@ -610,6 +612,7 @@ class FarmView {
     const wet = [];
     const thirsty = [];
     const ripe = [];
+    const cure = [];
     this.state.spots.forEach((spot, i) => {
       if (fieldOf(i) !== this.field) return;
       const key = modelKey(spot.stage, spot.crop, spot.variety);
@@ -618,8 +621,12 @@ class FarmView {
       if (spot.watered) wet.push(i);
       if (this.state.thirsty(spot)) thirsty.push(i);
       if (spot.stage === RIPE && spot.owner === PLAYER) ripe.push(i);
+      if (needsCure(spot) && spot.owner === PLAYER) cure.push(i);
     });
-    this.placeRipeIcons(ripe);
+    ripeMaterial ??= badgeMaterial('🧺');
+    cureMaterial ??= badgeMaterial(CURE_ICON);
+    this.placeIcons(this.ripeIcons, ripeMaterial, ripe);
+    this.placeIcons(this.cureIcons, cureMaterial, cure);
     for (const [key, mesh] of this.models) this.place(mesh, lists.get(key) ?? [], this.plantTransform);
     this.place(this.wet, wet, (spot) => {
       position.set(spot.x, spot.y, spot.z);
@@ -1004,7 +1011,13 @@ export function createFarm({ ledger, nameOf, nav }) {
     },
     leasesOf(actor) {
       const now = gameNow();
-      return state.leases.heldBy(actor, now).map((bed) => ({ bed, place: bedPlace(bed), left: state.leases.holder(bed, now).until - now, point: bedHead(bed) }));
+      return state.leases.heldBy(actor, now).map((bed) => ({
+        bed,
+        place: bedPlace(bed),
+        left: state.leases.holder(bed, now).until - now,
+        point: bedHead(bed),
+        needs: bedNeeds(state.spots.slice(FIRST_SPOT[bed], FIRST_SPOT[bed] + BEDS[bed].holes), actor),
+      }));
     },
     chores(actor = PLAYER, at = null) {
       const now = gameNow();

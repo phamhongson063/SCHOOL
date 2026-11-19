@@ -7,6 +7,7 @@ const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
 const DOCS = { self: 'saves', world: 'worlds' };
 const REV_FIELD = { self: 'rev', world: 'worldRev' };
+const SCOPES = Object.keys(DOCS);
 
 export const cloudEnabled = Boolean(firebaseConfig.apiKey);
 
@@ -84,21 +85,33 @@ function restore(text, scope) {
   for (const [key, value] of kept) writeGameItem(key, value);
 }
 
-async function claim(store, db, ref, scope, rev, id) {
-  const local = snapshot(scope);
+const wroteRev = (known, scope, rev) => Boolean(known) && (rev === known[REV_FIELD[scope]] || rev === known.pending?.[scope]);
+
+async function claim(store, db, refs, known, id) {
+  const local = Object.fromEntries(SCOPES.map((scope) => [scope, snapshot(scope)]));
   const result = await store.runTransaction(db, async (tx) => {
-    const found = await tx.get(ref);
-    const cloud = found.exists() ? found.data() : null;
-    if (cloud && cloud.rev !== rev) {
-      tx.update(ref, { session: id });
-      return { rev: cloud.rev, data: cloud.data };
+    const cloud = {};
+    for (const scope of SCOPES) {
+      const found = await tx.get(refs[scope]);
+      cloud[scope] = found.exists() ? found.data() : null;
     }
-    const next = newId();
-    tx.set(ref, { data: local, rev: next, session: id, savedAt: store.serverTimestamp() });
-    return { rev: next, data: local };
+    const ours = SCOPES.every((scope) => !cloud[scope] || wroteRev(known, scope, cloud[scope].rev));
+    const claimed = {};
+    for (const scope of SCOPES) {
+      if (!ours && cloud[scope]) {
+        tx.update(refs[scope], { session: id });
+        claimed[scope] = { rev: cloud[scope].rev, data: cloud[scope].data };
+        continue;
+      }
+      const next = newId();
+      tx.set(refs[scope], { data: local[scope], rev: next, session: id, savedAt: store.serverTimestamp() });
+      claimed[scope] = { rev: next, data: local[scope] };
+    }
+    return claimed;
   });
-  if (result.data !== local) {
-    restore(result.data, scope);
+  const stale = SCOPES.filter((scope) => result[scope].data !== local[scope]);
+  for (const scope of stale) restore(result[scope].data, scope);
+  if (stale.length) {
     const broken = auditSeal();
     if (broken.length) dropTampered(broken);
   }
@@ -119,15 +132,9 @@ export async function connect() {
   const tampered = auditSeal();
   if (tampered.length) dropTampered(tampered);
   const continuing = !tampered.length && saved?.uid === user.uid;
-  const claims = await Promise.allSettled([
-    claim(store, db, refs.world, 'world', continuing ? saved.worldRev : null, id),
-    claim(store, db, refs.self, 'self', continuing ? saved.rev : null, id),
-  ]);
-  const failed = claims.find((claimed) => claimed.status === 'rejected');
-  if (failed) throw failed.reason;
-  const [world, mine] = claims.map((claimed) => claimed.value);
-  saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: mine.rev, worldRev: world.rev });
-  startSync(store, refs, id, { self: mine.data, world: world.data });
+  const claimed = await claim(store, db, refs, continuing ? saved : null, id);
+  saveAccount({ uid: user.uid, name: user.displayName ?? '', email: user.email ?? '', rev: claimed.self.rev, worldRev: claimed.world.rev });
+  startSync(store, refs, id, { self: claimed.self.data, world: claimed.world.data });
   upload();
 }
 
@@ -166,10 +173,14 @@ function upload() {
 async function push(state) {
   if (auditSeal().length) return;
   const data = { self: snapshot('self'), world: snapshot('world') };
-  const changed = Object.keys(DOCS).filter((scope) => data[scope] !== state.uploaded[scope]);
+  const changed = SCOPES.filter((scope) => data[scope] !== state.uploaded[scope]);
   if (!changed.length) return;
   const { store, db } = await loadSdk();
-  const revs = Object.fromEntries(changed.map((scope) => [scope, newId()]));
+  const before = account();
+  if (!before || sync !== state) return;
+  const pending = before.pending ?? {};
+  const revs = Object.fromEntries(changed.map((scope) => [scope, pending[scope] ?? newId()]));
+  saveAccount({ ...before, pending: { ...pending, ...revs } });
   let owned = false;
   try {
     owned = await store.runTransaction(db, async (tx) => {
@@ -185,7 +196,11 @@ async function push(state) {
   for (const scope of changed) state.uploaded[scope] = data[scope];
   const saved = account();
   if (!saved || sync !== state) return;
-  for (const scope of changed) saved[REV_FIELD[scope]] = revs[scope];
+  for (const scope of changed) {
+    saved[REV_FIELD[scope]] = revs[scope];
+    if (saved.pending?.[scope] === revs[scope]) delete saved.pending[scope];
+  }
+  if (saved.pending && !Object.keys(saved.pending).length) delete saved.pending;
   saveAccount(saved);
 }
 
