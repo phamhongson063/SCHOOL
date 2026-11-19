@@ -216,7 +216,8 @@ export const CERTIFY = {
 };
 
 export const SPEAK = {
-  pass: 0.8,
+  pass: [0.8, 0.7],
+  passLength: [10, 30],
   retry: 3,
   dialogs: 10,
   minLength: 5,

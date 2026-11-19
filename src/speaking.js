@@ -33,6 +33,8 @@ export const soundOf = (text) =>
 
 const soundAfter = (before, ch) => soundOf(before + ch).slice(soundOf(before).length);
 
+export const joinHeard = (parts) => parts.reduce((text, part) => (text && soundOf(part).startsWith(soundOf(text)) ? part : text + part), '');
+
 export function speechSegments(text) {
   const segments = [];
   for (const part of text.split(/(\[[^\]]+\])/)) {
@@ -75,7 +77,49 @@ function fillerRuns(segments) {
   return runs;
 }
 
-function graphOf(segments) {
+const HAN = /\p{Script=Han}/u;
+const sayable = (text) => [...text.normalize('NFKC').toLowerCase()].map(hiragana).filter((ch) => SOUND.test(ch));
+let readingBook = null;
+
+function readings() {
+  if (readingBook) return readingBook;
+  const words = new Map();
+  const add = (word, reading) => {
+    const key = sayable(word).join('');
+    const sound = soundOf(reading);
+    if (!HAN.test(key) || !sound) return;
+    if (!words.has(key)) words.set(key, new Set([soundOf(key)]));
+    words.get(key).add(sound);
+  };
+  for (const id of DECK_IDS) {
+    for (const card of DECKS[id].cards) {
+      if (card.reading) add(card.word, card.reading);
+      for (const example of card.examples) for (const [, text] of example.lines) for (const match of text.matchAll(RUBY)) add(match[1], match[2]);
+    }
+  }
+  readingBook = { words, longest: Math.max(1, ...[...words.keys()].map((key) => [...key].length)) };
+  return readingBook;
+}
+
+function heardChunks(heard) {
+  const { words, longest } = readings();
+  const chars = sayable(heard);
+  const chunks = [];
+  for (let i = 0; i < chars.length; ) {
+    let size = Math.min(longest, chars.length - i);
+    while (size > 0 && !words.has(chars.slice(i, i + size).join(''))) size -= 1;
+    if (size) {
+      chunks.push({ sounds: [...words.get(chars.slice(i, i + size).join(''))] });
+      i += size;
+    } else {
+      chunks.push({ sounds: [soundAfter(chars[i - 1] ?? '', chars[i])].filter(Boolean) });
+      i += 1;
+    }
+  }
+  return chunks;
+}
+
+function graphOf(segments, optional = []) {
   const nodes = [[]];
   const starts = [];
   const ends = [];
@@ -98,58 +142,51 @@ function graphOf(segments) {
     end = nodes.length - 1;
     ends[seg] = end;
   });
-  for (const [from, to] of fillerRuns(segments)) nodes[ends[to]].push({ from: starts[from], ch: null, seg: -1 });
+  for (const [from, to] of optional) nodes[ends[to]].push({ from: starts[from], ch: null, seg: -1 });
   return nodes;
 }
 
 function align(segments, heard) {
-  const nodes = graphOf(segments);
-  const said = [...soundOf(heard)];
-  const cost = nodes.map(() => new Array(said.length + 1).fill(Infinity));
-  const back = nodes.map(() => new Array(said.length + 1).fill(null));
-  for (let j = 0; j <= said.length; j++) {
-    cost[0][j] = j;
-    back[0][j] = j ? { node: 0, at: j - 1, edge: null } : null;
-  }
-  for (let u = 1; u < nodes.length; u++) {
-    for (let j = 0; j <= said.length; j++) {
-      for (const edge of nodes[u]) {
-        if (edge.ch === null) {
-          if (cost[edge.from][j] < cost[u][j]) {
-            cost[u][j] = cost[edge.from][j];
-            back[u][j] = { node: edge.from, at: j, edge, miss: false };
-          }
-          continue;
+  const want = graphOf(segments, fillerRuns(segments));
+  const said = graphOf(heardChunks(heard));
+  const cost = want.map(() => new Array(said.length).fill(Infinity));
+  const back = want.map(() => new Array(said.length).fill(null));
+  cost[0][0] = 0;
+  for (let u = 0; u < want.length; u++) {
+    for (let v = 0; v < said.length; v++) {
+      const offer = (value, step) => {
+        if (value < cost[u][v]) {
+          cost[u][v] = value;
+          back[u][v] = step;
         }
-        const skip = cost[edge.from][j] + 1;
-        if (skip < cost[u][j]) {
-          cost[u][j] = skip;
-          back[u][j] = { node: edge.from, at: j, edge, miss: true };
+      };
+      for (const extra of said[v]) offer(cost[u][extra.from] + 1, { u, v: extra.from, edge: null, miss: false });
+      for (const edge of want[u]) {
+        offer(cost[edge.from][v] + (edge.ch === null ? 0 : 1), { u: edge.from, v, edge, miss: edge.ch !== null });
+        if (edge.ch === null) continue;
+        for (const sound of said[v]) {
+          const miss = edge.ch !== sound.ch;
+          offer(cost[edge.from][sound.from] + (miss ? 1 : 0), { u: edge.from, v: sound.from, edge, miss });
         }
-        if (!j) continue;
-        const miss = edge.ch !== said[j - 1];
-        const step = cost[edge.from][j - 1] + (miss ? 1 : 0);
-        if (step < cost[u][j]) {
-          cost[u][j] = step;
-          back[u][j] = { node: edge.from, at: j - 1, edge, miss };
-        }
-      }
-      if (j && cost[u][j - 1] + 1 < cost[u][j]) {
-        cost[u][j] = cost[u][j - 1] + 1;
-        back[u][j] = { node: u, at: j - 1, edge: null };
       }
     }
   }
   const misses = new Set();
-  let node = nodes.length - 1;
-  let at = said.length;
-  while (back[node][at]) {
-    const step = back[node][at];
+  let u = want.length - 1;
+  let v = said.length - 1;
+  while (back[u][v]) {
+    const step = back[u][v];
     if (step.edge && step.miss) misses.add(step.edge.seg);
-    node = step.node;
-    at = step.at;
+    u = step.u;
+    v = step.v;
   }
-  return { distance: cost[nodes.length - 1][said.length], misses };
+  return { distance: cost[want.length - 1][said.length - 1], misses };
+}
+
+function passMark(length) {
+  const [short, long] = SPEAK.passLength;
+  const t = Math.min(1, Math.max(0, (length - short) / (long - short)));
+  return SPEAK.pass[0] + (SPEAK.pass[1] - SPEAK.pass[0]) * t;
 }
 
 export function scoreSpeech(text, heards) {
@@ -161,7 +198,7 @@ export function scoreSpeech(text, heards) {
     const score = Math.max(0, 1 - distance / Math.max(length, SPEAK.minLength));
     if (score > best.score) best = { score, misses, heard };
   }
-  return { ...best, passed: best.score >= SPEAK.pass };
+  return { ...best, passed: best.score >= passMark(length) };
 }
 
 export const speechLines = (key) => unitOf(key).examples[0].lines.map(([speaker, text, vi]) => ({ speaker, text, vi }));

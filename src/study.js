@@ -9,7 +9,7 @@ import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
 import { NPC } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
-import { rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
+import { joinHeard, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -17,6 +17,12 @@ const FURIGANA_KEY = 'langsch.studyFurigana';
 const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee } };
 const Recognition = globalThis.SpeechRecognition ?? globalThis.webkitSpeechRecognition ?? null;
 const SPEAK_PAUSE = 900;
+const SPEAK_WRONG_VOLUME = 0.3;
+const SPEAK_CORRECT_VOLUME = 0.1;
+const SPEAK_SILENCE = 3000;
+const SPEAK_START_WAIT = 6000;
+const MIC_BLOCKED = new Set(['not-allowed', 'service-not-allowed']);
+const MIC_FATAL = new Set([...MIC_BLOCKED, 'audio-capture', 'network', 'language-not-supported']);
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -488,11 +494,11 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     scoreText.textContent = `${Math.round(result.score * 100)}%`;
     renderSpeech();
     if (!result.passed) {
-      sounds?.wrong();
+      sounds?.wrong(SPEAK_WRONG_VOLUME);
       cooldown(SPEAK.retry);
       return;
     }
-    sounds?.correct();
+    sounds?.correct(SPEAK_CORRECT_VOLUME);
     setMic('busy');
     speakLine += 1;
     later(playLine, SPEAK_PAUSE);
@@ -506,44 +512,80 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     }
     if (micState !== 'ready') return;
     const token = speakRun;
-    const recognition = new Recognition();
-    recognition.lang = 'ja-JP';
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 5;
-    recognition.continuous = false;
+    const line = speakLines[speakLine].text;
+    let said = '';
     let heards = null;
     let failure = null;
-    recognition.onresult = (event) => {
-      const results = [...event.results];
-      const last = results.at(-1);
-      const before = results
-        .slice(0, -1)
-        .map((result) => result[0].transcript)
-        .join('');
-      if (results.every((result) => result.isFinal)) heards = [...last].map((alternative) => before + alternative.transcript);
+    let quiet = null;
+    let done = false;
+    let recognition = null;
+    const session = {
+      stop() {
+        done = true;
+        clearTimeout(quiet);
+        recognition?.stop();
+      },
+      abort() {
+        done = true;
+        clearTimeout(quiet);
+        recognition?.abort();
+      },
     };
-    recognition.onerror = (event) => {
-      failure = event.error;
+    const live = () => token === speakRun && mode === 'speak' && listening === session;
+    const wait = (ms) => {
+      clearTimeout(quiet);
+      quiet = setTimeout(() => session.stop(), ms);
     };
-    recognition.onend = () => {
-      if (listening !== recognition) return;
+    const settle = () => {
+      clearTimeout(quiet);
+      if (!live()) return;
       listening = null;
-      if (token !== speakRun || mode !== 'speak') return;
       if (heards) {
         judge(heards);
         return;
       }
-      if (failure === 'not-allowed' || failure === 'service-not-allowed') scoreText.textContent = '🎤✗';
+      if (MIC_BLOCKED.has(failure)) scoreText.textContent = '🎤✗';
       setMic('ready');
     };
-    listening = recognition;
+    const open = () => {
+      recognition = new Recognition();
+      recognition.lang = 'ja-JP';
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 5;
+      recognition.continuous = true;
+      recognition.onresult = (event) => {
+        const results = [...event.results];
+        const last = results.at(-1);
+        const before = results.slice(0, -1).map((result) => result[0].transcript);
+        heards = [...last].map((alternative) => joinHeard([said, ...before, alternative.transcript]));
+        if (scoreSpeech(line, heards).passed) session.stop();
+        else wait(SPEAK_SILENCE);
+      };
+      recognition.onerror = (event) => {
+        failure = event.error;
+      };
+      recognition.onend = () => {
+        if (done || MIC_FATAL.has(failure) || !live()) {
+          settle();
+          return;
+        }
+        said = heards?.[0] ?? said;
+        try {
+          open();
+        } catch {
+          settle();
+        }
+      };
+      recognition.start();
+    };
+    listening = session;
     scoreText.textContent = '';
     setMic('listening');
+    wait(SPEAK_START_WAIT);
     try {
-      recognition.start();
+      open();
     } catch {
-      listening = null;
-      setMic('ready');
+      settle();
     }
   }
 

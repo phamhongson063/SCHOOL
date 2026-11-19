@@ -27,11 +27,13 @@ export function createUiSounds() {
     ]);
   });
 
-  function play(clip) {
+  function play(clip, level = 1) {
     if (!ctx || !clip || ctx.state !== 'running') return;
     const source = ctx.createBufferSource();
     source.buffer = clip;
-    source.connect(out);
+    const gain = ctx.createGain();
+    gain.gain.value = level;
+    source.connect(gain).connect(out);
     source.start();
   }
 
@@ -70,8 +72,8 @@ export function createUiSounds() {
 
   return {
     click: () => play(click),
-    correct: () => play(correct),
-    wrong: () => play(wrong),
+    correct: (level) => play(correct, level),
+    wrong: (level) => play(wrong, level),
     pop: () => play(pop),
     gong,
   };
