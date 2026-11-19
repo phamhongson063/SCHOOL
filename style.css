@@ -860,6 +860,38 @@ body.mail-open #toolbar {
   cursor: default;
 }
 
+.bag-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.bag-qty b {
+  min-width: 2ch;
+  font: 800 14px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.bag-step {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  background: #fbf5e4;
+  color: var(--bark);
+  font: 800 15px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+.bag-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .bag-info.muted {
   color: #cbbf9f;
   font-weight: 600;

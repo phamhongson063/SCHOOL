@@ -1591,7 +1591,7 @@ for (const [name, at, stand] of [
   ['Hàng cá', village.places.fish],
   ['Ngân hàng', district.bankDoor],
   ['Lôi đài', district.arenaStand],
-  ['Hội đèn trời', district.lanternStand],
+  ['Hội đèn', district.lanternStand],
   ['Tòa thị chính', district.hallLook, district.hallStand],
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],

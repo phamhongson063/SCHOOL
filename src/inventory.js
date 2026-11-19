@@ -199,8 +199,8 @@ export class Purse {
     this.changed({ energy: amount });
   }
 
-  eatEnergy() {
-    const amount = Math.min(this.count('energy'), Math.floor(ENERGY.max - this.data.energy));
+  eatEnergy(limit = Infinity) {
+    const amount = Math.min(this.count('energy'), Math.floor(ENERGY.max - this.data.energy), limit);
     if (!(amount > 0) || !this.take('energy', amount)) return 0;
     this.addEnergy(amount);
     return amount;

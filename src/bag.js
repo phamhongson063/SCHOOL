@@ -1,6 +1,6 @@
 import { paintIcon } from './itemArt.js';
 import { ITEMS } from './inventory.js';
-import { MONEY, SNACKS } from './config.js';
+import { ENERGY, MONEY, SNACKS } from './config.js';
 import { amount } from './format.js';
 import { GOLD_HTML } from './goldArt.js';
 
@@ -65,6 +65,7 @@ export function createBag(purse) {
   let current = loadTab();
   let selected = null;
   let hovered = null;
+  let energyQty = 1;
 
   const entriesOf = (tab) => tab.kinds.flatMap((kind) => purse.entries(kind));
   const currentTab = () => TABS.find((item) => item.key === current);
@@ -83,6 +84,7 @@ export function createBag(purse) {
       if (current === tab.key) return;
       current = tab.key;
       selected = null;
+      energyQty = 1;
       hovered = null;
       try {
         localStorage.setItem(TAB_KEY, current);
@@ -100,7 +102,7 @@ export function createBag(purse) {
     if (id && value > 0) {
       if (id === 'energy') {
         info.textContent = `${ITEMS[id].name} × ${value} ${ITEMS[id].unit}`;
-        if (id === selected) info.append(eatEnergyButton());
+        if (id === selected) info.append(...energyControls());
         return;
       }
       const snack = SNACKS[ITEMS[id].snack];
@@ -124,14 +126,36 @@ export function createBag(purse) {
     return node;
   }
 
-  function eatEnergyButton() {
+  const energyRoom = () => Math.max(1, Math.min(purse.count('energy'), Math.floor(ENERGY.max - purse.energy)));
+
+  function stepButton(label, text, step) {
     const node = document.createElement('button');
     node.type = 'button';
-    node.className = 'bag-eat';
-    node.textContent = 'Ăn';
-    node.disabled = purse.full;
-    node.addEventListener('click', () => purse.eatEnergy());
+    node.className = 'bag-step';
+    node.textContent = text;
+    node.setAttribute('aria-label', label);
+    node.disabled = step < 0 ? energyQty <= 1 : energyQty >= energyRoom();
+    node.addEventListener('click', () => {
+      energyQty = Math.max(1, Math.min(energyRoom(), energyQty + step));
+      renderInfo();
+    });
     return node;
+  }
+
+  function energyControls() {
+    energyQty = Math.min(energyQty, energyRoom());
+    const stepper = document.createElement('span');
+    stepper.className = 'bag-qty';
+    const qty = document.createElement('b');
+    qty.textContent = String(energyQty);
+    stepper.append(stepButton('Bớt', '−', -1), qty, stepButton('Thêm', '+', 1));
+    const eat = document.createElement('button');
+    eat.type = 'button';
+    eat.className = 'bag-eat';
+    eat.textContent = 'Ăn';
+    eat.disabled = purse.full;
+    eat.addEventListener('click', () => purse.eatEnergy(energyQty));
+    return [stepper, eat];
   }
 
   function renderWallet() {
@@ -163,6 +187,7 @@ export function createBag(purse) {
     const node = event.target.closest('.bag-slot.filled');
     if (!node) return;
     selected = selected === node.dataset.id ? null : node.dataset.id;
+    energyQty = 1;
     for (const slot of slots.querySelectorAll('.bag-slot.filled')) slot.setAttribute('aria-pressed', String(slot.dataset.id === selected));
     renderInfo();
   });
