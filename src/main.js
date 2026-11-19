@@ -868,7 +868,7 @@ const profileDialog = createProfile({
   canLocate: (id) => !!whereIs(id),
   onLocate: (id) => showOnMap(id),
 });
-createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
+createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
 

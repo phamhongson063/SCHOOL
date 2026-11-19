@@ -155,7 +155,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     infoRow('Tài sản', coins(netWorth(id, { ledger, bank, estate })));
     infoRow('Nhà ở', house ? estate.sizeName(house) : 'Chưa có');
     infoRow('Chứng chỉ', `🎓 ${amount(certify.certifiedTotal(id))}`);
-    infoRow('Lôi đài', `🏆 ${amount(arena.champions.filter((item) => item.id === id).length)}`);
+    infoRow('Lôi đài', `🏆 ${amount(arena.titlesOf(id))}`);
     infoRow('Siêng năng', bar(diligence));
     for (const skill of skills) infoRow(SKILL_LABELS[skill.kind], bar(skill.share));
   }

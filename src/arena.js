@@ -112,6 +112,17 @@ function validEvent(raw) {
   );
 }
 
+function titlesFrom(saved) {
+  if (saved.titles && typeof saved.titles === 'object') {
+    return Object.fromEntries(Object.entries(saved.titles).filter(([, count]) => Number.isInteger(count) && count > 0));
+  }
+  const titles = {};
+  for (const item of Array.isArray(saved.champions) ? saved.champions : []) {
+    if (typeof item?.id === 'string') titles[item.id] = (titles[item.id] ?? 0) + 1;
+  }
+  return titles;
+}
+
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
@@ -119,12 +130,13 @@ function load() {
       return {
         event: validEvent(saved.event) ? saved.event : null,
         champions: Array.isArray(saved.champions) ? saved.champions.filter((item) => Number.isFinite(item?.at) && typeof item?.id === 'string').slice(0, ARENA.champions) : [],
+        titles: titlesFrom(saved),
         purged: false,
       };
     }
-    if (saved) return { event: null, champions: [], purged: true };
+    if (saved) return { event: null, champions: [], titles: {}, purged: true };
   } catch {}
-  return { event: null, champions: [], purged: false };
+  return { event: null, champions: [], titles: {}, purged: false };
 }
 
 export const turnSeconds = (turn) => ARENA.read + Math.max(turn.a.seconds, turn.b.seconds) + ARENA.pause + (turn.setWinner ? ARENA.setPause : 0);
@@ -390,7 +402,10 @@ export function createArena({ ledger, roster = () => [] }) {
       .sort((a, b) => a.rank - b.rank);
     economy.returnArena(event.pot - paid);
     const champion = event.places.find((place) => place.rank === 1);
-    if (champion) state.champions = [{ at: event.at, id: champion.id }, ...state.champions].slice(0, ARENA.champions);
+    if (champion) {
+      state.champions = [{ at: event.at, id: champion.id }, ...state.champions].slice(0, ARENA.champions);
+      state.titles[champion.id] = (state.titles[champion.id] ?? 0) + 1;
+    }
     event.phase = 'done';
     for (const listener of finished) listener(event);
   }
@@ -473,6 +488,9 @@ export function createArena({ ledger, roster = () => [] }) {
     },
     get champions() {
       return state.champions;
+    },
+    titlesOf(id) {
+      return state.titles[id] ?? 0;
     },
     get prize() {
       const event = state.event;

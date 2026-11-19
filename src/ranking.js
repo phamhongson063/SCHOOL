@@ -42,7 +42,7 @@ function richSpan(className, text) {
   return node;
 }
 
-export function createRanking({ ledger, bank, estate, arena, lanterns, people, now, onPick = () => {} }) {
+export function createRanking({ ledger, bank, estate, arena, lanterns, people, learners, now, onPick = () => {} }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
@@ -51,12 +51,13 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, n
   let board = load();
   let tab = 'worth';
 
-  const titlesOf = (id) => arena.champions.filter((item) => item.id === id).length;
+  const titlesOf = (id) => arena.titlesOf(id);
+  const learnerIds = people.map(({ id }) => id).filter((id) => learners.has(id));
   const worthOf = (id) => netWorth(id, { ledger, bank, estate });
 
-  function standings(score, previous) {
+  function standings(score, previous, ids = people.map(({ id }) => id)) {
     const before = new Map((previous ?? []).map((row) => [row.id, row.score]));
-    const rows = people.map(({ id }) => ({ id, score: score(id) })).sort((a, b) => b.score - a.score);
+    const rows = ids.map((id) => ({ id, score: score(id) })).sort((a, b) => b.score - a.score);
     rows.forEach((row, i) => {
       row.rank = i + 1;
       row.prev = before.get(row.id) ?? null;
@@ -69,13 +70,13 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, n
 
   function certsBaseFor(day) {
     if (board?.certsBase?.day === day) return board.certsBase;
-    const rows = board?.certs ?? people.map(({ id }) => ({ id, score: certsOf(id) }));
+    const rows = board?.certs ?? learnerIds.map((id) => ({ id, score: certsOf(id) }));
     return { day, rows: rows.map(({ id, score }) => ({ id, score })) };
   }
 
   function snapshot({ slot, at }) {
     const certsBase = certsBaseFor(dayOf(at));
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
+    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows, learnerIds), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -117,7 +118,8 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, n
 
   function update() {
     const checkpoint = latestCheckpoint(now());
-    if (board?.slot === checkpoint.slot && board.certs && board.arena && board.lantern && board.arenaVersion === arena.version) return;
+    const certsFresh = board?.certs?.every(({ id }) => learners.has(id));
+    if (board?.slot === checkpoint.slot && certsFresh && board.arena && board.lantern && board.arenaVersion === arena.version) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }
