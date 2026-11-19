@@ -29,21 +29,5 @@ export function createOpenGround({ bounds, heightAt, allowed = () => true }) {
     pick(rand = Math.random, accept = () => true) {
       return pickFrom(cells, rand, accept);
     },
-    zoned(center, radius, sectors) {
-      const turn = Math.PI * 2;
-      const of = (x, z) => {
-        const dx = x - center.x;
-        const dz = z - center.z;
-        if (Math.hypot(dx, dz) < radius) return 0;
-        return 1 + (Math.floor(((Math.atan2(dz, dx) + turn + Math.PI / sectors) % turn) / (turn / sectors)) % sectors);
-      };
-      const groups = Array.from({ length: sectors + 1 }, () => []);
-      for (const cell of cells) groups[of(cell.x + CELL / 2, cell.z + CELL / 2)].push(cell);
-      return {
-        ids: groups.flatMap((group, id) => (group.length ? [id] : [])),
-        of,
-        pick: (id, rand = Math.random, accept = () => true) => pickFrom(groups[id] ?? [], rand, accept),
-      };
-    },
   };
 }

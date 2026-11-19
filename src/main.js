@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VoxelWorld } from './world.js';
-import { buildWorld, populate, stairHeight, CX, HOUSE, PLAZA, TEACHER_STAND, TEACHER_Z } from './school.js';
+import { buildWorld, populate, stairHeight, CX, HOUSE, TEACHER_STAND, TEACHER_Z } from './school.js';
 import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer, createWalker } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
@@ -822,7 +822,6 @@ const fireflyField = createFireflyField({ ground: openGround });
 town.fireflies = fireflyField;
 const lanterns = createLanterns({
   ground: openGround,
-  zones: openGround.zoned(PLAZA, LANTERN.zoneRadius, LANTERN.sectors),
   roster: () => [PLAYER, ...town.members.map((member) => member.id)],
   budget: (now) => economy.lanternLeft(now),
   reward: (who, now, points) => {

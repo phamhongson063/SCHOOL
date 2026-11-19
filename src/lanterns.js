@@ -154,7 +154,7 @@ function load() {
   return { ...blank(), signup: blankSignup(), totals: {} };
 }
 
-export function createLanterns({ ground, zones = null, roster, reward, charge, budget }) {
+export function createLanterns({ ground, roster, reward, charge, budget }) {
   let state = load();
   const store = createStore(KEY, () => state);
   const claims = new Map();
@@ -192,16 +192,20 @@ export function createLanterns({ ground, zones = null, roster, reward, charge, b
     return keys[keys.length - 1][0];
   }
 
-  function zoneFor(others, rand) {
-    if (!zones?.ids.length) return null;
-    const counts = new Map(zones.ids.map((id) => [id, 0]));
-    for (const other of others) {
-      const id = zones.of(other.x, other.z);
-      if (counts.has(id)) counts.set(id, counts.get(id) + 1);
+  function landingSpot(rand) {
+    const others = live();
+    let best = null;
+    let bestGap = -1;
+    for (let i = 0; i < LANTERN.candidates; i++) {
+      const spot = ground.pick(rand);
+      if (!spot) continue;
+      const gap = others.reduce((nearest, other) => Math.min(nearest, Math.hypot(other.x - spot.x, other.z - spot.z)), Infinity);
+      if (gap > bestGap) {
+        best = spot;
+        bestGap = gap;
+      }
     }
-    const fewest = Math.min(...counts.values());
-    const open = zones.ids.filter((id) => counts.get(id) === fewest);
-    return open[Math.floor(rand() * open.length)];
+    return best;
   }
 
   function spawn(dropAt) {
@@ -209,10 +213,7 @@ export function createLanterns({ ground, zones = null, roster, reward, charge, b
     const key = nextKey(rand);
     if (!key) return false;
     state.seq += 1;
-    const others = live();
-    const apart = (x, z) => others.every((other) => Math.hypot(other.x - x, other.z - z) >= LANTERN.gap);
-    const zone = zoneFor(others, rand);
-    const spot = (zone === null ? null : zones.pick(zone, rand, apart) ?? zones.pick(zone, rand)) ?? ground.pick(rand, apart) ?? ground.pick(rand);
+    const spot = landingSpot(rand);
     if (!spot) return false;
     state.list.push({ id: state.seq, key, x: spot.x, y: spot.y, z: spot.z, dropAt, doneAt: null, by: null });
     return true;
