@@ -218,6 +218,7 @@ export const CERTIFY = {
 export const SPEAK = {
   pass: [0.8, 0.7],
   passLength: [10, 30],
+  repeatSounds: 3,
   retry: 3,
   dialogs: 10,
   minLength: 5,

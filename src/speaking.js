@@ -33,7 +33,17 @@ export const soundOf = (text) =>
 
 const soundAfter = (before, ch) => soundOf(before + ch).slice(soundOf(before).length);
 
-export const joinHeard = (parts) => parts.reduce((text, part) => (text && soundOf(part).startsWith(soundOf(text)) ? part : text + part), '');
+export function joinPieces(pieces) {
+  const joined = [];
+  for (const piece of pieces) {
+    const top = soundOf(piece[0] ?? '');
+    if (!top) continue;
+    const before = soundOf(joined.at(-1)?.[0] ?? '');
+    if ([...before].length >= SPEAK.repeatSounds && top.startsWith(before)) joined[joined.length - 1] = piece;
+    else joined.push(piece);
+  }
+  return joined;
+}
 
 export function speechSegments(text) {
   const segments = [];
@@ -146,9 +156,39 @@ function graphOf(segments, optional = []) {
   return nodes;
 }
 
-function align(segments, heard) {
+function heardGraph(pieces) {
+  const nodes = [[]];
+  const follow = (from, chunks) => {
+    let at = from;
+    for (const chunk of chunks) {
+      if (!chunk.sounds.length) continue;
+      const tails = [];
+      for (const sound of chunk.sounds) {
+        const chars = [...sound];
+        let tail = at;
+        for (const ch of chars.slice(0, -1)) {
+          nodes.push([{ from: tail, ch }]);
+          tail = nodes.length - 1;
+        }
+        tails.push({ from: tail, ch: chars.at(-1) });
+      }
+      nodes.push(tails);
+      at = nodes.length - 1;
+    }
+    return at;
+  };
+  let end = 0;
+  for (const piece of pieces) {
+    const ends = [...new Set(piece)].map((alternative) => follow(end, heardChunks(alternative)));
+    nodes.push([...new Set(ends)].map((from) => ({ from, ch: null })));
+    end = nodes.length - 1;
+  }
+  return nodes;
+}
+
+function align(segments, pieces) {
   const want = graphOf(segments, fillerRuns(segments));
-  const said = graphOf(heardChunks(heard));
+  const said = heardGraph(pieces);
   const cost = want.map(() => new Array(said.length).fill(Infinity));
   const back = want.map(() => new Array(said.length).fill(null));
   cost[0][0] = 0;
@@ -160,11 +200,12 @@ function align(segments, heard) {
           back[u][v] = step;
         }
       };
-      for (const extra of said[v]) offer(cost[u][extra.from] + 1, { u, v: extra.from, edge: null, miss: false });
+      for (const extra of said[v]) offer(cost[u][extra.from] + (extra.ch === null ? 0 : 1), { u, v: extra.from, edge: null, miss: false });
       for (const edge of want[u]) {
         offer(cost[edge.from][v] + (edge.ch === null ? 0 : 1), { u: edge.from, v, edge, miss: edge.ch !== null });
         if (edge.ch === null) continue;
         for (const sound of said[v]) {
+          if (sound.ch === null) continue;
           const miss = edge.ch !== sound.ch;
           offer(cost[edge.from][sound.from] + (miss ? 1 : 0), { u: edge.from, v: sound.from, edge, miss });
         }
@@ -189,17 +230,13 @@ function passMark(length) {
   return SPEAK.pass[0] + (SPEAK.pass[1] - SPEAK.pass[0]) * t;
 }
 
-export function scoreSpeech(text, heards) {
+export function scoreSpeech(text, pieces) {
   const segments = speechSegments(text);
   const length = segments.reduce((sum, segment) => sum + Math.max(0, ...segment.sounds.map((sound) => [...sound].length)), 0);
-  let best = { score: 0, misses: new Set(segments.map((_, i) => i)), heard: heards[0] ?? '' };
-  for (const heard of heards) {
-    const { distance, misses } = align(segments, heard);
-    const score = Math.max(0, 1 - distance / Math.max(length, SPEAK.minLength));
-    if (score > best.score) best = { score, misses, heard };
-  }
+  const { distance, misses } = align(segments, pieces);
+  const score = Math.max(0, 1 - distance / Math.max(length, SPEAK.minLength));
   const last = segments.findLastIndex((segment) => segment.sounds.length);
-  return { ...best, passed: best.score >= passMark(length), ended: best.score > 0 && last >= 0 && !best.misses.has(last) };
+  return { score, misses, passed: score >= passMark(length), ended: score > 0 && last >= 0 && !misses.has(last) };
 }
 
 export const speechLines = (key) => unitOf(key).examples[0].lines.map(([speaker, text, vi]) => ({ speaker, text, vi }));

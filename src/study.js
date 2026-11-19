@@ -9,7 +9,7 @@ import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
 import { NPC } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
-import { joinHeard, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
+import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -517,7 +517,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (micState !== 'ready') return;
     const token = speakRun;
     const line = speakLines[speakLine].text;
-    let said = '';
+    let said = [];
     let heards = null;
     let failure = null;
     let quiet = null;
@@ -558,10 +558,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       recognition.maxAlternatives = 5;
       recognition.continuous = true;
       recognition.onresult = (event) => {
-        const results = [...event.results];
-        const last = results.at(-1);
-        const before = results.slice(0, -1).map((result) => result[0].transcript);
-        heards = [...last].map((alternative) => joinHeard([said, ...before, alternative.transcript]));
+        const pieces = [...event.results].map((result) => [...result].map((alternative) => alternative.transcript));
+        heards = joinPieces([...said, ...pieces]);
         const result = scoreSpeech(line, heards);
         if (result.passed && result.ended) session.stop();
         else wait(SPEAK_SILENCE);
@@ -574,7 +572,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
           settle();
           return;
         }
-        said = heards?.[0] ?? said;
+        said = heards ?? said;
         try {
           open();
         } catch {
