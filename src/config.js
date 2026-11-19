@@ -473,8 +473,8 @@ export const ATM = {
   detour: 40,
   spots: [
     { id: 'school', name: 'Trường khảo thí', x: 6.6, z: 30.2 },
-    { id: 'market', name: 'Phố cổ', x: 49.3, z: 28.8 },
-    { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: 138.5, z: 28.9 },
+    { id: 'market', name: 'Phố cổ', x: 48.8, z: 28.8 },
+    { id: 'fieldMart', name: 'Siêu thị cánh đồng', x: -156.9, z: 28.9 },
   ],
 };
 

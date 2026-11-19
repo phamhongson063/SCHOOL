@@ -15,17 +15,18 @@ import { createArenaNight } from './arenaNight.js';
 import { NPC } from './npcIds.js';
 import { ROAD } from './road.js';
 
-const AVENUES = [-131, -109, -87, -65];
 const STREET = 3;
 const SETBACK = 2.6;
 const SOUTH_STREET = 62;
 const DEPTH = 8;
-const PLAZA_BLOCK = 1;
-const BOUNDS = { x0: -137, z0: 16, x1: -52, z1: 66 };
+const BOUNDS = { x0: -137, z0: 16, x1: -40, z1: 66 };
 const PAVING_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = PAVING_LAYER + 1;
 const ROW = { x0: -133, x1: -56 };
-const LODGE_PICKS = { 'north:0': 'banco-1', 'south:5': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
+const SOUTH_XS = [-128.9, -112.2, -59, -43.6];
+const PLAZA_X = { x0: -99.7, x1: -71.5 };
+const PAVED = { x0: -136, x1: -40 };
+const LODGE_PICKS = { 'north:0': 'banco-1', 'south:3': 'banco-2', 'south:1': 'banco-3', 'north:7': 'banco-4', 'north:4': 'banco-5' };
 const BANK_PICK = 'south:0';
 const ARENA_LOT = { picks: ['north:2', 'north:3'], width: 16.2, depth: 11 };
 const REGISTRAR_LOOK = { shirt: 0xe8e0cc, pants: 0x3a3430, skin: 0xe0b088, style: 'khan', khan: 0x2a2a30, hairColor: 0x2a2420, beardColor: 0xd8d4cc, iris: 0x3a2214 };
@@ -33,9 +34,7 @@ const REGISTRAR = { model: 'monk-brown', reach: 1.4, spots: [-0.9, 0, 0.9] };
 const LANTERN_LOT = { picks: ['north:5', 'north:6'], width: 12, depth: 10, seed: 2717 };
 const LANTERN_KEEPER_LOOK = { shirt: 0x8a2a1c, pants: 0x2a2420, skin: 0xe8b890, style: 'bun', hairColor: 0xd8d4cc, iris: 0x3a2214 };
 const LANTERN_KEEPER = { model: 'granny-navy', reach: 1.4, spots: [-0.9, 0, 0.9] };
-const EMPTY_PICKS = new Set(['south:4']);
-const SETBACKS = { 'south:3': 3 };
-const PLAZA_LOT = 'south:2';
+const SETBACKS = { 'south:2': 3 };
 const BANK_WIDTH = 8.4;
 const TELLER_LOOK = { shirt: 0x2f6f8e, pants: 0x1f2a3a, skin: 0xf0c09a, style: 'bui', iris: 0x3a2214 };
 const TELLER_DISTANCE = 60;
@@ -73,25 +72,19 @@ function spread(x0, x1, count) {
 
 function layout() {
   const rand = makeRandom(6161);
-  const plaza = { x0: AVENUES[PLAZA_BLOCK] + STREET / 2, x1: AVENUES[PLAZA_BLOCK + 1] - STREET / 2, z0: ROAD.z1 + SETBACK, z1: SOUTH_STREET - STREET / 2 };
+  const plaza = { ...PLAZA_X, z0: ROAD.z1 + SETBACK, z1: SOUTH_STREET - STREET / 2 };
   const rows = [
     { side: 'north', front: ROAD.z0 - SETBACK, xs: spread(ROW.x0, ROW.x1, 9) },
-    { side: 'south', front: ROAD.z1 + SETBACK, xs: [...spread(ROW.x0, plaza.x0 - 1, 3), ...spread(plaza.x1 + 1, ROW.x1, 3)] },
+    { side: 'south', front: ROAD.z1 + SETBACK, xs: SOUTH_XS },
   ];
   const blocks = [plaza.x0, plaza.x1, Infinity].map(() => ({ houses: [] }));
   const arenaXs = [];
   const lanternXs = [];
-  let plazaWest = plaza.x0;
   for (const row of rows) {
     row.xs.forEach((x, index) => {
       const width = 5.6 + rand() * 0.5;
       const setback = SETBACKS[`${row.side}:${index}`] ?? 0;
       const house = { ...frame(row.side, x, row.front + (row.side === 'north' ? -setback : setback)), width, seed: 400 + Math.floor(rand() * 9000), stories: rand() < 0.4 ? 2 : 1 };
-      if (EMPTY_PICKS.has(`${row.side}:${index}`)) return;
-      if (`${row.side}:${index}` === PLAZA_LOT) {
-        plazaWest = (row.xs[index - 1] + x) / 2;
-        return;
-      }
       if (ARENA_LOT.picks.includes(`${row.side}:${index}`)) {
         arenaXs.push(x);
         if (arenaXs.length < ARENA_LOT.picks.length) return;
@@ -120,7 +113,6 @@ function layout() {
       blocks[block].houses.push(house);
     });
   }
-  plaza.x0 = plazaWest;
   return { blocks, plaza };
 }
 
@@ -174,7 +166,7 @@ function plazaMesh(plaza, obstacles, rand) {
 }
 
 function streetMesh(plaza) {
-  const parts = [roundedRectGeometry(ROW.x0 - 3, ROAD.z0, ROW.x1 + 3, ROAD.z1, 0.4)];
+  const parts = [roundedRectGeometry(PAVED.x0, ROAD.z0, PAVED.x1, ROAD.z1, 0.4)];
   parts.push(roundedRectGeometry(plaza.x0, plaza.z0, plaza.x1, plaza.z1, 0.6));
   const merged = mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part)), false);
   return groundDecal(merged, paving(), PAVING_LAYER, 0.014);
@@ -190,7 +182,7 @@ function animateKeeper(npc, t, near) {
   npc.walker.pose?.();
 }
 
-export const DISTRICT_STREETS = [[ROW.x0 - 1, ROAD.z0 + 0.5, ROW.x1 + 1, ROAD.z1 - 0.5]];
+export const DISTRICT_STREETS = [[PAVED.x0 + 1, ROAD.z0 + 0.5, PAVED.x1 - 1, ROAD.z1 - 0.5]];
 
 export function createDistrict() {
   const { blocks, plaza } = layout();

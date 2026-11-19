@@ -4,29 +4,28 @@ import { makeRandom } from './random.js';
 import { GROUND_LAYER, tileRoofMeshes } from './scenery.js';
 import { plaqueBoard } from './village.js';
 import { terrainHeight } from './terrain.js';
-import { FIELD_OF } from './fieldPlan.js';
+import { FIELDS } from './fieldPlan.js';
 import { ROAD } from './road.js';
 
 const ROAD_MID = (ROAD.z0 + ROAD.z1) / 2;
 const GATE_HALF = (ROAD.z1 - ROAD.z0) / 2 + 0.9;
 const HEDGE_GAP = 1.7;
 const HEDGES = [
-  { id: 'west', z: 17.5, x0: -62, x1: -23.5, gaps: [[-53.5, -47]], bounds: { x0: -64, z0: 10, x1: -20, z1: 42 } },
-  { id: 'north', z: 16.8, x0: 23.5, x1: 99, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 16, x1: 101, z1: 41 } },
-  { id: 'south', z: 55.5, x0: 51, x1: 99, gaps: [], bounds: { x0: 48, z0: 50, x1: 101, z1: 61 } },
+  { id: 'west', z: 17.5, x0: -62, x1: -23.5, gaps: [[-53.5, -47]], bounds: { x0: -64, z0: 10, x1: -20, z1: 25 } },
+  { id: 'north', z: 16.8, x0: 23.5, x1: 151, gaps: [[33.8, 39.2]], bounds: { x0: 20, z0: 16, x1: 153, z1: 25 } },
+  { id: 'south', z: 55.5, x0: 51, x1: 148, gaps: [], bounds: { x0: 48, z0: 50, x1: 150, z1: 61 } },
 ];
+const FIELD_GAP = 0.8;
+const fieldGaps = (z) => FIELDS.flatMap(({ soil: [patch] }) => (z >= patch.z0 && z <= patch.z1 ? [[patch.x0 - FIELD_GAP, patch.x1 + FIELD_GAP]] : []));
 const WEST_GATE = -188;
 const EAST_GATE = 188;
-const GATE_BOUNDS = { x0: -200, z0: 30, x1: -140, z1: 42 };
-const EAST_GATE_BOUNDS = { x0: 104, z0: 26, x1: 200, z1: 42 };
+const GATE_BOUNDS = { x0: -200, z0: 30, x1: -183, z1: 42 };
+const EAST_GATE_BOUNDS = { x0: 183, z0: 30, x1: 200, z1: 42 };
 const SIGNS = [
   { region: 'west', x: -47.6, z: 30.3, toward: Math.PI, text: 'Lên núi' },
   { region: 'north', x: 35.6, z: 40.2, toward: Math.PI, text: 'Lên núi' },
   { region: 'south', x: 51.2, z: 40.4, toward: 0, text: 'Bến sông' },
-  { region: 'eastGate', x: 139.4, z: 40.2, toward: 0, text: FIELD_OF.farm.name },
-  { region: 'eastGate', x: 159.6, z: 30.8, toward: Math.PI, text: FIELD_OF.banco.name },
-  { region: 'gate', x: -148.6, z: 40.4, toward: 0, text: FIELD_OF.west.name },
-  { region: 'west', x: -46, z: 40.4, toward: -Math.PI / 2, text: 'Xóm Bàn Cờ' },
+  { region: 'west', x: -54, z: 30.4, toward: -Math.PI / 2, text: 'Xóm Bàn Cờ' },
 ];
 
 const PAVING_ORDER = GROUND_LAYER.mark + 2;
@@ -139,7 +138,7 @@ export function createCountryside() {
   for (const hedge of HEDGES) {
     const clumps = [];
     for (let x = hedge.x0; x <= hedge.x1; x += HEDGE_GAP) {
-      if (hedge.gaps.some(([a, b]) => x > a && x < b)) continue;
+      if ([...hedge.gaps, ...fieldGaps(hedge.z)].some(([a, b]) => x > a && x < b)) continue;
       const cx = x + (rand() - 0.5) * 0.5;
       const cz = hedge.z + (rand() - 0.5) * 0.7;
       clumps.push({ x: cx, z: cz });

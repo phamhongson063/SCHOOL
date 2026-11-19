@@ -5,7 +5,7 @@ import { createMiniMart } from './architecture.js';
 import { paving } from './village.js';
 import { ROAD } from './road.js';
 
-const SPOT = { x: 132, front: 28, half: 5.7, depth: 9, seed: 331 };
+const SPOT = { x: -163.4, front: 28, half: 5.7, depth: 9, seed: 331 };
 const BOUNDS = { x0: SPOT.x - SPOT.half - 2, z0: SPOT.front - SPOT.depth - 1, x1: SPOT.x + SPOT.half + 1.5, z1: ROAD.z0 };
 
 export function createFieldMart(options) {

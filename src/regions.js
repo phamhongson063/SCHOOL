@@ -128,10 +128,18 @@ export class RegionManager {
   }
 
   regionAt(x, z) {
+    let best = null;
+    let bestArea = Infinity;
     for (const region of this.regions) {
-      if (region.handle && inside(region.bounds, x, z)) return region;
+      if (!region.handle || !inside(region.bounds, x, z)) continue;
+      const { x0, z0, x1, z1 } = region.bounds;
+      const area = (x1 - x0) * (z1 - z0);
+      if (area < bestArea) {
+        best = region;
+        bestArea = area;
+      }
     }
-    return null;
+    return best;
   }
 
   regionOf(object) {

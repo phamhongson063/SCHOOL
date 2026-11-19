@@ -26,9 +26,7 @@ const PAPER = 0xf4f8ff;
 
 const BLOCKED = [
   { x0: 43.5, x1: 50.5, sides: ['south'] },
-  { x0: 140, x1: 146, sides: ['south'] },
-  { x0: 124, x1: 140, sides: ['north'] },
-  { x0: 159, x1: 167, sides: ['north'] },
+  { x0: -171, x1: -155, sides: ['north'] },
   { x0: -146, x1: -134, sides: ['north', 'south'] },
   ...TREES.map(([x, z]) => ({ x0: x - TREE_CLEARANCE, x1: x + 1 + TREE_CLEARANCE, sides: [z < ROAD.z0 ? 'north' : 'south'] })),
 ];

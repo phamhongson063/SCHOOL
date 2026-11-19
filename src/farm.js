@@ -18,7 +18,7 @@ import { badgeMaterial } from './studyIcon.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 
-export { FARM_X, FIELD_TREES } from './fieldPlan.js';
+export { FIELD_TREES } from './fieldPlan.js';
 
 const STORAGE_KEY = worldKey('fieldPlots');
 const LEASE_KEY = worldKey('fieldLeases');

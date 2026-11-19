@@ -219,7 +219,7 @@ const fieldMusic = new Music(['assets/music/field.ogg', 'assets/music/field.m4a'
 const blessingTracks = ['blessing-1', 'blessing-2'].map((name) => new Music([`assets/music/${name}.ogg`, `assets/music/${name}.m4a`]));
 let blessingTrack = null;
 const riverAmbience = new Ambience({ bed: 'assets/music/river', volume: 0.3 });
-const FIELD_REGIONS = new Set([...FIELDS.map((field) => field.region), 'country-gate', 'country-eastGate']);
+const FIELD_REGIONS = new Set(FIELDS.map((field) => field.region));
 const QUIET_REGIONS = new Set([...FIELD_REGIONS, 'river', 'mountain']);
 let soundRegion = null;
 function updateSoundscape(focus) {

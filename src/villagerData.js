@@ -1,6 +1,6 @@
 import { makeRandom } from './random.js';
 import { HOUSE } from './school.js';
-import { FARM_X } from './farm.js';
+import { FIELDS } from './fieldPlan.js';
 import { DISTRICT_STREETS } from './district.js';
 import { ROAD } from './road.js';
 import { NPC } from './npcIds.js';
@@ -44,7 +44,7 @@ export const YARD = [
 
 export const STREET = [
   [-40, 33.5, 40, 37.5],
-  [48, 29, 97, 42],
+  [46, 29, 150, 42],
   ...DISTRICT_STREETS,
 ];
 
@@ -52,11 +52,7 @@ export const FIELD = ['Nắng quá!', 'Mùa này được giá đó!', 'Ráng l�
 export const TEND = ['Rau lên đều quá!', 'Mai mốt là thu được rồi.', 'Đất còn ẩm, khỏi tưới.', 'Lá xanh mướt ghê!', 'Coi chừng sâu nghen...'];
 export const GOSSIP = ['Hôm nay trời đẹp ghê!', 'Nghe nói giá dưa lên rồi.', 'Mùa này mưa nắng thất thường quá.', 'Chiều nay ra đình chơi không?', 'Ăn cơm chưa?', 'Nhà Lý trưởng mới sơn lại cổng đó.', 'Rau muống nhà tui sắp cắt được rồi!'];
 export const REST = ['Nghỉ mát chút đã.', 'Gió mát quá!', 'Mỏi lưng ghê...'];
-export const FIELD_EDGES = [
-  [-30, 38.9, 31, 39.4],
-  [-1.6, 41, 1.8, 61],
-  [-30, 62.1, 31, 62.7],
-].map(([x0, z0, x1, z1]) => [x0 + FARM_X, z0, x1 + FARM_X, z1]);
+export const FIELD_EDGES = FIELDS.map(({ soil: [{ x0, z0, x1, z1 }], beds: [{ heading }] }) => (heading ? [x0, z1, x1, z1 + 0.5] : [x0, z0 - 0.5, x1, z0]));
 export const CAUGHT = ['Dính rồi!', 'Con này to ghê!', 'Hên quá!'];
 export const ESCAPED = ['Sổng mất rồi...', 'Tiếc ghê!', 'Chữ này khó quá...'];
 export const BAGGED = ['Bắt được rồi!', 'Hên ghê!', 'Đem ra chợ bán thôi!'];

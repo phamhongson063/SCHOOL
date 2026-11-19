@@ -11,7 +11,7 @@ import { createAttention } from './attention.js';
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
 export const STUDY_HALLS = [
   { deck: 'n2', name: 'Từ vựng N2', x: 42, front: 43, turn: 0, sign: ['Từ Vựng N2'], plain: ['N2'] },
-  { deck: 'sugu1', name: 'Lớp Sugu 1', x: 112, front: 28, turn: Math.PI, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
+  { deck: 'sugu1', name: 'Lớp Sugu 1', x: -163.4, front: 43, turn: 0, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
 ];
 

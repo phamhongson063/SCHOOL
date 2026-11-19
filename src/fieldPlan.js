@@ -1,155 +1,57 @@
 import { makeRandom } from './random.js';
 
-export const FARM_X = 143;
 export const SPACING = 2;
 export const BED = { height: 0.22, width: 0.84, pitch: 2.2 };
 
-export const FIELDS = [
-  {
-    id: 'farm',
-    region: 'farm',
-    name: 'Ruộng rau màu',
-    seed: 909,
-    bounds: { x0: 111, z0: 40, x1: 176, z1: 65.5 },
-    soil: [
-      { x0: 112.7, z0: 40.4, x1: 140.9, z1: 61.6, seed: 61 },
-      { x0: 145.3, z0: 40.4, x1: 173.5, z1: 61.6, seed: 62 },
-    ],
-    paths: [{ x0: 140.9, z0: 38.1, x1: 145.3, z1: 61.8, radius: 0.6 }],
-    jars: [
-      { x: 112.4, z: 40.1 },
-      { x: 174.6, z: 40.1 },
-    ],
-    trees: [
-      [111, 59.5],
-      [123, 65.5],
-      [137, 66.5],
-      [152, 66],
-      [167, 65],
-      [176, 58.5],
-    ],
-    beds: [
-      { id: 'rau-1', x: 114, z: 41, holes: 10, seed: 999 },
-      { id: 'rau-2', x: 116.2, z: 41, holes: 10, seed: 986 },
-      { id: 'rau-3', x: 118.4, z: 41, holes: 10, seed: 830 },
-      { id: 'rau-4', x: 120.6, z: 41, holes: 10, seed: 817 },
-      { id: 'rau-5', x: 122.8, z: 41, holes: 10, seed: 804 },
-      { id: 'rau-6', x: 125, z: 41, holes: 10, seed: 791 },
-      { id: 'rau-7', x: 127.2, z: 41, holes: 10, seed: 778 },
-      { id: 'rau-8', x: 129.4, z: 41, holes: 10, seed: 765 },
-      { id: 'rau-9', x: 131.6, z: 41, holes: 10, seed: 752 },
-      { id: 'rau-10', x: 133.8, z: 41, holes: 10, seed: 739 },
-      { id: 'rau-11', x: 136, z: 41, holes: 10, seed: 726 },
-      { id: 'rau-12', x: 138.2, z: 41, holes: 10, seed: 713 },
-      { id: 'rau-13', x: 140.4, z: 41, holes: 10, seed: 700 },
-      { id: 'rau-14', x: 146.6, z: 41, holes: 10, seed: 843 },
-      { id: 'rau-15', x: 148.8, z: 41, holes: 10, seed: 856 },
-      { id: 'rau-16', x: 151, z: 41, holes: 10, seed: 869 },
-      { id: 'rau-17', x: 153.2, z: 41, holes: 10, seed: 882 },
-      { id: 'rau-18', x: 155.4, z: 41, holes: 10, seed: 895 },
-      { id: 'rau-19', x: 157.6, z: 41, holes: 10, seed: 908 },
-      { id: 'rau-20', x: 159.8, z: 41, holes: 10, seed: 921 },
-      { id: 'rau-21', x: 162, z: 41, holes: 10, seed: 934 },
-      { id: 'rau-22', x: 164.2, z: 41, holes: 10, seed: 947 },
-      { id: 'rau-23', x: 166.4, z: 41, holes: 10, seed: 960 },
-      { id: 'rau-24', x: 168.6, z: 41, holes: 10, seed: 973 },
-      { id: 'rau-25', x: 170.8, z: 41, holes: 10, seed: 1012 },
-      { id: 'rau-26', x: 173, z: 41, holes: 10, seed: 1025 },
-    ],
-  },
-  {
-    id: 'banco',
-    region: 'bancoFarm',
-    name: 'Ruộng Bàn Cờ',
-    seed: 919,
-    bounds: { x0: 156, z0: 7, x1: 170, z1: 31.5 },
-    soil: [{ x0: 157.3, z0: 9, x1: 168.7, z1: 28.2, seed: 97 }],
-    paths: [{ x0: 161.6, z0: 28, x1: 164.4, z1: 32.1, radius: 0.5 }],
-    jars: [],
-    trees: [],
-    beds: [
-      { id: 'banco-1', x: 158.6, z: 27.6, heading: Math.PI, holes: 9, seed: 1700 },
-      { id: 'banco-2', x: 160.8, z: 27.6, heading: Math.PI, holes: 9, seed: 1713 },
-      { id: 'banco-3', x: 163, z: 27.6, heading: Math.PI, holes: 9, seed: 1726 },
-      { id: 'banco-4', x: 165.2, z: 27.6, heading: Math.PI, holes: 9, seed: 1739 },
-      { id: 'banco-5', x: 167.4, z: 27.6, heading: Math.PI, holes: 9, seed: 1752 },
-    ],
-  },
-  {
-    id: 'west',
-    region: 'westFarm',
-    name: 'Ruộng Cổng Tây',
-    seed: 929,
-    bounds: { x0: -185, z0: 38.5, x1: -145, z1: 66 },
-    soil: [
-      { x0: -183.1, z0: 40.9, x1: -168.1, z1: 62.1, seed: 63 },
-      { x0: -162.9, z0: 40.9, x1: -147.9, z1: 62.1, seed: 64 },
-    ],
-    paths: [{ x0: -167.7, z0: 36.6, x1: -163.3, z1: 62.3, radius: 0.6 }],
-    jars: [
-      { x: -183.4, z: 40.6 },
-      { x: -147.6, z: 40.6 },
-    ],
-    trees: [
-      [-184, 63.5],
-      [-175, 65],
-      [-156, 65],
-      [-147, 63.5],
-    ],
-    beds: [
-      { id: 'tay-1', x: -181.8, z: 41.5, holes: 10, seed: 2000 },
-      { id: 'tay-2', x: -179.6, z: 41.5, holes: 10, seed: 2013 },
-      { id: 'tay-3', x: -177.4, z: 41.5, holes: 10, seed: 2026 },
-      { id: 'tay-4', x: -175.2, z: 41.5, holes: 10, seed: 2039 },
-      { id: 'tay-5', x: -173, z: 41.5, holes: 10, seed: 2052 },
-      { id: 'tay-6', x: -170.8, z: 41.5, holes: 10, seed: 2065 },
-      { id: 'tay-7', x: -168.6, z: 41.5, holes: 10, seed: 2078 },
-      { id: 'tay-8', x: -162.4, z: 41.5, holes: 10, seed: 2091 },
-      { id: 'tay-9', x: -160.2, z: 41.5, holes: 10, seed: 2104 },
-      { id: 'tay-10', x: -158, z: 41.5, holes: 10, seed: 2117 },
-      { id: 'tay-11', x: -155.8, z: 41.5, holes: 10, seed: 2130 },
-      { id: 'tay-12', x: -153.6, z: 41.5, holes: 10, seed: 2143 },
-      { id: 'tay-13', x: -151.4, z: 41.5, holes: 10, seed: 2156 },
-      { id: 'tay-14', x: -149.2, z: 41.5, holes: 10, seed: 2169 },
-    ],
-  },
-  {
-    id: 'north',
-    region: 'northFarm',
-    name: 'Ruộng Sau Làng',
-    seed: 939,
-    bounds: { x0: 36, z0: 3.5, x1: 95, z1: 16.3 },
-    soil: [
-      { x0: 43.5, z0: 5.3, x1: 64.6, z1: 15.9, seed: 65 },
-      { x0: 67.5, z0: 5.3, x1: 88.6, z1: 15.9, seed: 66 },
-    ],
-    paths: [
-      { x0: 41.4, z0: 5, x1: 43.4, z1: 16.3, radius: 0.5 },
-      { x0: 64.8, z0: 5, x1: 67.2, z1: 16.3, radius: 0.5 },
-    ],
-    jars: [
-      { x: 42.4, z: 4.4 },
-      { x: 66, z: 4.4 },
-    ],
-    trees: [
-      [38.5, 6],
-      [92, 14],
-      [92.5, 6.5],
-    ],
-    beds: [
-      { id: 'sau-1', x: 44, z: 15, heading: Math.PI / 2, holes: 10, seed: 3000 },
-      { id: 'sau-2', x: 44, z: 12.8, heading: Math.PI / 2, holes: 10, seed: 3013 },
-      { id: 'sau-3', x: 44, z: 10.6, heading: Math.PI / 2, holes: 10, seed: 3026 },
-      { id: 'sau-4', x: 44, z: 8.4, heading: Math.PI / 2, holes: 10, seed: 3039 },
-      { id: 'sau-5', x: 44, z: 6.2, heading: Math.PI / 2, holes: 10, seed: 3052 },
-      { id: 'sau-6', x: 68, z: 15, heading: Math.PI / 2, holes: 10, seed: 3065 },
-      { id: 'sau-7', x: 68, z: 12.8, heading: Math.PI / 2, holes: 10, seed: 3078 },
-      { id: 'sau-8', x: 68, z: 10.6, heading: Math.PI / 2, holes: 10, seed: 3091 },
-      { id: 'sau-9', x: 68, z: 8.4, heading: Math.PI / 2, holes: 10, seed: 3104 },
-      { id: 'sau-10', x: 68, z: 6.2, heading: Math.PI / 2, holes: 10, seed: 3117 },
-    ],
-  },
+const PLOT_EDGE = { north: 27.5, south: 43.5 };
+const BED_MARGIN = 0.6;
+const SOIL_SIDE = 1.3;
+
+const PLOTS = [
+  { side: 'south', x: -173.2, beds: [['tay-1', 10, 2000], ['tay-2', 10, 2013], ['tay-3', 10, 2026]] },
+  { side: 'south', x: -153.6, beds: [['tay-4', 10, 2039], ['tay-5', 10, 2052], ['tay-6', 10, 2065]] },
+  { side: 'south', x: -119.9, beds: [['tay-7', 10, 2078], ['tay-8', 10, 2091], ['tay-9', 10, 2104]] },
+  { side: 'south', x: -104.5, beds: [['tay-10', 10, 2117], ['tay-11', 10, 2130], ['tay-12', 10, 2143]] },
+  { side: 'south', x: -66.7, beds: [['tay-13', 10, 2156], ['tay-14', 10, 2169], ['rau-1', 10, 999]] },
+  { side: 'south', x: -51.3, beds: [['rau-2', 10, 986], ['rau-3', 10, 830], ['rau-4', 10, 817]] },
+  { side: 'north', x: 46.9, beds: [['rau-5', 10, 804]] },
+  { side: 'north', x: 64.3, beds: [['rau-6', 10, 791], ['rau-7', 10, 778], ['rau-8', 10, 765]] },
+  { side: 'south', x: 64.8, beds: [['rau-9', 10, 752], ['rau-10', 10, 739], ['rau-11', 10, 726]] },
+  { side: 'south', x: 80.4, beds: [['rau-12', 10, 713], ['rau-13', 10, 700], ['rau-14', 10, 843]] },
+  { side: 'north', x: 80.9, beds: [['rau-15', 10, 856], ['rau-16', 10, 869], ['rau-17', 10, 882]] },
+  { side: 'south', x: 96, beds: [['rau-18', 10, 895], ['rau-19', 10, 908], ['rau-20', 10, 921]] },
+  { side: 'north', x: 96.5, beds: [['rau-21', 10, 934], ['rau-22', 10, 947], ['rau-23', 10, 960]] },
+  { side: 'south', x: 113.1, beds: [['rau-24', 10, 973], ['rau-25', 10, 1012], ['rau-26', 10, 1025]] },
+  { side: 'north', x: 113.6, beds: [['banco-1', 9, 1700], ['banco-2', 9, 1713], ['banco-3', 9, 1726]] },
+  { side: 'north', x: 129.2, beds: [['banco-4', 9, 1739], ['banco-5', 9, 1752], ['sau-1', 10, 3000]] },
+  { side: 'south', x: 130.2, beds: [['sau-2', 10, 3013], ['sau-3', 10, 3026], ['sau-4', 10, 3039]] },
+  { side: 'south', x: 142.8, beds: [['sau-5', 10, 3052], ['sau-6', 10, 3065], ['sau-7', 10, 3078]] },
+  { side: 'north', x: 145.8, beds: [['sau-8', 10, 3091], ['sau-9', 10, 3104], ['sau-10', 10, 3117]] },
 ];
+
+function plotField({ side, x, beds }, index) {
+  const north = side === 'north';
+  const length = Math.max(...beds.map(([, holes]) => holes)) * SPACING;
+  const edge = PLOT_EDGE[side];
+  const head = north ? edge - BED_MARGIN : edge + BED_MARGIN;
+  const far = north ? head - length - BED_MARGIN : head + length + BED_MARGIN;
+  const first = x - ((beds.length - 1) * BED.pitch) / 2;
+  const soil = { x0: first - SOIL_SIDE, x1: first + (beds.length - 1) * BED.pitch + SOIL_SIDE, z0: Math.min(edge, far), z1: Math.max(edge, far), seed: 600 + index };
+  return {
+    id: `plot-${index + 1}`,
+    region: `plot-${index + 1}`,
+    name: `Ruộng số ${index + 1}`,
+    seed: 900 + index,
+    bounds: { x0: soil.x0 - 1, x1: soil.x1 + 1, z0: north ? soil.z0 - 1 : soil.z0, z1: north ? soil.z1 : soil.z1 + 1 },
+    soil: [soil],
+    paths: [],
+    jars: [{ x: soil.x0 - 0.5, z: north ? soil.z0 + 0.4 : soil.z1 - 0.4 }],
+    trees: [[soil.x1 + 0.2, north ? soil.z0 + 0.6 : soil.z1 - 1.2]],
+    beds: beds.map(([id, holes, seed], k) => ({ id, x: first + k * BED.pitch, z: head, heading: north ? Math.PI : 0, holes, seed })),
+  };
+}
+
+export const FIELDS = PLOTS.map(plotField);
 
 const LEGACY_ORDER = [
   ...[13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 2, 1, 25, 26].map((n) => [`rau-${n}`, 10]),

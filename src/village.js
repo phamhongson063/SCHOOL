@@ -18,7 +18,7 @@ import { keepCanvas } from './canvasRestore.js';
 import { GOLD_IMAGE, GOLD_MARK } from './goldArt.js';
 import { NPC } from './npcIds.js';
 
-export const VILLAGE_BOUNDS = { x0: 47, z0: 17, x1: 100, z1: 54 };
+export const VILLAGE_BOUNDS = { x0: 37, z0: 17, x1: 155, z1: 54 };
 
 const NORTH_FRONT = 28;
 const SOUTH_FRONT = 43;
@@ -26,25 +26,25 @@ const STREET_LAYER = GROUND_LAYER.mark + 1;
 const ABOVE_PAVING = STREET_LAYER + 1;
 const EXITS = [
   { x: -43, z: 35.5 },
-  { x: 99, z: 35.5 },
+  { x: 153, z: 35.5 },
 ];
 
 const HOUSES = [
-  { id: 1, side: 'north', x: 64.5, width: 7, depth: 9, stories: 1, size: 'medium', seed: 11 },
-  { id: 2, side: 'north', x: 71.6, width: 6, depth: 8, stories: 1, size: 'small', seed: 23 },
-  { id: 3, side: 'north', x: 78.95, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 37 },
-  { id: 6, side: 'south', x: 64, width: 6, depth: 9, stories: 2, size: 'medium', seed: 67 },
-  { id: 7, side: 'south', x: 70.6, width: 6, depth: 8, stories: 1, size: 'small', seed: 71 },
-  { id: 8, side: 'south', x: 77.95, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 83 },
+  { id: 1, side: 'north', x: 72.6, width: 7, depth: 9, stories: 1, size: 'medium', seed: 11 },
+  { id: 2, side: 'north', x: 88.7, width: 6, depth: 8, stories: 1, size: 'small', seed: 23 },
+  { id: 3, side: 'north', x: 105.05, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 37 },
+  { id: 6, side: 'south', x: 72.6, width: 6, depth: 9, stories: 2, size: 'medium', seed: 67 },
+  { id: 7, side: 'south', x: 88.2, width: 6, depth: 8, stories: 1, size: 'small', seed: 71 },
+  { id: 8, side: 'south', x: 104.55, width: 7.5, depth: 10, stories: 2, size: 'large', seed: 83 },
 ];
 
 const LODGE_SPOTS = [
-  { id: 'cheap', side: 'north', x: 86.3, width: 6, depth: 8, stories: 1, seed: 131, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
-  { id: 'cozy', side: 'north', x: 93.4, width: 7, depth: 9, stories: 1, seed: 149, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
-  { id: 'grand', side: 'south', x: 92.4, width: 7.5, depth: 10, stories: 2, seed: 157, sign: { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e } },
+  { id: 'cheap', side: 'north', x: 121.4, width: 6, depth: 8, stories: 1, seed: 131, sign: { bg: 0x3a2c22, fg: '#e8dcc0', border: 0x6a5a48 } },
+  { id: 'cozy', side: 'north', x: 137.5, width: 7, depth: 9, stories: 1, seed: 149, sign: { bg: 0x1c1310, fg: '#f2c14e', border: 0x8a1d14 } },
+  { id: 'grand', side: 'south', x: 121.65, width: 7.5, depth: 10, stories: 2, seed: 157, sign: { bg: 0x8a1d14, fg: '#ffe08a', border: 0xf2c14e } },
 ];
 
-const MARKET = { side: 'north', x: 55, seed: 7 };
+const MARKET = { side: 'north', x: 54.5, seed: 7 };
 const CHIEF_HOUSE = { side: 'south', x: 55.5, seed: 5 };
 const EATERY_SPOT = { side: 'north', x: 41, seed: 9 };
 const FISH_SHOP_SPOT = { x: 51, z: 61.5, seed: 21 };
@@ -247,19 +247,19 @@ export function paving() {
 
 function decor() {
   const group = new THREE.Group();
-  const street = groundDecal(roundedRectGeometry(48.5, NORTH_FRONT - 0.6, 98, SOUTH_FRONT + 0.6, 0.6), paving(), STREET_LAYER, 0.014);
+  const street = groundDecal(roundedRectGeometry(44.5, NORTH_FRONT - 0.6, 150, SOUTH_FRONT + 0.6, 0.6), paving(), STREET_LAYER, 0.014);
   const walks = [street];
   group.add(street);
   const rand = makeRandom(4646);
   const b = new Batch();
   const glow = new Batch();
   const lights = [];
-  for (const x of [60.6, 74.9, 89.6]) lanternString(b, glow, lights, x, rand);
+  for (const x of [52, 70.5, 86.5, 102.3, 119.3]) lanternString(b, glow, lights, x, rand);
   const obstacles = [];
   for (const [x, z] of [
-    [98.5, 28.8],
+    [152.5, 29.2],
     [33.6, 45.6],
-    [98.5, 42.8],
+    [149, 42.8],
   ]) {
     roundTree(b, rand, { x, z, h: 4 + Math.floor(rand() * 2) });
     obstacles.push({ minX: x + 0.2, minZ: z + 0.2, maxX: x + 0.8, maxZ: z + 0.8, minY: 0, maxY: 3 });
@@ -285,9 +285,10 @@ export function keeperNPC(look, model, name = '') {
 }
 
 const ZONES = [
-  { x0: VILLAGE_BOUNDS.x0, x1: 68.3 },
-  { x0: 68.3, x1: 82.9 },
-  { x0: 82.9, x1: VILLAGE_BOUNDS.x1 },
+  { x0: VILLAGE_BOUNDS.x0, x1: 68 },
+  { x0: 68, x1: 98 },
+  { x0: 98, x1: 128 },
+  { x0: 128, x1: VILLAGE_BOUNDS.x1 },
 ];
 const DETAIL_DISTANCE = 70;
 const SIGN_DISTANCE = 45;
