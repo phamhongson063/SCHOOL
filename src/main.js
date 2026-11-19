@@ -303,15 +303,14 @@ bank.onMature((owner, term) => {
 createFullscreenToggle();
 
 let placeLocked = false;
-createSettings({
-  onReset() {
-    renderer.setAnimationLoop(null);
-    haltStores();
-    placeLocked = true;
-    wipeGame();
-    window.location.reload();
-  },
-});
+createSettings();
+function resetGame() {
+  renderer.setAnimationLoop(null);
+  haltStores();
+  placeLocked = true;
+  wipeGame();
+  window.location.reload();
+}
 watchUpdates();
 
 const regions = new RegionManager({ scene, obstacles: school.obstacles });
@@ -877,6 +876,8 @@ const profileDialog = createProfile({
     stashPopups();
     travelTo(point);
   },
+  self: PLAYER,
+  onReset: resetGame,
 });
 createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });

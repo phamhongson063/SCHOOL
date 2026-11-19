@@ -25,13 +25,9 @@ export async function refreshFiles() {
   await Promise.allSettled(codeFiles().map((url) => fetch(url, { cache: 'reload' }).then((response) => response.arrayBuffer())));
 }
 
-export function createSettings({ onReset }) {
+export function createSettings() {
   const button = document.getElementById('settingsBtn');
   const dialog = document.getElementById('settingsDialog');
-  const reset = document.getElementById('resetBtn');
-  const confirmBox = document.getElementById('resetConfirm');
-  const confirm = document.getElementById('resetConfirmBtn');
-  const cancel = document.getElementById('resetCancel');
   const music = document.getElementById('musicBtn');
   const accountGroup = document.getElementById('accountGroup');
   const accountInfo = document.getElementById('accountInfo');
@@ -62,13 +58,7 @@ export function createSettings({ onReset }) {
     paintMusic();
   });
 
-  const showConfirm = (shown) => {
-    confirmBox.hidden = !shown;
-    reset.hidden = shown;
-  };
-
   button.addEventListener('click', () => {
-    showConfirm(false);
     paintAccount();
     dialog.showModal();
   });
@@ -77,12 +67,6 @@ export function createSettings({ onReset }) {
     refresh.disabled = true;
     refreshLabel.textContent = 'Đang tải bản mới...';
     refreshFiles().finally(() => location.reload());
-  });
-  reset.addEventListener('click', () => showConfirm(true));
-  cancel.addEventListener('click', () => showConfirm(false));
-  confirm.addEventListener('click', () => {
-    confirm.disabled = true;
-    onReset();
   });
   closable(dialog);
 }

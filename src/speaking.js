@@ -198,7 +198,8 @@ export function scoreSpeech(text, heards) {
     const score = Math.max(0, 1 - distance / Math.max(length, SPEAK.minLength));
     if (score > best.score) best = { score, misses, heard };
   }
-  return { ...best, passed: best.score >= passMark(length) };
+  const last = segments.findLastIndex((segment) => segment.sounds.length);
+  return { ...best, passed: best.score >= passMark(length), ended: best.score > 0 && last >= 0 && !best.misses.has(last) };
 }
 
 export const speechLines = (key) => unitOf(key).examples[0].lines.map(([speaker, text, vi]) => ({ speaker, text, vi }));
@@ -220,15 +221,18 @@ const lineSeconds = (text) => between(...SPEAK.lineSeconds) + soundOf(speechRead
 export function planSpeech(actor, deck, seconds, day) {
   const done = [];
   let at = 0;
-  for (const key of speechKeys(actor, deck)) {
-    for (const line of speechLines(key)) {
-      at += lineSeconds(line.text);
-      while (at <= seconds && Math.random() >= speechChance(actor, key, day)) at += SPEAK.retry + lineSeconds(line.text);
-      if (at > seconds) return { done, seconds };
+  for (;;) {
+    const keys = speechKeys(actor, deck);
+    if (!keys.length) return { done, seconds: at };
+    for (const key of keys) {
+      for (const line of speechLines(key)) {
+        at += lineSeconds(line.text);
+        while (at <= seconds && Math.random() >= speechChance(actor, key, day)) at += SPEAK.retry + lineSeconds(line.text);
+        if (at > seconds) return { done, seconds };
+      }
+      done.push({ key, at });
     }
-    done.push({ key, at });
   }
-  return { done, seconds: at };
 }
 
 export function applySpeech(actor, deck, done, elapsed, day) {

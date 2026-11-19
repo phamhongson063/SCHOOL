@@ -473,6 +473,10 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     rewardSpeech(PLAYER, deckId, current, dayOf(gameNow()));
     pos += 1;
     if (pos >= order.length) {
+      order = speechKeys(PLAYER, deckId);
+      pos = 0;
+    }
+    if (!order.length) {
       endSit();
       return;
     }
@@ -558,7 +562,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
         const last = results.at(-1);
         const before = results.slice(0, -1).map((result) => result[0].transcript);
         heards = [...last].map((alternative) => joinHeard([said, ...before, alternative.transcript]));
-        if (scoreSpeech(line, heards).passed) session.stop();
+        const result = scoreSpeech(line, heards);
+        if (result.passed && result.ended) session.stop();
         else wait(SPEAK_SILENCE);
       };
       recognition.onerror = (event) => {

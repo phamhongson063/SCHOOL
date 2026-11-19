@@ -5591,6 +5591,23 @@ dialog.profile::backdrop {
   background: #3a2717;
 }
 
+.profile-reset {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.profile-reset .danger-btn {
+  border-color: #c0503c;
+  background: rgba(192, 80, 60, 0.15);
+  color: #f3b3a3;
+}
+
+@media (hover: hover) {
+  .profile-reset .danger-btn:hover {
+    background: rgba(192, 80, 60, 0.28);
+  }
+}
+
 .profile-info {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

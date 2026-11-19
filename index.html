@@ -587,15 +587,6 @@
         </svg>
         <span class="refresh-label">Tải lại bản mới nhất</span>
       </button>
-      <button id="resetBtn" class="danger-btn" type="button">🔄 Chơi lại từ đầu</button>
-      <div id="resetConfirm" class="reset-confirm" hidden>
-        <p><strong>Xoá toàn bộ dữ liệu?</strong></p>
-        <div class="sched-actions">
-          <span class="spacer"></span>
-          <button id="resetCancel" class="sched-ghost" type="button">Huỷ</button>
-          <button id="resetConfirmBtn" class="sched-primary" type="button">Xoá &amp; chơi lại</button>
-        </div>
-      </div>
       <p id="versionNote" class="paper-note version-note"></p>
     </div>
   </dialog>
@@ -752,6 +743,17 @@
               <p id="profileEmpty" class="profile-empty" hidden>Chưa có chứng chỉ.</p>
             </div>
             <div id="profileAssets" class="profile-assets" hidden></div>
+            <div id="profileReset" class="profile-reset" hidden>
+              <button id="resetBtn" class="danger-btn" type="button">🔄 Chơi lại từ đầu</button>
+              <div id="resetConfirm" class="reset-confirm" hidden>
+                <p><strong>Xoá toàn bộ dữ liệu?</strong></p>
+                <div class="sched-actions">
+                  <span class="spacer"></span>
+                  <button id="resetCancel" class="sched-ghost" type="button">Huỷ</button>
+                  <button id="resetConfirmBtn" class="sched-primary" type="button">Xoá &amp; chơi lại</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>

@@ -110,7 +110,7 @@ function createCertList(scroller, track) {
   };
 }
 
-export function createProfile({ ledger, bank, estate, arena, people, portraitOf, assetsOf = () => [], takesPart = () => true, canLocate = () => false, onLocate = () => {}, onTravel = () => {} }) {
+export function createProfile({ ledger, bank, estate, arena, people, portraitOf, assetsOf = () => [], takesPart = () => true, canLocate = () => false, onLocate = () => {}, onTravel = () => {}, self = null, onReset = () => {} }) {
   const dialog = document.getElementById('profileDialog');
   const title = document.getElementById('profileName');
   const locate = document.getElementById('profileLocate');
@@ -124,6 +124,11 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
   const empty = document.getElementById('profileEmpty');
   const assets = document.getElementById('profileAssets');
   const tabs = [...dialog.querySelectorAll('.profile-tabs [data-tab]')];
+  const resetArea = document.getElementById('profileReset');
+  const reset = document.getElementById('resetBtn');
+  const confirmBox = document.getElementById('resetConfirm');
+  const confirm = document.getElementById('resetConfirmBtn');
+  const cancel = document.getElementById('resetCancel');
   const list = createCertList(scroller, scroller.firstElementChild);
   const names = new Map(people.map(({ id, name }) => [id, name]));
   let current = null;
@@ -196,8 +201,15 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     assets.replaceChildren(...(items.length ? items.map(assetRow) : [el('p', 'profile-empty', 'Chưa có tài sản.')]));
   }
 
+  function showConfirm(shown) {
+    confirmBox.hidden = !shown;
+    reset.hidden = shown;
+  }
+
   function renderTab() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
+    showConfirm(false);
+    resetArea.hidden = tab !== 'info' || current.id !== self;
     info.hidden = tab !== 'info';
     certs.hidden = tab !== 'certs';
     assets.hidden = tab !== 'assets';
@@ -227,6 +239,12 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     if (!node || node.dataset.deck === deck) return;
     deck = node.dataset.deck;
     renderDecks();
+  });
+  reset.addEventListener('click', () => showConfirm(true));
+  cancel.addEventListener('click', () => showConfirm(false));
+  confirm.addEventListener('click', () => {
+    confirm.disabled = true;
+    onReset();
   });
   locate.addEventListener('click', () => {
     if (!current) return;
