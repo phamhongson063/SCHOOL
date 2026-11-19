@@ -20,8 +20,8 @@
   - Quyết định của dân làng khi offline phải dùng chung hàm luật với lúc online (ví dụ `arena.consider`, `examDeckWanted`), không viết luật riêng cho offline.
   - Lý do: thế giới phải tiếp tục sống khi người chơi thoát game; thiếu giả lập thì vào lại thấy làng đứng yên hoặc lệch so với lúc online.
 - **Nghiêm cấm phân biệt nghề nghiệp của dân làng**: trong game không có khái niệm nghề nghiệp, mọi người chỉ gọi chung là dân làng. Không tạo màu tên, nhãn, icon, cách gọi hay giao diện riêng theo nghề (học sinh, nông dân...).
-- **Bộ Kanji N2 (`kanjiN2.js`)**: dữ liệu chia theo nhóm chữ trông giống nhau như sách (票標漂, 祭察際...).
-  - **Không chèn, xoá hay đổi thứ tự** chữ và từ đã có: key thẻ là `kn2:<no>:<thứ tự từ>`, đổi thứ tự sẽ làm lệch chứng chỉ trong save. Chữ mới lấy `no` kế tiếp, từ mới thêm vào cuối danh sách của chữ đó.
+- **Bộ Kanji N2 / N3 (`kanjiN2.js`, `kanjiN3.js`)**: dữ liệu chia theo nhóm chữ trông giống nhau như sách (票標漂, 祭察際...).
+  - **Không chèn, xoá hay đổi thứ tự** chữ và từ đã có: key thẻ là `kn2:<no>:<thứ tự từ>` (N3 là `kn3:`), đổi thứ tự sẽ làm lệch chứng chỉ trong save. Chữ mới lấy `no` kế tiếp, từ mới thêm vào cuối danh sách của chữ đó.
   - Mỗi từ có: `word`, `reading`, `hanViet`, `meaning`, `wrong` (đúng 3 cách đọc sai, khác đáp án), `example`, `vi`.
   - Câu ví dụ chứa `[từ]` đúng một lần, ở **dạng từ điển** (không chia động từ), không ghi furigana cho từ đó. Mọi chữ kanji khác trong câu đều có furigana `漢字{よみ}` và không được để lộ cách đọc của chữ đang hỏi.
   - `like` gồm đúng 3 chữ trông giống: 2 chữ cùng nhóm + 1 chữ ngoài nhóm. Đáp án sai của câu chọn cách viết được tạo tự động từ đây.

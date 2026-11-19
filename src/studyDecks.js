@@ -1,6 +1,7 @@
 import { N2_VOCAB } from './vocabN2.js';
 import { LESSONS } from './lessons.js';
 import { KANJI_N2 } from './kanjiN2.js';
+import { KANJI_N3 } from './kanjiN3.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
 const MARKS = /\[([^\]]+)\]/g;
@@ -59,11 +60,11 @@ function rubyOf(word, reading) {
   return parts.map((part) => (KANJI.test(part) ? `${part}{${match[next++]}}` : part)).join('');
 }
 
-const kanjiCards = () =>
-  KANJI_N2.flatMap((kanji) =>
+const kanjiCards = (list, prefix, deck) =>
+  list.flatMap((kanji) =>
     kanji.words.map((entry, i) => ({
-      key: `kn2:${kanji.no}:${i + 1}`,
-      deck: 'kanjiN2',
+      key: `${prefix}:${kanji.no}:${i + 1}`,
+      deck,
       group: kanji.no,
       word: entry.word,
       reading: entry.reading,
@@ -134,7 +135,16 @@ export const DECKS = {
     unit: 'từ',
     quiz: 'kanji',
     choices: 4,
-    cards: kanjiCards(),
+    cards: kanjiCards(KANJI_N2, 'kn2', 'kanjiN2'),
+  },
+  kanjiN3: {
+    title: '漢字 N3',
+    label: 'Kanji N3',
+    level: '漢字 N3',
+    unit: 'từ',
+    quiz: 'kanji',
+    choices: 4,
+    cards: kanjiCards(KANJI_N3, 'kn3', 'kanjiN3'),
   },
 };
 
