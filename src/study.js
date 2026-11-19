@@ -9,7 +9,7 @@ import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
 import { NPC } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
-import { rewardSpeech, scoreSpeech, soundOf, speechKeys, speechLines, speechReading, speechSegments } from './speaking.js';
+import { rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -55,7 +55,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const speakPick = start.querySelector('[data-mode="speak"]');
   const speakInfo = document.getElementById('studySpeakInfo');
   const speakArea = document.getElementById('studySpeak');
-  const heardText = document.getElementById('studyHeard');
+  const scoreText = document.getElementById('studyScore');
   const mic = document.getElementById('studyMic');
   for (const pick of [learnPick, reviewPick]) paintIcon(pick.querySelector('span'), { art: 'scroll' });
   const body = document.getElementById('studyBody');
@@ -388,7 +388,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function setMic(state, count = 0) {
     micState = state;
-    mic.disabled = state === 'partner' || state === 'wait';
+    mic.disabled = state === 'busy' || state === 'wait';
     mic.classList.toggle('listening', state === 'listening');
     mic.textContent = state === 'wait' ? String(count) : '🎤';
   }
@@ -398,32 +398,9 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     const recognition = listening;
     listening = null;
     recognition?.abort();
-    globalThis.speechSynthesis?.cancel();
     speakArea.hidden = true;
+    scoreText.textContent = '';
     micState = 'idle';
-  }
-
-  function say(text, done = null) {
-    const token = speakRun;
-    const reading = speechReading(text);
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(guard);
-      if (token === speakRun && mode === 'speak') done?.();
-    };
-    const guard = setTimeout(finish, (2 + soundOf(reading).length * 0.3) * 1000);
-    const synth = globalThis.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(reading);
-    utterance.lang = 'ja-JP';
-    const voice = synth.getVoices().find((item) => item.lang.replace('_', '-').startsWith('ja'));
-    if (voice) utterance.voice = voice;
-    utterance.onend = finish;
-    utterance.onerror = finish;
-    synth.speak(utterance);
   }
 
   function segmentNode(segment, missed) {
@@ -456,9 +433,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (situation) ja.append(el('span', 'study-situation', situation));
     speakLines.forEach((item, i) => {
       const row = el('span', 'study-line speak-line');
-      row.classList.toggle('mine', item.mine);
       row.classList.toggle('now', i === speakLine);
-      row.dataset.line = String(i);
       const words = el('span', 'study-words');
       const misses = speakMarks[i];
       words.append(...speechSegments(item.text).map((segment, at) => segmentNode(segment, misses ? misses.has(at) : undefined)));
@@ -475,25 +450,16 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       finishDialog();
       return;
     }
-    const item = speakLines[speakLine];
-    if (item.mine) {
-      setMic('ready');
-      return;
-    }
-    setMic('partner');
-    say(item.text, () => {
-      speakLine += 1;
-      playLine();
-    });
+    setMic('ready');
   }
 
   function openDialog() {
     fill(order[pos]);
     modeChip.textContent = `${pos + 1}/${order.length}`;
-    speakLines = speechLines(current, pos);
+    speakLines = speechLines(current);
     speakLine = 0;
     speakMarks = speakLines.map(() => null);
-    heardText.replaceChildren();
+    scoreText.textContent = '';
     playLine();
   }
 
@@ -519,7 +485,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   function judge(heards) {
     const result = scoreSpeech(speakLines[speakLine].text, heards);
     speakMarks[speakLine] = result.misses;
-    heardText.replaceChildren(el('b', 'study-score', `${Math.round(result.score * 100)}%`), document.createTextNode(result.heard));
+    scoreText.textContent = `${Math.round(result.score * 100)}%`;
     renderSpeech();
     if (!result.passed) {
       sounds?.wrong();
@@ -527,7 +493,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       return;
     }
     sounds?.correct();
-    setMic('partner');
+    setMic('busy');
     speakLine += 1;
     later(playLine, SPEAK_PAUSE);
   }
@@ -539,7 +505,6 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       return;
     }
     if (micState !== 'ready') return;
-    globalThis.speechSynthesis?.cancel();
     const token = speakRun;
     const recognition = new Recognition();
     recognition.lang = 'ja-JP';
@@ -555,7 +520,6 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
         .slice(0, -1)
         .map((result) => result[0].transcript)
         .join('');
-      heardText.textContent = before + last[0].transcript;
       if (results.every((result) => result.isFinal)) heards = [...last].map((alternative) => before + alternative.transcript);
     };
     recognition.onerror = (event) => {
@@ -569,11 +533,11 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
         judge(heards);
         return;
       }
-      if (failure === 'not-allowed' || failure === 'service-not-allowed') heardText.textContent = '🎤✗';
+      if (failure === 'not-allowed' || failure === 'service-not-allowed') scoreText.textContent = '🎤✗';
       setMic('ready');
     };
     listening = recognition;
-    heardText.replaceChildren();
+    scoreText.textContent = '';
     setMic('listening');
     try {
       recognition.start();
@@ -710,11 +674,6 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   reviewPick.addEventListener('click', beginReview);
   speakPick.addEventListener('click', beginSpeak);
   mic.addEventListener('click', listen);
-  example.addEventListener('click', (event) => {
-    if (mode !== 'speak' || micState === 'listening' || micState === 'partner') return;
-    const row = event.target.closest('.speak-line');
-    if (row) say(speakLines[Number(row.dataset.line)].text);
-  });
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {
     if (body.classList.contains('covered')) {

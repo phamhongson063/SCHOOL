@@ -223,6 +223,7 @@ export const SPEAK = {
   lineSeconds: [4, 8],
   kanaSeconds: 0.18,
   minChance: 0.15,
+  fillers: ['ううん', 'うーん', 'うん', 'ええ', 'ええと', 'えっと', 'えーと', 'あの', 'あのう', 'あのー', 'まあ', 'へえ', 'へー', 'ふうん', 'ふーん', 'ああ', 'あっ', 'えっ', 'おお', 'おっ', 'ほら', 'さあ', 'ねえ'],
 };
 
 export const MART = { open: 6 * 60, close: 22 * 60, house: 'd1', reserve: 80, chance: 0.15, stock: 2 };

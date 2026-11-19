@@ -10,16 +10,28 @@ const SOUND = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}ー0-9a-z]/u
 
 export const SPEAK_DECKS = DECK_IDS.filter((id) => DECKS[id].speak);
 
+const VOWEL_ROWS = {
+  あ: 'あかさたなはまやらわがざだばぱぁゃゎ',
+  い: 'いきしちにひみりぎじぢびぴぃ',
+  う: 'うくすつぬふむゆるぐずづぶぷぅゅゔ',
+  え: 'えけせてねへめれげぜでべぺぇ',
+  お: 'おこそとのほもよろをごぞどぼぽぉょ',
+};
+const VOWEL = new Map(Object.entries(VOWEL_ROWS).flatMap(([vowel, row]) => [...row].map((ch) => [ch, vowel])));
+
 function hiragana(ch) {
   const code = ch.codePointAt(0);
   return code >= 0x30a1 && code <= 0x30f6 ? String.fromCodePoint(code - 0x60) : ch;
 }
 
+function lengthen(chars) {
+  return chars.map((ch, i) => (ch === 'ー' && i ? (VOWEL.get(chars[i - 1]) ?? ch) : ch));
+}
+
 export const soundOf = (text) =>
-  [...text.normalize('NFKC').toLowerCase()]
-    .map(hiragana)
-    .filter((ch) => SOUND.test(ch))
-    .join('');
+  lengthen([...text.normalize('NFKC').toLowerCase()].map(hiragana).filter((ch) => SOUND.test(ch))).join('');
+
+const soundAfter = (before, ch) => soundOf(before + ch).slice(soundOf(before).length);
 
 export function speechSegments(text) {
   const segments = [];
@@ -28,7 +40,10 @@ export function speechSegments(text) {
     const mark = part.startsWith('[');
     const body = mark ? part.slice(1, -1) : part;
     const loose = (chunk) => {
-      for (const ch of chunk) segments.push({ text: ch, reading: null, sounds: [soundOf(ch)].filter(Boolean), mark });
+      for (const ch of chunk) {
+        const before = segments.at(-1)?.text.slice(-1) ?? '';
+        segments.push({ text: ch, reading: null, sounds: [soundAfter(before, ch)].filter(Boolean), mark });
+      }
     };
     let last = 0;
     for (const match of body.matchAll(RUBY)) {
@@ -46,10 +61,28 @@ export const speechReading = (text) =>
     .map((segment) => segment.reading ?? segment.text)
     .join('');
 
+function fillerRuns(segments) {
+  const quiet = (at) => !segments[at]?.sounds.length;
+  const runs = [];
+  segments.forEach((_, from) => {
+    if (!quiet(from - 1) || quiet(from)) return;
+    let text = '';
+    for (let to = from; to < segments.length && !quiet(to); to++) {
+      text += segments[to].text;
+      if (quiet(to + 1) && SPEAK.fillers.includes(text)) runs.push([from, to]);
+    }
+  });
+  return runs;
+}
+
 function graphOf(segments) {
   const nodes = [[]];
+  const starts = [];
+  const ends = [];
   let end = 0;
   segments.forEach((segment, seg) => {
+    starts[seg] = end;
+    ends[seg] = end;
     if (!segment.sounds.length) return;
     const tails = [];
     for (const sound of segment.sounds) {
@@ -63,7 +96,9 @@ function graphOf(segments) {
     }
     nodes.push(tails);
     end = nodes.length - 1;
+    ends[seg] = end;
   });
+  for (const [from, to] of fillerRuns(segments)) nodes[ends[to]].push({ from: starts[from], ch: null, seg: -1 });
   return nodes;
 }
 
@@ -79,6 +114,13 @@ function align(segments, heard) {
   for (let u = 1; u < nodes.length; u++) {
     for (let j = 0; j <= said.length; j++) {
       for (const edge of nodes[u]) {
+        if (edge.ch === null) {
+          if (cost[edge.from][j] < cost[u][j]) {
+            cost[u][j] = cost[edge.from][j];
+            back[u][j] = { node: edge.from, at: j, edge, miss: false };
+          }
+          continue;
+        }
         const skip = cost[edge.from][j] + 1;
         if (skip < cost[u][j]) {
           cost[u][j] = skip;
@@ -122,12 +164,7 @@ export function scoreSpeech(text, heards) {
   return { ...best, passed: best.score >= SPEAK.pass };
 }
 
-export function speechLines(key, turn) {
-  const lines = unitOf(key).examples[0].lines;
-  const role = turn % 2 ? 'A' : 'B';
-  const mine = lines.some(([speaker]) => speaker === role);
-  return lines.map(([speaker, text, vi]) => ({ speaker, text, vi, mine: !mine || speaker === role }));
-}
+export const speechLines = (key) => unitOf(key).examples[0].lines.map(([speaker, text, vi]) => ({ speaker, text, vi }));
 
 export const speechKeys = (actor, deck) => certify.speakKeys(actor, deck, SPEAK.dialogs);
 
@@ -146,10 +183,10 @@ const lineSeconds = (text) => between(...SPEAK.lineSeconds) + soundOf(speechRead
 export function planSpeech(actor, deck, seconds, day) {
   const done = [];
   let at = 0;
-  for (const [turn, key] of speechKeys(actor, deck).entries()) {
-    for (const line of speechLines(key, turn)) {
+  for (const key of speechKeys(actor, deck)) {
+    for (const line of speechLines(key)) {
       at += lineSeconds(line.text);
-      while (line.mine && at <= seconds && Math.random() >= speechChance(actor, key, day)) at += SPEAK.retry + lineSeconds(line.text);
+      while (at <= seconds && Math.random() >= speechChance(actor, key, day)) at += SPEAK.retry + lineSeconds(line.text);
       if (at > seconds) return { done, seconds };
     }
     done.push({ key, at });

@@ -3387,42 +3387,33 @@ dialog.paper.phrase-quiz {
 
 .study-speak {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  justify-content: center;
   box-sizing: border-box;
   width: 100%;
   max-width: 380px;
   margin: 8px auto 0;
 }
 
-.study-heard {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 1.5em;
-  margin: 0;
-  color: var(--wood);
-  font: 500 15px/1.5 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.study-score {
-  margin-right: 8px;
+.study-head .study-score {
+  position: absolute;
+  top: 50%;
+  left: 0;
   color: var(--bark);
-  font: 700 15px/1.5 var(--font-ui);
+  font: 700 17px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
 }
 
 .study-mic {
   flex: none;
-  width: 48px;
-  height: 48px;
+  width: 84px;
+  height: 84px;
   padding: 0;
-  border: 2px solid #d9c49a;
+  border: 3px solid #d9c49a;
   border-radius: 50%;
   background: #fbf5e4;
   color: var(--wood);
-  font: 700 21px/1 var(--font-ui);
+  font: 700 40px/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
@@ -3452,15 +3443,10 @@ dialog.paper.phrase-quiz {
 
 .study-example-ja .speak-line {
   opacity: 0.5;
-  cursor: pointer;
 }
 
 .study-example-ja .speak-line.now {
   opacity: 1;
-}
-
-.study-example-ja .speak-line.mine .study-speaker {
-  color: #c2287e;
 }
 
 .study-example-ja .speak-ok {
