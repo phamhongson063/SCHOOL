@@ -856,6 +856,11 @@ await economy.start({
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });
+function assetsOf(id) {
+  const house = estate.houseOf(id);
+  const homes = house ? [{ icon: '🏡', title: `Nhà số ${house.id}`, detail: estate.sizeName(house), point: town.places.homes.get(house.id) ?? null }] : [];
+  return [...homes, ...farm.leasesOf(id).map((lease) => ({ icon: '🌾', title: lease.place, left: lease.left, point: lease.point }))];
+}
 const traitHolders = new Set([PLAYER, ...town.members.map((member) => member.id)]);
 const profileDialog = createProfile({
   ledger,
@@ -864,9 +869,14 @@ const profileDialog = createProfile({
   arena,
   people: everyone,
   portraitOf,
+  assetsOf,
   takesPart: (id) => traitHolders.has(id),
   canLocate: (id) => !!whereIs(id),
   onLocate: (id) => showOnMap(id),
+  onTravel: (point) => {
+    stashPopups();
+    travelTo(point);
+  },
 });
 createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });

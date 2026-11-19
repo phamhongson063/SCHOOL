@@ -1001,6 +1001,10 @@ export function createFarm({ ledger, nameOf, nav }) {
       tick();
       return true;
     },
+    leasesOf(actor) {
+      const now = gameNow();
+      return state.leases.heldBy(actor, now).map((bed) => ({ bed, place: bedPlace(bed), left: state.leases.holder(bed, now).until - now, point: bedHead(bed) }));
+    },
     chores(actor = PLAYER, at = null) {
       const now = gameNow();
       const found = new Map();

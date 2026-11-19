@@ -1,5 +1,5 @@
 import { amount, coins } from './format.js';
-import { dateText, DAY_MINUTES } from './clock.js';
+import { dateText, durationText, DAY_MINUTES } from './clock.js';
 import { closable } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { certify } from './certify.js';
@@ -110,7 +110,7 @@ function createCertList(scroller, track) {
   };
 }
 
-export function createProfile({ ledger, bank, estate, arena, people, portraitOf, takesPart = () => true, canLocate = () => false, onLocate = () => {} }) {
+export function createProfile({ ledger, bank, estate, arena, people, portraitOf, assetsOf = () => [], takesPart = () => true, canLocate = () => false, onLocate = () => {}, onTravel = () => {} }) {
   const dialog = document.getElementById('profileDialog');
   const title = document.getElementById('profileName');
   const locate = document.getElementById('profileLocate');
@@ -122,6 +122,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
   const deckBar = document.getElementById('profileDecks');
   const scroller = document.getElementById('profileScroll');
   const empty = document.getElementById('profileEmpty');
+  const assets = document.getElementById('profileAssets');
   const tabs = [...dialog.querySelectorAll('.profile-tabs [data-tab]')];
   const list = createCertList(scroller, scroller.firstElementChild);
   const names = new Map(people.map(({ id, name }) => [id, name]));
@@ -179,12 +180,30 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     list.show(rows);
   }
 
+  function assetRow(item) {
+    const node = el('button', 'profile-asset');
+    node.type = 'button';
+    node.disabled = !item.point;
+    const text = el('span', 'profile-asset-text');
+    text.append(el('span', 'profile-asset-title', item.title), el('small', 'profile-asset-detail', item.detail));
+    node.append(el('span', 'profile-asset-icon', item.icon), text, el('span', 'profile-asset-go', '➜'));
+    node.addEventListener('click', () => onTravel(item.point));
+    return node;
+  }
+
+  function renderAssets() {
+    const items = assetsOf(current.id).map((item) => (item.left === undefined ? item : { ...item, detail: `Còn ${durationText(item.left)}` }));
+    assets.replaceChildren(...(items.length ? items.map(assetRow) : [el('p', 'profile-empty', 'Chưa có tài sản.')]));
+  }
+
   function renderTab() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
     info.hidden = tab !== 'info';
     certs.hidden = tab !== 'certs';
+    assets.hidden = tab !== 'assets';
     if (tab === 'info') renderInfo();
-    else renderDecks();
+    else if (tab === 'certs') renderDecks();
+    else renderAssets();
   }
 
   function renderSide() {
