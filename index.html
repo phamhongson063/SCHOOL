@@ -125,18 +125,10 @@
   </script>
   <div id="app"></div>
   <div id="hud">
-    <button id="vitals" class="vitals" type="button" aria-describedby="vitalsInfo">
+    <button id="vitals" class="vitals" type="button">
       <span class="vitals-face"><img id="vitalsPortrait" alt="" draggable="false" /></span>
       <span class="vitals-bar" aria-hidden="true"><span id="energyBar" class="vitals-fill"></span></span>
     </button>
-    <div id="vitalsInfo" class="vitals-info" role="tooltip">
-      <div class="stat-row stat-energy" title="Năng lượng">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M13.5 2 5 13.5h6L10 22l9-12h-6.2z" /></svg>
-        </span>
-        <span id="vitalsText" class="stat-value"></span>
-      </div>
-    </div>
   </div>
   <div id="regenPops" class="regen-pops" aria-hidden="true"></div>
   <div id="toolbar">
