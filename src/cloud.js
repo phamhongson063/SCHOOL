@@ -8,13 +8,37 @@ const SYNC_EVERY = 30000;
 const DOCS = { self: 'saves', world: 'worlds' };
 const REV_FIELD = { self: 'rev', world: 'worldRev' };
 const SCOPES = Object.keys(DOCS);
+const SAVE_LIMIT = 900000;
+const PACKED = 'gz:';
 
 export const cloudEnabled = Boolean(firebaseConfig.apiKey);
 
 let sdk = null;
 let sync = null;
+let warnedSaveFailed = false;
 
 const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const tooLarge = () => Object.assign(new Error('save too large'), { code: 'too-large' });
+const fits = (packed) => packed.length < SAVE_LIMIT;
+
+async function pack(text) {
+  if (typeof CompressionStream !== 'function') return text;
+  const zipped = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < zipped.length; i += 0x8000) binary += String.fromCharCode(...zipped.subarray(i, i + 0x8000));
+  return PACKED + btoa(binary);
+}
+
+async function unpack(stored) {
+  if (typeof stored !== 'string' || !stored.startsWith(PACKED)) return stored;
+  const bytes = Uint8Array.from(atob(stored.slice(PACKED.length)), (char) => char.charCodeAt(0));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+
+async function packScopes(texts, scopes) {
+  const packed = await Promise.all(scopes.map((scope) => pack(texts[scope])));
+  return Object.fromEntries(scopes.map((scope, i) => [scope, packed[i]]));
+}
 
 export function account() {
   try {
@@ -89,6 +113,7 @@ const wroteRev = (known, scope, rev) => Boolean(known) && (rev === known[REV_FIE
 
 async function claim(store, db, refs, known, id) {
   const local = Object.fromEntries(SCOPES.map((scope) => [scope, snapshot(scope)]));
+  const packed = await packScopes(local, SCOPES);
   const result = await store.runTransaction(db, async (tx) => {
     const cloud = {};
     for (const scope of SCOPES) {
@@ -96,6 +121,7 @@ async function claim(store, db, refs, known, id) {
       cloud[scope] = found.exists() ? found.data() : null;
     }
     const ours = SCOPES.every((scope) => !cloud[scope] || wroteRev(known, scope, cloud[scope].rev));
+    if (SCOPES.some((scope) => (ours || !cloud[scope]) && !fits(packed[scope]))) throw tooLarge();
     const claimed = {};
     for (const scope of SCOPES) {
       if (!ours && cloud[scope]) {
@@ -104,11 +130,12 @@ async function claim(store, db, refs, known, id) {
         continue;
       }
       const next = newId();
-      tx.set(refs[scope], { data: local[scope], rev: next, session: id, savedAt: store.serverTimestamp() });
+      tx.set(refs[scope], { data: packed[scope], rev: next, session: id, savedAt: store.serverTimestamp() });
       claimed[scope] = { rev: next, data: local[scope] };
     }
     return claimed;
   });
+  for (const scope of SCOPES) result[scope].data = await unpack(result[scope].data);
   const stale = SCOPES.filter((scope) => result[scope].data !== local[scope]);
   for (const scope of stale) restore(result[scope].data, scope);
   if (stale.length) {
@@ -175,6 +202,8 @@ async function push(state) {
   const data = { self: snapshot('self'), world: snapshot('world') };
   const changed = SCOPES.filter((scope) => data[scope] !== state.uploaded[scope]);
   if (!changed.length) return;
+  const packed = await packScopes(data, changed);
+  if (!changed.every((scope) => fits(packed[scope]))) return saveFailed();
   const { store, db } = await loadSdk();
   const before = account();
   if (!before || sync !== state) return;
@@ -186,10 +215,11 @@ async function push(state) {
     owned = await store.runTransaction(db, async (tx) => {
       const found = await tx.get(state.refs.self);
       if (found.get('session') !== state.id) return false;
-      for (const scope of changed) tx.update(state.refs[scope], { data: data[scope], rev: revs[scope], savedAt: store.serverTimestamp() });
+      for (const scope of changed) tx.update(state.refs[scope], { data: packed[scope], rev: revs[scope], savedAt: store.serverTimestamp() });
       return true;
     });
-  } catch {
+  } catch (error) {
+    if (error?.code === 'permission-denied') saveFailed();
     return;
   }
   if (!owned) return takenOver();
@@ -202,6 +232,15 @@ async function push(state) {
   }
   if (saved.pending && !Object.keys(saved.pending).length) delete saved.pending;
   saveAccount(saved);
+}
+
+function saveFailed() {
+  if (warnedSaveFailed) return;
+  warnedSaveFailed = true;
+  const dialog = document.getElementById('saveFailDialog');
+  if (!dialog || dialog.open) return;
+  document.getElementById('saveFailBtn')?.addEventListener('click', () => dialog.close(), { once: true });
+  dialog.showModal();
 }
 
 function takenOver() {

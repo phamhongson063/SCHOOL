@@ -41,7 +41,8 @@ async function enter() {
     try {
       if (await signedIn()) return await connect();
     } catch (error) {
-      if (error?.code !== 'permission-denied') message = 'Không kết nối được';
+      if (error?.code === 'too-large') message = 'Dữ liệu lưu vượt giới hạn';
+      else if (error?.code !== 'permission-denied') message = 'Không kết nối được';
       else {
         await signOut().catch(() => {});
         message = 'Tài khoản không được phép';

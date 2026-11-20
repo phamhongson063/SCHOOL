@@ -12,7 +12,7 @@ service cloud.firestore {
       return save.keys().hasOnly(['data', 'rev', 'session', 'savedAt'])
         && save.keys().hasAll(['data', 'rev', 'session', 'savedAt'])
         && save.data is string
-        && save.data.size() < 500000
+        && save.data.size() < 900000
         && save.rev is string
         && save.rev.size() < 64
         && save.session is string
