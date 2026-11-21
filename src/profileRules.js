@@ -66,7 +66,7 @@ function textOf(deck, card) {
 }
 
 export function certifiedDecks(id) {
-  return DECK_IDS.map((deck) => ({ deck, title: DECKS[deck].title, count: certify.certifiedDays(id, deck).length }));
+  return DECK_IDS.map((deck) => ({ deck, title: DECKS[deck].title, count: certify.certifiedDays(id, deck).length, total: certify.deckSize(deck) }));
 }
 
 export function certifiedRows(id, deck) {

@@ -139,11 +139,12 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     status.textContent = statusText();
     learnName.textContent = MODES[learnedAll ? 'today' : 'learn'].name;
     learnInfo.textContent = learning.length ? `${done}/${learning.length}` : '—';
-    reviewInfo.textContent = `🎓 ${certified}`;
+    const total = certify.deckSize(deckId);
+    reviewInfo.textContent = `🎓 ${certified}/${total}`;
     learnPick.disabled = learning.length === 0 || examTaken;
     reviewPick.disabled = certified === 0;
     speakPick.hidden = !canSpeak();
-    speakInfo.textContent = `🎓 ${certified}`;
+    speakInfo.textContent = `🎓 ${certified}/${total}`;
     speakPick.disabled = certified === 0;
   }
 

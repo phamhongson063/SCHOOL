@@ -160,7 +160,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     if (land) infoRow('Quốc gia', `${land.flag} ${land.name}`);
     infoRow('Tài sản', coins(netWorth(id, { ledger, bank, estate })));
     infoRow('Nhà ở', house ? estate.sizeName(house) : 'Chưa có');
-    infoRow('Chứng chỉ', `🎓 ${amount(certify.certifiedTotal(id))}`);
+    infoRow('Chứng chỉ', `🎓 ${amount(certify.certifiedTotal(id))}/${amount(certify.allDecksSize())}`);
     infoRow('Lôi đài', `🏆 ${amount(arena.titlesOf(id))}`);
     infoRow('Siêng năng', bar(diligence));
     for (const skill of skills) infoRow(SKILL_LABELS[skill.kind], bar(skill.share));
@@ -176,7 +176,7 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
         node.setAttribute('role', 'tab');
         node.dataset.deck = item.deck;
         node.setAttribute('aria-selected', String(item.deck === deck));
-        node.append(el('span', '', item.title), el('span', 'profile-deck-count', amount(item.count)));
+        node.append(el('span', '', item.title), el('span', 'profile-deck-count', `${amount(item.count)}/${amount(item.total)}`));
         return node;
       }),
     );

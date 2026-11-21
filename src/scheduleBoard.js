@@ -60,7 +60,7 @@ export function createScheduleBoard({ sky, context }) {
       ...DECK_IDS.map((deck) => {
         const li = document.createElement('li');
         const label = document.createElement('span');
-        label.textContent = `🎓 ${DECKS[deck].label} · ${certify.certifiedCount(PLAYER, deck)}`;
+        label.textContent = `🎓 ${DECKS[deck].label} · ${certify.certifiedCount(PLAYER, deck)}/${certify.deckSize(deck)}`;
         const state = document.createElement('span');
         state.textContent = deckStatus(deck);
         li.append(label, state);
