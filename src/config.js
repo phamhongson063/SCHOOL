@@ -413,9 +413,10 @@ export const TOWNHALL = {
 
 export const LOTO = {
   fee: 0,
-  signOpen: 23 * 60 + 12,
-  start: 23 * 60 + 42,
+  signOpen: 23 * 60 + 23,
+  start: 23 * 60 + 53,
   callSeconds: 7,
+  rounds: 3,
   pool: 40,
   size: 4,
   wordsPerKanji: 2,

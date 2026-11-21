@@ -2021,7 +2021,7 @@ function openLotoDesk() {
 
 function lotoBoard(now, open, result) {
   const day = dayOf(now);
-  if (open) return { title: 'Lô tô chữ', text: open.call.text, note: `${LOTO_CLUE_LABELS[open.call.kind]} · ${open.index + 1}/${open.total}` };
+  if (open) return { title: 'Lô tô chữ', text: open.call.text, note: `${LOTO_CLUE_LABELS[open.call.kind]} · Vòng ${open.round} · ${open.turn}/${open.size}` };
   if (result) return { title: 'Lô tô chữ', text: result.winners.length ? 'Kinh!' : 'Hết lượt', note: result.winners.map(lotoNameOf).join(', ') };
   if (now < lotoStart(day)) return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: `Quỹ ${Math.round(loto.pot(now))} 🪙` };
   return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: '' };
@@ -2055,10 +2055,14 @@ function markLotoCalls(now) {
   } catch {}
   const card = loto.cardOf(PLAYER, now);
   const marks = loto.marksOf(PLAYER, now);
+  const heard = new Set();
   for (let i = 0; i < loto.closedCount(now); i++) {
     const call = loto.callAt(now, i);
-    const cell = call ? card.indexOf(call.key) : -1;
-    if (cell >= 0) certify.markWeak(PLAYER, call.key, marks[cell] === HIT);
+    if (call) heard.add(call.key);
+  }
+  for (const key of heard) {
+    const cell = card.indexOf(key);
+    if (cell >= 0) certify.markWeak(PLAYER, key, marks[cell] === HIT);
   }
 }
 
@@ -2119,11 +2123,10 @@ function updateLoto() {
     lotoUI.render({
       marks: loto.marksOf(PLAYER, now),
       call: open?.call ?? null,
-      called: loto.called(now),
-      live: lotoLive(now),
+      round: open?.round ?? 0,
+      turn: open?.turn ?? 0,
+      size: open?.size ?? 0,
       left: open?.left ?? 0,
-      index: open?.index ?? 0,
-      count: open?.total ?? 0,
       prize: Math.round(loto.pot(now)),
       waiting: now < lotoStart(day) ? `Bắt đầu lúc ${clockText(LOTO.start)}` : '…',
       outcome: lotoOutcome(result) ?? (loto.bingo(PLAYER, now) ? 'Kinh!' : null),

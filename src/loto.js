@@ -10,9 +10,9 @@ import {
   applyTap,
   blankMarks,
   callMinutes,
-  calledCalls,
   closedCalls,
   hasBingo,
+  lotoCalls,
   lotoCard,
   lotoPool,
   lotoSignOpen,
@@ -20,6 +20,7 @@ import {
   lotoWinOdds,
   nearBingo,
   npcCall,
+  roundOf,
   validCall,
   validCard,
 } from './lotoRules.js';
@@ -30,7 +31,8 @@ const MARKS = new RegExp(`^[.ox-]{${LOTO_CELLS}}$`);
 const ODDS_MINUTES = 10;
 
 const knownBy = (id) => (key) => absorption.chance(id, key);
-const cardOdds = (id, card) => (card.length ? card.reduce((sum, key) => sum + absorption.chance(id, key), 0) / card.length : 0);
+const heardOdds = (id, key) => 1 - (1 - absorption.chance(id, key)) ** LOTO.rounds;
+const cardOdds = (id, card) => (card.length ? card.reduce((sum, key) => sum + heardOdds(id, key), 0) / card.length : 0);
 
 const blank = (day = null, last = null) => ({ day, start: LOTO.start, pool: day === null ? [] : lotoPool(day), joined: [], marks: {}, cards: {}, closed: 0, winners: null, prize: 0, last });
 
@@ -76,7 +78,7 @@ function heard(id, key, at) {
   const day = dayOf(at);
   const answer = absorption.respond(id, key, LOTO.callSeconds, day);
   fluency.recall(id, key, day, answer.correct);
-  return answer.correct;
+  return answer.correct && answer.seconds < LOTO.callSeconds;
 }
 
 export function createLoto({ charge, payout, budget, human }) {
@@ -103,17 +105,17 @@ export function createLoto({ charge, payout, budget, human }) {
     if (winners.length) {
       state.winners = winners;
       state.prize = payout(winners, potOf(state.day), at);
-    } else if (state.closed >= lotoPool(state.day).length) state.winners = [];
+    } else if (state.closed >= lotoCalls(state.day).length) state.winners = [];
     if (finished()) state.last = { day: state.day, start: state.start, winners: [...state.winners], entrants: [...state.joined], prize: state.prize };
   }
 
   function current(now) {
     if (state.day === null || finished() || !state.joined.length) return null;
-    const pool = lotoPool(state.day);
+    const calls = lotoCalls(state.day);
     const index = state.closed;
     const opensAt = lotoStart(state.day) + index * callMinutes;
-    if (index >= pool.length || now < opensAt || now >= opensAt + callMinutes) return null;
-    return { index, call: pool[index], left: (opensAt + callMinutes - now) * 60, total: pool.length };
+    if (index >= calls.length || now < opensAt || now >= opensAt + callMinutes) return null;
+    return { index, call: calls[index], left: (opensAt + callMinutes - now) * 60, ...roundOf(state.day, index) };
   }
 
   return {
@@ -121,10 +123,11 @@ export function createLoto({ charge, payout, budget, human }) {
       if (state.day === null || finished() || !state.joined.length) return false;
       const day = state.day;
       const pool = lotoPool(day);
+      const calls = lotoCalls(day);
       const target = closedCalls(day, now);
       if (state.closed >= target) return false;
       while (state.closed < target && !finished()) {
-        const call = pool[state.closed];
+        const call = calls[state.closed];
         const at = lotoStart(day) + (state.closed + 1) * callMinutes;
         for (const id of state.joined) {
           if (human(id)) continue;
@@ -156,7 +159,6 @@ export function createLoto({ charge, payout, budget, human }) {
       const rivals = joinedOn(dayOf(now)).filter((other) => other !== id).map((other) => oddsOf(other, now));
       return lotoWinOdds(oddsOf(id, now), rivals) * (potOf(dayOf(now)) + LOTO.fee) - LOTO.fee;
     },
-    called: (now) => (state.day === dayOf(now) && state.joined.length ? calledCalls(state.day, now) : []),
     current,
     cardOf: (who, now) => cardFor(who, dayOf(now)),
     bingo(who, now) {
@@ -169,17 +171,16 @@ export function createLoto({ charge, payout, budget, human }) {
       return !!marks && !finished() && now >= lotoStart(dayOf(now)) && nearBingo(marks);
     },
     closedCount: (now) => (state.day === dayOf(now) ? state.closed : 0),
-    callAt: (now, index) => lotoPool(dayOf(now))[index] ?? null,
+    callAt: (now, index) => lotoCalls(dayOf(now))[index] ?? null,
     result(now) {
       if (state.day !== dayOf(now) || !finished()) return null;
       return { winners: [...state.winners], prize: state.prize };
     },
     lastResult: () => (state.last ? { ...state.last, winners: [...state.last.winners], entrants: [...state.last.entrants] } : null),
     tap(who, cell, now) {
-      if (state.day !== dayOf(now) || finished() || !state.joined.includes(who)) return null;
-      const called = calledCalls(state.day, now);
-      if (!called.length) return null;
-      const { marks, result } = applyTap(cardFor(who, state.day), state.marks[who], new Set(called.map((call) => call.key)), cell);
+      const open = current(now);
+      if (!open || !state.joined.includes(who)) return null;
+      const { marks, result } = applyTap(cardFor(who, state.day), state.marks[who], new Set([open.call.key]), cell);
       if (!result) return null;
       state.marks[who] = marks;
       store.save();

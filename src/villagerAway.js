@@ -16,7 +16,7 @@ import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 import { applySpeech, planSpeech } from './speaking.js';
-import { callMinutes, lotoEnd, lotoGatherAt, lotoPool, lotoSignOpen } from './lotoRules.js';
+import { lotoEnd, lotoGatherAt, lotoMinutes, lotoSignOpen } from './lotoRules.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -509,7 +509,7 @@ export function createAwaySim({ town, contextAt }) {
     if (!loto || !lotoSignOpen(clock) || loto.joined(member.id, clock) || member.purse.money < LOTO.fee) return null;
     const worth = loto.worth(member.id, clock);
     if (!(worth > 0)) return null;
-    return { worth, minutes: AWAY.walk + LOTO.gather + lotoPool(dayOf(clock)).length * callMinutes };
+    return { worth, minutes: AWAY.walk + LOTO.gather + lotoMinutes(dayOf(clock)) };
   }
 
   function playLoto(member, clock) {

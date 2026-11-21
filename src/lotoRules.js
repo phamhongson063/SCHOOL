@@ -107,6 +107,24 @@ export function adoptPool(day, pool) {
   prune(day);
 }
 
+const sequences = new WeakMap();
+
+export function lotoCalls(day) {
+  const pool = lotoPool(day);
+  let calls = sequences.get(pool);
+  if (!calls) {
+    calls = [];
+    for (let round = 0; round < LOTO.rounds; round++) calls.push(...(round === 0 ? pool : shuffle([...pool], makeRandom(hashText(`loto:${day}:round:${round}`)))));
+    sequences.set(pool, calls);
+  }
+  return calls;
+}
+
+export const roundOf = (day, index) => {
+  const size = lotoPool(day).length || 1;
+  return { round: Math.floor(index / size) + 1, turn: (index % size) + 1, size };
+};
+
 export function lotoPool(day) {
   if (!pools.has(day)) {
     pools.set(day, buildPool(day));
@@ -182,11 +200,6 @@ export function applyTap(card, marks, called, cell) {
   return { marks: setMark(marks, cell, LOCKED), result: 'wrong' };
 }
 
-export function closeCall(card, marks, call) {
-  const cell = card.indexOf(call.key);
-  return cell >= 0 && marks[cell] === OPEN ? setMark(marks, cell, MISSED) : marks;
-}
-
 export function npcCall(card, marks, call, pool, respond, rand = Math.random) {
   const cell = card.indexOf(call.key);
   if (cell < 0 || marks[cell] !== OPEN) return marks;
@@ -196,7 +209,7 @@ export function npcCall(card, marks, call, pool, respond, rand = Math.random) {
   const lookalikes = card.map((key, i) => i).filter((i) => i !== cell && marks[i] === OPEN && cluster.get(card[i]) === call.cluster);
   let next = marks;
   if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, marks, called, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
-  return closeCall(card, next, call);
+  return next;
 }
 
 export const hasBingo = (marks) => LINES.some((line) => line.every((cell) => marks[cell] === HIT));
@@ -208,22 +221,17 @@ export function nearBingo(marks) {
 
 export const lotoStart = (day) => day * DAY_MINUTES + LOTO.start;
 export const lotoGatherAt = (day) => lotoStart(day) - LOTO.gather;
-export const lotoEnd = (day) => lotoStart(day) + lotoPool(day).length * callMinutes;
+export const lotoEnd = (day) => lotoStart(day) + lotoCalls(day).length * callMinutes;
+export const lotoMinutes = (day) => lotoCalls(day).length * callMinutes;
 
 export function lotoSignOpen(now) {
   const m = minuteOfDay(now);
   return m >= LOTO.signOpen && m < LOTO.start;
 }
 
-export function calledCalls(day, now) {
-  if (now < lotoStart(day)) return [];
-  const pool = lotoPool(day);
-  return pool.slice(0, Math.min(pool.length, Math.floor((now - lotoStart(day)) / callMinutes) + 1));
-}
-
 export function closedCalls(day, now) {
   const done = Math.floor((now - lotoStart(day)) / callMinutes);
-  return Math.max(0, Math.min(lotoPool(day).length, done));
+  return Math.max(0, Math.min(lotoCalls(day).length, done));
 }
 
 const lineChance = (odds) => 1 - (1 - Math.max(0, odds) ** LOTO.size) ** LINES.length;
