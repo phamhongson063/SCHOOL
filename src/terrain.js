@@ -42,9 +42,9 @@ export const SHELTERS = [
 export const SHELTER_RADIUS = 3.2;
 const SHELTER_FLOOR = { halfX: 1.6, halfZ: 1.4, thick: 0.2, top: 0.15 };
 export const COURT = {
-  x: -43,
-  z: -53,
-  turn: 0.43,
+  x: 62,
+  z: -32,
+  turn: Math.PI,
   halfU: 10,
   halfV: 7,
   front: 2.6,

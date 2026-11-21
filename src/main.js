@@ -871,8 +871,10 @@ const lanterns = createLanterns({
 town.lanterns = lanterns;
 const lotoCourt = createLotoCourt(scene);
 const loto = createLoto({
-  budget: () => 0,
   payout: (winners, pot) => economy.payLoto(winners, pot),
+  award: (winners, intellect) => {
+    for (const id of winners) ledger.purse(id).addIntellect(intellect);
+  },
   human: (id) => id === PLAYER,
   charge: (who, fee) => {
     const wallet = ledger.purse(who);
@@ -1974,6 +1976,7 @@ const lotoUI = createLotoDialog({
   },
 });
 let lotoCalled = null;
+let lotoPlacesSaid = null;
 let lotoAutoFor = null;
 let lotoWasInside = false;
 let lotoAwayFor = null;
@@ -1984,11 +1987,21 @@ let lotoRemindedFor = null;
 const lotoNameOf = (id) => (id === PLAYER ? 'Bạn' : everyone.find((person) => person.id === id)?.name ?? '');
 const lotoWords = (now) => loto.cardOf(PLAYER, now).map((key) => unitOf(key)?.word ?? '');
 
+const LOTO_RANKS = ['nhất', 'nhì', 'ba', 'tư', 'năm'];
+const lotoNames = (ids) => ids.map(lotoNameOf).join(', ');
+const lotoWon = (place, rank) => `Kinh! Bạn đạt giải ${LOTO_RANKS[rank]}${place.prize > 0 ? ` · ${coins(place.prize)}` : ''} · +${LOTO.intellect} trí lực`;
+
 function lotoOutcome(result) {
   if (!result) return null;
-  if (result.winners.includes(PLAYER)) return `Kinh! Bạn thắng ${coins(result.prize)}`;
-  if (result.winners.length) return `${result.winners.map(lotoNameOf).join(', ')} đã Kinh!`;
+  const mine = result.places.findIndex((place) => place.ids.includes(PLAYER));
+  if (mine >= 0) return lotoWon(result.places[mine], mine);
+  if (result.places.length) return result.places.map((place, rank) => `Giải ${LOTO_RANKS[rank]}: ${lotoNames(place.ids)}`).join(' · ');
   return 'Hết lượt, không ai Kinh.';
+}
+
+function lotoMine(now) {
+  const rank = loto.placeOf(PLAYER, now);
+  return rank ? lotoWon(loto.places(now)[rank - 1], rank - 1) : null;
 }
 
 function lotoLive(now) {
@@ -2022,7 +2035,7 @@ function openLotoDesk() {
 function lotoBoard(now, open, result) {
   const day = dayOf(now);
   if (open) return { title: 'Lô tô chữ', text: open.call.text, note: `${LOTO_CLUE_LABELS[open.call.kind]} · Vòng ${open.round} · ${open.turn}/${open.size}` };
-  if (result) return { title: 'Lô tô chữ', text: result.winners.length ? 'Kinh!' : 'Hết lượt', note: result.winners.map(lotoNameOf).join(', ') };
+  if (result) return { title: 'Lô tô chữ', text: result.places.length ? 'Kinh!' : 'Hết lượt', note: result.places.map((place, rank) => `${LOTO_RANKS[rank]}: ${lotoNames(place.ids)}`).join(' · ') };
   if (now < lotoStart(day)) return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: `Quỹ ${Math.round(loto.pot(now))} 🪙` };
   return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: '' };
 }
@@ -2038,7 +2051,7 @@ function remindLoto(now) {
   if (lotoRemindedFor === day) return;
   lotoRemindedFor = day;
   mailbox.removeTag(LOTO_CALL);
-  mailbox.notify({ icon: '🎴', lines: [`Lô tô chữ hô lúc ${clockText(LOTO.start)}. Lên sân lô tô mua vé nhé.`], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_CALL });
+  mailbox.notify({ icon: '🎴', lines: [`Lô tô chữ hô lúc ${clockText(LOTO.start)}. Lên sân lô tô mua vé nhé.`], place: 'Sân lô tô', point: lotoCourt.stand, tag: LOTO_CALL });
 }
 
 function markLotoCalls(now) {
@@ -2078,9 +2091,20 @@ function reportLoto(now) {
   try {
     writeGameItem(LOTO_RESULT_KEY, tag);
   } catch {}
-  if (last.winners.includes(PLAYER) && last.day === dayOf(now) && last.prize > 0) regen.coin(last.prize, player.position);
+  const mine = last.places.find((place) => place.ids.includes(PLAYER));
+  if (mine && last.day === dayOf(now) && mine.prize > 0) regen.coin(mine.prize, player.position);
   const when = last.day === dayOf(now) ? '' : ` tối ${dateText(last.day * DAY_MINUTES)}`;
   mailbox.notify({ icon: '🎴', lines: [`Lô tô chữ${when}: ${lotoOutcome(last)}`], keep: true, expires: endOfDay() });
+}
+
+function announceLotoPlaces(now) {
+  const day = dayOf(now);
+  const places = loto.places(now);
+  if (lotoPlacesSaid?.day !== day) lotoPlacesSaid = { day, count: places.length };
+  if (places.length <= lotoPlacesSaid.count) return;
+  const rank = places.length - 1;
+  lotoPlacesSaid.count = places.length;
+  lotoCourt.say(`Kinh! Giải ${LOTO_RANKS[rank]}: ${lotoNames(places[rank].ids)}`, LOTO.callSeconds - 0.5);
 }
 
 function updateLoto() {
@@ -2094,13 +2118,14 @@ function updateLoto() {
     lotoCalled = open.index;
     lotoCourt.say(open.call.text, LOTO.callSeconds - 0.5);
   }
+  announceLotoPlaces(now);
   lotoCourt.setBoard(lotoBoard(now, open, result));
   playerBubble.setLoto(loto.near(PLAYER, now));
   if (hasEntered()) {
     remindLoto(now);
     if (lotoLive(now) && lotoAnnounced !== day) {
       lotoAnnounced = day;
-      broadcast.show('Lô tô chữ bắt đầu hô! Lên sân lô tô ở lưng núi nhé.');
+      broadcast.show('Lô tô chữ bắt đầu hô! Lên sân lô tô nhé.');
     }
   }
   const playing = loto.joined(PLAYER, now) && lotoLive(now);
@@ -2113,7 +2138,7 @@ function updateLoto() {
   if (playing && !inside && hasEntered() && lotoAwayFor !== day) {
     lotoAwayFor = day;
     lotoAwayMail = true;
-    mailbox.notify({ icon: '🎴', lines: ['Lô tô chữ đang hô, lên sân dò vé nhé.'], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_AWAY });
+    mailbox.notify({ icon: '🎴', lines: ['Lô tô chữ đang hô, lên sân dò vé nhé.'], place: 'Sân lô tô', point: lotoCourt.stand, tag: LOTO_AWAY });
   }
   if (lotoAwayMail && (!playing || inside)) {
     lotoAwayMail = false;
@@ -2129,7 +2154,7 @@ function updateLoto() {
       left: open?.left ?? 0,
       prize: Math.round(loto.pot(now)),
       waiting: now < lotoStart(day) ? `Bắt đầu lúc ${clockText(LOTO.start)}` : '…',
-      outcome: lotoOutcome(result) ?? (loto.bingo(PLAYER, now) ? 'Kinh!' : null),
+      outcome: lotoOutcome(result) ?? lotoMine(now) ?? (loto.bingo(PLAYER, now) ? 'Kinh!' : null),
     });
   }
   reportLoto(now);

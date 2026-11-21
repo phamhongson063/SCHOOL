@@ -66,10 +66,12 @@ export class LotoBehavior {
     const loto = this.town.loto;
     const court = this.town.lotoCourt;
     const ctx = this.town.context;
-    const result = loto?.result(ctx.minutes);
     const early = ctx.minutes < lotoGatherAt(ctx.day);
+    if (loto?.placeOf(this.id, ctx.minutes) && this.lotoCheered !== ctx.day) {
+      this.lotoCheered = ctx.day;
+      this.say('Kinh! 🎉', 2.5);
+    }
     if (!loto || !court || early || !this.lotoSeatWanted(ctx)) {
-      if (result?.winners.includes(this.id)) this.say('Kinh! 🎉', 2.5);
       this.endLoto();
       return;
     }

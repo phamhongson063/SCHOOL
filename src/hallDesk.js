@@ -105,7 +105,7 @@ export function createHallUI({ economy, now, quests }) {
       el('h3', 'bank-ribbon', 'Lôi đài'),
       row('🏆', `Giải mỗi trận · ${ARENA.starts.length} trận`, economy.arenaPrize()),
       el('h3', 'bank-ribbon', 'Lô tô chữ'),
-      row('🎴', `Quỹ thưởng · ${clockText(LOTO.start)}`, economy.lotoBudget(day)),
+      row('🎴', `Quỹ thưởng · ${clockText(LOTO.start)}`, LOTO.purse),
       el('h3', 'bank-ribbon', 'Nhiệm vụ'),
       row('📋', 'Quỹ thưởng', economy.questBudget(day)),
       el('h3', 'bank-ribbon', 'Ngân khố'),

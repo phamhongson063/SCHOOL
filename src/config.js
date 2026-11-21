@@ -412,11 +412,15 @@ export const TOWNHALL = {
 };
 
 export const LOTO = {
-  fee: 0,
-  signOpen: 23 * 60 + 23,
-  start: 23 * 60 + 53,
-  callSeconds: 7,
+  fee: 5,
+  purse: 300,
+  signOpen: 21 * 60 + 30,
+  start: 22 * 60,
+  callSeconds: 12,
   rounds: 3,
+  prizes: [0.6, 0.25, 0.15],
+  places: 5,
+  intellect: 15,
   pool: 40,
   size: 4,
   wordsPerKanji: 2,
@@ -465,7 +469,7 @@ export const LANTERN = {
 
 export const BLESSING = {
   fee: 6,
-  windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
+  windows: [6, 12, 14, 20].map((hour) => [hour * 60, hour * 60 + 15]),
   quizSeconds: 3,
   quizCloseMs: 500,
   remindBefore: 10,

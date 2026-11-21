@@ -17,7 +17,7 @@ import {
   lotoPool,
   lotoSignOpen,
   lotoStart,
-  lotoWinOdds,
+  lotoPrizeShare,
   nearBingo,
   npcCall,
   roundOf,
@@ -34,7 +34,15 @@ const knownBy = (id) => (key) => absorption.chance(id, key);
 const heardOdds = (id, key) => 1 - (1 - absorption.chance(id, key)) ** LOTO.rounds;
 const cardOdds = (id, card) => (card.length ? card.reduce((sum, key) => sum + heardOdds(id, key), 0) / card.length : 0);
 
-const blank = (day = null, last = null) => ({ day, start: LOTO.start, pool: day === null ? [] : lotoPool(day), joined: [], marks: {}, cards: {}, closed: 0, winners: null, prize: 0, last });
+const blank = (day = null, last = null) => ({ day, start: LOTO.start, pool: day === null ? [] : lotoPool(day), joined: [], marks: {}, cards: {}, closed: 0, places: [], done: false, last });
+
+const ids = (list) => (Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []);
+
+function cleanPlaces(raw, winners, prize) {
+  if (Array.isArray(raw)) return raw.filter((place) => ids(place?.ids).length).map((place) => ({ ids: ids(place.ids), prize: Number.isFinite(place.prize) ? place.prize : 0 }));
+  const legacy = ids(winners);
+  return legacy.length ? [{ ids: legacy, prize: Number.isFinite(prize) ? prize : 0 }] : [];
+}
 
 function keepCards(day, joined, raw) {
   return Object.fromEntries(joined.map((id) => [id, validCard(raw?.[id], day) ? [...raw[id]] : lotoCard(day, id)]));
@@ -46,9 +54,8 @@ function keepPool(day, raw) {
 }
 
 function cleanLast(raw) {
-  if (!raw || !Number.isInteger(raw.day) || !Array.isArray(raw.winners) || !Array.isArray(raw.entrants)) return null;
-  const ids = (list) => list.filter((id) => typeof id === 'string');
-  return { day: raw.day, start: Number.isFinite(raw.start) ? raw.start : null, winners: ids(raw.winners), entrants: ids(raw.entrants), prize: Number.isFinite(raw.prize) ? raw.prize : 0 };
+  if (!raw || !Number.isInteger(raw.day) || !Array.isArray(raw.entrants)) return null;
+  return { day: raw.day, start: Number.isFinite(raw.start) ? raw.start : null, places: cleanPlaces(raw.places, raw.winners, raw.prize), entrants: ids(raw.entrants) };
 }
 
 function load() {
@@ -65,8 +72,8 @@ function load() {
         marks: Object.fromEntries(joined.map((id) => [id, saved.marks[id]])),
         cards: keepCards(saved.day, joined, saved.cards),
         closed: Number.isInteger(saved.closed) && saved.closed >= 0 ? saved.closed : 0,
-        winners: Array.isArray(saved.winners) ? saved.winners.filter((id) => typeof id === 'string') : null,
-        prize: Number.isFinite(saved.prize) ? saved.prize : 0,
+        places: cleanPlaces(saved.places, saved.winners, saved.prize),
+        done: saved.done === true || Array.isArray(saved.winners),
         last: cleanLast(saved.last),
       };
     }
@@ -81,12 +88,15 @@ function heard(id, key, at) {
   return answer.correct && answer.seconds < LOTO.callSeconds;
 }
 
-export function createLoto({ charge, payout, budget, human }) {
+export function createLoto({ charge, payout, award, human }) {
   let state = load();
   const store = createStore(KEY, () => state);
 
   const joinedOn = (day) => (state.day === day ? state.joined : []);
-  const finished = () => state.winners !== null;
+  const finished = () => state.done;
+  const placed = () => new Set(state.places.flatMap((place) => place.ids));
+  const placeIn = (who) => state.places.findIndex((place) => place.ids.includes(who)) + 1;
+  const copyPlaces = (places) => places.map((place) => ({ ids: [...place.ids], prize: place.prize }));
   const cardFor = (id, day) => (state.day === day && state.cards[id]) || lotoCard(day, id, knownBy(id));
   const oddsCache = new Map();
 
@@ -98,15 +108,19 @@ export function createLoto({ charge, payout, budget, human }) {
     oddsCache.set(id, { stamp, odds });
     return odds;
   }
-  const potOf = (day) => joinedOn(day).length * LOTO.fee + Math.max(0, Math.floor(budget(day)));
+  const potOf = () => LOTO.purse;
 
   function settle(at) {
-    const winners = state.joined.filter((id) => hasBingo(state.marks[id]));
-    if (winners.length) {
-      state.winners = winners;
-      state.prize = payout(winners, potOf(state.day), at);
-    } else if (state.closed >= lotoCalls(state.day).length) state.winners = [];
-    if (finished()) state.last = { day: state.day, start: state.start, winners: [...state.winners], entrants: [...state.joined], prize: state.prize };
+    const already = placed();
+    const fresh = state.joined.filter((id) => !already.has(id) && hasBingo(state.marks[id]));
+    if (fresh.length && state.places.length < LOTO.places) {
+      const purse = Math.floor(potOf() * (LOTO.prizes[state.places.length] ?? 0));
+      award(fresh, LOTO.intellect);
+      state.places.push({ ids: fresh, prize: purse > 0 ? payout(fresh, purse, at) : 0 });
+    }
+    const left = state.joined.some((id) => !placed().has(id));
+    state.done = state.places.length >= LOTO.places || !left || state.closed >= lotoCalls(state.day).length;
+    if (finished()) state.last = { day: state.day, start: state.start, places: copyPlaces(state.places), entrants: [...state.joined] };
   }
 
   function current(now) {
@@ -129,8 +143,9 @@ export function createLoto({ charge, payout, budget, human }) {
       while (state.closed < target && !finished()) {
         const call = calls[state.closed];
         const at = lotoStart(day) + (state.closed + 1) * callMinutes;
+        const already = placed();
         for (const id of state.joined) {
-          if (human(id)) continue;
+          if (human(id) || already.has(id)) continue;
           state.marks[id] = npcCall(cardFor(id, day), state.marks[id], call, pool, (key) => heard(id, key, at));
         }
         state.closed += 1;
@@ -154,11 +169,13 @@ export function createLoto({ charge, payout, budget, human }) {
     },
     joined: (who, now) => joinedOn(dayOf(now)).includes(who),
     entrants: (now) => [...joinedOn(dayOf(now))],
-    pot: (now) => potOf(dayOf(now)),
+    pot: () => potOf(),
     worth(id, now) {
       const rivals = joinedOn(dayOf(now)).filter((other) => other !== id).map((other) => oddsOf(other, now));
-      return lotoWinOdds(oddsOf(id, now), rivals) * (potOf(dayOf(now)) + LOTO.fee) - LOTO.fee;
+      return lotoPrizeShare(oddsOf(id, now), rivals) * potOf() - LOTO.fee;
     },
+    places: (now) => (state.day === dayOf(now) ? copyPlaces(state.places) : []),
+    placeOf: (who, now) => (state.day === dayOf(now) ? placeIn(who) : 0),
     current,
     cardOf: (who, now) => cardFor(who, dayOf(now)),
     bingo(who, now) {
@@ -168,18 +185,18 @@ export function createLoto({ charge, payout, budget, human }) {
     marksOf: (who, now) => (joinedOn(dayOf(now)).includes(who) ? state.marks[who] : null),
     near(who, now) {
       const marks = this.marksOf(who, now);
-      return !!marks && !finished() && now >= lotoStart(dayOf(now)) && nearBingo(marks);
+      return !!marks && !finished() && !placeIn(who) && now >= lotoStart(dayOf(now)) && nearBingo(marks);
     },
     closedCount: (now) => (state.day === dayOf(now) ? state.closed : 0),
     callAt: (now, index) => lotoCalls(dayOf(now))[index] ?? null,
     result(now) {
       if (state.day !== dayOf(now) || !finished()) return null;
-      return { winners: [...state.winners], prize: state.prize };
+      return { places: copyPlaces(state.places), winners: [...placed()] };
     },
-    lastResult: () => (state.last ? { ...state.last, winners: [...state.last.winners], entrants: [...state.last.entrants] } : null),
+    lastResult: () => (state.last ? { ...state.last, places: copyPlaces(state.last.places), winners: state.last.places.flatMap((place) => place.ids), entrants: [...state.last.entrants] } : null),
     tap(who, cell, now) {
       const open = current(now);
-      if (!open || !state.joined.includes(who)) return null;
+      if (!open || !state.joined.includes(who) || placeIn(who)) return null;
       const { marks, result } = applyTap(cardFor(who, state.day), state.marks[who], new Set([open.call.key]), cell);
       if (!result) return null;
       state.marks[who] = marks;

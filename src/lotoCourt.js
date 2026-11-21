@@ -64,7 +64,12 @@ function paintBoard(ctx, width, height, board) {
   ctx.restore();
   if (board.note) {
     ctx.fillStyle = '#d8b27a';
-    ctx.font = `600 30px ${BOARD_FONT}`;
+    let size = 30;
+    ctx.font = `600 ${size}px ${BOARD_FONT}`;
+    while (size > 16 && ctx.measureText(board.note).width > width - 90) {
+      size -= 2;
+      ctx.font = `600 ${size}px ${BOARD_FONT}`;
+    }
     ctx.fillText(board.note, width / 2, height - 62);
   }
 }

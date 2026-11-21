@@ -10,7 +10,7 @@ export const LOCKED = 'x';
 export const MISSED = '-';
 export const callMinutes = LOTO.callSeconds / 60;
 
-export const LOTO_CLUE_LABELS = { hanViet: 'Hán Việt', meaning: 'Nghĩa', reading: 'Cách đọc' };
+export const LOTO_CLUE_LABELS = { meaning: 'Nghĩa', reading: 'Cách đọc' };
 const CLUE_KINDS = Object.keys(LOTO_CLUE_LABELS);
 const CACHE_DAYS = 3;
 const CARD_CACHE = 400;
@@ -236,10 +236,20 @@ export function closedCalls(day, now) {
 
 const lineChance = (odds) => 1 - (1 - Math.max(0, odds) ** LOTO.size) ** LINES.length;
 
-export function lotoWinOdds(mine, rivals) {
+export function lotoPrizeShare(mine, rivals, shares = LOTO.prizes) {
   const chances = [lineChance(mine), ...rivals.map(lineChance)];
   const total = chances.reduce((sum, chance) => sum + chance, 0);
   if (!(total > 0)) return 0;
-  const someone = 1 - chances.reduce((none, chance) => none * (1 - chance), 1);
-  return (chances[0] / total) * someone;
+  const top = shares.length;
+  let finishers = [1, ...new Array(top).fill(0)];
+  for (const chance of chances) {
+    const next = new Array(top + 1).fill(0);
+    finishers.forEach((p, k) => {
+      next[k] += p * (1 - chance);
+      next[Math.min(top, k + 1)] += p * chance;
+    });
+    finishers = next;
+  }
+  const atLeast = (k) => finishers.slice(k).reduce((sum, p) => sum + p, 0);
+  return (chances[0] / total) * shares.reduce((sum, share, k) => sum + share * atLeast(k + 1), 0);
 }
