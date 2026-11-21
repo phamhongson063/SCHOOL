@@ -9,7 +9,7 @@ const MOOD_DROP = 0.3;
 const MOOD_GAP = 4;
 const BADGE_STEP = 34;
 const NAME_GAP = 3;
-const TRIP = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fffaf0" stroke="#5f9e3a" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">🌾</text></svg>';
+const TRIP = '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fffaf0" stroke="#5f9e3a" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">📍</text></svg>';
 const goldBadge = (emoji) =>
   `<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14.5" fill="#fff6d8" stroke="#c9962f" stroke-width="2.2"/><text x="16" y="21.5" text-anchor="middle" font-size="16">${emoji}</text></svg>`;
 const STUDY = goldBadge('📖');

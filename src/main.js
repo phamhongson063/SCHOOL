@@ -700,19 +700,24 @@ player.onTarget = (point) => {
   playerBubble.setTrip(tripPending && !!point);
   tripPending = false;
 };
+function startTrip(go) {
+  tripPending = true;
+  go();
+  if (player.posture === 'free' && !player.lying && !player.path) tripPending = false;
+}
 function travelTo(point, visit = null) {
   stopWork();
   closeMap();
-  tripPending = true;
-  if (visit === 'teacher') {
-    leaveLine();
-    goTeacher(true);
-  } else if (visit === 'arena' && district.arenaDesk) {
-    leaveLine();
-    const { at } = district.arenaDesk;
-    goDo(districtRegion, { kind: 'arena', id: 'arena', index: 'arena', x: at.x, z: at.z, stand: district.arenaStand }, 'visit', true);
-  } else player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
-  if (player.posture === 'free' && !player.lying && !player.path) tripPending = false;
+  startTrip(() => {
+    if (visit === 'teacher') {
+      leaveLine();
+      goTeacher(true);
+    } else if (visit === 'arena' && district.arenaDesk) {
+      leaveLine();
+      const { at } = district.arenaDesk;
+      goDo(districtRegion, { kind: 'arena', id: 'arena', index: 'arena', x: at.x, z: at.z, stand: district.arenaStand }, 'visit', true);
+    } else player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+  });
 }
 
 await loadingStep(0.82, 'Gọi dân làng');
@@ -1608,11 +1613,11 @@ const worldMap = createWorldMap({
       openLantern(lantern.id);
       return;
     }
-    player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true);
+    startTrip(() => player.requestMove(new THREE.Vector3(stand.x, 0, stand.z), true));
   },
   onWalk: (point) => {
     worldMap.close();
-    player.requestMove(new THREE.Vector3(point.x, 0, point.z), true);
+    startTrip(() => player.requestMove(new THREE.Vector3(point.x, 0, point.z), true));
   },
   onClose: mapClosed,
 });

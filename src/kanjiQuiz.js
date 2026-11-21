@@ -8,12 +8,19 @@ const AUTO_CLOSE_MS = 3000;
 const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
 const LETTERS = ['A', 'B', 'C', 'D'];
+const PAIR_COUNT = 4;
+const PAIR_WIDTH = 12;
+const WIDE_CHAR = /[　-鿿豈-﫿＀-￯]/;
 const MARKS = /\[([^\]]+)\]/g;
 const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
 
 const ALL_KEYS = Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.key));
 const CLOZE_ANSWERS = DECKS.sugu1.cards.filter((card) => card.cloze).map((card) => card.cloze.answer);
-const N2_MEANINGS = [...new Set(DECKS.n2.cards.map((card) => card.meaning))];
+const DECK_MEANINGS = Object.fromEntries(Object.entries(DECKS).map(([id, deck]) => [id, [...new Set(deck.cards.map((card) => card.meaning))]]));
+const KANJI_KINDS = ['pick', 'read', 'meaning'];
+
+const textWidth = (text) => [...plain(text)].reduce((sum, char) => sum + (WIDE_CHAR.test(char) ? 2 : 1), 0);
+const fitsPairs = (values) => values.length === PAIR_COUNT && values.every((value) => textWidth(value) <= PAIR_WIDTH);
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -99,22 +106,30 @@ function kanjiPick(entry) {
   return { kind: 'pick', answer: entry.word, wrong: shuffle([...entry.kanjiChoices]), text: example.lines[0][1] };
 }
 
-function kanjiQuestion(entry, kind) {
+function meaningQuestion(entry, avoid, count) {
+  const wrong = shuffle(DECK_MEANINGS[entry.deck].filter((meaning) => meaning !== entry.meaning && !avoid.includes(meaning))).slice(0, count);
+  return { kind: 'meaning', answer: entry.meaning, wrong };
+}
+
+function kanjiQuestion(entry) {
+  const kind = KANJI_KINDS[Math.floor(Math.random() * KANJI_KINDS.length)];
+  if (kind === 'meaning') {
+    const sameWord = DECKS[entry.deck].cards.filter((card) => card.word === entry.word).map((card) => card.meaning);
+    return meaningQuestion(entry, sameWord, entry.writeChoices.length);
+  }
   const text = entry.examples[0].lines[0][1];
-  const write = kind ? kind === 'meaning' : Math.random() < 0.5;
-  if (write) return { kind: 'pick', answer: entry.word, wrong: shuffle([...entry.writeChoices]), text };
-  return { kind: 'read', answer: entry.reading, wrong: shuffle([...entry.distractors]), text };
+  if (kind === 'pick') return { kind, answer: entry.word, wrong: shuffle([...entry.writeChoices]), text };
+  return { kind, answer: entry.reading, wrong: shuffle([...entry.distractors]), text };
 }
 
 function question(entry, kind, choices) {
   const style = DECKS[entry.deck].quiz;
-  if (style === 'kanji') return kanjiQuestion(entry, kind);
+  if (style === 'kanji') return kanjiQuestion(entry);
   if (style === 'vocab') {
     if (kind !== 'meaning' && entry.kanjiChoices.length && entry.examples.length) return kanjiPick(entry);
-    const byMeaning = kind === 'meaning' || !entry.distractors.length;
-    const answer = byMeaning ? entry.meaning : entry.reading;
-    const others = byMeaning ? shuffle(N2_MEANINGS.filter((meaning) => meaning !== answer && !entry.siblingMeanings.includes(meaning))) : shuffle([...entry.distractors]);
-    return { kind: byMeaning ? 'meaning' : 'reading', answer, wrong: others.slice(0, choices ? choices - 1 : byMeaning ? 3 : others.length) };
+    if (kind === 'meaning' || !entry.distractors.length) return meaningQuestion(entry, entry.siblingMeanings, choices ? choices - 1 : 3);
+    const others = shuffle([...entry.distractors]);
+    return { kind: 'reading', answer: entry.reading, wrong: others.slice(0, choices ? choices - 1 : others.length) };
   }
   const count = (choices || PHRASE_QUIZ.choices) - 1;
   const answer = entry.cloze.answer;
@@ -268,7 +283,7 @@ export function createKanjiQuiz() {
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
       const asked = question(entry, kind, choices);
-      const phrase = DECKS[entry.deck].quiz !== 'vocab' || asked.kind === 'pick';
+      const phrase = asked.kind !== 'meaning' && (DECKS[entry.deck].quiz !== 'vocab' || asked.kind === 'pick');
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {
@@ -286,7 +301,9 @@ export function createKanjiQuiz() {
         ui.result.className = `${ui.prefix}-result`;
         ui.options.classList.toggle('lettered', lettered);
         ui.options.classList.toggle('meanings', asked.kind === 'meaning');
-        ui.options.replaceChildren(...shuffle([asked.answer, ...asked.wrong]).map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
+        const values = shuffle([asked.answer, ...asked.wrong]);
+        ui.options.classList.toggle('pairs', asked.kind !== 'cloze' && fitsPairs(values));
+        ui.options.replaceChildren(...values.map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
         if (lock > 0) {
           const current = pending;
           const buttons = [...ui.options.children];

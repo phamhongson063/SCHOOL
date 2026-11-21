@@ -449,7 +449,7 @@ export const LANTERN = {
 };
 
 export const BLESSING = {
-  fee: 1,
+  fee: 6,
   windows: Array.from({ length: 9 }, (_, i) => [(6 + 2 * i) * 60, (6 + 2 * i) * 60 + 15]),
   quizSeconds: 3,
   quizCloseMs: 500,
