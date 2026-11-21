@@ -2038,13 +2038,14 @@ function remindLoto(now) {
 function markLotoCalls(now) {
   if (!loto.joined(PLAYER, now) || !loto.result(now)) return;
   const day = dayOf(now);
+  const tag = `${day}@${LOTO.start}`;
   let marked = null;
   try {
-    marked = Number(localStorage.getItem(LOTO_MARKED_KEY));
+    marked = localStorage.getItem(LOTO_MARKED_KEY);
   } catch {}
-  if (marked === day) return;
+  if (marked === tag) return;
   try {
-    writeGameItem(LOTO_MARKED_KEY, String(day));
+    writeGameItem(LOTO_MARKED_KEY, tag);
   } catch {}
   const card = loto.cardOf(PLAYER, now);
   const marks = loto.marksOf(PLAYER, now);
@@ -2058,13 +2059,14 @@ function markLotoCalls(now) {
 function reportLoto(now) {
   const last = loto.lastResult();
   if (!last || !last.entrants.includes(PLAYER)) return;
+  const tag = last.start === null ? String(last.day) : `${last.day}@${last.start}`;
   let shown = null;
   try {
-    shown = Number(localStorage.getItem(LOTO_RESULT_KEY));
+    shown = localStorage.getItem(LOTO_RESULT_KEY);
   } catch {}
-  if (shown === last.day) return;
+  if (shown === tag) return;
   try {
-    writeGameItem(LOTO_RESULT_KEY, String(last.day));
+    writeGameItem(LOTO_RESULT_KEY, tag);
   } catch {}
   if (last.winners.includes(PLAYER) && last.day === dayOf(now) && last.prize > 0) regen.coin(last.prize, player.position);
   const when = last.day === dayOf(now) ? '' : ` tối ${dateText(last.day * DAY_MINUTES)}`;

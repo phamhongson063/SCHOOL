@@ -32,7 +32,7 @@ const ODDS_MINUTES = 10;
 const knownBy = (id) => (key) => absorption.chance(id, key);
 const cardOdds = (id, card) => (card.length ? card.reduce((sum, key) => sum + absorption.chance(id, key), 0) / card.length : 0);
 
-const blank = (day = null, last = null) => ({ day, pool: day === null ? [] : lotoPool(day), joined: [], marks: {}, cards: {}, closed: 0, winners: null, prize: 0, last });
+const blank = (day = null, last = null) => ({ day, start: LOTO.start, pool: day === null ? [] : lotoPool(day), joined: [], marks: {}, cards: {}, closed: 0, winners: null, prize: 0, last });
 
 function keepCards(day, joined, raw) {
   return Object.fromEntries(joined.map((id) => [id, validCard(raw?.[id], day) ? [...raw[id]] : lotoCard(day, id)]));
@@ -46,16 +46,18 @@ function keepPool(day, raw) {
 function cleanLast(raw) {
   if (!raw || !Number.isInteger(raw.day) || !Array.isArray(raw.winners) || !Array.isArray(raw.entrants)) return null;
   const ids = (list) => list.filter((id) => typeof id === 'string');
-  return { day: raw.day, winners: ids(raw.winners), entrants: ids(raw.entrants), prize: Number.isFinite(raw.prize) ? raw.prize : 0 };
+  return { day: raw.day, start: Number.isFinite(raw.start) ? raw.start : null, winners: ids(raw.winners), entrants: ids(raw.entrants), prize: Number.isFinite(raw.prize) ? raw.prize : 0 };
 }
 
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    if (saved && typeof saved === 'object' && Number.isInteger(saved.day) && saved.start !== LOTO.start) return blank(null, cleanLast(saved.last));
     if (saved && typeof saved === 'object' && Number.isInteger(saved.day)) {
       const joined = Array.isArray(saved.joined) ? saved.joined.filter((id) => typeof id === 'string' && MARKS.test(saved.marks?.[id] ?? '')) : [];
       return {
         day: saved.day,
+        start: LOTO.start,
         pool: keepPool(saved.day, saved.pool),
         joined,
         marks: Object.fromEntries(joined.map((id) => [id, saved.marks[id]])),
@@ -102,7 +104,7 @@ export function createLoto({ charge, payout, budget, human }) {
       state.winners = winners;
       state.prize = payout(winners, potOf(state.day), at);
     } else if (state.closed >= lotoPool(state.day).length) state.winners = [];
-    if (finished()) state.last = { day: state.day, winners: [...state.winners], entrants: [...state.joined], prize: state.prize };
+    if (finished()) state.last = { day: state.day, start: state.start, winners: [...state.winners], entrants: [...state.joined], prize: state.prize };
   }
 
   function current(now) {
