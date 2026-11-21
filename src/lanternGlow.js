@@ -4,10 +4,10 @@ import { keepCanvas } from './canvasRestore.js';
 const HALO_SIZE = 2.8;
 const WARM = new THREE.Color(0xffc070);
 
-function paintHalo(ctx, size) {
+function paintHalo(ctx, size, rayed) {
   const c = size / 2;
   ctx.globalCompositeOperation = 'lighter';
-  const rays = 10;
+  const rays = rayed ? 10 : 0;
   for (let i = 0; i < rays; i++) {
     const angle = (i / rays) * Math.PI * 2;
     const length = c * (i % 2 ? 0.62 : 0.98);
@@ -31,15 +31,15 @@ function paintHalo(ctx, size) {
   ctx.fillRect(0, 0, size, size);
 }
 
-function haloTexture() {
+function haloTexture(rayed) {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
-  paintHalo(canvas.getContext('2d'), size);
+  paintHalo(canvas.getContext('2d'), size, rayed);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paintHalo(ctx, size));
+  return keepCanvas(texture, (ctx) => paintHalo(ctx, size, rayed));
 }
 
 const vertexShader = /* glsl */ `
@@ -78,7 +78,7 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-export function createLanternGlow(lights, { warmth = 0.55, steady = false } = {}) {
+export function createLanternGlow(lights, { warmth = 0.55, steady = false, rays = true } = {}) {
   const positions = new Float32Array(lights.length * 3);
   const tints = new Float32Array(lights.length * 3);
   const phases = new Float32Array(lights.length);
@@ -95,7 +95,7 @@ export function createLanternGlow(lights, { warmth = 0.55, steady = false } = {}
   geometry.computeBoundingSphere();
 
   const uniforms = {
-    map: { value: haloTexture() },
+    map: { value: haloTexture(rays) },
     time: { value: 0 },
     night: { value: 0 },
     scale: { value: 1 },

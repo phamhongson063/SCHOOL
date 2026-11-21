@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { createLotoStage } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { createGlowPools, createLotoAura } from './lotoAura.js';
+import { createCourtLight, createLotoAura } from './lotoAura.js';
 import { COURT, courtBase, courtPoint, courtTop } from './terrain.js';
 import { keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
@@ -15,6 +15,11 @@ const SEAT_OFFSETS = [-7.5, -5, -2.5, 0, 2.5, 5, 7.5];
 const BOARD = { v: 6.55, bottom: 1.05, width: 3.6, height: 1.7, pixels: [768, 362] };
 const VIEW_DISTANCE = 70;
 const AURA_DISTANCE = 120;
+const LIGHTS = {
+  caller: { color: 0xffd29a, intensity: 18, distance: 9, height: 2.6, ahead: 1.2 },
+  canopy: { color: 0xffc480, intensity: 40, distance: 24, height: 7, row: 2 },
+};
+const STAGE_SPOTS = [{ v: 5.4, size: 7 }, { v: 3.3, size: 5 }];
 const FRAME = { lacquer: 0x7a1e16, gold: 0xd9a63a, post: 0x5a1610 };
 const BOARD_FONT = '"BIZ UDPGothic", "Hiragino Sans", system-ui, sans-serif';
 const CALLER_LINES = ['Lô tô chữ mở lúc 22:30 nhé!', 'Mua vé đi, quỹ thưởng to lắm!', 'Nghe kỹ, chạm cho chuẩn nha!'];
@@ -62,6 +67,18 @@ function paintBoard(ctx, width, height, board) {
     ctx.font = `600 30px ${BOARD_FONT}`;
     ctx.fillText(board.note, width / 2, height - 62);
   }
+}
+
+function courtSurfaces() {
+  const { halfU, halfV, front, step, rise, terraces, stage } = COURT;
+  const surfaces = [{ x0: -halfU, x1: halfU, z0: -halfV, z1: -front, y: 0 }];
+  for (let k = 0; k < terraces; k++) {
+    const edge = -front + step * k;
+    surfaces.push({ x0: -halfU, x1: halfU, z0: edge, z1: edge + step, y: rise * (k + 1) });
+    surfaces.push({ x0: -halfU, x1: halfU, z0: edge - 0.015, y: rise * k, y1: rise * (k + 1) });
+  }
+  surfaces.push({ x0: -stage.halfU, x1: stage.halfU, z0: -stage.to, z1: -stage.from, y: stage.lift + 0.02 });
+  return surfaces;
 }
 
 function courtVector(u, v, y) {
@@ -112,16 +129,33 @@ export function createLotoCourt(scene) {
     lift: COURT.stage.lift,
     posts: COURT.posts.map(([u, v]) => [-u, -v]),
     poles: COURT.lanterns.map(([u, v]) => [-u, -v]),
-    audience: { front: -COURT.front, step: COURT.step, rise: COURT.rise, count: COURT.terraces, half: COURT.halfU, poleX: COURT.rowPole, lamps: COURT.stepLamps },
+    audience: { front: -COURT.front, step: COURT.step, rise: COURT.rise, count: COURT.terraces, half: COURT.halfU, poleX: COURT.rowPole },
   });
   stage.group.position.set(COURT.x, base, COURT.z);
   stage.group.rotation.y = facing;
   scene.add(stage.group);
   freeze(stage.group);
-  const glow = createLanternGlow(stage.group.userData.lights.map(({ position, tint, intensity }) => ({ position: stage.group.localToWorld(position.clone()), tint, intensity })));
+  const glow = createLanternGlow(stage.group.userData.lights.map(({ position, tint, intensity }) => ({ position: stage.group.localToWorld(position.clone()), tint, intensity: (intensity ?? 1) * 0.7 })), { rays: false });
   scene.add(glow.object);
-  const pools = createGlowPools(stage.pools.map(({ position, size }) => ({ position: stage.group.localToWorld(position.clone()), size })));
-  scene.add(pools.object);
+  const courtLight = createCourtLight({
+    spots: [...stage.pools, ...STAGE_SPOTS.map(({ v, size }) => ({ position: new THREE.Vector3(0, 0, -v), size }))],
+    surfaces: courtSurfaces(),
+    bounds: { x0: -COURT.halfU, x1: COURT.halfU, z0: -COURT.halfV, z1: COURT.halfV },
+  });
+  courtLight.group.position.copy(stage.group.position);
+  courtLight.group.rotation.y = facing;
+  scene.add(courtLight.group);
+  freeze(courtLight.group);
+  const lamps = Object.entries({
+    caller: new THREE.Vector3(0, COURT.stage.lift + LIGHTS.caller.height, -COURT.caller.v + LIGHTS.caller.ahead),
+    canopy: new THREE.Vector3(0, COURT.rise * (LIGHTS.canopy.row + 1) + LIGHTS.canopy.height, -COURT.front + COURT.step * (LIGHTS.canopy.row + 0.5)),
+  }).map(([kind, local]) => {
+    const spec = LIGHTS[kind];
+    const lamp = new THREE.PointLight(spec.color, 0, spec.distance, 2);
+    lamp.position.copy(stage.group.localToWorld(local));
+    scene.add(lamp);
+    return { lamp, spec };
+  });
   const aura = createLotoAura({ pearl: stage.pearl - COURT.stage.lift });
   const stageMiddle = (COURT.stage.from + COURT.stage.to) / 2;
   aura.group.position.copy(courtVector(0, stageMiddle, deck));
@@ -176,7 +210,8 @@ export function createLotoCourt(scene) {
       clock = t;
       attention.update(t);
       glow.update(t, night);
-      pools.update(night);
+      courtLight.update(night);
+      for (const { lamp, spec } of lamps) lamp.intensity = night * spec.intensity;
       faceMaterial.emissiveIntensity = 0.25 + 0.6 * night;
       const distance = camera.position.distanceTo(at);
       aura.group.visible = distance < AURA_DISTANCE;

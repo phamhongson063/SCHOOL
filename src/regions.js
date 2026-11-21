@@ -32,6 +32,7 @@ export class RegionManager {
     this.onChange = null;
     this.onLoad = null;
     this.onUnload = null;
+    this.holding = false;
   }
 
   add(region) {
@@ -78,14 +79,13 @@ export class RegionManager {
     this.obstacles.version = (this.obstacles.version ?? 0) + 1;
   }
 
-  async warmUp(compile) {
-    const cold = this.regions.filter((region) => !region.handle);
-    for (const region of cold) this.load(region);
-    try {
-      await compile();
-    } finally {
-      for (const region of cold) this.unload(region);
-    }
+  hold() {
+    for (const region of this.regions) this.load(region);
+    this.holding = true;
+    return () => {
+      this.holding = false;
+      this.centerKey = null;
+    };
   }
 
   regionsAround(cx, cz, radius) {
@@ -110,6 +110,7 @@ export class RegionManager {
     if (key === this.centerKey) return;
     this.centerKey = key;
     for (const region of this.regionsAround(cx, cz, this.radius)) this.load(region);
+    if (this.holding) return;
     const keep = this.regionsAround(cx, cz, this.radius + 1);
     for (const region of this.regions) {
       if (region.handle && !keep.has(region)) this.unload(region);

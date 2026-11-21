@@ -69,7 +69,6 @@ export const COURT = {
     [9.4, 6.6],
   ],
   rowPole: 10.4,
-  stepLamps: [-9.4, -6.25, -1.25, 1.25, 6.25, 9.4],
 };
 
 export const courtRowPoles = () =>

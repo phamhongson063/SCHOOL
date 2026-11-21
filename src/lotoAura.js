@@ -8,7 +8,6 @@ const SPARK = { count: 90, half: [6.5, 3.6], low: 0.4, high: 7.5, size: 0.26 };
 const POOL = { width: 6.8, depth: 3.2 };
 const ORBIT_SQUASH = 0.62;
 const RAYS = { count: 4, width: 0.7, height: 5.5, spin: 0.12 };
-const SPOT = { size: 1, opacity: 0.5 };
 
 function texture(width, height, paint) {
   const canvas = document.createElement('canvas');
@@ -174,26 +173,59 @@ export function createLotoAura({ pearl }) {
   };
 }
 
-export function createGlowPools(spots) {
-  const material = new THREE.MeshBasicMaterial(additive(texture(128, 128, paintPool), { opacity: 0 }));
-  const geometry = new THREE.PlaneGeometry(SPOT.size, SPOT.size).rotateX(-Math.PI / 2);
-  const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, spots.length));
-  const place = new THREE.Object3D();
-  spots.forEach(({ position, size }, i) => {
-    place.position.set(position.x, position.y + 0.03, position.z);
-    place.scale.set(size, 1, size);
-    place.updateMatrix();
-    mesh.setMatrixAt(i, place.matrix);
-  });
-  mesh.count = spots.length;
-  mesh.computeBoundingSphere();
-  mesh.renderOrder = 2;
-  mesh.raycast = () => {};
+const COURT_LIGHT = { pixels: 28, reach: 0.8, lift: 0.025, strength: 0.85 };
+
+function paintCourtLight(ctx, width, height, spots, bounds) {
+  const scale = width / (bounds.x1 - bounds.x0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const { position, size } of spots) {
+    const x = (position.x - bounds.x0) * scale;
+    const y = (position.z - bounds.z0) * scale;
+    const r = size * COURT_LIGHT.reach * scale;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
+    glow.addColorStop(0, 'rgba(255,196,120,0.55)');
+    glow.addColorStop(0.5, 'rgba(255,170,90,0.22)');
+    glow.addColorStop(1, 'rgba(255,150,70,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function surfaceGeometry({ x0, x1, z0, z1, y, y1 = null }, bounds) {
+  const w = bounds.x1 - bounds.x0;
+  const d = bounds.z1 - bounds.z0;
+  const uvOf = (x, z) => [(x - bounds.x0) / w, 1 - (z - bounds.z0) / d];
+  const corners =
+    y1 === null
+      ? [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]]
+      : [[x0, y, z0], [x1, y, z0], [x1, y1, z0], [x0, y1, z0]];
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(corners.flat(), 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(corners.flatMap(([x, , z]) => uvOf(x, z)), 2));
+  geometry.setIndex(y1 === null ? [0, 3, 2, 0, 2, 1] : [0, 1, 2, 0, 2, 3]);
+  return geometry;
+}
+
+export function createCourtLight({ spots, surfaces, bounds }) {
+  const width = Math.round((bounds.x1 - bounds.x0) * COURT_LIGHT.pixels);
+  const height = Math.round((bounds.z1 - bounds.z0) * COURT_LIGHT.pixels);
+  const map = texture(width, height, (ctx, w, h) => paintCourtLight(ctx, w, h, spots, bounds));
+  const material = new THREE.MeshBasicMaterial(additive(map, { opacity: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  const group = new THREE.Group();
+  for (const surface of surfaces) {
+    const mesh = new THREE.Mesh(surfaceGeometry({ ...surface, y: surface.y + (surface.y1 === undefined ? COURT_LIGHT.lift : 0) }, bounds), material);
+    mesh.renderOrder = 2;
+    mesh.raycast = () => {};
+    group.add(mesh);
+  }
   return {
-    object: mesh,
+    group,
     update(night) {
-      material.opacity = night * SPOT.opacity;
-      mesh.visible = night > 0.02;
+      material.opacity = night * COURT_LIGHT.strength;
+      group.visible = night > 0.02;
     },
   };
 }

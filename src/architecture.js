@@ -2962,40 +2962,46 @@ function lanternPole(kit, x, z, height, floor = 0) {
   b.add(shapes.sphere(0.07, 8, 6), PAL.gold, { p: [x, top + 0.92, z] });
   b.add(shapes.cone(0.04, 0.16, 6), PAL.gold, { p: [x, top + 1.03, z] });
   kit.lights.push({ position: new THREE.Vector3(x, top + 0.33, z), tint: LOTO_ART.paper, intensity: 1.2 });
-  kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 3.2 });
+  kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 2.4 });
 }
 
-function stepLamp(kit, x, z, floor) {
-  const b = kit.body;
-  b.add(shapes.box(0.3, 0.08, 0.3), PAL.stoneDark, { p: [x, floor + 0.04, z] });
-  kit.lamps.add(shapes.box(0.22, 0.3, 0.22), LOTO_ART.paper, { p: [x, floor + 0.23, z] });
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(shapes.box(0.03, 0.32, 0.03), PAL.lacquer, { p: [x + sx * 0.11, floor + 0.23, z + sz * 0.11] });
-  b.add(shapes.cone(0.22, 0.12, 4), PAL.lacquer, { p: [x, floor + 0.44, z], r: [0, Math.PI / 4, 0], flat: true });
-  kit.lights.push({ position: new THREE.Vector3(x, floor + 0.25, z), tint: LOTO_ART.paper, intensity: 0.55 });
-  kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 1.7 });
+const CANOPY = { pole: 6, spring: 5.5, crowns: [8.6, 10, 10, 8.6], lanterns: 7, rib: 0.05 };
+
+function stepGlow(kit, { z, floor, rise, half }) {
+  const width = half * 2 - 0.6;
+  kit.lamps.add(shapes.box(width, 0.05, 0.02), LOTO_ART.paper, { p: [0, floor + rise * 0.5, z - 0.012] });
+  for (let x = -half + 1.5; x <= half - 1.5 + 1e-6; x += 2.5) kit.pools.push({ position: new THREE.Vector3(x, floor, z - 0.45), size: 1.8 });
 }
 
-function audienceLights(kit, { front, step, rise, count, half, poleX, lamps }) {
-  const height = 5;
-  const sag = 0.6;
+function canopyRib(kit, { z, floor, poleX, crown }) {
+  const spring = floor + CANOPY.spring;
+  const top = floor + crown;
+  const at = (x) => spring + (top - spring) * (1 - (x / poleX) ** 2);
+  const points = Array.from({ length: 17 }, (_, i) => {
+    const x = -poleX + (poleX * 2 * i) / 16;
+    return new THREE.Vector3(x, at(x), z);
+  });
+  kit.body.add(shapes.tube(points, CANOPY.rib, 40), PAL.lacquer);
+  kit.body.add(shapes.tube(points.map((p) => p.clone().setY(p.y - 0.07)), 0.018, 40), PAL.gold);
+  return at;
+}
+
+function audienceLights(kit, { front, step, rise, count, half, poleX }) {
+  const crowns = [];
   for (let k = 0; k < count; k++) {
     const floor = rise * (k + 1);
     const z = front + step * (k + 0.5);
-    for (const side of [-1, 1]) lanternPole(kit, side * poleX, z, height, floor);
-    const from = [-poleX, floor + height - 0.1, z];
-    const to = [poleX, floor + height - 0.1, z];
-    const perRow = 8;
-    const at = (t) => [from[0] + (to[0] - from[0]) * t, from[1] - sag * 4 * t * (1 - t), z];
-    const segments = 16;
-    for (let i = 0; i < segments; i++) kit.body.limb(at(i / segments), at((i + 1) / segments), 0.014, PAL.ink, { capsule: false, seg: 4 });
-    for (let i = 1; i <= perRow; i++) {
-      const [x, y] = at(i / (perRow + 1));
-      silkLantern(kit, x, y, z, LOTO_ART.silk[(i + k) % LOTO_ART.silk.length], 0.8);
-      kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 2.6 });
+    const crown = CANOPY.crowns[k % CANOPY.crowns.length];
+    for (const side of [-1, 1]) lanternPole(kit, side * poleX, z, CANOPY.pole, floor);
+    const at = canopyRib(kit, { z, floor, poleX, crown });
+    crowns.push(new THREE.Vector3(0, floor + crown + 0.04, z));
+    for (let i = 1; i <= CANOPY.lanterns; i++) {
+      const x = -poleX + (poleX * 2 * i) / (CANOPY.lanterns + 1);
+      silkLantern(kit, x, at(x) - CANOPY.rib, z, LOTO_ART.silk[(i + k) % LOTO_ART.silk.length], 0.9);
     }
-    const lip = front + step * k + 0.25;
-    for (const x of lamps) if (Math.abs(x) < half) stepLamp(kit, x, lip, floor);
+    stepGlow(kit, { z: front + step * k, floor: rise * k, rise, half });
   }
+  if (crowns.length > 1) kit.body.add(shapes.tube(crowns, CANOPY.rib, 24), PAL.lacquer);
 }
 
 function lotoPlinth(kit, { half, front, back, lift }) {

@@ -77,7 +77,7 @@ import { createVitals } from './vitals.js';
 import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
 import { createWorldMap } from './worldMap.js';
-import { captureMap, restoreMap, showMap } from './mapPhoto.js';
+import { createMapCapture, restoreMap, showMap } from './mapPhoto.js';
 import { VERSION } from './version.js';
 import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
@@ -140,6 +140,7 @@ const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: 84 };
 const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
 const MAP_HOUR = 14;
+const MAP_TILES_PER_FRAME = 1;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(MAX_PIXEL_RATIO);
@@ -1726,6 +1727,7 @@ function refreshHomeLabel() {
 
 function openMap(at, locked = false) {
   if (worldMap.isOpen) return;
+  if (mapCapture) stepMapCapture(Infinity);
   refreshHomeLabel();
   selfLabel ??= worldMap.add('Bạn', null, null, { lead: true, kind: 'self', image: portraitOf(PLAYER) });
   worldMap.move(selfLabel, player.position);
@@ -2328,25 +2330,31 @@ await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
 const mapKey = VERSION === 'dev' ? null : `${VERSION}-${dayOf(context.minutes)}`;
 const mapRestored = restoreMap(worldMap.ground, mapKey);
-function photographMap() {
+const releaseRegions = regions.hold();
+await arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera)).catch(() => {});
+let mapCapture = null;
+if (await mapRestored) releaseRegions();
+else {
   const minutes = dayOf(context.minutes) * DAY_MINUTES + MAP_HOUR * 60;
-  return captureMap({
+  mapCapture = createMapCapture({
     renderer,
     scene,
     bounds: MAP_BOUNDS,
-    tile: SHADOW_SPAN * 1.3,
     hide: [villagerRoot, avatar.group, seatedAvatar.group, player.shadow.mesh, clouds.group, arenaIsland.region.handle?.group].filter(Boolean),
     light: (view, at) => sky.update(minutes, view, at, SHADOW_SPAN),
+    look: (day) => applyNight(day ? 0 : Math.max(0, shownNight)),
   });
 }
 
-await regions
-  .warmUp(async () => {
-    await arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera));
-    if (await mapRestored) return;
-    showMap(photographMap(), worldMap.ground, mapKey);
-  })
-  .catch(() => {});
+function stepMapCapture(count) {
+  const done = mapCapture.step(count);
+  tuning.invalidateShadows();
+  if (!done) return;
+  showMap(mapCapture.canvas, worldMap.ground, mapKey);
+  mapCapture = null;
+  releaseRegions();
+}
+
 await loadingStep(0.95);
 renderer.shadowMap.needsUpdate = true;
 renderer.render(scene, camera);
@@ -2354,6 +2362,16 @@ await loadingStep(0.97);
 
 let shownNight = -1;
 let framesShown = 0;
+
+function applyNight(k) {
+  school.setNight(k);
+  for (const hall of studyHalls) hall.setNight(k);
+  inn.setNight(k);
+  village.setNight(k);
+  district.setNight(k);
+  river.setNight(k);
+  streetLamps.setNight(k);
+}
 renderer.setAnimationLoop((time) => {
   const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active;
   if (busy) lastInput = performance.now();
@@ -2397,17 +2415,12 @@ renderer.setAnimationLoop((time) => {
     placeSavedAt = t + 3;
     savePlace();
   }
+  if (mapCapture && !study.dimmed) stepMapCapture(MAP_TILES_PER_FRAME);
   const night = sky.update(context.minutes, camera, player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;
-    school.setNight(night);
-    for (const hall of studyHalls) hall.setNight(night);
-    inn.setNight(night);
-    village.setNight(night);
-    district.setNight(night);
-    river.setNight(night);
-    streetLamps.setNight(night);
+    applyNight(night);
   }
   notice.refresh(context.day);
   dust.update(t);
