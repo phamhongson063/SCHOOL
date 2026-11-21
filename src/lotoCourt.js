@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { createLotoStage } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { createLotoAura } from './lotoAura.js';
+import { createGlowPools, createLotoAura } from './lotoAura.js';
 import { COURT, courtBase, courtPoint, courtTop } from './terrain.js';
 import { keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
@@ -112,6 +112,7 @@ export function createLotoCourt(scene) {
     lift: COURT.stage.lift,
     posts: COURT.posts.map(([u, v]) => [-u, -v]),
     poles: COURT.lanterns.map(([u, v]) => [-u, -v]),
+    audience: { front: -COURT.front, step: COURT.step, rise: COURT.rise, count: COURT.terraces, half: COURT.halfU, poleX: COURT.rowPole, lamps: COURT.stepLamps },
   });
   stage.group.position.set(COURT.x, base, COURT.z);
   stage.group.rotation.y = facing;
@@ -119,7 +120,9 @@ export function createLotoCourt(scene) {
   freeze(stage.group);
   const glow = createLanternGlow(stage.group.userData.lights.map(({ position, tint, intensity }) => ({ position: stage.group.localToWorld(position.clone()), tint, intensity })));
   scene.add(glow.object);
-  const aura = createLotoAura();
+  const pools = createGlowPools(stage.pools.map(({ position, size }) => ({ position: stage.group.localToWorld(position.clone()), size })));
+  scene.add(pools.object);
+  const aura = createLotoAura({ pearl: stage.pearl - COURT.stage.lift });
   const stageMiddle = (COURT.stage.from + COURT.stage.to) / 2;
   aura.group.position.copy(courtVector(0, stageMiddle, deck));
   aura.group.rotation.y = facing;
@@ -173,6 +176,7 @@ export function createLotoCourt(scene) {
       clock = t;
       attention.update(t);
       glow.update(t, night);
+      pools.update(night);
       faceMaterial.emissiveIntensity = 0.25 + 0.6 * night;
       const distance = camera.position.distanceTo(at);
       aura.group.visible = distance < AURA_DISTANCE;

@@ -6,7 +6,9 @@ const GLYPH_FONT = '"BIZ UDPGothic", "Hiragino Mincho ProN", "Yu Mincho", serif'
 const DRIFT = { count: 14, life: 11, rise: 6.2, radius: [3.4, 5.8], size: [0.5, 0.85], spin: 0.07, sway: 0.35 };
 const SPARK = { count: 90, half: [6.5, 3.6], low: 0.4, high: 7.5, size: 0.26 };
 const POOL = { width: 6.8, depth: 3.2 };
-const VEIL = { radius: 4.6, height: 5, squash: 0.62, spin: 0.05 };
+const ORBIT_SQUASH = 0.62;
+const RAYS = { count: 4, width: 0.7, height: 5.5, spin: 0.12 };
+const SPOT = { size: 1, opacity: 0.5 };
 
 function texture(width, height, paint) {
   const canvas = document.createElement('canvas');
@@ -55,29 +57,27 @@ function paintPool(ctx, width, height) {
   ctx.fillRect(0, 0, width, height);
 }
 
-function paintVeil(ctx, width, height) {
+function paintRay(ctx, width, height) {
   ctx.clearRect(0, 0, width, height);
-  const fade = ctx.createLinearGradient(0, height, 0, 0);
-  fade.addColorStop(0, 'rgba(255,200,120,0.4)');
-  fade.addColorStop(0.4, 'rgba(255,190,130,0.12)');
-  fade.addColorStop(1, 'rgba(255,180,140,0)');
-  ctx.fillStyle = fade;
+  const across = ctx.createLinearGradient(0, 0, width, 0);
+  across.addColorStop(0, 'rgba(255,220,150,0)');
+  across.addColorStop(0.5, 'rgba(255,230,170,1)');
+  across.addColorStop(1, 'rgba(255,220,150,0)');
+  ctx.fillStyle = across;
   ctx.fillRect(0, 0, width, height);
-  const rays = 28;
-  for (let i = 0; i < rays; i++) {
-    const x = ((i + 0.5) / rays) * width;
-    const reach = height * (0.45 + 0.4 * ((i * 7) % 5) / 4);
-    const ray = ctx.createLinearGradient(0, height, 0, height - reach);
-    ray.addColorStop(0, 'rgba(255,230,170,0.42)');
-    ray.addColorStop(1, 'rgba(255,230,170,0)');
-    ctx.fillStyle = ray;
-    ctx.fillRect(x - width * 0.005, height - reach, width * 0.01, reach);
-  }
+  ctx.globalCompositeOperation = 'destination-in';
+  const along = ctx.createLinearGradient(0, height, 0, 0);
+  along.addColorStop(0, 'rgba(0,0,0,0.85)');
+  along.addColorStop(0.3, 'rgba(0,0,0,0.35)');
+  along.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = along;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 const additive = (map, extra = {}) => ({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...extra });
 
-export function createLotoAura() {
+export function createLotoAura({ pearl }) {
   const group = new THREE.Group();
 
   const glyphs = Array.from({ length: DRIFT.count }, (_, i) => {
@@ -120,14 +120,22 @@ export function createLotoAura() {
   pool.renderOrder = 2;
   group.add(pool);
 
-  const veilMaterial = new THREE.MeshBasicMaterial(additive(texture(512, 128, paintVeil), { side: THREE.DoubleSide }));
-  const veil = new THREE.Mesh(new THREE.CylinderGeometry(VEIL.radius, VEIL.radius, VEIL.height, 48, 1, true), veilMaterial);
-  veil.scale.z = VEIL.squash;
-  veil.position.y = VEIL.height / 2;
-  veil.renderOrder = 3;
-  group.add(veil);
+  const rayMaterial = new THREE.MeshBasicMaterial(additive(texture(64, 256, paintRay), { side: THREE.DoubleSide }));
+  const rays = new THREE.Group();
+  rays.position.y = pearl;
+  for (let i = 0; i < RAYS.count; i++) {
+    const ray = new THREE.Mesh(new THREE.PlaneGeometry(RAYS.width, RAYS.height), rayMaterial);
+    ray.position.y = RAYS.height / 2;
+    ray.renderOrder = 3;
+    ray.raycast = () => {};
+    const pivot = new THREE.Group();
+    pivot.rotation.set(0, (i / RAYS.count) * Math.PI, (i % 2 ? 1 : -1) * 0.12 * (1 + (i % 3)));
+    pivot.add(ray);
+    rays.add(pivot);
+  }
+  group.add(rays);
 
-  for (const node of [sparks, pool, veil]) node.raycast = () => {};
+  for (const node of [sparks, pool]) node.raycast = () => {};
   for (const { sprite } of glyphs) sprite.raycast = () => {};
 
   const tint = new THREE.Color();
@@ -142,7 +150,7 @@ export function createLotoAura() {
         const life = (t / DRIFT.life + glyph.phase) % 1;
         const angle = glyph.angle + t * DRIFT.spin;
         const radius = glyph.radius + Math.sin(t * 0.7 + glyph.angle * 3) * DRIFT.sway;
-        glyph.sprite.position.set(Math.cos(angle) * radius, 0.6 + life * DRIFT.rise, Math.sin(angle) * radius * VEIL.squash);
+        glyph.sprite.position.set(Math.cos(angle) * radius, 0.6 + life * DRIFT.rise, Math.sin(angle) * radius * ORBIT_SQUASH);
         glyph.sprite.scale.setScalar(glyph.size * (0.8 + 0.4 * life));
         glyph.sprite.material.opacity = strength * Math.sin(Math.PI * life) ** 1.5;
       }
@@ -159,9 +167,33 @@ export function createLotoAura() {
       sparks.visible = night > 0.02;
       poolMaterial.opacity = night * (0.5 + 0.08 * Math.sin(t * 1.3));
       pool.visible = night > 0.02;
-      veil.rotation.y = t * VEIL.spin;
-      veilMaterial.opacity = night * (0.4 + 0.12 * Math.sin(t * 0.8));
-      veil.visible = night > 0.02;
+      rays.rotation.y = t * RAYS.spin;
+      rayMaterial.opacity = night * (0.35 + 0.15 * Math.sin(t * 1.1));
+      rays.visible = night > 0.02;
+    },
+  };
+}
+
+export function createGlowPools(spots) {
+  const material = new THREE.MeshBasicMaterial(additive(texture(128, 128, paintPool), { opacity: 0 }));
+  const geometry = new THREE.PlaneGeometry(SPOT.size, SPOT.size).rotateX(-Math.PI / 2);
+  const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, spots.length));
+  const place = new THREE.Object3D();
+  spots.forEach(({ position, size }, i) => {
+    place.position.set(position.x, position.y + 0.03, position.z);
+    place.scale.set(size, 1, size);
+    place.updateMatrix();
+    mesh.setMatrixAt(i, place.matrix);
+  });
+  mesh.count = spots.length;
+  mesh.computeBoundingSphere();
+  mesh.renderOrder = 2;
+  mesh.raycast = () => {};
+  return {
+    object: mesh,
+    update(night) {
+      material.opacity = night * SPOT.opacity;
+      mesh.visible = night > 0.02;
     },
   };
 }

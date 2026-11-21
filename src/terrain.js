@@ -68,7 +68,15 @@ export const COURT = {
     [-9.4, 6.6],
     [9.4, 6.6],
   ],
+  rowPole: 10.4,
+  stepLamps: [-9.4, -6.25, -1.25, 1.25, 6.25, 9.4],
 };
+
+export const courtRowPoles = () =>
+  Array.from({ length: COURT.terraces }, (_, k) => COURT.front - COURT.step * (k + 0.5)).flatMap((v) => [
+    [-COURT.rowPole, v],
+    [COURT.rowPole, v],
+  ]);
 const COURT_CLEAR = COURT.rim + 1.5;
 const COURT_SUMMIT_FADE = 6;
 
@@ -483,7 +491,7 @@ function buildLayout() {
       block(hut.x + dx * c + dz * sn, hut.z - dx * sn + dz * c, 0.22);
     }
   }
-  for (const [u, v] of [...COURT.posts, ...COURT.lanterns, [0, COURT.caller.v]]) {
+  for (const [u, v] of [...COURT.posts, ...COURT.lanterns, ...courtRowPoles(), [0, COURT.caller.v]]) {
     const at = courtPoint(u, v);
     block(at.x, at.z, 0.3);
   }

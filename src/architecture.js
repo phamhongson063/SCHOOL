@@ -2945,13 +2945,13 @@ function lanternSwag(kit, from, to, sag, count, offset) {
   }
 }
 
-function lanternPole(kit, x, z, height) {
+function lanternPole(kit, x, z, height, floor = 0) {
   const b = kit.body;
-  b.add(shapes.box(0.56, 0.16, 0.56), PAL.stoneDark, { p: [x, 0.08, z] });
-  b.add(shapes.cylinder(0.2, 0.24, 0.3, 8), PAL.stone, { p: [x, 0.31, z], flat: true });
-  b.add(shapes.cylinder(0.1, 0.12, height - 0.46, 8), PAL.lacquer, { p: [x, 0.46 + (height - 0.46) / 2, z] });
-  for (const y of [0.62, height * 0.55, height - 0.2]) b.add(shapes.cylinder(0.135, 0.135, 0.06, 8), PAL.gold, { p: [x, y, z] });
-  const top = height;
+  b.add(shapes.box(0.56, 0.16, 0.56), PAL.stoneDark, { p: [x, floor + 0.08, z] });
+  b.add(shapes.cylinder(0.2, 0.24, 0.3, 8), PAL.stone, { p: [x, floor + 0.31, z], flat: true });
+  b.add(shapes.cylinder(0.1, 0.12, height - 0.46, 8), PAL.lacquer, { p: [x, floor + 0.46 + (height - 0.46) / 2, z] });
+  for (const y of [0.62, height * 0.55, height - 0.2]) b.add(shapes.cylinder(0.135, 0.135, 0.06, 8), PAL.gold, { p: [x, floor + y, z] });
+  const top = floor + height;
   b.add(shapes.cylinder(0.2, 0.16, 0.08, 6), PAL.gold, { p: [x, top + 0.04, z] });
   kit.lamps.add(shapes.cylinder(0.24, 0.24, 0.5, 6), LOTO_ART.paper, { p: [x, top + 0.33, z] });
   for (let i = 0; i < 6; i++) {
@@ -2962,6 +2962,40 @@ function lanternPole(kit, x, z, height) {
   b.add(shapes.sphere(0.07, 8, 6), PAL.gold, { p: [x, top + 0.92, z] });
   b.add(shapes.cone(0.04, 0.16, 6), PAL.gold, { p: [x, top + 1.03, z] });
   kit.lights.push({ position: new THREE.Vector3(x, top + 0.33, z), tint: LOTO_ART.paper, intensity: 1.2 });
+  kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 3.2 });
+}
+
+function stepLamp(kit, x, z, floor) {
+  const b = kit.body;
+  b.add(shapes.box(0.3, 0.08, 0.3), PAL.stoneDark, { p: [x, floor + 0.04, z] });
+  kit.lamps.add(shapes.box(0.22, 0.3, 0.22), LOTO_ART.paper, { p: [x, floor + 0.23, z] });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(shapes.box(0.03, 0.32, 0.03), PAL.lacquer, { p: [x + sx * 0.11, floor + 0.23, z + sz * 0.11] });
+  b.add(shapes.cone(0.22, 0.12, 4), PAL.lacquer, { p: [x, floor + 0.44, z], r: [0, Math.PI / 4, 0], flat: true });
+  kit.lights.push({ position: new THREE.Vector3(x, floor + 0.25, z), tint: LOTO_ART.paper, intensity: 0.55 });
+  kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 1.7 });
+}
+
+function audienceLights(kit, { front, step, rise, count, half, poleX, lamps }) {
+  const height = 5;
+  const sag = 0.6;
+  for (let k = 0; k < count; k++) {
+    const floor = rise * (k + 1);
+    const z = front + step * (k + 0.5);
+    for (const side of [-1, 1]) lanternPole(kit, side * poleX, z, height, floor);
+    const from = [-poleX, floor + height - 0.1, z];
+    const to = [poleX, floor + height - 0.1, z];
+    const perRow = 8;
+    const at = (t) => [from[0] + (to[0] - from[0]) * t, from[1] - sag * 4 * t * (1 - t), z];
+    const segments = 16;
+    for (let i = 0; i < segments; i++) kit.body.limb(at(i / segments), at((i + 1) / segments), 0.014, PAL.ink, { capsule: false, seg: 4 });
+    for (let i = 1; i <= perRow; i++) {
+      const [x, y] = at(i / (perRow + 1));
+      silkLantern(kit, x, y, z, LOTO_ART.silk[(i + k) % LOTO_ART.silk.length], 0.8);
+      kit.pools.push({ position: new THREE.Vector3(x, floor, z), size: 2.6 });
+    }
+    const lip = front + step * k + 0.25;
+    for (const x of lamps) if (Math.abs(x) < half) stepLamp(kit, x, lip, floor);
+  }
 }
 
 function lotoPlinth(kit, { half, front, back, lift }) {
@@ -3002,8 +3036,9 @@ function lotoScreen(kit, { half, z, floor, height }) {
   }
 }
 
-export function createLotoStage({ half, front, back, lift, posts, poles }) {
+export function createLotoStage({ half, front, back, lift, posts, poles, audience }) {
   const kit = createKit(7311);
+  kit.pools = [];
   const b = kit.body;
   const deck = lift;
   const cz = (front + back) / 2;
@@ -3071,6 +3106,7 @@ export function createLotoStage({ half, front, back, lift, posts, poles }) {
     lanternSwag(kit, [x, height - 0.1, z], [side * (lx - 0.1), eave + 0.3, cz + sz * (lz - 0.1)], 0.9, 5, i);
   }
   for (const side of [-1, 1]) blossomTree(kit, side * (span + 3.2), back - 1.9, 1.05);
+  audienceLights(kit, audience);
 
-  return { group: assemble(kit), top: upperTop + 1.3 };
+  return { group: assemble(kit), pearl: upperTop + 0.98, pools: kit.pools };
 }
