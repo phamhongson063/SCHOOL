@@ -220,14 +220,22 @@ scene.add(avatar.group);
 const dust = new Dust(scene);
 const stepSound = new StepSound();
 const uiSounds = createUiSounds();
-const villageMusic = new Music(['assets/music/village.ogg', 'assets/music/village.m4a']);
-const fieldMusic = new Music(['assets/music/field.ogg', 'assets/music/field.m4a']);
-const blessingTracks = ['blessing-1', 'blessing-2'].map((name) => new Music([`assets/music/${name}.ogg`, `assets/music/${name}.m4a`]));
+const villageMusic = new Music('assets/music/village');
+const fieldMusic = new Music('assets/music/field');
+const lotoMusic = new Music('assets/music/loto');
+const LOTO_MUSIC_RANGE = 35;
+const blessingTracks = ['blessing-1', 'blessing-2'].map((name) => new Music(`assets/music/${name}`));
 let blessingTrack = null;
 const riverAmbience = new Ambience({ bed: 'assets/music/river', volume: 0.3 });
 const FIELD_REGIONS = new Set(FIELDS.map((field) => field.region));
 const QUIET_REGIONS = new Set([...FIELD_REGIONS, 'river', 'mountain']);
 let soundRegion = null;
+function lotoMusicWanted(focus) {
+  const now = context.minutes;
+  if (!lotoSignOpen(now) && !lotoLive(now)) return false;
+  return Math.hypot(focus.x - lotoCourt.center.x, focus.z - lotoCourt.center.z) < LOTO_MUSIC_RANGE;
+}
+
 function updateSoundscape(focus) {
   const village = soundRegion !== null && !QUIET_REGIONS.has(soundRegion);
   const shore = village ? regions.shoreAt(focus.x, focus.z) : null;
@@ -236,8 +244,10 @@ function updateSoundscape(focus) {
   if (!blessed) blessingTrack = null;
   else blessingTrack ??= blessingTracks[Math.floor(Math.random() * blessingTracks.length)];
   for (const track of blessingTracks) track.set(track === blessingTrack);
-  fieldMusic.set(FIELD_REGIONS.has(soundRegion) && !studyMusic.playing && !blessed);
-  villageMusic.set(village && !shore && !studyMusic.playing && !blessed);
+  const festival = !studyMusic.playing && !blessed && lotoMusicWanted(focus);
+  lotoMusic.set(festival);
+  fieldMusic.set(FIELD_REGIONS.has(soundRegion) && !studyMusic.playing && !blessed && !festival);
+  villageMusic.set(village && !shore && !studyMusic.playing && !blessed && !festival);
 }
 const player = new PlayerController({
   camera,
@@ -1047,7 +1057,7 @@ const mountain = createMountain({
 regions.add(mountain.region());
 town.wildlife = mountain.wildlife;
 
-const studyMusic = new StudyMusic(['assets/music/study-1', 'assets/music/study-2']);
+const studyMusic = new StudyMusic({ study: ['assets/music/study-1', 'assets/music/study-2'], review: ['assets/music/review'] });
 const exams = createExams({ quiz: kanjiQuiz, sounds: uiSounds });
 const examHall = createExamHall({
   purse,

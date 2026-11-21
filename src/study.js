@@ -358,7 +358,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (!keys.length) return;
     mode = 'review';
     timer.hidden = true;
-    music?.start();
+    music?.start(chip === 'review' ? 'review' : 'study');
     showTranslation(false);
     setStudying(true);
     showChip(chip);

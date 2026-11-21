@@ -1,13 +1,14 @@
-import { loadClip, musicBus, onAudio } from './audio.js';
+import { musicBus, onAudio, streamTrack } from './audio.js';
 
 const VOLUME = 0.85;
 const FADE = 2;
 
 export class StudyMusic {
-  constructor(paths) {
+  constructor(sets) {
     this.ctx = null;
     this.out = null;
-    this.clips = [];
+    this.sets = sets;
+    this.kind = 'study';
     this.current = null;
     this.playing = false;
     onAudio((ctx) => {
@@ -15,18 +16,13 @@ export class StudyMusic {
       this.out = ctx.createGain();
       this.out.gain.value = VOLUME;
       this.out.connect(musicBus(ctx));
-      for (const path of paths) {
-        loadClip(ctx, [`${path}.ogg`, `${path}.m4a`]).then((clip) => {
-          if (!clip) return;
-          this.clips.push(clip);
-          if (this.playing && !this.current) this.next(true);
-        });
-      }
+      if (this.playing && !this.current) this.next(true);
     });
   }
 
-  start() {
+  start(kind = 'study') {
     this.playing = true;
+    this.kind = kind;
     this.fadeOut(this.current);
     this.current = null;
     this.next(true);
@@ -40,23 +36,32 @@ export class StudyMusic {
 
   next(fadeIn) {
     const ctx = this.ctx;
-    if (!ctx || !this.playing || !this.clips.length) return;
-    const source = ctx.createBufferSource();
-    source.buffer = this.clips[Math.floor(Math.random() * this.clips.length)];
+    const paths = this.sets[this.kind]?.length ? this.sets[this.kind] : this.sets.study;
+    if (!ctx || !this.playing || !paths?.length) return;
     const gain = ctx.createGain();
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(fadeIn ? 0 : 1, now);
     if (fadeIn) gain.gain.linearRampToValueAtTime(1, now + FADE);
-    source.connect(gain).connect(this.out);
-    const voice = { source, gain };
-    source.onended = () => {
-      gain.disconnect();
-      if (this.current !== voice) return;
-      this.current = null;
-      this.next(false);
-    };
-    source.start();
+    gain.connect(this.out);
+    const voice = { gain, track: null };
+    voice.track = streamTrack(ctx, paths[Math.floor(Math.random() * paths.length)], {
+      loop: false,
+      onEnded: () => {
+        this.drop(voice);
+        if (this.current !== voice) return;
+        this.current = null;
+        this.next(false);
+      },
+    });
+    voice.track.node.connect(gain);
+    voice.track.play();
     this.current = voice;
+  }
+
+  drop(voice) {
+    voice.track?.release();
+    voice.track = null;
+    voice.gain.disconnect();
   }
 
   fadeOut(voice) {
@@ -66,6 +71,6 @@ export class StudyMusic {
     level.cancelScheduledValues(now);
     level.setValueAtTime(level.value, now);
     level.linearRampToValueAtTime(0, now + FADE);
-    voice.source.stop(now + FADE);
+    setTimeout(() => this.drop(voice), FADE * 1000 + 200);
   }
 }
