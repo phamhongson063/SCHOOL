@@ -313,7 +313,7 @@ export const TRADE = {
   turnoverWeight: 0.3,
 };
 
-export const QUIZ = { seconds: 5 * 60, reward: 1 };
+export const QUIZ = { seconds: 5 * 60, reward: 1, closeMs: 500 };
 
 export const TRAITS = {
   anchor: [0.5, 0.7],

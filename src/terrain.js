@@ -77,6 +77,7 @@ export const courtRowPoles = () =>
     [COURT.rowPole, v],
   ]);
 const COURT_CLEAR = COURT.rim + 1.5;
+const COURT_MIN_FLOOR = FLAT + 0.1;
 const COURT_SUMMIT_FADE = 6;
 
 const TRAILS = [
@@ -230,7 +231,7 @@ function courtGap(x, z) {
 const onStage = (u, v) => Math.abs(u) <= COURT.stage.halfU && v >= COURT.stage.from && v <= COURT.stage.to;
 
 function shapeCourt(grid) {
-  const floor = sampleGrid(grid, COURT.x, COURT.z) - COURT.rise * 2;
+  const floor = Math.max(COURT_MIN_FLOOR, sampleGrid(grid, COURT.x, COURT.z) - COURT.rise * 2);
   forCellsNear(COURT.x, COURT.z, Math.hypot(COURT.halfU, COURT.halfV) + COURT.reach, (n, x, z) => {
     const { gap, cv } = courtGap(x, z);
     if (gap > COURT.reach) return;

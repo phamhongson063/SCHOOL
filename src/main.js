@@ -979,8 +979,10 @@ function dropIntellect() {
   uiSounds.correct();
 }
 
+const answerSound = (right) => (right ? uiSounds.correct() : uiSounds.wrong());
+
 function sideAsk(options, skipEmpty) {
-  return kanjiQuiz.ask({ ...options, keys: certify.pool(PLAYER) }).then((result) => {
+  return kanjiQuiz.ask({ closeAfter: QUIZ.closeMs, onAnswer: answerSound, ...options, keys: certify.pool(PLAYER) }).then((result) => {
     if (result.empty) return skipEmpty ? { correct: true, entry: null, skipped: true } : result;
     if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
     if (result.correct) dropIntellect();
