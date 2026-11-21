@@ -1532,7 +1532,11 @@ function sceneClick(clientX, clientY, run) {
   }
   if (lotoCourt.owns(hit.object)) {
     leaveLine();
-    goDo(lotoDesk, { stand: lotoCourt.stand, x: lotoCourt.caller.at.x, z: lotoCourt.caller.at.z }, 'loto');
+    if (lotoCourt.inside(player.position)) {
+      player.clearPath();
+      player.faceToward(lotoCourt.caller.at.x, lotoCourt.caller.at.z);
+      openLotoDesk();
+    } else goDo(lotoDesk, { stand: lotoCourt.stand, x: lotoCourt.caller.at.x, z: lotoCourt.caller.at.z }, 'loto');
     return true;
   }
   if (inn.owns(hit.object)) {
