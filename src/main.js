@@ -1975,13 +1975,13 @@ let lotoAnnounced = null;
 let lotoRemindedFor = null;
 let lotoMarked = null;
 
-const nameOf = (id) => (id === PLAYER ? 'Bạn' : everyone.find((person) => person.id === id)?.name ?? '');
+const lotoNameOf = (id) => (id === PLAYER ? 'Bạn' : everyone.find((person) => person.id === id)?.name ?? '');
 const lotoWords = (now) => loto.cardOf(PLAYER, now).map((key) => unitOf(key)?.word ?? '');
 
 function lotoOutcome(result) {
   if (!result) return null;
   if (result.winners.includes(PLAYER)) return `Kinh! Bạn thắng ${coins(result.prize)}`;
-  if (result.winners.length) return `${result.winners.map(nameOf).join(', ')} đã Kinh!`;
+  if (result.winners.length) return `${result.winners.map(lotoNameOf).join(', ')} đã Kinh!`;
   return 'Hết lượt, không ai Kinh.';
 }
 
@@ -2016,7 +2016,7 @@ function openLotoDesk() {
 function lotoBoard(now, open, result) {
   const day = dayOf(now);
   if (open) return { title: 'Lô tô chữ', text: open.call.text, note: `${LOTO_CLUE_LABELS[open.call.kind]} · ${open.index + 1}/${open.total}` };
-  if (result) return { title: 'Lô tô chữ', text: result.winners.length ? 'Kinh!' : 'Hết lượt', note: result.winners.map(nameOf).join(', ') };
+  if (result) return { title: 'Lô tô chữ', text: result.winners.length ? 'Kinh!' : 'Hết lượt', note: result.winners.map(lotoNameOf).join(', ') };
   if (now < lotoStart(day)) return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: `Quỹ ${Math.round(loto.pot(now))} 🪙` };
   return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: '' };
 }
