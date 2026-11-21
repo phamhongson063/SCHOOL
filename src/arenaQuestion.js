@@ -5,6 +5,16 @@ export const LETTERS = ['A', 'B', 'C', 'D'];
 export const KIND_LABELS = { kanji: 'Chữ Hán nào?', reading: 'Cách đọc?', meaning: 'Nghĩa là gì?' };
 
 const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];
+const shownWord = (card) => plainText(card.word).replace(/[[\]]/g, '');
+const MEANINGS_BY_WORD = (() => {
+  const map = new Map();
+  for (const card of Object.values(DECKS).flatMap((deck) => deck.cards)) {
+    const word = shownWord(card);
+    if (!map.has(word)) map.set(word, new Set());
+    map.get(word).add(card.meaning);
+  }
+  return map;
+})();
 const KANJI_WORDS = DECKS.n2.cards.map((card) => plainText(card.word)).filter((word) => /[㐀-鿿]/.test(word));
 
 function hashOf(text) {
@@ -38,9 +48,11 @@ export function buildQuestion(key, tier, rand = Math.random) {
   if (tier === 'hard' && card.reading && card.kanjiChoices?.length) return kanjiQuestion(card, rand);
   const reading = !!card.reading && (card.distractors?.length ?? 0) >= LETTERS.length - 1 && rand() < 0.5;
   const answer = reading ? card.reading : card.meaning;
-  const pool = reading ? card.distractors : MEANINGS.filter((meaning) => meaning !== card.meaning && !(card.siblingMeanings ?? []).includes(meaning));
+  const word = shownWord(card);
+  const sameWord = MEANINGS_BY_WORD.get(word);
+  const pool = reading ? card.distractors : MEANINGS.filter((meaning) => meaning !== card.meaning && !sameWord.has(meaning) && !(card.siblingMeanings ?? []).includes(meaning));
   const options = shuffle([answer, ...shuffle([...pool], rand).slice(0, LETTERS.length - 1)], rand);
-  return { word: plainText(card.word).replace(/[[\]]/g, ''), hint: '', kind: reading ? 'reading' : 'meaning', answer, options };
+  return { word, hint: '', kind: reading ? 'reading' : 'meaning', answer, options };
 }
 
 export function pickOf(question, correct, rand) {
