@@ -835,24 +835,28 @@
       </div>
     </div>
   </dialog>
-  <dialog id="lotoDialog" class="paper phrase-quiz loto-quiz" aria-label="Lô tô chữ" tabindex="-1">
-    <div class="quiz-body">
-      <header class="quiz-head">
-        <span class="quiz-icon" aria-hidden="true">🎴</span>
-        <span id="lotoLevel" class="quiz-level"></span>
-        <span class="sched-fill"></span>
-        <span id="lotoPot" class="quiz-clock"></span>
-        <button id="lotoClose" class="sched-x" type="button" aria-label="Đóng">×</button>
-      </header>
-      <span class="pay-track phrase-track"><span id="lotoBar" class="pay-bar"></span></span>
-      <div class="loto-call">
-        <span id="lotoKind" class="loto-kind"></span>
-        <span id="lotoClue" class="loto-clue"></span>
-      </div>
-      <div id="lotoGrid" class="loto-grid" lang="ja"></div>
-      <p id="lotoResult" class="phrase-result"></p>
+  <dialog id="lotoDialog" class="loto-sheet" aria-label="Lô tô chữ">
+    <header class="quiz-head loto-head">
+      <span class="quiz-icon" aria-hidden="true">🎴</span>
+      <span id="lotoLevel" class="quiz-level"></span>
+      <span class="sched-fill"></span>
+      <span id="lotoPot" class="quiz-clock"></span>
+      <button id="lotoFold" class="sched-x sched-min" type="button" aria-label="Thu nhỏ vé" title="Thu nhỏ"></button>
+      <button id="lotoClose" class="sched-x" type="button" aria-label="Đóng"></button>
+    </header>
+    <span class="pay-track loto-track"><span id="lotoBar" class="pay-bar"></span></span>
+    <div class="loto-call">
+      <span id="lotoKind" class="loto-kind"></span>
+      <span id="lotoClue" class="loto-clue"></span>
     </div>
+    <div id="lotoCalled" class="loto-called"></div>
+    <div id="lotoGrid" class="loto-grid" lang="ja"></div>
+    <p id="lotoResult" class="loto-result"></p>
   </dialog>
+  <button id="lotoChip" class="loto-chip" type="button" aria-label="Mở vé lô tô" hidden>
+    <span aria-hidden="true">🎴</span>
+    <span id="lotoChipText" class="loto-chip-text"></span>
+  </button>
   <div id="broadcast" class="broadcast" popover="manual" role="status" aria-live="polite" hidden>
     <div class="broadcast-frame">
       <span class="broadcast-badge" aria-hidden="true">📢</span>

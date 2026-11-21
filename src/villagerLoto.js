@@ -1,7 +1,6 @@
 import { between } from './random.js';
 import { LOTO } from './config.js';
 import { callMinutes, lotoEnd, lotoGatherAt, lotoPool, lotoSignOpen } from './lotoRules.js';
-import { lotoWorth } from './loto.js';
 
 const LOTO_POLL = 1.5;
 
@@ -10,7 +9,7 @@ export class LotoBehavior {
     const loto = this.town.loto;
     const court = this.town.lotoCourt;
     if (!loto || !court || !lotoSignOpen(ctx.minutes) || loto.joined(this.id, ctx.minutes) || this.purse.money < LOTO.fee) return null;
-    const worth = lotoWorth(this.id, ctx.minutes, loto.entrants(ctx.minutes), loto.pot(ctx.minutes));
+    const worth = loto.worth(this.id, ctx.minutes);
     if (!(worth > 0)) return null;
     const minutes = this.walkMinutes(court.center) + LOTO.gather + lotoPool(ctx.day).length * callMinutes;
     return { kind: 'loto', minutes, rate: (worth * need) / minutes, go: () => this.goLoto() };

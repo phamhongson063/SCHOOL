@@ -121,10 +121,21 @@ function interleave(lists) {
   return out;
 }
 
-export function lotoCard(day, id) {
+const CARD_JITTER = 0.2;
+
+const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+
+function rank(items, rand, scoreOf) {
+  return items
+    .map((item) => ({ item, score: scoreOf(item) + rand() * CARD_JITTER }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ item }) => item);
+}
+
+export function lotoCard(day, id, known = null) {
   const pool = lotoPool(day);
   const cacheKey = `${day}:${id}`;
-  const cached = cards.get(cacheKey);
+  const cached = known ? null : cards.get(cacheKey);
   if (cached?.pool === pool) return cached.keys;
   const rand = makeRandom(hashText(`loto:${day}:${id}`));
   const clusters = new Map();
@@ -135,17 +146,22 @@ export function lotoCard(day, id) {
     if (list) list.push(call.key);
     else chars.set(call.char, [call.key]);
   }
+  const knownOf = (list) => mean(list.map(known));
+  const groups = [...clusters.values()].map((chars) => [...chars.values()]);
+  const ordered = known ? rank(groups, rand, (lists) => knownOf(lists.flat())) : shuffle(groups, rand);
   const keys = [];
-  for (const chars of shuffle([...clusters.values()], rand)) {
+  for (const lists of ordered) {
     const room = LOTO_CELLS - keys.length;
     if (room < 2) break;
-    const group = interleave(shuffle([...chars.values()].map((list) => shuffle([...list], rand)), rand));
-    keys.push(...group.slice(0, room));
+    const sorted = known ? rank(lists.map((list) => rank(list, rand, known)), rand, knownOf) : shuffle(lists.map((list) => shuffle([...list], rand)), rand);
+    keys.push(...interleave(sorted).slice(0, room));
   }
   const card = shuffle(keys, rand);
-  cards.set(cacheKey, { pool, keys: card });
+  if (!known) cards.set(cacheKey, { pool, keys: card });
   return card;
 }
+
+export const validCard = (card, day) => Array.isArray(card) && card.length > 0 && card.length <= LOTO_CELLS && card.every((key) => lotoPool(day).some((call) => call.key === key));
 
 function clusterOf(pool) {
   let map = clusterMaps.get(pool);
@@ -160,9 +176,9 @@ export const blankMarks = () => OPEN.repeat(LOTO_CELLS);
 
 const setMark = (marks, cell, mark) => marks.slice(0, cell) + mark + marks.slice(cell + 1);
 
-export function applyTap(card, marks, call, cell) {
+export function applyTap(card, marks, called, cell) {
   if (!(cell >= 0 && cell < card.length) || marks[cell] !== OPEN) return { marks, result: null };
-  if (card[cell] === call.key) return { marks: setMark(marks, cell, HIT), result: 'hit' };
+  if (called.has(card[cell])) return { marks: setMark(marks, cell, HIT), result: 'hit' };
   return { marks: setMark(marks, cell, LOCKED), result: 'wrong' };
 }
 
@@ -174,11 +190,12 @@ export function closeCall(card, marks, call) {
 export function npcCall(card, marks, call, pool, respond, rand = Math.random) {
   const cell = card.indexOf(call.key);
   if (cell < 0 || marks[cell] !== OPEN) return marks;
-  if (respond(call.key)) return applyTap(card, marks, call, cell).marks;
+  const called = new Set([call.key]);
+  if (respond(call.key)) return applyTap(card, marks, called, cell).marks;
   const cluster = clusterOf(pool);
   const lookalikes = card.map((key, i) => i).filter((i) => i !== cell && marks[i] === OPEN && cluster.get(card[i]) === call.cluster);
   let next = marks;
-  if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, marks, call, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
+  if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, marks, called, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
   return closeCall(card, next, call);
 }
 
@@ -196,6 +213,12 @@ export const lotoEnd = (day) => lotoStart(day) + lotoPool(day).length * callMinu
 export function lotoSignOpen(now) {
   const m = minuteOfDay(now);
   return m >= LOTO.signOpen && m < LOTO.start;
+}
+
+export function calledCalls(day, now) {
+  if (now < lotoStart(day)) return [];
+  const pool = lotoPool(day);
+  return pool.slice(0, Math.min(pool.length, Math.floor((now - lotoStart(day)) / callMinutes) + 1));
 }
 
 export function closedCalls(day, now) {

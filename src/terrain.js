@@ -812,7 +812,6 @@ function shelterMesh() {
 
 const COURT_TREAD = [0xb3ab99, 0xa49d8e];
 const COURT_FILL = 4;
-const STAGE_WOOD = 0x8a5a34;
 
 function courtMesh() {
   const b = new Batch();
@@ -826,13 +825,6 @@ function courtMesh() {
       const height = top - (base - COURT_FILL);
       b.add(shapes.box(width, height, COURT.step), COURT_TREAD[k % 2], { p: [0, top - height / 2, COURT.front - COURT.step * (k + 0.5)] });
     }
-    const { halfU, from, to, lift } = COURT.stage;
-    b.add(shapes.box(halfU * 2, lift, to - from), STAGE_WOOD, { p: [0, base + lift / 2, (from + to) / 2] });
-    const deck = base + lift;
-    for (const [u, v] of COURT.posts) b.add(shapes.cylinder(0.11, 0.13, 2.7, 8), LACQUER.post, { p: [u, deck + 1.35, v] });
-    for (const v of [4.2, 6.6]) b.add(shapes.box(6.4, 0.16, 0.16), 0x5a3a22, { p: [0, deck + 2.65, v] });
-    b.add(shapes.cone(4.2, 1.4, 4), 0x8a3a2a, { p: [0, deck + 3.35, 5.4], r: [0, Math.PI / 4, 0], s: [1.15, 1, 0.55] });
-    for (const [u, v] of COURT.lanterns) stoneLantern(b, u, v, base);
   });
   return b.mesh();
 }

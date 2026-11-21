@@ -17,7 +17,6 @@ import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 import { applySpeech, planSpeech } from './speaking.js';
 import { callMinutes, lotoEnd, lotoGatherAt, lotoPool, lotoSignOpen } from './lotoRules.js';
-import { lotoWorth } from './loto.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -508,7 +507,7 @@ export function createAwaySim({ town, contextAt }) {
   function lotoPlan(member, clock) {
     const loto = town.loto;
     if (!loto || !lotoSignOpen(clock) || loto.joined(member.id, clock) || member.purse.money < LOTO.fee) return null;
-    const worth = lotoWorth(member.id, clock, loto.entrants(clock), loto.pot(clock));
+    const worth = loto.worth(member.id, clock);
     if (!(worth > 0)) return null;
     return { worth, minutes: AWAY.walk + LOTO.gather + lotoPool(dayOf(clock)).length * callMinutes };
   }

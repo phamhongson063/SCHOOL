@@ -2793,3 +2793,284 @@ export function createFishShop({ seed = 1 } = {}) {
     plaque: { x: 0, y: 2.0, z: 0.32 },
   };
 }
+
+const LOTO_ART = {
+  plinth: 0x8a8273,
+  plinthTop: 0xcbc4b2,
+  skirt: 0x7a1e16,
+  deck: 0x6a3a22,
+  carpet: 0xa8221a,
+  screen: 0x4a120c,
+  paper: 0xffe6b0,
+  dragon: 0xe0b040,
+  flame: 0xf07a2a,
+  pearl: 0xfff0c0,
+  silk: [0xd8321e, 0xf2b630, 0xe8762a, 0xc8261a],
+};
+const ROOF_GRID = { across: 16, up: 7 };
+
+function roofFace(face, { cz, eaveY, topY, flare }, drop = 0, flip = false) {
+  const [e0, e1, r0, r1] = face;
+  const { across, up } = ROOF_GRID;
+  const positions = [];
+  const uvs = [];
+  const index = [];
+  const width = Math.hypot(e1[0] - e0[0], e1[1] - e0[1]);
+  const run = Math.hypot((r0[0] + r1[0] - e0[0] - e1[0]) / 2, (r0[1] + r1[1] - e0[1] - e1[1]) / 2);
+  const slopeLength = Math.hypot(run, topY - eaveY);
+  for (let j = 0; j <= up; j++) {
+    const s = j / up;
+    for (let i = 0; i <= across; i++) {
+      const a = i / across;
+      const p = roofPoint(face, a, s, { cz, eaveY, topY, flare });
+      positions.push(p.x, p.y - drop, p.z);
+      uvs.push(a * width, s * slopeLength);
+    }
+  }
+  const row = across + 1;
+  for (let j = 0; j < up; j++) {
+    for (let i = 0; i < across; i++) {
+      const k = j * row + i;
+      if (flip) index.push(k, k + row, k + 1, k + 1, k + row, k + row + 1);
+      else index.push(k, k + 1, k + row, k + 1, k + row + 1, k + row);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function roofPoint([e0, e1, r0, r1], a, s, { cz, eaveY, topY, flare }) {
+  const ex = e0[0] + (e1[0] - e0[0]) * a;
+  const ez = e0[1] + (e1[1] - e0[1]) * a;
+  const rx = r0[0] + (r1[0] - r0[0]) * a;
+  const rz = r0[1] + (r1[1] - r0[1]) * a;
+  const corner = (2 * a - 1) ** 4;
+  return new THREE.Vector3(ex + (rx - ex) * s, eaveY + (topY - eaveY) * s ** 1.7 + flare * corner * (1 - s) ** 2, cz + ez + (rz - ez) * s);
+}
+
+function flaredRoof(kit, { cz, outer, inner, eaveY, topY, flare, tint = PAL.roofTints[0][0] }) {
+  const [ox, oz] = outer;
+  const [ix, iz] = inner;
+  const shape = { cz, eaveY, topY, flare };
+  const faces = [
+    [[-ox, oz], [ox, oz], [-ix, iz], [ix, iz]],
+    [[ox, oz], [ox, -oz], [ix, iz], [ix, -iz]],
+    [[ox, -oz], [-ox, -oz], [ix, -iz], [-ix, -iz]],
+    [[-ox, -oz], [-ox, oz], [-ix, -iz], [-ix, iz]],
+  ];
+  const b = kit.body;
+  for (const face of faces) {
+    kit.tiles.add(roofFace(face, shape), tint);
+    b.add(roofFace(face, shape, 0.1, true), PAL.rafter);
+    const eave = Array.from({ length: 13 }, (_, i) => roofPoint(face, i / 12, 0, shape));
+    b.add(shapes.tube(eave.map((p) => p.clone().setY(p.y - 0.02)), 0.075, 28), PAL.ridge);
+    b.add(shapes.tube(eave.map((p) => p.clone().setY(p.y - 0.13)), 0.035, 28), PAL.gold);
+    const hip = Array.from({ length: 7 }, (_, i) => {
+      const p = roofPoint(face, 1, i / 6, shape);
+      p.y += 0.08;
+      return p;
+    });
+    b.add(shapes.tube(hip, 0.085, 16), PAL.ridge);
+    const corner = hip[0];
+    const out = new THREE.Vector3(corner.x, 0, corner.z - cz).normalize();
+    const tip = corner.clone().addScaledVector(out, 0.42).setY(corner.y + 0.55);
+    b.add(shapes.tube([corner, corner.clone().addScaledVector(out, 0.3).setY(corner.y + 0.12), tip], 0.07, 8), PAL.ridge);
+    b.add(shapes.sphere(0.09, 8, 6), PAL.gold, { p: tip.toArray() });
+    b.add(shapes.cone(0.05, 0.2, 6), LOTO_ART.flame, { p: [tip.x, tip.y + 0.15, tip.z] });
+  }
+}
+
+function pearlCrest(kit, half, z, y) {
+  const b = kit.body;
+  b.add(shapes.box(half * 2 + 0.3, 0.26, 0.3), PAL.ridge, { p: [0, y + 0.1, z] });
+  b.add(shapes.box(half * 2 + 0.34, 0.05, 0.34), PAL.gold, { p: [0, y + 0.24, z] });
+  for (const side of [-1, 1]) {
+    const body = [
+      [side * (half + 0.1), y + 0.28],
+      [side * (half - 0.25), y + 0.9],
+      [side * (half - 0.75), y + 0.5],
+      [side * 1.05, y + 0.82],
+      [side * 0.62, y + 0.86],
+    ].map(([x, py]) => new THREE.Vector3(x, py, z));
+    b.add(shapes.tube(body, 0.1, 24), LOTO_ART.dragon);
+    b.add(shapes.sphere(0.16, 10, 8), LOTO_ART.dragon, { p: [side * 0.58, y + 0.9, z], s: [1.25, 0.9, 0.9] });
+    for (const dz of [-0.06, 0.06]) b.add(shapes.cone(0.035, 0.24, 5), PAL.jade, { p: [side * 0.66, y + 1.08, z + dz], r: [0, 0, side * 0.6] });
+    for (let k = 0; k < 4; k++) {
+      const p = body[k];
+      const q = body[k + 1];
+      b.add(shapes.cone(0.05, 0.2, 4), PAL.jade, { p: [(p.x + q.x) / 2, (p.y + q.y) / 2 + 0.13, z], flat: true });
+    }
+    b.add(shapes.cone(0.08, 0.34, 5), PAL.jade, { p: [side * (half + 0.2), y + 0.3, z], r: [0, 0, side * 1.1] });
+  }
+  const orb = y + 0.98;
+  kit.lamps.add(shapes.sphere(0.24, 14, 10), LOTO_ART.pearl, { p: [0, orb, z] });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    kit.lamps.add(shapes.cone(0.06, 0.26, 5), LOTO_ART.flame, { p: [Math.cos(a) * 0.36, orb + Math.sin(a) * 0.36, z], r: [0, 0, a - Math.PI / 2], flat: true });
+  }
+  kit.lights.push({ position: new THREE.Vector3(0, orb, z), tint: LOTO_ART.pearl, intensity: 1.4 });
+}
+
+function glowingLoft(kit, half, depth, cz, y0, h) {
+  const b = kit.body;
+  kit.lamps.add(shapes.box(half * 2, h, depth * 2), LOTO_ART.paper, { p: [0, y0 + h / 2, cz] });
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(half * 2 + 0.1, 0.08, 0.1), PAL.lacquer, { p: [0, y0 + 0.04, cz + side * (depth + 0.02)] });
+    b.add(shapes.box(half * 2 + 0.1, 0.08, 0.1), PAL.lacquer, { p: [0, y0 + h - 0.04, cz + side * (depth + 0.02)] });
+    b.add(shapes.box(0.1, 0.08, depth * 2 + 0.1), PAL.lacquer, { p: [side * (half + 0.02), y0 + h - 0.04, cz] });
+    for (let i = 0; i <= 8; i++) {
+      const x = -half + (half * 2 * i) / 8;
+      b.add(shapes.box(0.05, h, 0.05), PAL.lacquer, { p: [x, y0 + h / 2, cz + side * (depth + 0.02)] });
+    }
+    for (let i = 0; i <= 3; i++) {
+      const z = cz - depth + (depth * 2 * i) / 3;
+      b.add(shapes.box(0.05, h, 0.05), PAL.lacquer, { p: [side * (half + 0.02), y0 + h / 2, z] });
+    }
+    b.add(shapes.box(half * 2, 0.025, 0.06), PAL.gold, { p: [0, y0 + h / 2, cz + side * (depth + 0.03)] });
+  }
+  for (const x of [-half * 0.6, 0, half * 0.6]) kit.lights.push({ position: new THREE.Vector3(x, y0 + h / 2, cz + depth + 0.2), tint: LOTO_ART.paper, intensity: 0.8 });
+}
+
+function lanternSwag(kit, from, to, sag, count, offset) {
+  const at = (t) => [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t - sag * 4 * t * (1 - t), from[2] + (to[2] - from[2]) * t];
+  const segments = 12;
+  for (let i = 0; i < segments; i++) kit.body.limb(at(i / segments), at((i + 1) / segments), 0.014, PAL.ink, { capsule: false, seg: 4 });
+  for (let k = 1; k <= count; k++) {
+    const [x, y, z] = at(k / (count + 1));
+    silkLantern(kit, x, y, z, LOTO_ART.silk[(k + offset) % LOTO_ART.silk.length], 0.72);
+  }
+}
+
+function lanternPole(kit, x, z, height) {
+  const b = kit.body;
+  b.add(shapes.box(0.56, 0.16, 0.56), PAL.stoneDark, { p: [x, 0.08, z] });
+  b.add(shapes.cylinder(0.2, 0.24, 0.3, 8), PAL.stone, { p: [x, 0.31, z], flat: true });
+  b.add(shapes.cylinder(0.1, 0.12, height - 0.46, 8), PAL.lacquer, { p: [x, 0.46 + (height - 0.46) / 2, z] });
+  for (const y of [0.62, height * 0.55, height - 0.2]) b.add(shapes.cylinder(0.135, 0.135, 0.06, 8), PAL.gold, { p: [x, y, z] });
+  const top = height;
+  b.add(shapes.cylinder(0.2, 0.16, 0.08, 6), PAL.gold, { p: [x, top + 0.04, z] });
+  kit.lamps.add(shapes.cylinder(0.24, 0.24, 0.5, 6), LOTO_ART.paper, { p: [x, top + 0.33, z] });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    b.add(shapes.box(0.03, 0.5, 0.03), PAL.lacquer, { p: [x + Math.cos(a) * 0.24, top + 0.33, z + Math.sin(a) * 0.24] });
+  }
+  b.add(shapes.cone(0.36, 0.3, 6), PAL.lacquer, { p: [x, top + 0.73, z], flat: true });
+  b.add(shapes.sphere(0.07, 8, 6), PAL.gold, { p: [x, top + 0.92, z] });
+  b.add(shapes.cone(0.04, 0.16, 6), PAL.gold, { p: [x, top + 1.03, z] });
+  kit.lights.push({ position: new THREE.Vector3(x, top + 0.33, z), tint: LOTO_ART.paper, intensity: 1.2 });
+}
+
+function lotoPlinth(kit, { half, front, back, lift }) {
+  const b = kit.body;
+  const depth = front - back;
+  const cz = (front + back) / 2;
+  b.add(shapes.box(half * 2 + 0.3, lift - 0.08, depth + 0.3), LOTO_ART.plinth, { p: [0, (lift - 0.08) / 2, cz] });
+  b.add(shapes.box(half * 2 + 0.36, 0.08, depth + 0.36), LOTO_ART.plinthTop, { p: [0, lift - 0.04, cz] });
+  b.add(shapes.box(half * 2 + 0.4, 0.03, depth + 0.4), PAL.gold, { p: [0, lift - 0.095, cz] });
+  b.add(shapes.box(half * 2, 0.012, depth), LOTO_ART.deck, { p: [0, lift + 0.006, cz] });
+  const skirtW = half * 2 - 0.2;
+  b.add(shapes.box(skirtW, lift - 0.2, 0.04), LOTO_ART.skirt, { p: [0, (lift - 0.08) / 2, front + 0.16] });
+  for (let x = -skirtW / 2 + 0.35; x < skirtW / 2 - 0.2; x += 0.7) {
+    b.add(shapes.cylinder(0.09, 0.09, 0.03, 12), PAL.gold, { p: [x, (lift - 0.08) / 2, front + 0.19], r: [Math.PI / 2, 0, 0] });
+  }
+  const stepW = 1.8;
+  b.add(shapes.box(stepW, (lift * 2) / 3, 0.3), LOTO_ART.plinthTop, { p: [0, lift / 3, front + 0.3] });
+  b.add(shapes.box(stepW, lift / 3, 0.3), LOTO_ART.plinthTop, { p: [0, lift / 6, front + 0.6] });
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(0.22, lift + 0.18, 0.62), LOTO_ART.plinth, { p: [side * (stepW / 2 + 0.11), (lift + 0.18) / 2, front + 0.46] });
+    b.add(shapes.sphere(0.12, 8, 6), PAL.gold, { p: [side * (stepW / 2 + 0.11), lift + 0.26, front + 0.7] });
+  }
+  b.add(shapes.box(1.3, 0.014, 1.5), LOTO_ART.carpet, { p: [0, lift + 0.014, front - 0.75] });
+  for (const side of [-1, 1]) b.add(shapes.box(0.05, 0.016, 1.5), PAL.gold, { p: [side * 0.63, lift + 0.016, front - 0.75] });
+}
+
+function lotoScreen(kit, { half, z, floor, height }) {
+  const b = kit.body;
+  b.add(shapes.box(half * 2, height, 0.1), LOTO_ART.screen, { p: [0, floor + height / 2, z] });
+  b.add(shapes.box(half * 2 + 0.12, 0.12, 0.16), PAL.lacquer, { p: [0, floor + height, z] });
+  b.add(shapes.box(half * 2 + 0.12, 0.12, 0.16), PAL.lacquer, { p: [0, floor + 0.06, z] });
+  for (const y of [floor + 0.22, floor + height - 0.16]) b.add(shapes.box(half * 2 - 0.2, 0.03, 0.02), PAL.gold, { p: [0, y, z + 0.06] });
+  for (const side of [-1, 1]) {
+    const x = side * (half - 0.55);
+    b.add(shapes.torus(0.3, 0.025, 20), PAL.gold, { p: [x, floor + height * 0.6, z + 0.06] });
+    b.add(shapes.torus(0.18, 0.02, 16), PAL.gold, { p: [x, floor + height * 0.6, z + 0.06] });
+    b.add(shapes.cylinder(0.07, 0.07, 0.02, 10), PAL.gold, { p: [x, floor + height * 0.6, z + 0.06], r: [Math.PI / 2, 0, 0] });
+  }
+}
+
+export function createLotoStage({ half, front, back, lift, posts, poles }) {
+  const kit = createKit(7311);
+  const b = kit.body;
+  const deck = lift;
+  const cz = (front + back) / 2;
+  const span = Math.max(...posts.map(([x]) => Math.abs(x)));
+  const reach = Math.max(...posts.map(([, z]) => Math.abs(z - cz)));
+  const lintel = deck + 3.1;
+  const eave = deck + 3.4;
+
+  lotoPlinth(kit, { half, front, back, lift });
+  for (const [x, z] of posts) {
+    lacquerColumn(kit, x, z, eave, deck);
+    b.add(shapes.cylinder(0.17, 0.17, 0.05, 8), PAL.gold, { p: [x, deck + 1.6, z] });
+  }
+  for (const z of [cz - reach, cz + reach]) {
+    b.add(shapes.box(span * 2 + 0.3, 0.28, 0.28), PAL.lacquer, { p: [0, lintel, z] });
+    b.add(shapes.box(span * 2 + 0.32, 0.05, 0.3), PAL.gold, { p: [0, lintel - 0.16, z] });
+    b.add(shapes.box(span * 2 + 0.3, 0.16, 0.22), PAL.lacquer, { p: [0, eave - 0.08, z] });
+  }
+  for (const side of [-1, 1]) {
+    b.add(shapes.box(0.28, 0.28, reach * 2), PAL.lacquer, { p: [side * span, lintel, cz] });
+    b.add(shapes.box(0.22, 0.16, reach * 2), PAL.lacquer, { p: [side * span, eave - 0.08, cz] });
+  }
+  for (const [x, z] of posts) {
+    for (const dir of [-1, 1]) {
+      if (Math.abs(x + dir * 0.6) > span) continue;
+      b.limb([x, lintel - 0.75, z], [x + dir * 0.6, lintel - 0.12, z], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    }
+  }
+  const frontZ = cz + reach;
+  for (let x = -span + 0.5; x <= span - 0.45; x += 0.5) {
+    b.add(shapes.box(0.32, 0.1, 0.03), PAL.gold, { p: [x, lintel - 0.24, frontZ + 0.15] });
+    b.add(shapes.cone(0.05, 0.14, 4), PAL.gold, { p: [x, lintel - 0.36, frontZ + 0.15], r: [Math.PI, 0, 0], flat: true });
+  }
+
+  lotoScreen(kit, { half: span - 0.1, z: cz - reach - 0.12, floor: deck, height: 2.9 });
+
+  textSign(kit, 0, lintel + 0.02, frontZ + 0.17, 2.1, 0.44, { text: 'Lô Tô Chữ', bg: PAL.ink, fg: PAL.gold });
+  const couplets = [['Chữ', 'Hay', 'Gọi', 'Lộc'], ['Vé', 'Đẹp', 'Gặp', 'May']];
+  for (const [k, side] of [-1, 1].entries()) textSign(kit, side * span, deck + 1.65, frontZ + 0.19, 0.3, 1.7, { text: couplets[k], vertical: true, bg: PAL.ink, fg: PAL.gold });
+  for (const side of [-1, 1]) {
+    silkLantern(kit, side * (span - 0.65), lintel - 0.14, frontZ + 0.05, LOTO_ART.silk[side > 0 ? 1 : 0], 1.15);
+    silkLantern(kit, side * (span - 0.65), lintel - 0.14, cz - reach + 0.35, LOTO_ART.silk[side > 0 ? 3 : 2], 0.95);
+  }
+
+  const lower = { outer: [span + 1.2, reach + 1.2], inner: [span - 0.7, reach - 0.3] };
+  const lowerTop = eave + 0.85;
+  flaredRoof(kit, { cz, outer: lower.outer, inner: lower.inner, eaveY: eave, topY: lowerTop, flare: 0.45 });
+  const loft = { half: lower.inner[0] - 0.1, depth: lower.inner[1] - 0.1 };
+  glowingLoft(kit, loft.half, loft.depth, cz, lowerTop - 0.12, 0.72);
+  const upperEave = lowerTop + 0.55;
+  const ridge = { half: loft.half - 0.35 };
+  const upperTop = upperEave + 1.15;
+  flaredRoof(kit, { cz, outer: [loft.half + 0.85, loft.depth + 0.85], inner: [ridge.half, 0], eaveY: upperEave, topY: upperTop, flare: 0.4 });
+  pearlCrest(kit, ridge.half, cz, upperTop);
+
+  const [lx, lz] = lower.outer;
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) silkLantern(kit, sx * (lx - 0.35), eave + 0.12, cz + sz * (lz - 0.35), LOTO_ART.silk[(sx + sz + 2) / 2], 1);
+  }
+  for (const [i, [x, z]] of poles.entries()) {
+    const height = 4.2;
+    lanternPole(kit, x, z, height);
+    const side = Math.sign(x);
+    const sz = z > cz ? 1 : -1;
+    lanternSwag(kit, [x, height - 0.1, z], [side * (lx - 0.1), eave + 0.3, cz + sz * (lz - 0.1)], 0.9, 5, i);
+  }
+  for (const side of [-1, 1]) blossomTree(kit, side * (span + 3.2), back - 1.9, 1.05);
+
+  return { group: assemble(kit), top: upperTop + 1.3 };
+}

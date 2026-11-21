@@ -870,7 +870,7 @@ const lanterns = createLanterns({
 town.lanterns = lanterns;
 const lotoCourt = createLotoCourt(scene);
 const loto = createLoto({
-  budget: (day) => economy.lotoBudget(day),
+  budget: () => 0,
   payout: (winners, pot) => economy.payLoto(winners, pot),
   human: (id) => id === PLAYER,
   charge: (who, fee) => {
@@ -1832,7 +1832,7 @@ function cullRooms() {
 const dialogs = [...document.querySelectorAll('dialog')];
 const bagPanel = document.getElementById('bagPanel');
 const popupOpen = () => purse.sleeping || !bagPanel.hidden || dialogs.some((dialog) => dialog.open);
-const scenePopups = [() => fishing.active && kanjiQuiz.open, () => arenaDuel.open];
+const scenePopups = [() => fishing.active && kanjiQuiz.open, () => arenaDuel.open, () => lotoUI.isOpen];
 const scenePopupOpen = () => !purse.sleeping && bagPanel.hidden && scenePopups.some((open) => open());
 
 const blessingReminded = new Set();
@@ -1957,6 +1957,7 @@ function heraldEvents() {
 const LOTO_CALL = 'lotoCall';
 const LOTO_AWAY = 'lotoAway';
 const LOTO_RESULT_KEY = 'langsch.lotoResult';
+const LOTO_MARKED_KEY = 'langsch.lotoMarked';
 const lotoSign = createLotoSign();
 const lotoUI = createLotoDialog({
   onTap(cell) {
@@ -1973,7 +1974,6 @@ let lotoAwayFor = null;
 let lotoAwayMail = false;
 let lotoAnnounced = null;
 let lotoRemindedFor = null;
-let lotoMarked = null;
 
 const lotoNameOf = (id) => (id === PLAYER ? 'Bạn' : everyone.find((person) => person.id === id)?.name ?? '');
 const lotoWords = (now) => loto.cardOf(PLAYER, now).map((key) => unitOf(key)?.word ?? '');
@@ -2036,18 +2036,23 @@ function remindLoto(now) {
 }
 
 function markLotoCalls(now) {
-  if (!loto.joined(PLAYER, now)) return;
+  if (!loto.joined(PLAYER, now) || !loto.result(now)) return;
   const day = dayOf(now);
-  const closed = loto.closedCount(now);
-  if (lotoMarked?.day !== day) lotoMarked = { day, closed };
+  let marked = null;
+  try {
+    marked = Number(localStorage.getItem(LOTO_MARKED_KEY));
+  } catch {}
+  if (marked === day) return;
+  try {
+    writeGameItem(LOTO_MARKED_KEY, String(day));
+  } catch {}
   const card = loto.cardOf(PLAYER, now);
   const marks = loto.marksOf(PLAYER, now);
-  for (let i = lotoMarked.closed; i < closed; i++) {
+  for (let i = 0; i < loto.closedCount(now); i++) {
     const call = loto.callAt(now, i);
     const cell = call ? card.indexOf(call.key) : -1;
     if (cell >= 0) certify.markWeak(PLAYER, call.key, marks[cell] === HIT);
   }
-  lotoMarked.closed = closed;
 }
 
 function reportLoto(now) {
@@ -2096,7 +2101,7 @@ function updateLoto() {
   if (playing && !inside && hasEntered() && lotoAwayFor !== day) {
     lotoAwayFor = day;
     lotoAwayMail = true;
-    mailbox.notify({ icon: '🎴', lines: ['Lô tô chữ đang hô, vé của bạn đang bị bỏ lượt.'], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_AWAY });
+    mailbox.notify({ icon: '🎴', lines: ['Lô tô chữ đang hô, lên sân dò vé nhé.'], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_AWAY });
   }
   if (lotoAwayMail && (!playing || inside)) {
     lotoAwayMail = false;
@@ -2106,6 +2111,8 @@ function updateLoto() {
     lotoUI.render({
       marks: loto.marksOf(PLAYER, now),
       call: open?.call ?? null,
+      called: loto.called(now),
+      live: lotoLive(now),
       left: open?.left ?? 0,
       index: open?.index ?? 0,
       count: open?.total ?? 0,
@@ -2457,7 +2464,7 @@ renderer.setAnimationLoop((time) => {
   updateSoundscape(player.position);
   quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
-  lotoCourt.update(t, camera);
+  lotoCourt.update(t, camera, night);
   updateLoto();
   updateBlessingQuiz(dt);
   updateBlessingRewards();
