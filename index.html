@@ -821,6 +821,38 @@
       <p id="lanternResult" class="phrase-result"></p>
     </div>
   </dialog>
+  <dialog id="lotoSignDialog" class="paper" aria-labelledby="lotoSignTitle">
+    <div class="paper-body">
+      <header class="sched-head">
+        <span class="sched-badge emoji" aria-hidden="true">🎴</span>
+        <h2 id="lotoSignTitle">Lô tô chữ</h2>
+      </header>
+      <p id="lotoSignText" class="paper-note"></p>
+      <div class="sched-actions">
+        <span class="spacer"></span>
+        <button id="lotoSignNo" class="sched-ghost" type="button">Không</button>
+        <button id="lotoSignYes" class="sched-primary" type="button">Mua vé</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="lotoDialog" class="paper phrase-quiz loto-quiz" aria-label="Lô tô chữ" tabindex="-1">
+    <div class="quiz-body">
+      <header class="quiz-head">
+        <span class="quiz-icon" aria-hidden="true">🎴</span>
+        <span id="lotoLevel" class="quiz-level"></span>
+        <span class="sched-fill"></span>
+        <span id="lotoPot" class="quiz-clock"></span>
+        <button id="lotoClose" class="sched-x" type="button" aria-label="Đóng">×</button>
+      </header>
+      <span class="pay-track phrase-track"><span id="lotoBar" class="pay-bar"></span></span>
+      <div class="loto-call">
+        <span id="lotoKind" class="loto-kind"></span>
+        <span id="lotoClue" class="loto-clue"></span>
+      </div>
+      <div id="lotoGrid" class="loto-grid" lang="ja"></div>
+      <p id="lotoResult" class="phrase-result"></p>
+    </div>
+  </dialog>
   <div id="broadcast" class="broadcast" popover="manual" role="status" aria-live="polite" hidden>
     <div class="broadcast-frame">
       <span class="broadcast-badge" aria-hidden="true">📢</span>

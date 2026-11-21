@@ -403,11 +403,25 @@ export const HERALD = { lead: 15, every: 3 };
 export const TOWNHALL = {
   reserveDays: 5,
   spend: 0.45,
-  blessingShare: 0.35,
+  blessingShare: 0.3,
   arenaShare: 0.25,
   history: 14,
-  lanternShare: 0.25,
+  lanternShare: 0.2,
   questShare: 0.15,
+  lotoShare: 0.1,
+};
+
+export const LOTO = {
+  fee: 3,
+  signOpen: 22 * 60,
+  start: 22 * 60 + 30,
+  callSeconds: 7,
+  pool: 40,
+  size: 4,
+  wordsPerKanji: 2,
+  slip: 0.5,
+  gather: 5,
+  heraldLead: 15,
 };
 
 export const QUEST = {

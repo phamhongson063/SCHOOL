@@ -1,7 +1,7 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'lodge', 'arenaFee', 'blessing', 'lantern', 'capital'];
-export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'arena', 'quest', 'buyback', 'capital'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'lodge', 'arenaFee', 'blessing', 'lantern', 'loto', 'capital'];
+export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'loto', 'arena', 'quest', 'buyback', 'capital'];
 
 export function planDay({ fund, wages, starts }) {
   const reserve = wages * TOWNHALL.reserveDays;
@@ -10,10 +10,12 @@ export function planDay({ fund, wages, starts }) {
   const lanternBudget = Math.floor(budget * TOWNHALL.lanternShare);
   const arenaBudget = Math.floor(budget * TOWNHALL.arenaShare);
   const questBudget = Math.floor(budget * TOWNHALL.questShare);
+  const lotoBudget = Math.floor(budget * TOWNHALL.lotoShare);
   return {
     blessingPool,
     lanternBudget,
     questBudget,
+    lotoBudget,
     arenaPrize: starts > 0 ? Math.floor(arenaBudget / starts) : 0,
     reserve,
     budget,

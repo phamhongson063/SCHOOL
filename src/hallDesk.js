@@ -1,4 +1,4 @@
-import { ARENA, BLESSING } from './config.js';
+import { ARENA, BLESSING, LOTO } from './config.js';
 import { clockText, dayOf } from './clock.js';
 import { coins } from './format.js';
 import { closable } from './dialog.js';
@@ -24,6 +24,7 @@ const INCOME_NAMES = {
   arenaFee: ['⚔️', 'Phí lôi đài'],
   blessing: ['✨', 'Phí chúc phúc'],
   lantern: ['🏮', 'Phí hội đèn trời'],
+  loto: ['🎴', 'Phí lô tô chữ'],
   market: ['🧺', 'Phí chợ'],
   capital: ['🏪', 'Thu hồi vốn tiệm'],
 };
@@ -31,6 +32,7 @@ const EXPENSE_NAMES = {
   wage: ['🎖️', 'Lương quan viên'],
   blessing: ['✨', 'Lễ chúc phúc'],
   lantern: ['🏮', 'Hội đèn trời'],
+  loto: ['🎴', 'Thưởng lô tô chữ'],
   arena: ['🏆', 'Giải lôi đài'],
   quest: ['📋', 'Thưởng nhiệm vụ'],
   buyback: ['🏚️', 'Mua lại nhà'],
@@ -102,6 +104,8 @@ export function createHallUI({ economy, now, quests }) {
       times,
       el('h3', 'bank-ribbon', 'Lôi đài'),
       row('🏆', `Giải mỗi trận · ${ARENA.starts.length} trận`, economy.arenaPrize()),
+      el('h3', 'bank-ribbon', 'Lô tô chữ'),
+      row('🎴', `Quỹ thưởng · ${clockText(LOTO.start)}`, economy.lotoBudget(day)),
       el('h3', 'bank-ribbon', 'Nhiệm vụ'),
       row('📋', 'Quỹ thưởng', economy.questBudget(day)),
       el('h3', 'bank-ribbon', 'Ngân khố'),

@@ -466,6 +466,10 @@ export class Town {
       member.stayBlessed(0, entry.blessing.until);
       return true;
     }
+    if (this.loto?.joined(member.id, ctx.minutes) && this.lotoCourt?.inside(member.position)) {
+      member.stayLoto();
+      return true;
+    }
     member.wait(between(0.2, 1.5));
     return true;
   }
@@ -531,6 +535,10 @@ export class Town {
       if (member.state === 'arena') continue;
       if (this.resumeMember(member, saved.members.get(member.id), ctx, t, saved.gap)) {
         member.holdRoom(this.nightLodge(jobs.inns.get(member.id), ctx));
+        continue;
+      }
+      if (member.lotoSeatWanted(ctx)) {
+        member.seatLoto();
         continue;
       }
       if (this.resumeInn(member, jobs.inns.get(member.id), ctx)) continue;

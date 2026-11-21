@@ -26,6 +26,7 @@ import { WorkBehavior } from './villagerWork.js';
 import { ErrandBehavior } from './villagerErrands.js';
 import { MindBehavior } from './villagerMind.js';
 import { LanternBehavior } from './villagerLantern.js';
+import { LotoBehavior } from './villagerLoto.js';
 
 
 export class Villager {
@@ -207,6 +208,7 @@ export class Villager {
     const ctx = this.town.context;
     this.lookAt = null;
     this.task = null;
+    if (this.lotoSeatWanted(ctx)) return this.goLotoSeat();
     const nightPlan = ctx.night ? this.plan(ctx) : null;
     if (ctx.night && (this.needsSleep(ctx) || !nightPlan)) return this.wantsVendor() ? this.goVendor() : this.goHome();
     if (this.wantsInn()) return this.goInn();
@@ -796,4 +798,4 @@ function mixin(target, ...sources) {
   }
 }
 
-mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior, LanternBehavior);
+mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior, LanternBehavior, LotoBehavior);

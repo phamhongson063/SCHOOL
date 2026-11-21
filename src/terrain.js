@@ -41,6 +41,36 @@ export const SHELTERS = [
 ];
 export const SHELTER_RADIUS = 3.2;
 const SHELTER_FLOOR = { halfX: 1.6, halfZ: 1.4, thick: 0.2, top: 0.15 };
+export const COURT = {
+  x: -43,
+  z: -53,
+  turn: 0.43,
+  halfU: 10,
+  halfV: 7,
+  front: 2.6,
+  step: 2.4,
+  rise: 0.3,
+  terraces: 4,
+  grade: 0.85,
+  rim: 3,
+  reach: 16,
+  stage: { halfU: 3.2, from: 4, to: 6.8, lift: 0.45 },
+  caller: { v: 5.1, standV: 3.3 },
+  posts: [
+    [-3, 4.2],
+    [3, 4.2],
+    [-3, 6.6],
+    [3, 6.6],
+  ],
+  lanterns: [
+    [-9.4, 2.9],
+    [9.4, 2.9],
+    [-9.4, 6.6],
+    [9.4, 6.6],
+  ],
+};
+const COURT_CLEAR = COURT.rim + 1.5;
+const COURT_SUMMIT_FADE = 6;
 
 const TRAILS = [
   [
@@ -91,6 +121,7 @@ const MESH_ROWS = (ROWS - 1) / MESH_SPAN + 1;
 
 let heights = null;
 let summit = null;
+let court = null;
 let layout = null;
 
 function spineHeight(x, z) {
@@ -167,6 +198,59 @@ function shapeSummit(grid) {
   summit = { top, rise };
 }
 
+const courtCos = Math.cos(COURT.turn);
+const courtSin = Math.sin(COURT.turn);
+
+export function courtLocal(x, z) {
+  const dx = x - COURT.x;
+  const dz = z - COURT.z;
+  return { u: dx * courtCos - dz * courtSin, v: dx * courtSin + dz * courtCos };
+}
+
+export function courtPoint(u, v) {
+  return { x: COURT.x + u * courtCos + v * courtSin, z: COURT.z - u * courtSin + v * courtCos };
+}
+
+export const courtLevel = (v) => (v >= COURT.front ? 0 : Math.min(COURT.terraces, Math.ceil((COURT.front - v) / COURT.step)) * COURT.rise);
+
+function courtGap(x, z) {
+  const { u, v } = courtLocal(x, z);
+  const cu = Math.max(-COURT.halfU, Math.min(COURT.halfU, u));
+  const cv = Math.max(-COURT.halfV, Math.min(COURT.halfV, v));
+  return { gap: Math.hypot(u - cu, v - cv), u, v, cv };
+}
+
+const onStage = (u, v) => Math.abs(u) <= COURT.stage.halfU && v >= COURT.stage.from && v <= COURT.stage.to;
+
+function shapeCourt(grid) {
+  const floor = sampleGrid(grid, COURT.x, COURT.z) - COURT.rise * 2;
+  forCellsNear(COURT.x, COURT.z, Math.hypot(COURT.halfU, COURT.halfV) + COURT.reach, (n, x, z) => {
+    const { gap, cv } = courtGap(x, z);
+    if (gap > COURT.reach) return;
+    const edge = floor + courtLevel(cv) - 0.05;
+    const rise = COURT.grade * Math.max(0, gap - COURT.rim);
+    const graded = Math.max(edge - rise, Math.min(edge + rise, grid[n]));
+    const clear = SUMMIT_FLAT + SUMMIT_BLEND;
+    const weight = mask(x, z) * smoothstep(clear, clear + COURT_SUMMIT_FADE, Math.hypot(x - SUMMIT.x, z - SUMMIT.z));
+    grid[n] += (graded - grid[n]) * weight;
+  });
+  court = { floor };
+}
+
+export function courtBase() {
+  heights ??= buildHeights();
+  return court.floor;
+}
+
+export function courtTop(x, z) {
+  const { gap, u, v } = courtGap(x, z);
+  if (gap > 0) return null;
+  const top = courtBase() + courtLevel(v);
+  return onStage(u, v) ? top + COURT.stage.lift : top;
+}
+
+export const nearCourt = (x, z, margin = 0) => courtGap(x, z).gap <= margin;
+
 function stairTop(x, z) {
   const along = z - SUMMIT.z - STAIRS.from;
   if (Math.abs(x - SUMMIT.x) > STAIRS.half || along < COURTYARD.z1 - STAIRS.from || along >= STAIRS_LENGTH) return null;
@@ -206,6 +290,7 @@ function buildHeights() {
     }
   }
   shapeSummit(grid);
+  shapeCourt(grid);
   return grid;
 }
 
@@ -248,7 +333,7 @@ export function terrainFloor(x, z) {
   const deck = bridgeSurface(x, z);
   if (deck !== null && !Number.isNaN(deck)) return deck;
   const h = terrainHeight(x, z);
-  const floor = shelterFloor(x, z) ?? stairTop(x, z);
+  const floor = shelterFloor(x, z) ?? stairTop(x, z) ?? courtTop(x, z);
   if (floor !== null) return Math.max(h, floor);
   return h > FLAT ? h : null;
 }
@@ -381,7 +466,8 @@ function buildLayout() {
     Math.hypot(x - SUMMIT.x, z - SUMMIT.z) > SUMMIT_FLAT + 3 &&
     !(Math.abs(x - SUMMIT.x) < STAIRS.half + 2.5 && z > SUMMIT.z && z < SUMMIT.z + STAIRS.from + STAIRS_LENGTH + 3) &&
     streamDistance(x, z) > BANK_HALF + 1.2 &&
-    SHELTERS.every((hut) => Math.hypot(x - hut.x, z - hut.z) > 4.5);
+    SHELTERS.every((hut) => Math.hypot(x - hut.x, z - hut.z) > 4.5) &&
+    !nearCourt(x, z, COURT_CLEAR);
   const { half } = PAGODA;
   for (let px = -half; px <= half + 1e-6; px += 0.8) {
     for (let pz = -half; pz <= half + 1e-6; pz += 0.8) block(PAGODA.x + px, PAGODA.z + pz, 0.6);
@@ -396,6 +482,10 @@ function buildLayout() {
       const sn = Math.sin(hut.turn);
       block(hut.x + dx * c + dz * sn, hut.z - dx * sn + dz * c, 0.22);
     }
+  }
+  for (const [u, v] of [...COURT.posts, ...COURT.lanterns, [0, COURT.caller.v]]) {
+    const at = courtPoint(u, v);
+    block(at.x, at.z, 0.3);
   }
   for (let z = MOUNTAIN.z0 + 3; z < MOUNTAIN.z1; z += 5) {
     for (let x = MOUNTAIN.x0 + 3; x < MOUNTAIN.x1; x += 5) {
@@ -449,7 +539,7 @@ export function navSurface(x, z) {
   if (deck !== null) return deck;
   if (inStream(x, z)) return NaN;
   const h = terrainHeight(x, z);
-  const floor = shelterFloor(x, z) ?? stairTop(x, z);
+  const floor = shelterFloor(x, z) ?? stairTop(x, z) ?? courtTop(x, z);
   if (floor === null && h <= FLAT) return null;
   return terrainBlocked(x, z) ? NaN : Math.max(h, floor ?? h);
 }
@@ -720,6 +810,33 @@ function shelterMesh() {
   return b.mesh();
 }
 
+const COURT_TREAD = [0xb3ab99, 0xa49d8e];
+const COURT_FILL = 4;
+const STAGE_WOOD = 0x8a5a34;
+
+function courtMesh() {
+  const b = new Batch();
+  const base = courtBase();
+  const width = COURT.halfU * 2;
+  b.group([COURT.x, 0, COURT.z], [0, COURT.turn, 0], () => {
+    const frontDepth = COURT.halfV - COURT.front;
+    b.add(shapes.box(width, COURT_FILL, frontDepth), STONE.pad, { p: [0, base - COURT_FILL / 2, COURT.front + frontDepth / 2] });
+    for (let k = 0; k < COURT.terraces; k++) {
+      const top = base + COURT.rise * (k + 1);
+      const height = top - (base - COURT_FILL);
+      b.add(shapes.box(width, height, COURT.step), COURT_TREAD[k % 2], { p: [0, top - height / 2, COURT.front - COURT.step * (k + 0.5)] });
+    }
+    const { halfU, from, to, lift } = COURT.stage;
+    b.add(shapes.box(halfU * 2, lift, to - from), STAGE_WOOD, { p: [0, base + lift / 2, (from + to) / 2] });
+    const deck = base + lift;
+    for (const [u, v] of COURT.posts) b.add(shapes.cylinder(0.11, 0.13, 2.7, 8), LACQUER.post, { p: [u, deck + 1.35, v] });
+    for (const v of [4.2, 6.6]) b.add(shapes.box(6.4, 0.16, 0.16), 0x5a3a22, { p: [0, deck + 2.65, v] });
+    b.add(shapes.cone(4.2, 1.4, 4), 0x8a3a2a, { p: [0, deck + 3.35, 5.4], r: [0, Math.PI / 4, 0], s: [1.15, 1, 0.55] });
+    for (const [u, v] of COURT.lanterns) stoneLantern(b, u, v, base);
+  });
+  return b.mesh();
+}
+
 function pagodaMeshes() {
   const { x, z, half } = PAGODA;
   const y = terrainHeight(x, z);
@@ -863,7 +980,7 @@ export function createMountainScenery() {
   const stream = streamMeshes();
   const pagoda = pagodaMeshes();
   const hermitage = hermitageMeshes();
-  group.add(ground, ...trails.map(trailMesh), ...forestMeshes(trees), rockMesh(rocks), ...stream.meshes, bridgeMesh(), shelterMesh(), ...pagoda.meshes, ...hermitage.meshes);
+  group.add(ground, ...trails.map(trailMesh), ...forestMeshes(trees), rockMesh(rocks), ...stream.meshes, bridgeMesh(), shelterMesh(), courtMesh(), ...pagoda.meshes, ...hermitage.meshes);
   return {
     group,
     ground,

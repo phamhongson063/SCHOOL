@@ -259,7 +259,7 @@ function planFor(day) {
   const plan = draftPlan();
   const blessingPool = openBlessingPool(plan.blessingPool);
   openQuests(day, plan.questBudget);
-  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, reserve: plan.reserve, blessingPool };
+  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, lotoBudget: plan.lotoBudget, reserve: plan.reserve, blessingPool };
   for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
   pruneBook(state.book, day);
 }
@@ -358,6 +358,7 @@ function settleThrough(t) {
   state.day = now;
   if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
   if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan().lanternBudget;
+  if (!Number.isFinite(state.plans[now].lotoBudget)) state.plans[now].lotoBudget = draftPlan().lotoBudget;
   if (state.quest.day !== now) {
     closeQuests(now);
     const budget = draftPlan().questBudget;
@@ -548,6 +549,20 @@ export const economy = {
     payEarner(NPC.cook, cost);
     store.save();
     return funded;
+  },
+  lotoBudget(day = today()) {
+    return planOf(day)?.lotoBudget ?? 0;
+  },
+  payLoto(winners, pot) {
+    if (!ctx || !winners.length) return 0;
+    const each = Math.floor(Math.min(pot, ctx.ledger.purse(FUND).money) / winners.length);
+    if (!(each > 0) || !withdraw(each * winners.length, 'loto')) return 0;
+    for (const id of winners) {
+      ctx.ledger.purse(id).earn(each);
+      trackEarn(id, each);
+    }
+    store.save();
+    return each;
   },
   questBudget(day = today()) {
     return planOf(day)?.questBudget ?? 0;

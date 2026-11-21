@@ -8,7 +8,7 @@ import { homelandOf, netWorth, habitsOf, abilitiesOf, certifiedDecks, certifiedR
 const ROW = 50;
 const OVERSCAN = 6;
 const RADAR = 40;
-const HABITS = { farm: '🌾', fish: '🎣', hunt: '🏹', study: '📖', blessing: '🙏' };
+const HABITS = { farm: '🌾', fish: '🎣', hunt: '🏹', study: '📖', blessing: '🙏', loto: '🎴' };
 const SKILL_LABELS = { farm: 'Làm ruộng', fish: 'Câu cá', hunt: 'Săn bắt' };
 
 function el(tag, className, text) {

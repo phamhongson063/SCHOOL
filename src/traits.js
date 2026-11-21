@@ -6,7 +6,9 @@ import { dayOf } from './clock.js';
 
 const KEY = worldKey('traits');
 export const SKILLS = ['farm', 'fish', 'hunt'];
-export const TASTES = ['farm', 'fish', 'hunt', 'study', 'blessing'];
+const BASE_TASTES = ['farm', 'fish', 'hunt', 'study', 'blessing'];
+const LATE_TASTES = ['loto'];
+export const TASTES = [...BASE_TASTES, ...LATE_TASTES];
 const FACTS = ['study', 'pass', 'fail', 'tired', 'debt'];
 
 const clamp = (value, [lo, hi]) => Math.max(lo, Math.min(hi, value));
@@ -41,7 +43,10 @@ function freshEntry(id) {
     diligence: clamp(anchor + between(-TRAITS.startSpread, TRAITS.startSpread, rand), TRAITS.diligence),
     xp: Object.fromEntries(SKILLS.map((name) => [name, xpOf(between(...TRAITS.skillStart, rand))])),
     skill: {},
-    taste: Object.fromEntries(TASTES.map((name) => [name, between(...TRAITS.taste, rand)])),
+    taste: {
+      ...Object.fromEntries(BASE_TASTES.map((name) => [name, between(...TRAITS.taste, rand)])),
+      ...Object.fromEntries(LATE_TASTES.map((name) => [name, between(...TRAITS.taste, makeRandom(hashOf(`${id}:${name}`)))])),
+    },
     thrift: rand(),
     comfort: rand(),
     innGoer: rand() < TRAITS.innGoer,

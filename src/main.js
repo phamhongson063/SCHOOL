@@ -43,8 +43,12 @@ import { createMailbox } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
-import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN } from './config.js';
+import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText, dateText } from './clock.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO } from './config.js';
+import { createLoto } from './loto.js';
+import { createLotoCourt } from './lotoCourt.js';
+import { createLotoDialog, createLotoSign } from './lotoDialog.js';
+import { HIT, LOTO_CLUE_LABELS, lotoEnd, lotoSignOpen, lotoStart } from './lotoRules.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { blessingScore } from './blessingRules.js';
 import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
@@ -81,7 +85,7 @@ import { createExams } from './exams.js';
 import { createExamHall, examOpen, qualifyTag } from './examHall.js';
 import { createInternalDialog } from './internalDialog.js';
 import { certify } from './certify.js';
-import { DECKS } from './studyDecks.js';
+import { DECKS, unitOf } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
@@ -864,6 +868,20 @@ const lanterns = createLanterns({
   },
 });
 town.lanterns = lanterns;
+const lotoCourt = createLotoCourt(scene);
+const loto = createLoto({
+  budget: (day) => economy.lotoBudget(day),
+  payout: (winners, pot) => economy.payLoto(winners, pot),
+  human: (id) => id === PLAYER,
+  charge: (who, fee) => {
+    const wallet = ledger.purse(who);
+    if (wallet.money < fee || !wallet.spend(fee)) return false;
+    economy.collect(fee, who, fee, 'loto');
+    return true;
+  },
+});
+town.loto = loto;
+town.lotoCourt = lotoCourt;
 town.lanternDesk = district.lanternDesk;
 town.hallDesk = district.hallDesk;
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
@@ -1350,6 +1368,13 @@ const blessingDesk = {
   },
 };
 
+const lotoDesk = {
+  act() {
+    openLotoDesk();
+    return null;
+  },
+};
+
 const innDesk = {
   act() {
     return lodgeDesk.rent('inn');
@@ -1447,7 +1472,7 @@ function goTeacher(run = false) {
 }
 
 function clickTargets() {
-  return [...skyLanterns.clickables, ...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.flatMap((hall) => [hall.group, hall.teacher.group]), ...blessing.clickables, inn.group];
+  return [...skyLanterns.clickables, ...scenery.clickables, ...regions.clickables, ...town.clickables, ...notice.clickables, ...atms.clickables, school.root, ...studyHalls.flatMap((hall) => [hall.group, hall.teacher.group]), ...blessing.clickables, ...lotoCourt.clickables, inn.group];
 }
 
 function sceneClick(clientX, clientY, run) {
@@ -1503,6 +1528,11 @@ function sceneClick(clientX, clientY, run) {
   if (blessing.official.owns(hit.object)) {
     leaveLine();
     goDo(blessingDesk, { stand: blessing.official.stand, x: blessing.official.at.x, z: blessing.official.at.z }, 'blessing');
+    return true;
+  }
+  if (lotoCourt.owns(hit.object)) {
+    leaveLine();
+    goDo(lotoDesk, { stand: lotoCourt.stand, x: lotoCourt.caller.at.x, z: lotoCourt.caller.at.z }, 'loto');
     return true;
   }
   if (inn.owns(hit.object)) {
@@ -1643,6 +1673,7 @@ for (const [name, at, stand] of [
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
   ['Bến sông Hoài', midRiver],
+  ['Sân lô tô', lotoCourt.center, lotoCourt.stand],
 ]) {
   const label = worldMap.add(name, at, stand ?? at);
   if (name === HOME_NAME) homeLabel = label;
@@ -1828,6 +1859,7 @@ const HERALD_TEXT = {
   arena: (at, left) => `Lôi đài ${clockText(at)} sắp khai mạc, còn ${left} phút!`,
   blessing: (at, left) => `Chúc phúc ${clockText(at)} sắp bắt đầu, còn ${left} phút!`,
   lantern: (at, left) => `Hội đèn trời ${clockText(at)} sắp thả đèn, còn ${left} phút!`,
+  loto: (at, left) => `Lô tô chữ ${clockText(at)} sắp hô, còn ${left} phút!`,
 };
 const heraldText = ({ kind, at, left }) => HERALD_TEXT[kind](at, left);
 
@@ -1920,6 +1952,169 @@ function heraldEvents() {
   if (!due.some((item) => heraldBeats.get(item.kind) !== item.beat)) return;
   for (const item of due) heraldBeats.set(item.kind, item.beat);
   broadcast.show(due.map(heraldText).join('   ✦   '));
+}
+
+const LOTO_CALL = 'lotoCall';
+const LOTO_AWAY = 'lotoAway';
+const LOTO_RESULT_KEY = 'langsch.lotoResult';
+const lotoSign = createLotoSign();
+const lotoUI = createLotoDialog({
+  onTap(cell) {
+    const outcome = loto.tap(PLAYER, cell, context.minutes);
+    if (outcome === 'hit') uiSounds.correct();
+    else if (outcome === 'wrong') uiSounds.wrong();
+    if (outcome === 'hit' && loto.bingo(PLAYER, context.minutes)) sayPlayer('Kinh! 🎉', 2.5);
+  },
+});
+let lotoCalled = null;
+let lotoAutoFor = null;
+let lotoWasInside = false;
+let lotoAwayFor = null;
+let lotoAwayMail = false;
+let lotoAnnounced = null;
+let lotoRemindedFor = null;
+let lotoMarked = null;
+
+const nameOf = (id) => (id === PLAYER ? 'Bạn' : everyone.find((person) => person.id === id)?.name ?? '');
+const lotoWords = (now) => loto.cardOf(PLAYER, now).map((key) => unitOf(key)?.word ?? '');
+
+function lotoOutcome(result) {
+  if (!result) return null;
+  if (result.winners.includes(PLAYER)) return `Kinh! Bạn thắng ${coins(result.prize)}`;
+  if (result.winners.length) return `${result.winners.map(nameOf).join(', ')} đã Kinh!`;
+  return 'Hết lượt, không ai Kinh.';
+}
+
+function lotoLive(now) {
+  const day = dayOf(now);
+  return now >= lotoStart(day) && now < lotoEnd(day) && !loto.result(now);
+}
+
+function openLotoDesk() {
+  const now = context.minutes;
+  attendPlayer(lotoCourt.caller, () => lotoSign.isOpen);
+  if (loto.joined(PLAYER, now)) {
+    if (lotoLive(now)) lotoUI.open(lotoWords(now));
+    else if (!loto.result(now)) lotoSign.show(`Bạn đã có vé. Phiên hô lúc ${clockText(LOTO.start)}.`);
+    else lotoSign.show(lotoOutcome(loto.result(now)));
+    return;
+  }
+  if (!lotoSignOpen(now)) {
+    lotoSign.show(`Vé lô tô bán từ ${clockText(LOTO.signOpen)} đến ${clockText(LOTO.start)}.`);
+    return;
+  }
+  lotoSign.show(`Mua vé lô tô chữ? Lệ phí ${coins(LOTO.fee)}.`, () => {
+    const outcome = loto.register(PLAYER, context.minutes);
+    if (outcome === 'ok') {
+      sayPlayer('🎴', 1.6);
+      mailbox.removeTag(LOTO_CALL);
+    } else if (outcome === 'poor') sayPlayer(`Mình chưa đủ ${coins(LOTO.fee)} mua vé.`, 2.4);
+    else if (outcome === 'closed') sayPlayer('Hết giờ bán vé rồi.', 2);
+  });
+}
+
+function lotoBoard(now, open, result) {
+  const day = dayOf(now);
+  if (open) return { title: 'Lô tô chữ', text: open.call.text, note: `${LOTO_CLUE_LABELS[open.call.kind]} · ${open.index + 1}/${open.total}` };
+  if (result) return { title: 'Lô tô chữ', text: result.winners.length ? 'Kinh!' : 'Hết lượt', note: result.winners.map(nameOf).join(', ') };
+  if (now < lotoStart(day)) return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: `Quỹ ${Math.round(loto.pot(now))} 🪙` };
+  return { title: 'Lô tô chữ', text: clockText(LOTO.start), note: '' };
+}
+
+function remindLoto(now) {
+  const day = dayOf(now);
+  const selling = lotoSignOpen(now) && !loto.joined(PLAYER, now);
+  if (!selling) {
+    if (lotoRemindedFor !== null) mailbox.removeTag(LOTO_CALL);
+    lotoRemindedFor = null;
+    return;
+  }
+  if (lotoRemindedFor === day) return;
+  lotoRemindedFor = day;
+  mailbox.removeTag(LOTO_CALL);
+  mailbox.notify({ icon: '🎴', lines: [`Lô tô chữ hô lúc ${clockText(LOTO.start)}. Lên sân lô tô mua vé nhé.`], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_CALL });
+}
+
+function markLotoCalls(now) {
+  if (!loto.joined(PLAYER, now)) return;
+  const day = dayOf(now);
+  const closed = loto.closedCount(now);
+  if (lotoMarked?.day !== day) lotoMarked = { day, closed };
+  const card = loto.cardOf(PLAYER, now);
+  const marks = loto.marksOf(PLAYER, now);
+  for (let i = lotoMarked.closed; i < closed; i++) {
+    const call = loto.callAt(now, i);
+    const cell = call ? card.indexOf(call.key) : -1;
+    if (cell >= 0) certify.markWeak(PLAYER, call.key, marks[cell] === HIT);
+  }
+  lotoMarked.closed = closed;
+}
+
+function reportLoto(now) {
+  const last = loto.lastResult();
+  if (!last || !last.entrants.includes(PLAYER)) return;
+  let shown = null;
+  try {
+    shown = Number(localStorage.getItem(LOTO_RESULT_KEY));
+  } catch {}
+  if (shown === last.day) return;
+  try {
+    writeGameItem(LOTO_RESULT_KEY, String(last.day));
+  } catch {}
+  if (last.winners.includes(PLAYER) && last.day === dayOf(now) && last.prize > 0) regen.coin(last.prize, player.position);
+  const when = last.day === dayOf(now) ? '' : ` tối ${dateText(last.day * DAY_MINUTES)}`;
+  mailbox.notify({ icon: '🎴', lines: [`Lô tô chữ${when}: ${lotoOutcome(last)}`], keep: true, expires: endOfDay() });
+}
+
+function updateLoto() {
+  const now = context.minutes;
+  const day = dayOf(now);
+  loto.tick(now);
+  markLotoCalls(now);
+  const open = loto.current(now);
+  const result = loto.result(now);
+  if (open && open.index !== lotoCalled) {
+    lotoCalled = open.index;
+    lotoCourt.say(open.call.text, LOTO.callSeconds - 0.5);
+  }
+  lotoCourt.setBoard(lotoBoard(now, open, result));
+  playerBubble.setLoto(loto.near(PLAYER, now));
+  if (hasEntered()) {
+    remindLoto(now);
+    if (lotoLive(now) && lotoAnnounced !== day) {
+      lotoAnnounced = day;
+      broadcast.show('Lô tô chữ bắt đầu hô! Lên sân lô tô ở lưng núi nhé.');
+    }
+  }
+  const playing = loto.joined(PLAYER, now) && lotoLive(now);
+  const inside = lotoCourt.inside(player.position);
+  if (playing && inside && (!lotoWasInside || lotoAutoFor !== day) && !lotoUI.isOpen && !popupOpen()) {
+    lotoAutoFor = day;
+    lotoUI.open(lotoWords(now));
+  }
+  lotoWasInside = inside;
+  if (playing && !inside && hasEntered() && lotoAwayFor !== day) {
+    lotoAwayFor = day;
+    lotoAwayMail = true;
+    mailbox.notify({ icon: '🎴', lines: ['Lô tô chữ đang hô, vé của bạn đang bị bỏ lượt.'], place: 'Sân lô tô · Lưng núi', point: lotoCourt.stand, tag: LOTO_AWAY });
+  }
+  if (lotoAwayMail && (!playing || inside)) {
+    lotoAwayMail = false;
+    mailbox.removeTag(LOTO_AWAY);
+  }
+  if (lotoUI.isOpen) {
+    lotoUI.render({
+      marks: loto.marksOf(PLAYER, now),
+      call: open?.call ?? null,
+      left: open?.left ?? 0,
+      index: open?.index ?? 0,
+      count: open?.total ?? 0,
+      prize: Math.round(loto.pot(now)),
+      waiting: now < lotoStart(day) ? `Bắt đầu lúc ${clockText(LOTO.start)}` : '…',
+      outcome: lotoOutcome(result) ?? (loto.bingo(PLAYER, now) ? 'Kinh!' : null),
+    });
+  }
+  reportLoto(now);
 }
 
 const ARENA_CALL = 'arenaCall';
@@ -2262,6 +2457,8 @@ renderer.setAnimationLoop((time) => {
   updateSoundscape(player.position);
   quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused);
   blessing.update(dt, context.minutes, camera, night);
+  lotoCourt.update(t, camera);
+  updateLoto();
   updateBlessingQuiz(dt);
   updateBlessingRewards();
   remindBlessing();

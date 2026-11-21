@@ -1,0 +1,214 @@
+import { LOTO } from './config.js';
+import { DAY_MINUTES, minuteOfDay } from './clock.js';
+import { hashText, makeRandom } from './random.js';
+import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
+
+export const LOTO_CELLS = LOTO.size * LOTO.size;
+export const OPEN = '.';
+export const HIT = 'o';
+export const LOCKED = 'x';
+export const MISSED = '-';
+export const callMinutes = LOTO.callSeconds / 60;
+
+export const LOTO_CLUE_LABELS = { hanViet: 'Hán Việt', meaning: 'Nghĩa', reading: 'Cách đọc' };
+const CLUE_KINDS = Object.keys(LOTO_CLUE_LABELS);
+const CACHE_DAYS = 3;
+const CARD_CACHE = 400;
+
+const BY_CHAR = (() => {
+  const map = new Map();
+  const words = new Set();
+  for (const id of DECK_IDS.filter((deck) => DECKS[deck].quiz === 'kanji')) {
+    for (const card of DECKS[id].cards) {
+      if (words.has(card.word)) continue;
+      words.add(card.word);
+      const list = map.get(card.kanji.char);
+      if (list) list.push(card);
+      else map.set(card.kanji.char, [card]);
+    }
+  }
+  return map;
+})();
+
+const neighborsOf = (char) => (BY_CHAR.get(char)?.[0]?.kanji.like ?? []).filter((other) => BY_CHAR.has(other));
+
+const clueText = (card, kind) => String(card[kind] ?? '').trim();
+const clueId = (text) => text.toLowerCase();
+
+function shuffle(list, rand) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+const LINES = (() => {
+  const n = LOTO.size;
+  const range = Array.from({ length: n }, (_, i) => i);
+  return [
+    ...range.map((r) => range.map((c) => r * n + c)),
+    ...range.map((c) => range.map((r) => r * n + c)),
+    range.map((i) => i * n + i),
+    range.map((i) => i * n + (n - 1 - i)),
+  ];
+})();
+
+const pools = new Map();
+const cards = new Map();
+const clusterMaps = new WeakMap();
+
+function pickClusters(rand) {
+  const used = new Set();
+  const picked = [];
+  for (const seed of shuffle([...BY_CHAR.keys()], rand)) {
+    if (used.has(seed)) continue;
+    const chars = [seed, ...neighborsOf(seed).filter((char) => !used.has(char))];
+    if (chars.length < 2) continue;
+    const words = chars.flatMap((char) => shuffle([...BY_CHAR.get(char)], rand).slice(0, LOTO.wordsPerKanji).map((card) => ({ card, char, cluster: seed })));
+    if (picked.length + words.length > LOTO.pool) continue;
+    for (const char of chars) used.add(char);
+    picked.push(...words);
+  }
+  return picked;
+}
+
+function buildPool(day) {
+  const rand = makeRandom(hashText(`loto:${day}`));
+  const entries = pickClusters(rand);
+  const counts = Object.fromEntries(CLUE_KINDS.map((kind) => [kind, new Map()]));
+  for (const { card } of entries) {
+    for (const kind of CLUE_KINDS) {
+      const id = clueId(clueText(card, kind));
+      if (id) counts[kind].set(id, (counts[kind].get(id) ?? 0) + 1);
+    }
+  }
+  const calls = [];
+  for (const { card, char, cluster } of entries) {
+    const kinds = CLUE_KINDS.filter((kind) => clueText(card, kind) && counts[kind].get(clueId(clueText(card, kind))) === 1);
+    if (!kinds.length) continue;
+    const kind = kinds[Math.floor(rand() * kinds.length)];
+    calls.push({ key: card.key, char, cluster, kind, text: clueText(card, kind) });
+  }
+  return shuffle(calls, rand);
+}
+
+function prune(day) {
+  for (const cached of pools.keys()) if (cached < day - CACHE_DAYS) pools.delete(cached);
+  if (cards.size > CARD_CACHE) cards.clear();
+}
+
+export function validCall(raw) {
+  return !!raw && typeof raw.key === 'string' && !!unitOf(raw.key) && typeof raw.char === 'string' && typeof raw.cluster === 'string' && CLUE_KINDS.includes(raw.kind) && typeof raw.text === 'string' && raw.text.length > 0;
+}
+
+export function adoptPool(day, pool) {
+  pools.set(day, pool.map(({ key, char, cluster, kind, text }) => ({ key, char, cluster, kind, text })));
+  prune(day);
+}
+
+export function lotoPool(day) {
+  if (!pools.has(day)) {
+    pools.set(day, buildPool(day));
+    prune(day);
+  }
+  return pools.get(day);
+}
+
+function interleave(lists) {
+  const out = [];
+  for (let i = 0; lists.some((list) => i < list.length); i++) for (const list of lists) if (i < list.length) out.push(list[i]);
+  return out;
+}
+
+export function lotoCard(day, id) {
+  const pool = lotoPool(day);
+  const cacheKey = `${day}:${id}`;
+  const cached = cards.get(cacheKey);
+  if (cached?.pool === pool) return cached.keys;
+  const rand = makeRandom(hashText(`loto:${day}:${id}`));
+  const clusters = new Map();
+  for (const call of pool) {
+    const chars = clusters.get(call.cluster) ?? new Map();
+    clusters.set(call.cluster, chars);
+    const list = chars.get(call.char);
+    if (list) list.push(call.key);
+    else chars.set(call.char, [call.key]);
+  }
+  const keys = [];
+  for (const chars of shuffle([...clusters.values()], rand)) {
+    const room = LOTO_CELLS - keys.length;
+    if (room < 2) break;
+    const group = interleave(shuffle([...chars.values()].map((list) => shuffle([...list], rand)), rand));
+    keys.push(...group.slice(0, room));
+  }
+  const card = shuffle(keys, rand);
+  cards.set(cacheKey, { pool, keys: card });
+  return card;
+}
+
+function clusterOf(pool) {
+  let map = clusterMaps.get(pool);
+  if (!map) {
+    map = new Map(pool.map((entry) => [entry.key, entry.cluster]));
+    clusterMaps.set(pool, map);
+  }
+  return map;
+}
+
+export const blankMarks = () => OPEN.repeat(LOTO_CELLS);
+
+const setMark = (marks, cell, mark) => marks.slice(0, cell) + mark + marks.slice(cell + 1);
+
+export function applyTap(card, marks, call, cell) {
+  if (!(cell >= 0 && cell < card.length) || marks[cell] !== OPEN) return { marks, result: null };
+  if (card[cell] === call.key) return { marks: setMark(marks, cell, HIT), result: 'hit' };
+  return { marks: setMark(marks, cell, LOCKED), result: 'wrong' };
+}
+
+export function closeCall(card, marks, call) {
+  const cell = card.indexOf(call.key);
+  return cell >= 0 && marks[cell] === OPEN ? setMark(marks, cell, MISSED) : marks;
+}
+
+export function npcCall(card, marks, call, pool, respond, rand = Math.random) {
+  const cell = card.indexOf(call.key);
+  if (cell < 0 || marks[cell] !== OPEN) return marks;
+  if (respond(call.key)) return applyTap(card, marks, call, cell).marks;
+  const cluster = clusterOf(pool);
+  const lookalikes = card.map((key, i) => i).filter((i) => i !== cell && marks[i] === OPEN && cluster.get(card[i]) === call.cluster);
+  let next = marks;
+  if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, marks, call, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
+  return closeCall(card, next, call);
+}
+
+export const hasBingo = (marks) => LINES.some((line) => line.every((cell) => marks[cell] === HIT));
+
+export function nearBingo(marks) {
+  if (hasBingo(marks)) return false;
+  return LINES.some((line) => line.filter((cell) => marks[cell] === HIT).length === LOTO.size - 1 && line.some((cell) => marks[cell] === OPEN));
+}
+
+export const lotoStart = (day) => day * DAY_MINUTES + LOTO.start;
+export const lotoGatherAt = (day) => lotoStart(day) - LOTO.gather;
+export const lotoEnd = (day) => lotoStart(day) + lotoPool(day).length * callMinutes;
+
+export function lotoSignOpen(now) {
+  const m = minuteOfDay(now);
+  return m >= LOTO.signOpen && m < LOTO.start;
+}
+
+export function closedCalls(day, now) {
+  const done = Math.floor((now - lotoStart(day)) / callMinutes);
+  return Math.max(0, Math.min(lotoPool(day).length, done));
+}
+
+const lineChance = (odds) => 1 - (1 - Math.max(0, odds) ** LOTO.size) ** LINES.length;
+
+export function lotoWinOdds(mine, rivals) {
+  const chances = [lineChance(mine), ...rivals.map(lineChance)];
+  const total = chances.reduce((sum, chance) => sum + chance, 0);
+  if (!(total > 0)) return 0;
+  const someone = 1 - chances.reduce((none, chance) => none * (1 - chance), 1);
+  return (chances[0] / total) * someone;
+}

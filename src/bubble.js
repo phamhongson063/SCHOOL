@@ -15,6 +15,7 @@ const goldBadge = (emoji) =>
 const STUDY = goldBadge('📖');
 const PEN = goldBadge('✍️');
 const LANTERN = goldBadge('🏮');
+const LOTO = goldBadge('🎴');
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
 const MOODS = {
@@ -134,7 +135,8 @@ export function createBubble() {
   const studyBadge = makeBadge(STUDY, 'study');
   const penBadge = makeBadge(PEN);
   const lanternBadge = makeBadge(LANTERN);
-  const badges = [moodBadge, turnBadge, tripBadge, studyBadge, penBadge, lanternBadge];
+  const lotoBadge = makeBadge(LOTO);
+  const badges = [moodBadge, turnBadge, tripBadge, studyBadge, penBadge, lanternBadge, lotoBadge];
   const anyBadge = () => badges.some((badge) => badge.on);
   const nameTag = document.createElement('div');
   nameTag.className = 'name-tag';
@@ -269,6 +271,11 @@ export function createBubble() {
     toggle(lanternBadge, next);
   }
 
+  function setLoto(next) {
+    if (next === lotoBadge.on) return;
+    toggle(lotoBadge, next);
+  }
+
   function setPen(next) {
     if (next === signing) return;
     signing = next;
@@ -299,6 +306,7 @@ export function createBubble() {
     setStudy,
     setPen,
     setLantern,
+    setLoto,
     setName,
     update(now) {
       if (shown && now > until) hide();

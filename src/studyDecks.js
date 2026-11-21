@@ -73,7 +73,7 @@ const kanjiCards = (list, prefix, deck) =>
       distractors: entry.wrong,
       writeChoices: kanji.like.map((other) => entry.word.replaceAll(kanji.kanji, other)),
       note: '',
-      kanji: { char: kanji.kanji, hanViet: kanji.hanViet, parts: kanji.parts, on: kanji.on, kun: kanji.kun },
+      kanji: { char: kanji.kanji, hanViet: kanji.hanViet, parts: kanji.parts, on: kanji.on, kun: kanji.kun, like: kanji.like },
       examples: [{ title: '', lines: [['', entry.example.replace(`[${entry.word}]`, `[${rubyOf(entry.word, entry.reading)}]`), entry.vi]] }],
     })),
   );
