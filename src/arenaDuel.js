@@ -83,6 +83,9 @@ export function createArenaDuel({ arena, nameOf, portraitOf, now, sounds = null,
     view.name.textContent = label(id);
     const face = portraitOf(id);
     if (face) view.face.setAttribute('src', face);
+    view.pop.classList.remove('show');
+    view.pop.textContent = '';
+    view.root.classList.remove('hit');
     setState(view, '');
     setHp(view, hp);
   }
