@@ -1,6 +1,6 @@
 import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
-import { japanese } from './ruby.js';
+import { japanese, spokenOf } from './ruby.js';
 import { DECKS, unitOf, plainText as plain } from './studyDecks.js';
 import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
 import { shuffle } from './random.js';
@@ -41,12 +41,19 @@ function view(prefix, textId, iconId) {
   };
 }
 
+function spokenLine(line, text) {
+  const spoken = spokenOf(text);
+  line.classList.toggle('spoken', spoken !== null);
+  return spoken ?? text;
+}
+
 export function clozeLines(lines, cloze) {
   const blanks = [];
   let blanked = false;
-  const nodes = lines.map(([speaker, text]) => {
+  const nodes = lines.map(([speaker, said]) => {
     const line = document.createElement('p');
     line.className = 'phrase-line';
+    const text = spokenLine(line, said);
     if (speaker) {
       const who = document.createElement('b');
       who.textContent = speaker;
@@ -74,9 +81,10 @@ export function clozeLines(lines, cloze) {
 
 const readingOf = (mark) => mark.replace(RUBY, '$1');
 
-function pickLine(text, shown) {
+function pickLine(said, shown) {
   const line = document.createElement('p');
   line.className = 'phrase-line';
+  const text = spokenLine(line, said);
   const words = document.createElement('span');
   const blanks = [];
   let from = 0;

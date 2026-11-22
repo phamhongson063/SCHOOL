@@ -2565,6 +2565,26 @@ dialog.paper.phrase-quiz {
   margin: 0;
 }
 
+.phrase-line.spoken,
+.study-example-ja.spoken {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 2px 12px;
+  border-radius: 14px;
+  background: rgba(255, 252, 242, 0.85);
+}
+
+.phrase-line.spoken::after,
+.study-example-ja.spoken::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  bottom: -7px;
+  border-style: solid;
+  border-width: 8px 8px 0 0;
+  border-color: rgba(255, 252, 242, 0.85) transparent transparent transparent;
+}
+
 .phrase-line b {
   color: var(--tan);
   font: 700 12px/1 var(--font-ui);
@@ -3831,24 +3851,6 @@ dialog.loto-sheet {
   color: var(--ink);
   font: 500 16px/1.9 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
   line-break: strict;
-}
-
-.study-example-ja.spoken {
-  position: relative;
-  margin-bottom: 8px;
-  padding: 2px 12px;
-  border-radius: 14px;
-  background: rgba(255, 252, 242, 0.85);
-}
-
-.study-example-ja.spoken::after {
-  content: "";
-  position: absolute;
-  left: 18px;
-  bottom: -7px;
-  border-style: solid;
-  border-width: 8px 8px 0 0;
-  border-color: rgba(255, 252, 242, 0.85) transparent transparent transparent;
 }
 
 .study-example-ja ruby {

@@ -14,6 +14,8 @@ function appendRuby(target, text) {
   if (last < text.length) target.append(document.createTextNode(text.slice(last)));
 }
 
+export const spokenOf = (text) => text.match(/^「([^「」]*)」$/)?.[1] ?? null;
+
 export function japanese(text) {
   const fragment = document.createDocumentFragment();
   for (const part of text.split(/(\[[^\]]+\])/)) {

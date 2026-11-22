@@ -1,6 +1,6 @@
 import { DECKS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
-import { japanese } from './ruby.js';
+import { japanese, spokenOf } from './ruby.js';
 import { CERTIFY, SPEAK } from './config.js';
 import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
@@ -196,9 +196,9 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     const vi = el('p', 'study-example-vi');
     const [only] = lines;
     if (lines.length === 1 && !only[0]) {
-      const spoken = only[1].match(/^「([^「」]*)」$/);
-      ja.classList.toggle('spoken', Boolean(spoken));
-      ja.append(japanese(spoken ? spoken[1] : only[1]));
+      const spoken = spokenOf(only[1]);
+      ja.classList.toggle('spoken', spoken !== null);
+      ja.append(japanese(spoken ?? only[1]));
       vi.textContent = only[2];
       return [ja, vi];
     }
