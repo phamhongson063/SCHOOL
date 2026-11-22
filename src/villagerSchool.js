@@ -9,7 +9,7 @@ import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
 import { traits } from './traits.js';
 import { quests } from './quests.js';
-import { NPC } from './npcIds.js';
+import { NPC, classTeacherOf } from './npcIds.js';
 import { SPEAK_DECKS, applySpeech, planSpeech } from './speaking.js';
 
 const INTERNAL_SEAT_RETRY = 1;
@@ -309,7 +309,7 @@ export class SchoolBehavior {
   beginInternal(deck, pace) {
     const fee = certify.fee(deck, CERTIFY.internalFee);
     if (!this.canTakeInternal(deck) || !this.purse.spend(fee)) return null;
-    economy.income(NPC.teacher, fee, this.id);
+    economy.tuition(classTeacherOf(deck), fee, this.id);
     const keys = certify.beginInternal(this.id, deck) ?? [];
     const count = Math.max(keys.length, Math.ceil((CERTIFY.internalMinutes * 60) / pace));
     while (keys.length < count) {
@@ -419,7 +419,7 @@ export class SchoolBehavior {
       purse.add('intellect', CERTIFY.examIntellect);
       return null;
     }
-    economy.income(NPC.teacher, fee, this.id);
+    economy.tuition(NPC.teacher, fee, this.id);
     const keys = certify.examQuestions(this.id, deck);
     const count = Math.max(keys.length, Math.ceil((CERTIFY.examMinutes * 60) / pace));
     while (keys.length < count) {
@@ -558,7 +558,7 @@ export class SchoolBehavior {
   payReview(deck, base = this.reviewFee()) {
     const fee = certify.fee(deck, base);
     if (!this.purse.spend(fee)) return false;
-    economy.income(NPC.teacher, fee, this.id);
+    economy.tuition(classTeacherOf(deck), fee, this.id);
     absorption.note(this.id, 'study', this.town.context.day);
     traits.note(this.id, 'study', this.town.context.day);
     return true;
@@ -567,7 +567,7 @@ export class SchoolBehavior {
   payStudy(deck) {
     const fee = certify.fee(deck, CERTIFY.learnFee);
     if (!this.purse.spend(fee)) return false;
-    economy.income(NPC.teacher, fee, this.id);
+    economy.tuition(classTeacherOf(deck), fee, this.id);
     return true;
   }
 

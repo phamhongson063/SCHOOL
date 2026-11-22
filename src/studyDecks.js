@@ -138,6 +138,7 @@ const VAULT_DECKS = {
   grammarN2: {
     title: '文法 N2',
     label: 'Ngữ pháp N2',
+    teacher: 'Alice',
     level: '文法 N2',
     unit: 'câu',
     quiz: 'grammar',
@@ -159,6 +160,7 @@ export const DECKS = {
   n2: {
     title: 'N2',
     label: 'Từ vựng N2',
+    teacher: 'Aiko',
     level: '単語 N2',
     unit: 'từ',
     quiz: 'vocab',
@@ -186,6 +188,7 @@ export const DECKS = {
   sugu1: {
     title: 'すぐに使える①',
     label: 'すぐに使える①',
+    teacher: 'Megan',
     level: 'すぐに使える①',
     unit: 'câu ví dụ',
     quiz: 'phrase',
@@ -209,6 +212,7 @@ export const DECKS = {
   kanjiN2: {
     title: '漢字 N2',
     label: 'Kanji N2',
+    teacher: 'Xiulan',
     level: '漢字 N2',
     unit: 'từ',
     quiz: 'kanji',
@@ -218,6 +222,7 @@ export const DECKS = {
   kanjiN3: {
     title: '漢字 N3',
     label: 'Kanji N3',
+    teacher: 'Seoyeon',
     level: '漢字 N3',
     unit: 'từ',
     quiz: 'kanji',

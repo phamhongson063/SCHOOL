@@ -95,7 +95,7 @@ import { createRanking } from './ranking.js';
 import { createLanternBoard } from './lanternBoard.js';
 import { createProfile } from './profile.js';
 import { traits } from './traits.js';
-import { economy, SHOPKEEPERS } from './economy.js';
+import { economy, SHOPKEEPERS, CLASS_TEACHERS } from './economy.js';
 import { trade } from './trade.js';
 import { loadingStep, loadingDone, hasEntered } from './loading.js';
 import { createRegen } from './regen.js';
@@ -898,7 +898,7 @@ town.loto = loto;
 town.lotoCourt = lotoCourt;
 town.lanternDesk = district.lanternDesk;
 town.hallDesk = district.hallDesk;
-const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS];
+const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS, ...CLASS_TEACHERS];
 await economy.start({
   ledger,
   bank,

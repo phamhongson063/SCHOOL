@@ -7,7 +7,7 @@ import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
 import { INTERNAL_SPAN } from './examHall.js';
-import { NPC } from './npcIds.js';
+import { classTeacherOf } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
 import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
 import { playVoice, stopVoice } from './voiceClips.js';
@@ -157,7 +157,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       showNotice(notEnough(fee));
       return false;
     }
-    economy.income(NPC.teacher, fee);
+    economy.tuition(classTeacherOf(deckId), fee);
     paid.add(name);
     onPaid?.();
     showNotice(null);
@@ -681,7 +681,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (blocker) return blocker;
     const fee = certify.fee(id, CERTIFY.internalFee);
     if (!purse.spend(fee)) return `Lệ phí thi là ${coins(fee)}, con chưa đủ tiền.`;
-    economy.income(NPC.teacher, fee);
+    economy.tuition(classTeacherOf(id), fee);
     const results = await exams.run({
       title: 'Thi nội bộ',
       deck: id,

@@ -13,6 +13,8 @@ export const NPC = {
   guardManh: 'v-68vrasy7',
 };
 
+export const classTeacherOf = (deck) => `class:${deck}`;
+
 export const LEGACY_NPC_IDS = new Map([
   ['teacher', NPC.teacher],
   ['vendor', NPC.vendor],

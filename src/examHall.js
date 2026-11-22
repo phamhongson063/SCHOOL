@@ -114,7 +114,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       purse.add('intellect', CERTIFY.examIntellect);
       return;
     }
-    economy.income(NPC.teacher, fee);
+    economy.tuition(NPC.teacher, fee);
     mailbox.removeTag(qualifyTag(deck));
     const results = await exams.run({
       title: `Khảo thí ${DECKS[deck].title}`,

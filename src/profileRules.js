@@ -7,11 +7,11 @@ import { PLAYER } from './inventory.js';
 
 const HOMELANDS = [
   { flag: '🇻🇳', name: 'Việt Nam', people: ['Long'] },
-  { flag: '🇯🇵', name: 'Nhật Bản', people: ['Kaito', 'Sakura', 'Haru', 'Hiroshi', 'Ryo', 'Akemi', 'Kenji', 'Takeshi', 'Yumi', 'Sora', 'Hana', 'Yoshiko', 'Haruto', 'Ken'] },
-  { flag: '🇰🇷', name: 'Hàn Quốc', people: ['Minho', 'Yuna', 'Jiwoo', 'Taeyang', 'Soojin', 'Hyejin', 'Eunji', 'Dongwoo', 'Minji', 'Youngsoo', 'Jinho', 'Sunhee'] },
-  { flag: '🇨🇳', name: 'Trung Quốc', people: ['Mei', 'Haoran', 'Xiaoyu', 'Wei', 'Liang', 'Jianguo', 'Fang', 'Meiling', 'Zhiwei', 'Shen'] },
-  { flag: '🇺🇸', name: 'Mỹ', people: ['Jake', 'Riley', 'Tyler', 'Daniel', 'Noah', 'Bobby', 'Jessica', 'Mason'] },
-  { flag: '🇬🇧', name: 'Anh', people: ['Emily', 'Lily', 'Walter', 'Martha', 'Henry', 'Grace', 'Clara'] },
+  { flag: '🇯🇵', name: 'Nhật Bản', people: ['Kaito', 'Sakura', 'Haru', 'Hiroshi', 'Ryo', 'Akemi', 'Kenji', 'Takeshi', 'Yumi', 'Sora', 'Hana', 'Yoshiko', 'Haruto', 'Ken', 'Aiko'] },
+  { flag: '🇰🇷', name: 'Hàn Quốc', people: ['Minho', 'Yuna', 'Jiwoo', 'Taeyang', 'Soojin', 'Hyejin', 'Eunji', 'Dongwoo', 'Minji', 'Youngsoo', 'Jinho', 'Sunhee', 'Seoyeon'] },
+  { flag: '🇨🇳', name: 'Trung Quốc', people: ['Mei', 'Haoran', 'Xiaoyu', 'Wei', 'Liang', 'Jianguo', 'Fang', 'Meiling', 'Zhiwei', 'Shen', 'Xiulan'] },
+  { flag: '🇺🇸', name: 'Mỹ', people: ['Jake', 'Riley', 'Tyler', 'Daniel', 'Noah', 'Bobby', 'Jessica', 'Mason', 'Megan'] },
+  { flag: '🇬🇧', name: 'Anh', people: ['Emily', 'Lily', 'Walter', 'Martha', 'Henry', 'Grace', 'Clara', 'Alice'] },
 ];
 const PLAYER_HOMELAND = HOMELANDS[0];
 const HOMELAND_OF = new Map(HOMELANDS.flatMap((land) => land.people.map((name) => [name, land])));

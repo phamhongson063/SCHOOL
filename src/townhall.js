@@ -1,7 +1,7 @@
 import { TOWNHALL } from './config.js';
 
-export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'lodge', 'arenaFee', 'blessing', 'lantern', 'loto', 'capital'];
-export const EXPENSE_KINDS = ['wage', 'blessing', 'lantern', 'loto', 'arena', 'quest', 'buyback', 'capital'];
+export const INCOME_KINDS = ['vat', 'levy', 'market', 'poll', 'house', 'estate', 'land', 'lodge', 'arenaFee', 'blessing', 'lantern', 'loto', 'tuition', 'capital'];
+export const EXPENSE_KINDS = ['wage', 'stipend', 'blessing', 'lantern', 'loto', 'arena', 'quest', 'buyback', 'capital'];
 
 export function planDay({ fund, wages, starts }) {
   const reserve = wages * TOWNHALL.reserveDays;

@@ -69,7 +69,7 @@ const TEACHER = { z: HALL_SIZE.depth - 1.3, reach: 1.5, model: 'granny', distanc
 const TEACHER_LOOK = { shirt: 0x3a4a6a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'bui', hairColor: 0xd8d4cc, iris: 0x3a2214 };
 
 function createTeacher(scene, hall, frame) {
-  const npc = keeperNPC(TEACHER_LOOK, TEACHER.model);
+  const npc = keeperNPC(TEACHER_LOOK, TEACHER.model, DECKS[hall.deck].teacher);
   const spot = frame.point(0, TEACHER.z);
   const stand = frame.point(0, TEACHER.z - TEACHER.reach);
   const at = new THREE.Vector3(spot.x, 0.03, spot.z);

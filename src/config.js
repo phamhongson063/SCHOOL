@@ -280,8 +280,8 @@ export const FIREFLY = {
 
 export const ECONOMY = {
   vat: 0.1,
-  keep: { teacher: 0.9 },
-  wages: { guard: 12, teacher: 10, chief: 15, mayor: 20 },
+  wages: { guard: 12, chief: 15, mayor: 20 },
+  tuitionShare: { examiner: 0.05, classroom: 0.1 },
   fundSeed: 5000,
   living: 12,
   pollTax: 2,

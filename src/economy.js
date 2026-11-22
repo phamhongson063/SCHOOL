@@ -6,7 +6,8 @@ import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { foldArenaSurplus, planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
-import { LEGACY_NPC_IDS, NPC } from './npcIds.js';
+import { NPC, classTeacherOf } from './npcIds.js';
+import { DECKS, DECK_IDS } from './studyDecks.js';
 import { trade } from './trade.js';
 import { certify } from './certify.js';
 import { traits } from './traits.js';
@@ -20,7 +21,6 @@ const ARENA_POOL = 'arenaPool';
 const CHECK_MS = 5000;
 const SLICE_MS = 150;
 const ONLINE_GAP = gameMinutesOf((CHECK_MS * 3) / 1000);
-const ROLE_OF = new Map([...LEGACY_NPC_IDS].map(([role, id]) => [id, role]));
 
 export const SHOPKEEPERS = [
   { id: NPC.keeper, name: 'Yoshiko' },
@@ -59,12 +59,13 @@ function load() {
         blessingJoins: saved.blessingJoins && typeof saved.blessingJoins === 'object' ? saved.blessingJoins : {},
         blessingCarry: saved.blessingCarry && typeof saved.blessingCarry === 'object' ? saved.blessingCarry : {},
         tuition: Number.isFinite(saved.tuition) ? saved.tuition : 0,
+        tuitionPay: saved.tuitionPay && typeof saved.tuitionPay === 'object' ? saved.tuitionPay : {},
         lanternPaid: Number.isFinite(saved.lanternPaid?.day) && Number.isFinite(saved.lanternPaid?.paid) ? saved.lanternPaid : { day: null, paid: 0 },
         quest: cleanQuest(saved.quest),
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, lanternPaid: { day: null, paid: 0 }, quest: cleanQuest(null) };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, tuitionPay: {}, lanternPaid: { day: null, paid: 0 }, quest: cleanQuest(null) };
 }
 
 let ctx = null;
@@ -116,8 +117,10 @@ function charge(purse, value, kind) {
   if (taken > 0 && purse.spend(taken)) deposit(taken, kind);
 }
 
+export const CLASS_TEACHERS = DECK_IDS.map((deck) => ({ id: classTeacherOf(deck), name: DECKS[deck].teacher }));
+
 function workers() {
-  return [...ctx.staff(), ...SHOPKEEPERS];
+  return [...ctx.staff(), ...SHOPKEEPERS, ...CLASS_TEACHERS];
 }
 
 function flowOf(id) {
@@ -160,6 +163,16 @@ function payWages() {
   for (const worker of workers()) {
     const wage = withdraw(ECONOMY.wages[worker.role] ?? 0, 'wage');
     if (wage > 0) payEarner(worker.id, wage);
+  }
+}
+
+function payTuitionWages() {
+  for (const [id, owed] of Object.entries(state.tuitionPay)) {
+    const wage = withdraw(owed, 'wage');
+    if (wage > 0) payEarner(id, wage);
+    const left = owed - wage;
+    if (left > 0) state.tuitionPay[id] = left;
+    else delete state.tuitionPay[id];
   }
 }
 
@@ -297,8 +310,7 @@ function manageSavings() {
 const villagers = () => (ctx.villagers ? ctx.villagers() : []);
 
 function payStipends() {
-  const teacher = ctx.ledger.purse(NPC.teacher);
-  const pot = Math.min(teacher.money, Math.floor(state.tuition * STIPEND.share));
+  const pot = Math.min(ctx.ledger.purse(FUND).money, Math.floor(state.tuition * STIPEND.share));
   state.tuition = 0;
   if (!(pot > 0)) return;
   const scholars = villagers()
@@ -307,7 +319,7 @@ function payStipends() {
     .sort((a, b) => b.certs - a.certs)
     .slice(0, STIPEND.top);
   const each = scholars.length ? Math.floor(pot / scholars.length) : 0;
-  if (!(each > 0) || !teacher.spend(each * scholars.length)) return;
+  if (!(each > 0) || withdraw(each * scholars.length, 'stipend') < each * scholars.length) return;
   for (const { id } of scholars) {
     ctx.ledger.purse(id).earn(each);
     trackEarn(id, each);
@@ -340,10 +352,11 @@ function takeCensus(day) {
 
 function settleDay(day) {
   payWages();
+  payTuitionWages();
   payStipends();
   collectTaxes();
   strikeShocks(day);
-  trade.meals(SHOPKEEPERS.map((keeper) => keeper.id));
+  trade.meals([...SHOPKEEPERS.map((keeper) => keeper.id), ...CLASS_TEACHERS.map((teacher) => teacher.id)]);
   trade.daily();
   sellDistressedHouses();
   manageSavings();
@@ -437,15 +450,13 @@ export const economy = {
     setInterval(() => update(), CHECK_MS);
   },
   resume: () => (ctx ? update() : Promise.resolve()),
-  income(seller, price, payer = null) {
-    if (!ctx || !(price > 0)) return;
-    const role = ROLE_OF.get(seller);
-    const keep = price * (ECONOMY.keep[role] ?? 0);
-    const tax = price * ECONOMY.vat;
-    const cut = payEarner(seller, keep);
-    if (role === 'teacher') state.tuition += keep - cut;
-    deposit(tax, 'vat');
-    trackSpend(payer, price, { [seller]: keep - cut, [FUND]: tax + cut });
+  tuition(collector, fee, payer = null) {
+    if (!ctx || !(fee > 0)) return;
+    const share = collector === NPC.teacher ? ECONOMY.tuitionShare.examiner : ECONOMY.tuitionShare.classroom;
+    deposit(fee, 'tuition');
+    state.tuition += fee;
+    state.tuitionPay[collector] = (state.tuitionPay[collector] ?? 0) + fee * share;
+    trackSpend(payer, fee, { [FUND]: fee });
     store.save();
   },
   collect(value, payer = null, spent = value, kind = 'vat') {

@@ -26,10 +26,12 @@ const INCOME_NAMES = {
   lantern: ['🏮', 'Phí hội đèn trời'],
   loto: ['🎴', 'Phí lô tô chữ'],
   market: ['🧺', 'Phí chợ'],
+  tuition: ['📚', 'Học phí'],
   capital: ['🏪', 'Thu hồi vốn tiệm'],
 };
 const EXPENSE_NAMES = {
   wage: ['🎖️', 'Lương quan viên'],
+  stipend: ['🎓', 'Học bổng'],
   blessing: ['✨', 'Lễ chúc phúc'],
   lantern: ['🏮', 'Hội đèn trời'],
   loto: ['🎴', 'Thưởng lô tô chữ'],
