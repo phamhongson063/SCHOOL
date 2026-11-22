@@ -232,18 +232,47 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     return [head, reads];
   }
 
-  function grammarLines({ gloss, form }) {
-    return [
-      ['study-grammar-gloss', gloss],
-      ['study-grammar-form', form],
-    ]
-      .filter(([, text]) => text)
-      .map(([name, text]) => {
-        const line = el('span', name);
-        line.lang = 'ja';
-        line.append(japanese(text));
-        return line;
-      });
+  function japaneseSpan(className, text) {
+    const span = el('span', className);
+    span.lang = 'ja';
+    span.append(japanese(text));
+    return span;
+  }
+
+  const NUANCE = /［([^］]+)］/g;
+
+  function grammarGloss(gloss) {
+    const line = el('span', 'study-grammar-gloss');
+    line.append(el('span', 'study-grammar-label', 'Giải nghĩa'), japaneseSpan('study-grammar-text', gloss.replace(NUANCE, '').trim()));
+    const nuances = [...gloss.matchAll(NUANCE)].flatMap((match) => match[1].split(/[・／]/));
+    if (nuances.length) {
+      const tags = el('span', 'study-grammar-tags');
+      tags.append(...nuances.map((nuance) => japaneseSpan('study-grammar-tag', nuance)));
+      line.append(tags);
+    }
+    return line;
+  }
+
+  function grammarForm(form) {
+    const line = el('span', 'study-grammar-form');
+    line.append(el('span', 'study-grammar-label', 'Cách nối'));
+    const [before, after] = form.split(/\s*＋\s*/);
+    if (after === undefined) {
+      line.append(japaneseSpan('study-grammar-text', form));
+      return line;
+    }
+    const [, ending, remark] = after.match(/^(.*?)(?:（([^）]{3,})）)?$/);
+    line.append(
+      ...before.split('／').map((part) => japaneseSpan('study-grammar-pill', part)),
+      el('span', 'study-grammar-plus', '＋'),
+      japaneseSpan('study-grammar-ending', ending),
+    );
+    if (remark) line.append(japaneseSpan('study-grammar-remark', `（${remark}）`));
+    return line;
+  }
+
+  function grammarLines({ gloss, form, explain }) {
+    return [gloss && grammarGloss(gloss), form && grammarForm(form), explain && el('span', 'study-grammar-explain', explain)].filter(Boolean);
   }
 
   function fill(key) {

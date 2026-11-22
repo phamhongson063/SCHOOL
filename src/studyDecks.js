@@ -120,7 +120,7 @@ function grammarCards(points, units, prefix, deck) {
           hanViet: '',
           meaning: point.meaning,
           note: '',
-          grammar: { gloss: point.gloss ?? '', form: point.form ?? '' },
+          grammar: { gloss: point.gloss ?? '', form: point.form ?? '', explain: point.explain ?? '' },
           examples: [{ title: '', lines }],
           cloze,
           wrong: example.wrong ?? [],
