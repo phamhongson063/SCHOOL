@@ -97,7 +97,7 @@ class Leases {
     if (lease && lease.owner !== actor) return null;
     const price = leasePrice(offer, bed);
     if (!purse.spend(price)) return false;
-    economy.collect(price, actor, price, 'land');
+    economy.collect(price, actor, 'land');
     this.beds[bed] = { owner: actor, until: (lease?.until ?? now) + offer.days * DAY_MINUTES };
     this.save();
     return this.beds[bed];

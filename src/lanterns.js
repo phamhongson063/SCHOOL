@@ -1,6 +1,6 @@
 import { ENERGY_PRICE, LANTERN, MIND } from './config.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
-import { makeRandom } from './random.js';
+import { makeRandom, shuffle } from './random.js';
 import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
@@ -26,14 +26,6 @@ function hashOf(text) {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
-}
-
-function shuffle(list, rand) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
 }
 
 export function lanternTiles(lantern) {

@@ -1,6 +1,6 @@
 import { LOTO } from './config.js';
 import { DAY_MINUTES, minuteOfDay } from './clock.js';
-import { hashText, makeRandom } from './random.js';
+import { hashText, makeRandom, shuffle } from './random.js';
 import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
 
 export const LOTO_CELLS = LOTO.size * LOTO.size;
@@ -34,14 +34,6 @@ const neighborsOf = (char) => (BY_CHAR.get(char)?.[0]?.kanji.like ?? []).filter(
 
 const clueText = (card, kind) => String(card[kind] ?? '').trim();
 const clueId = (text) => text.toLowerCase();
-
-function shuffle(list, rand) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
 
 const LINES = (() => {
   const n = LOTO.size;

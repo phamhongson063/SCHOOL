@@ -4,11 +4,11 @@ import { certify } from './certify.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { between } from './random.js';
+import { clamp } from './math.js';
 
 const KEY = worldKey('absorption');
 const FACTS = ['study', 'tired', 'debt'];
 
-const clamp = (value) => Math.max(ABSORB.min, Math.min(ABSORB.max, value));
 const isShare = (value) => Number.isFinite(value) && value >= 0 && value <= 1;
 
 function cleanEntry(raw) {
@@ -16,7 +16,7 @@ function cleanEntry(raw) {
   const facts = raw.facts && typeof raw.facts === 'object' ? raw.facts : {};
   return {
     talent: raw.talent,
-    value: clamp(raw.value),
+    value: clamp(raw.value, ABSORB.min, ABSORB.max),
     day: Number.isInteger(raw.day) ? raw.day : null,
     facts: Object.fromEntries(FACTS.filter((fact) => facts[fact] === true).map((fact) => [fact, true])),
   };
@@ -52,7 +52,7 @@ function targetOf(entry) {
   let target = entry.talent + (facts.study ? ABSORB.study : -ABSORB.idle);
   if (facts.tired) target -= ABSORB.tired;
   if (facts.debt) target -= ABSORB.debt;
-  return clamp(target);
+  return clamp(target, ABSORB.min, ABSORB.max);
 }
 
 function roll(entry, day) {
@@ -60,7 +60,7 @@ function roll(entry, day) {
   if (entry.day !== null) {
     const gap = Math.min(day - entry.day, ABSORB.catchUp);
     for (let i = 0; i < gap; i++) {
-      entry.value = clamp(entry.value + (targetOf(entry) - entry.value) * ABSORB.rate);
+      entry.value = clamp(entry.value + (targetOf(entry) - entry.value) * ABSORB.rate, ABSORB.min, ABSORB.max);
       entry.facts = {};
     }
   }

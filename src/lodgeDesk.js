@@ -72,7 +72,7 @@ export function createLodgeDesk({ purse, context, onRent }) {
     }
     const price = roomTier(id).price;
     purse.spend(price);
-    economy.collect(price, null, price, 'lodge');
+    economy.collect(price, null, 'lodge');
     offer = null;
     dialog.close();
     checkIn(id);

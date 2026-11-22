@@ -8,6 +8,7 @@ import { createPairStore, without } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { setRich } from './goldArt.js';
 import { certify } from './certify.js';
+import { clamp } from './math.js';
 
 const WORLD_KEY = worldKey('bank');
 const SELF_KEY = selfKey('bank');
@@ -17,7 +18,6 @@ export const bankHours = () => hoursText(BANK);
 
 export const percent = (rate) => `${(rate * 100).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const number = (value, fallback = 0) => (Number.isFinite(value) ? value : fallback);
 const dueOf = (item) => item.start + item.days * DAY_MINUTES;
 const debtOf = (loan) => loan.owed + loan.interest;

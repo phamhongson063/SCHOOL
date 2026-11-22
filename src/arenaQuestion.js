@@ -1,5 +1,5 @@
 import { DECKS, plainText, unitOf } from './studyDecks.js';
-import { makeRandom } from './random.js';
+import { makeRandom, shuffle } from './random.js';
 
 export const LETTERS = ['A', 'B', 'C', 'D'];
 export const KIND_LABELS = { kanji: 'Chữ Hán nào?', reading: 'Cách đọc?', meaning: 'Nghĩa là gì?' };
@@ -27,14 +27,6 @@ function hashOf(text) {
 }
 
 export const seeded = (seed) => makeRandom(hashOf(seed));
-
-function shuffle(list, rand) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
 
 function kanjiQuestion(card, rand) {
   const answer = plainText(card.word);

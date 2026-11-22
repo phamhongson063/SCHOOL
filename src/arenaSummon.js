@@ -1,8 +1,8 @@
+import { wait } from './wait.js';
+
 const SCROLL_MS = 3000;
 const FLASH_IN_MS = 260;
 const FLASH_OUT_MS = 700;
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function replay(node, className) {
   node.classList.remove(className);

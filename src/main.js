@@ -861,6 +861,11 @@ const openGround = createOpenGround({
 });
 const fireflyField = createFireflyField({ ground: openGround });
 town.fireflies = fireflyField;
+const chargeFee = (kind) => (who, fee) => {
+  if (!ledger.purse(who).spend(fee)) return false;
+  economy.collect(fee, who, kind);
+  return true;
+};
 const lanterns = createLanterns({
   ground: openGround,
   roster: () => [PLAYER, ...town.members.map((member) => member.id)],
@@ -872,12 +877,7 @@ const lanterns = createLanterns({
     wallet.addIntellect(LANTERN.reward.intellect);
     return { energy, intellect: LANTERN.reward.intellect };
   },
-  charge: (who, fee) => {
-    const wallet = ledger.purse(who);
-    if (wallet.money < fee || !wallet.spend(fee)) return false;
-    economy.collect(fee, who, fee, 'lantern');
-    return true;
-  },
+  charge: chargeFee('lantern'),
 });
 town.lanterns = lanterns;
 const lotoCourt = createLotoCourt(scene);
@@ -887,12 +887,7 @@ const loto = createLoto({
     for (const id of winners) ledger.purse(id).addIntellect(intellect);
   },
   human: (id) => id === PLAYER,
-  charge: (who, fee) => {
-    const wallet = ledger.purse(who);
-    if (wallet.money < fee || !wallet.spend(fee)) return false;
-    economy.collect(fee, who, fee, 'loto');
-    return true;
-  },
+  charge: chargeFee('loto'),
 });
 town.loto = loto;
 town.lotoCourt = lotoCourt;

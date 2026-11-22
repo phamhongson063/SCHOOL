@@ -4,6 +4,7 @@ import { stageOf } from './arenaIsland.js';
 import { END_REASONS } from './arenaBoard.js';
 import { KIND_LABELS, LETTERS, buildQuestion } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
+import { wait } from './wait.js';
 
 const COUNTDOWN = ['3', '2', '1', 'Đấu!'];
 const BEAT_MS = 800;
@@ -13,8 +14,6 @@ const END_MS = 2200;
 const CHOICE_MS = 20000;
 const SHOT = { back: 9, rise: 2.4, aim: -1.55 };
 const SET_MS = 1800;
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function cardView(root) {
   return {

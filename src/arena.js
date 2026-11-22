@@ -8,6 +8,7 @@ import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
+import { shuffle } from './random.js';
 
 const KEY = worldKey('arena');
 const DATA_VERSION = 1;
@@ -26,14 +27,6 @@ function npcAnswer(id, key, limit, at) {
 const isHuman = (id) => id === PLAYER;
 const sideOf = (match, id) => (match.a === id ? 'a' : match.b === id ? 'b' : null);
 const signature = (event) => `${event.phase}:${event.round}:${event.rounds[event.round]?.filter((match) => match.winner).length ?? 0}`;
-
-function shuffle(list) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
 
 function sizeAt(at) {
   const minute = minuteOfDay(at);
@@ -508,7 +501,7 @@ export function createArena({ ledger, roster = () => [] }) {
     blocked,
     register(id) {
       if (blocked(id) || !ledger.purse(id).spend(ARENA.fee)) return false;
-      economy.collect(ARENA.fee, id, ARENA.fee, 'arenaFee');
+      economy.collect(ARENA.fee, id, 'arenaFee');
       const event = state.event;
       event.entrants.push(id);
       store.save();

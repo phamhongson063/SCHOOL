@@ -459,10 +459,10 @@ export const economy = {
     trackSpend(payer, fee, { [FUND]: fee });
     store.save();
   },
-  collect(value, payer = null, spent = value, kind = 'vat') {
+  collect(value, payer = null, kind = 'vat') {
     if (!ctx || !(value > 0)) return;
     deposit(value, kind);
-    trackSpend(payer, spent, { [FUND]: value });
+    trackSpend(payer, value, { [FUND]: value });
     store.save();
   },
   trade(purse, gross, cost = 0) {

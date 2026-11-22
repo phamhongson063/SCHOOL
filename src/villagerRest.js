@@ -357,7 +357,7 @@ export class RestBehavior {
   payRoom(room) {
     const rent = roomTier(room).price;
     if (!this.purse.spend(rent)) return false;
-    economy.collect(rent, this.id, rent, 'lodge');
+    economy.collect(rent, this.id, 'lodge');
     return true;
   }
 

@@ -3,6 +3,7 @@ import { paintIcon } from './itemArt.js';
 import { japanese } from './ruby.js';
 import { DECKS, unitOf, plainText as plain } from './studyDecks.js';
 import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
+import { shuffle } from './random.js';
 
 const RECENT = 40;
 const AUTO_CLOSE_MS = 3000;
@@ -22,14 +23,6 @@ const KANJI_KINDS = ['pick', 'read', 'meaning'];
 
 const textWidth = (text) => [...plain(text)].reduce((sum, char) => sum + (WIDE_CHAR.test(char) ? 2 : 1), 0);
 const fitsPairs = (values) => values.length === PAIR_COUNT && values.every((value) => textWidth(value) <= PAIR_WIDTH);
-
-function shuffle(list) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
 
 function view(prefix, textId, iconId) {
   const node = (id) => document.getElementById(`${prefix}${id}`);

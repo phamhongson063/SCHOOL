@@ -4,7 +4,7 @@ import { createPairStore, without } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { PLAYER } from './inventory.js';
 import { dayOf, gameNow } from './clock.js';
-import { makeRandom } from './random.js';
+import { makeRandom, shuffle } from './random.js';
 
 const WORLD_KEY = worldKey('certify');
 const SELF_KEY = selfKey('certify');
@@ -48,14 +48,6 @@ function orderOf(actor, deck) {
   }
   orders.set(tag, order);
   return order;
-}
-
-function shuffle(list) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
 }
 
 const blankDeck = () => ({ day: null, order: ORDER_VERSION, cursor: 0, batch: [], carry: [], queue: [], certified: {}, weak: {}, counts: {}, viewed: [], qualified: null, examDay: null, exams: 0, examPassed: false, tries: 0 });

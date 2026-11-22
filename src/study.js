@@ -11,6 +11,7 @@ import { classTeacherOf } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
 import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
 import { playVoice, stopVoice } from './voiceClips.js';
+import { shuffle } from './random.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -24,14 +25,6 @@ const SPEAK_SILENCE = 3000;
 const SPEAK_START_WAIT = 6000;
 const MIC_BLOCKED = new Set(['not-allowed', 'service-not-allowed']);
 const MIC_FATAL = new Set([...MIC_BLOCKED, 'audio-capture', 'network', 'language-not-supported']);
-
-function shuffle(list) {
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
 
 function loadFurigana() {
   try {

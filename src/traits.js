@@ -3,6 +3,7 @@ import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { makeRandom, between } from './random.js';
 import { dayOf } from './clock.js';
+import { clamp } from './math.js';
 
 const KEY = worldKey('traits');
 export const SKILLS = ['farm', 'fish', 'hunt'];
@@ -11,7 +12,6 @@ const LATE_TASTES = ['loto'];
 export const TASTES = [...BASE_TASTES, ...LATE_TASTES];
 const FACTS = ['study', 'pass', 'fail', 'tired', 'debt'];
 
-const clamp = (value, [lo, hi]) => Math.max(lo, Math.min(hi, value));
 const isShare = (value) => Number.isFinite(value) && value >= 0 && value <= 1;
 const isAmount = (value) => Number.isFinite(value) && value >= 0;
 
@@ -22,7 +22,7 @@ function skillOf(xp) {
 
 function xpOf(skill) {
   const [lo, hi] = TRAITS.skill;
-  const reached = clamp((skill - lo) / (hi - lo), [0, 0.999]);
+  const reached = clamp((skill - lo) / (hi - lo), 0, 0.999);
   return -TRAITS.skillDepth * Math.log(1 - reached);
 }
 
@@ -40,7 +40,7 @@ function freshEntry(id) {
   const anchor = between(...TRAITS.anchor, rand);
   return {
     anchor,
-    diligence: clamp(anchor + between(-TRAITS.startSpread, TRAITS.startSpread, rand), TRAITS.diligence),
+    diligence: clamp(anchor + between(-TRAITS.startSpread, TRAITS.startSpread, rand), ...TRAITS.diligence),
     xp: Object.fromEntries(SKILLS.map((name) => [name, xpOf(between(...TRAITS.skillStart, rand))])),
     skill: {},
     taste: {
@@ -67,12 +67,12 @@ function cleanEntry(raw, id) {
   const entry = freshEntry(id);
   if (!raw || typeof raw !== 'object') return withSkills(entry);
   if (isShare(raw.anchor)) entry.anchor = raw.anchor;
-  if (isShare(raw.diligence)) entry.diligence = clamp(raw.diligence, TRAITS.diligence);
+  if (isShare(raw.diligence)) entry.diligence = clamp(raw.diligence, ...TRAITS.diligence);
   for (const name of SKILLS) {
     if (isAmount(raw.xp?.[name])) entry.xp[name] = raw.xp[name];
-    else if (isShare(raw.skill?.[name])) entry.xp[name] = xpOf(clamp(raw.skill[name], TRAITS.skill));
+    else if (isShare(raw.skill?.[name])) entry.xp[name] = xpOf(clamp(raw.skill[name], ...TRAITS.skill));
   }
-  for (const name of TASTES) if (Number.isFinite(raw.taste?.[name])) entry.taste[name] = clamp(raw.taste[name], TRAITS.taste);
+  for (const name of TASTES) if (Number.isFinite(raw.taste?.[name])) entry.taste[name] = clamp(raw.taste[name], ...TRAITS.taste);
   if (isShare(raw.thrift)) entry.thrift = raw.thrift;
   if (isShare(raw.comfort)) entry.comfort = raw.comfort;
   if (typeof raw.innGoer === 'boolean') entry.innGoer = raw.innGoer;
@@ -118,7 +118,7 @@ function diligenceTarget(entry) {
   if (facts.fail) target -= TRAITS.failPull;
   if (facts.tired) target -= TRAITS.tiredPull;
   if (facts.debt) target -= TRAITS.debtPull;
-  return clamp(target, TRAITS.diligence);
+  return clamp(target, ...TRAITS.diligence);
 }
 
 function practiceDay(entry, name) {
@@ -133,13 +133,13 @@ function settleTaste(entry, id) {
   for (const name of TASTES) {
     const share = (entry.acts[name] ?? 0) / total;
     const target = base[name] + TRAITS.habitPull * (share - 1 / TASTES.length);
-    entry.taste[name] = clamp(entry.taste[name] + (target - entry.taste[name]) * TRAITS.habitRate, TRAITS.taste);
+    entry.taste[name] = clamp(entry.taste[name] + (target - entry.taste[name]) * TRAITS.habitRate, ...TRAITS.taste);
   }
 }
 
 function driftDay(entry, id) {
   const { rate } = TRAITS;
-  entry.diligence = clamp(entry.diligence + (diligenceTarget(entry) - entry.diligence) * rate, TRAITS.diligence);
+  entry.diligence = clamp(entry.diligence + (diligenceTarget(entry) - entry.diligence) * rate, ...TRAITS.diligence);
   for (const name of SKILLS) practiceDay(entry, name);
   withSkills(entry);
   settleTaste(entry, id);

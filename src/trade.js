@@ -220,7 +220,7 @@ function buyOne(id, part) {
   const cost = costOf(source.holder, source.item, 1);
   const fee = price * TRADE.marketFee;
   shop.take(source.item, 1);
-  economy.collect(fee, null, fee, 'market');
+  economy.collect(fee, null, 'market');
   economy.trade(shop, price - fee, cost);
   earned(source.holder, price - fee);
   const entry = pantryOf(id)[part];
@@ -312,7 +312,7 @@ function repayCapital() {
     const purse = purseOf(id);
     const spare = Math.floor(Math.min(owed, purse.money - TRADE.capital - (bank?.debt(id) ?? 0)));
     if (!(spare > 0) || !purse.spend(spare)) continue;
-    economy.collect(spare, null, spare, 'capital');
+    economy.collect(spare, null, 'capital');
     state.owed[id] = owed - spare;
   }
 }
