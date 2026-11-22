@@ -122,9 +122,19 @@ function kanjiQuestion(entry) {
   return { kind, answer: entry.reading, wrong: shuffle([...entry.distractors]), text };
 }
 
+function grammarQuestion(entry, kind, choices) {
+  const count = (choices || PHRASE_QUIZ.choices) - 1;
+  const lines = entry.examples[0].lines;
+  if (kind === 'meaning' || (kind !== 'reading' && Math.random() < 0.5)) return { ...meaningQuestion(entry, entry.siblingMeanings, count), kind: 'sense', text: lines[0][1] };
+  return { kind: 'cloze', answer: entry.cloze.answer, wrong: shuffle([...entry.wrong]).slice(0, count), lines, cloze: entry.cloze };
+}
+
+const inVietnamese = (kind) => kind === 'meaning' || kind === 'sense';
+
 function question(entry, kind, choices) {
   const style = DECKS[entry.deck].quiz;
   if (style === 'kanji') return kanjiQuestion(entry);
+  if (style === 'grammar') return grammarQuestion(entry, kind, choices);
   if (style === 'vocab') {
     if (kind !== 'meaning' && entry.kanjiChoices.length && entry.examples.length) return kanjiPick(entry);
     if (kind === 'meaning' || !entry.distractors.length) return meaningQuestion(entry, entry.siblingMeanings, choices ? choices - 1 : 3);
@@ -142,7 +152,7 @@ function question(entry, kind, choices) {
 
 function quizSeconds(kind, phrase) {
   if (!phrase) return FISHING.quizSeconds;
-  return kind === 'cloze' || kind === 'pick' || kind === 'read' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
+  return kind === 'cloze' || kind === 'pick' || kind === 'read' || kind === 'sense' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
 }
 
 const levelOf = (entry) => DECKS[entry.deck].level;
@@ -239,8 +249,8 @@ export function createKanjiQuiz() {
       ui.text.textContent = entry.word;
       return [];
     }
-    if (asked.kind === 'pick' || asked.kind === 'read') {
-      const sentence = pickLine(asked.text, asked.kind === 'read' ? plain : readingOf);
+    if (asked.kind === 'pick' || asked.kind === 'read' || asked.kind === 'sense') {
+      const sentence = pickLine(asked.text, asked.kind === 'pick' ? readingOf : plain);
       ui.text.className = 'phrase-text dialogue';
       ui.text.replaceChildren(...sentence.nodes);
       return sentence.blanks;
@@ -259,7 +269,7 @@ export function createKanjiQuiz() {
   function optionButton(ui, asked, value, letter) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.lang = asked.kind === 'meaning' ? 'vi' : 'ja';
+    button.lang = inVietnamese(asked.kind) ? 'vi' : 'ja';
     button.dataset.value = value;
     if (letter) {
       const tag = document.createElement('span');
@@ -300,7 +310,7 @@ export function createKanjiQuiz() {
         ui.result.textContent = '';
         ui.result.className = `${ui.prefix}-result`;
         ui.options.classList.toggle('lettered', lettered);
-        ui.options.classList.toggle('meanings', asked.kind === 'meaning');
+        ui.options.classList.toggle('meanings', inVietnamese(asked.kind));
         const values = shuffle([asked.answer, ...asked.wrong]);
         ui.options.classList.toggle('pairs', asked.kind !== 'cloze' && fitsPairs(values));
         ui.options.replaceChildren(...values.map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));

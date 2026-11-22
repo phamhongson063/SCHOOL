@@ -1,5 +1,5 @@
 import { TRAITS } from './config.js';
-import { DECKS, DECK_IDS, plainText } from './studyDecks.js';
+import { DECKS, DECK_IDS, plainText, sentenceDeck } from './studyDecks.js';
 import { certify } from './certify.js';
 import { traits, SKILLS, TASTES } from './traits.js';
 import { trade } from './trade.js';
@@ -54,7 +54,7 @@ function orderOf(deck) {
 function textOf(deck, card) {
   if (cardText.has(card.key)) return cardText.get(card.key);
   let text;
-  if (DECKS[deck].quiz === 'phrase') {
+  if (sentenceDeck(deck)) {
     const lines = card.examples.flatMap((example) => example.lines);
     const line = lines.find((entry) => PHRASE_LINE.test(entry[1])) ?? lines[0];
     text = { title: line ? plainText(line[1]).replace(/[[\]]/g, '') : card.word, reading: '', meaning: plainText(card.word) };

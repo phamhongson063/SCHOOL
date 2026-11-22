@@ -3627,6 +3627,57 @@ dialog.loto-sheet {
   font-family: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
 
+.study-voice {
+  position: absolute;
+  top: 6px;
+  left: 2px;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(120, 90, 40, 0.1);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.study-voice.playing {
+  background: rgba(120, 90, 40, 0.25);
+}
+
+.study-body.covered .study-voice {
+  visibility: hidden;
+}
+
+.study-grammar-gloss,
+.study-grammar-form {
+  display: block;
+  font-family: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+.study-grammar-gloss {
+  font-weight: 700;
+}
+
+.study-grammar-form {
+  margin-top: 4px;
+  color: var(--tan);
+}
+
+.study-grammar-gloss rt,
+.study-grammar-form rt {
+  font-size: 0.55em;
+  font-weight: 400;
+  color: var(--tan);
+}
+
+.study-card.no-furigana .study-grammar-gloss rt,
+.study-card.no-furigana .study-grammar-form rt {
+  visibility: hidden;
+}
+
 .study-kanji-read {
   display: inline-flex;
   align-items: center;

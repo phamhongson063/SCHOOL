@@ -35,6 +35,33 @@ service cloud.firestore {
         && freshTimestamp();
     }
 
+    function validVault(vault) {
+      return vault.keys().hasOnly(['data', 'savedAt'])
+        && vault.keys().hasAll(['data', 'savedAt'])
+        && vault.data is string
+        && vault.data.size() < 900000
+        && vault.savedAt == request.time;
+    }
+
+    function validSound(sound) {
+      return sound.keys().hasOnly(['data', 'type'])
+        && sound.keys().hasAll(['data', 'type'])
+        && sound.data is bytes
+        && sound.data.size() < 900000
+        && sound.type is string
+        && sound.type.size() < 64;
+    }
+
+    match /vaults/{uid} {
+      allow get: if allowedPlayer(uid);
+      allow create, update: if allowedPlayer(uid) && validVault(request.resource.data);
+    }
+
+    match /vaults/{uid}/sounds/{name} {
+      allow get: if allowedPlayer(uid);
+      allow create, update: if allowedPlayer(uid) && validSound(request.resource.data);
+    }
+
     match /worlds/{worldId} {
       allow get: if allowedPlayer(worldId);
       allow create: if allowedPlayer(worldId)

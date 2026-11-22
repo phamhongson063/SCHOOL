@@ -7,6 +7,7 @@ import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { brickMaterial, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
+import { DECKS } from './studyDecks.js';
 
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
 export const STUDY_HALLS = [
@@ -14,7 +15,8 @@ export const STUDY_HALLS = [
   { deck: 'sugu1', name: 'Lớp Sugu 1', x: -163.4, front: 43, turn: 0, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
   { deck: 'kanjiN3', name: 'Kanji N3', x: -45, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
-];
+  { deck: 'grammarN2', name: 'Ngữ pháp N2', x: 40, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'] },
+].filter((hall) => DECKS[hall.deck]);
 
 const WALL = 0xd9b46a;
 const WOOD = 0x5e3a24;

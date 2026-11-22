@@ -1,5 +1,5 @@
 import { CERTIFY } from './config.js';
-import { DECKS, DECK_IDS, deckOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, VAULT_DECK_IDS, deckOf, unitOf } from './studyDecks.js';
 import { createPairStore, without } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { PLAYER } from './inventory.js';
@@ -108,7 +108,12 @@ function readJSON(key) {
   }
 }
 
-const cleanActor = (decks, actor) => Object.fromEntries(DECK_IDS.map((deck) => [deck, restoreSkipped(cleanDeck(decks?.[deck], deck, actor), deck, actor)]));
+const dormantDecks = (decks) => Object.fromEntries(VAULT_DECK_IDS.filter((deck) => !DECKS[deck] && decks?.[deck] && typeof decks[deck] === 'object').map((deck) => [deck, decks[deck]]));
+
+const cleanActor = (decks, actor) => ({
+  ...dormantDecks(decks),
+  ...Object.fromEntries(DECK_IDS.map((deck) => [deck, restoreSkipped(cleanDeck(decks?.[deck], deck, actor), deck, actor)])),
+});
 
 function load() {
   const world = readJSON(WORLD_KEY);
@@ -128,16 +133,35 @@ function changed(actor) {
   for (const listener of listeners) listener(actor);
 }
 
+function peekNext(state, order) {
+  for (;;) {
+    const fromQueue = state.queue.length > 0;
+    if (!fromQueue && state.cursor >= order.length) return null;
+    const key = fromQueue ? state.queue[0] : order[state.cursor];
+    if (!state.certified[key] && !state.batch.includes(key)) return key;
+    if (fromQueue) state.queue.shift();
+    else state.cursor++;
+  }
+}
+
+function takeNext(state) {
+  if (state.queue.length) state.queue.shift();
+  else state.cursor++;
+}
+
+const groupOf = (key) => unitOf(key)?.group ?? key;
+
+function batchTakes(deck, batch, key) {
+  if (!DECKS[deck].wholeGroups) return batch.length < CERTIFY.batch;
+  return !batch.length || batch.some((other) => groupOf(other) === groupOf(key));
+}
+
 function fill(actor, state, deck) {
   const order = orderOf(actor, deck);
   state.batch = state.batch.filter((key) => !state.certified[key]);
   state.carry = state.carry.filter((key) => state.batch.includes(key));
-  while (state.batch.length < CERTIFY.batch) {
-    let key = null;
-    if (state.queue.length) key = state.queue.shift();
-    else if (state.cursor < order.length) key = order[state.cursor++];
-    else break;
-    if (state.certified[key] || state.batch.includes(key)) continue;
+  for (let key = peekNext(state, order); key && batchTakes(deck, state.batch, key); key = peekNext(state, order)) {
+    takeNext(state);
     state.batch.push(key);
   }
   state.counts = Object.fromEntries(Object.entries(state.counts).filter(([key]) => state.batch.includes(key)));
@@ -260,7 +284,7 @@ export const certify = {
     return Object.keys(deckState(actor, deck).certified).length;
   },
   certifiedTotal(actor) {
-    return Object.values(actors[actor] ?? {}).reduce((sum, state) => sum + Object.keys(state?.certified ?? {}).length, 0);
+    return DECK_IDS.reduce((sum, deck) => sum + Object.keys(actors[actor]?.[deck]?.certified ?? {}).length, 0);
   },
   deckSize(deck) {
     return DECKS[deck]?.cards.length ?? 0;

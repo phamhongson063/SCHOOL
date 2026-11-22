@@ -1,5 +1,5 @@
 import { CERTIFY } from './config.js';
-import { DECKS, DECK_IDS, unitOf, plainText } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, plainText, sentenceDeck } from './studyDecks.js';
 import { certify } from './certify.js';
 import { closable } from './dialog.js';
 import { coins } from './format.js';
@@ -23,7 +23,7 @@ export function unitLabel(key) {
   const card = unitOf(key);
   if (!card) return key;
   const word = plainText(card.word).replace(/[[\]]/g, '');
-  if (DECKS[card.deck].quiz !== 'phrase') return word;
+  if (!sentenceDeck(card.deck)) return word;
   return `${word} (ví dụ ${key.split(':')[2]})`;
 }
 

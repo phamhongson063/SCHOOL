@@ -10,6 +10,7 @@ import { INTERNAL_SPAN } from './examHall.js';
 import { NPC } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
 import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
+import { playVoice, stopVoice } from './voiceClips.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
@@ -77,6 +78,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const next = document.getElementById('studyNext');
   const remembered = document.getElementById('studyRemembered');
   const example = document.getElementById('studyExample');
+  const voice = document.getElementById('studyVoice');
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
   const dim = document.getElementById('studyDim');
@@ -169,6 +171,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   }
 
   function stopMode() {
+    stopVoice();
     stopSpeak();
     mode = null;
     current = null;
@@ -236,6 +239,20 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     return [head, reads];
   }
 
+  function grammarLines({ gloss, form }) {
+    return [
+      ['study-grammar-gloss', gloss],
+      ['study-grammar-form', form],
+    ]
+      .filter(([, text]) => text)
+      .map(([name, text]) => {
+        const line = el('span', name);
+        line.lang = 'ja';
+        line.append(japanese(text));
+        return line;
+      });
+  }
+
   function fill(key) {
     current = key;
     const card = unitOf(key);
@@ -247,8 +264,11 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     word.classList.toggle('has-hint', Boolean(card.hanViet));
     meaning.textContent = card.meaning;
     if (card.kanji) note.replaceChildren(...kanjiLines(card.kanji));
+    else if (card.grammar) note.replaceChildren(...grammarLines(card.grammar));
     else note.textContent = card.note;
     showExamples(card.examples);
+    stopVoice();
+    voice.hidden = !card.audio;
   }
 
   function showFurigana(on) {
@@ -756,6 +776,19 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     const onWord = Boolean(event.target.closest('.study-word')) && Boolean(hanViet.textContent);
     hanViet.classList.toggle('show', onWord && !hanViet.classList.contains('show'));
   });
+  voice.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (voice.classList.contains('playing')) {
+      stopVoice();
+      return;
+    }
+    const clip = unitOf(current)?.audio;
+    if (!clip) return;
+    voice.classList.add('playing');
+    const done = () => voice.classList.remove('playing');
+    playVoice(clip, done).then((started) => started || done());
+  });
+
   furiganaBtn.addEventListener('click', () => {
     const on = panel.classList.contains('no-furigana');
     showFurigana(on);

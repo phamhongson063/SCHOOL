@@ -2,10 +2,14 @@ import { appCheckKey, firebaseConfig } from './firebaseConfig.js';
 import { ACCOUNT_KEY, NEWEST_KEYS, gameKeys, isGameKey, scopeOf } from './saveKeys.js';
 import { haltStores } from './persist.js';
 import { auditSeal, dropTampered, writeGameItem } from './seal.js';
+import { fillVault } from './vault.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
 const SYNC_EVERY = 30000;
 const DOCS = { self: 'saves', world: 'worlds' };
+const VAULT = 'vaults';
+const SOUNDS = 'sounds';
+const SOUND_NAME = /^[\w-]+$/;
 const REV_FIELD = { self: 'rev', world: 'worldRev' };
 const SCOPES = Object.keys(DOCS);
 const SAVE_LIMIT = 900000;
@@ -150,9 +154,52 @@ export async function signedIn() {
   return Boolean(session.currentUser);
 }
 
+async function readVault(store, db, uid) {
+  let found;
+  try {
+    found = await store.getDoc(store.doc(db, VAULT, uid));
+  } catch (error) {
+    if (error?.code === 'permission-denied') return null;
+    throw error;
+  }
+  if (!found.exists()) return null;
+  try {
+    return JSON.parse(await unpack(found.get('data')));
+  } catch {
+    return null;
+  }
+}
+
+export async function uploadVault(source) {
+  const { store, session, db } = await loadSdk();
+  const user = session.currentUser;
+  if (!user) throw new Error('signed out');
+  const packed = await pack(JSON.stringify(typeof source === 'string' ? JSON.parse(source) : source));
+  if (!fits(packed)) throw tooLarge();
+  await store.setDoc(store.doc(db, VAULT, user.uid), { data: packed, savedAt: store.serverTimestamp() });
+}
+
+export async function uploadSound(name, bytes, type) {
+  if (!SOUND_NAME.test(name)) throw new Error(`bad sound name ${name}`);
+  if (bytes.length >= SAVE_LIMIT) throw tooLarge();
+  const { store, session, db } = await loadSdk();
+  const user = session.currentUser;
+  if (!user) throw new Error('signed out');
+  await store.setDoc(store.doc(db, VAULT, user.uid, SOUNDS, name), { data: store.Bytes.fromUint8Array(bytes), type });
+}
+
+export async function loadSound(name) {
+  const { store, session, db } = await loadSdk();
+  const user = session.currentUser;
+  if (!user || !SOUND_NAME.test(name)) return null;
+  const found = await store.getDoc(store.doc(db, VAULT, user.uid, SOUNDS, name));
+  return found.exists() ? found.get('data').toUint8Array() : null;
+}
+
 export async function connect() {
   const { store, session, db } = await loadSdk();
   const user = session.currentUser;
+  fillVault(await readVault(store, db, user.uid));
   const saved = account();
   const refs = { self: store.doc(db, DOCS.self, user.uid), world: store.doc(db, DOCS.world, user.uid) };
   const id = newId();

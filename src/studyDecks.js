@@ -2,6 +2,7 @@ import { N2_VOCAB } from './vocabN2.js';
 import { LESSONS } from './lessons.js';
 import { KANJI_N2 } from './kanjiN2.js';
 import { KANJI_N3 } from './kanjiN3.js';
+import { vaultItem } from './vault.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
 const MARKS = /\[([^\]]+)\]/g;
@@ -78,6 +79,58 @@ const kanjiCards = (list, prefix, deck) =>
     })),
   );
 
+function grammarCards(points, prefix, deck) {
+  if (!Array.isArray(points)) return [];
+  const meanings = new Map(points.map((point) => [point.no, point.meaning]));
+  return points.flatMap((point) =>
+    (point.examples ?? []).flatMap((example, i) => {
+      if (typeof example?.ja !== 'string') return [];
+      const lines = [['', example.ja, example.vi ?? '']];
+      const cloze = clozeOf(lines);
+      if (!cloze) return [];
+      return [
+        {
+          key: `${prefix}:${point.no}:${i + 1}`,
+          deck,
+          group: point.no,
+          word: point.word,
+          reading: '',
+          hanViet: '',
+          meaning: point.meaning,
+          note: '',
+          grammar: { gloss: point.gloss ?? '', form: point.form ?? '' },
+          examples: [{ title: '', lines }],
+          cloze,
+          wrong: example.wrong ?? [],
+          audio: typeof example.audio === 'string' ? example.audio : null,
+          siblingMeanings: (point.near ?? []).map((no) => meanings.get(no)).filter(Boolean),
+        },
+      ];
+    }),
+  );
+}
+
+const VAULT_DECKS = {
+  grammarN2: {
+    title: '文法 N2',
+    label: 'Ngữ pháp N2',
+    level: '文法 N2',
+    unit: 'câu',
+    quiz: 'grammar',
+    choices: 4,
+    wholeGroups: true,
+    cards: (points) => grammarCards(points, 'gn2', 'grammarN2'),
+  },
+};
+
+export const VAULT_DECK_IDS = Object.keys(VAULT_DECKS);
+
+function vaultDecks() {
+  return Object.fromEntries(
+    VAULT_DECK_IDS.map((id) => [id, { ...VAULT_DECKS[id], cards: VAULT_DECKS[id].cards(vaultItem(id)) }]).filter(([, deck]) => deck.cards.length),
+  );
+}
+
 export const DECKS = {
   n2: {
     title: 'N2',
@@ -147,9 +200,12 @@ export const DECKS = {
     choices: 4,
     cards: kanjiCards(KANJI_N3, 'kn3', 'kanjiN3'),
   },
+  ...vaultDecks(),
 };
 
 export const DECK_IDS = Object.keys(DECKS);
+
+export const sentenceDeck = (deck) => DECKS[deck].quiz === 'phrase' || DECKS[deck].quiz === 'grammar';
 
 const UNITS = new Map(DECK_IDS.flatMap((id) => DECKS[id].cards.map((card) => [card.key, card])));
 

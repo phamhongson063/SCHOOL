@@ -5,6 +5,7 @@ import { createScenery } from './scenery.js';
 import { createPlayer, createSeatedPlayer, createWalker } from './characters.js';
 import { loadCharacterModels, hasModel, createModel, setCharacterShadows } from './characterModels.js';
 import { createRooms, inStudyRoom } from './rooms.js';
+import { uploadPrivate } from './vaultUpload.js';
 import { Seats } from './seats.js';
 import { SeatWaitlist } from './seatWait.js';
 import { PlayerController, WALK_SPEED, RUN_SPEED } from './walk.js';
@@ -942,6 +943,8 @@ createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learner
 document.getElementById('vitals').addEventListener('click', () => profileDialog.open(PLAYER));
 createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
 window.census = () => economy.census();
+
+window.uploadVault = uploadPrivate;
 
 let context = null;
 
