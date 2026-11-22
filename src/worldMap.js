@@ -3,6 +3,7 @@ import { closable } from './dialog.js';
 const SCALE = 4;
 const FONT = '"Water Brush"';
 const GAP = 6;
+const MAX_LIFTS = 3;
 const TAP_GAP = 350;
 const TAP_SLOP = 12;
 
@@ -26,13 +27,39 @@ export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
 
   const inside = (at) => at.x >= bounds.x0 && at.x <= bounds.x1 && at.z >= bounds.z0 && at.z <= bounds.z1;
 
+  function show(label, y) {
+    label.el.style.transform = `translate(${label.x}px, ${y}px) translate(-50%, -50%)`;
+  }
+
   function place(label) {
     label.el.hidden = !label.stand || !inside(label.at);
     if (label.el.hidden) return;
     const { x, y } = toSheet(label.at);
     label.x = x;
     label.y = y;
-    label.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+    show(label, y);
+  }
+
+  const boxAt = (label, y) => ({
+    x0: label.x - label.w / 2 - GAP,
+    x1: label.x + label.w / 2 + GAP,
+    y0: y - label.h / 2 - GAP,
+    y1: y + label.h / 2 + GAP,
+    lead: label.lead,
+  });
+
+  const overlaps = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
+  function settle(label, kept) {
+    let y = label.y;
+    for (let lift = 0; lift <= MAX_LIFTS; lift++) {
+      const box = boxAt(label, y);
+      const blocking = kept.filter((other) => overlaps(box, other));
+      if (!blocking.length) return { box, y };
+      if (label.lead || lift === MAX_LIFTS || blocking.some((other) => !other.lead)) return null;
+      y = Math.min(...blocking.map((other) => other.y0)) - label.h / 2 - GAP;
+    }
+    return null;
   }
 
   function declutter() {
@@ -46,11 +73,11 @@ export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
     }
     const kept = [];
     for (const label of labels) {
-      let clear = !label.el.hidden;
-      if (clear) {
-        const box = { x0: label.x - label.w / 2 - GAP, x1: label.x + label.w / 2 + GAP, y0: label.y - label.h / 2 - GAP, y1: label.y + label.h / 2 + GAP };
-        clear = !kept.some((other) => box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0);
-        if (clear) kept.push(box);
+      const spot = label.el.hidden ? null : settle(label, kept);
+      const clear = Boolean(spot);
+      if (spot) {
+        kept.push(spot.box);
+        show(label, spot.y);
       }
       label.clear = clear;
       label.el.classList.toggle('muted', !clear);
@@ -74,7 +101,7 @@ export function createWorldMap({ bounds, onPick, onWalk, onClose }) {
       img.addEventListener('load', relayout, { once: true });
       el.append(img);
     } else el.textContent = name;
-    const label = { el, at: { x: 0, z: 0 }, stand: null, clear: true, x: 0, y: 0, w: 0, h: 0 };
+    const label = { el, lead, at: { x: 0, z: 0 }, stand: null, clear: true, x: 0, y: 0, w: 0, h: 0 };
     el.addEventListener('click', () => {
       if (!locked && label.stand && label.clear) onPick(label.stand);
     });

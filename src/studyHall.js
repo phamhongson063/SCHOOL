@@ -16,7 +16,7 @@ export const STUDY_HALLS = [
   { deck: 'sugu1', name: 'Lớp Sugu 1', x: -163.4, front: 43, turn: 0, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
   { deck: 'kanjiN3', name: 'Kanji N3', x: -45, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
-  { deck: 'grammarN2', name: 'Ngữ pháp N2', x: 96, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'], garden: true },
+  { deck: 'grammarN2', name: '文法 N2', x: 96, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'], garden: true },
 ].filter((hall) => DECKS[hall.deck]);
 
 const WALL = 0xd9b46a;
