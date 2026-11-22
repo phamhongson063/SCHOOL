@@ -28,6 +28,7 @@ import { MindBehavior } from './villagerMind.js';
 import { LanternBehavior } from './villagerLantern.js';
 import { LotoBehavior } from './villagerLoto.js';
 
+const LOTO_SWAY = { speed: 1.8, roll: 0.07, tiltSpeed: 0.8, tilt: 0.16, turnSpeed: 0.45, turn: 0.3, ease: 3 };
 
 export class Villager {
   constructor(profile, town) {
@@ -79,6 +80,7 @@ export class Villager {
     this.runSpeed = MOVE.run;
     this.lane = between(-LANE, LANE);
     this.wobbleP = Math.random() * Math.PI * 2;
+    this.lotoSway = 0;
     this.stepTime = between(0.35, 0.6);
     this.gait = new Gait({ stride: between(0.6, 0.85), armSwing: between(0.55, 1.0), bounce: adult ? 0.8 : between(0.7, 1.4) });
     this.writing = Math.random() < 0.6;
@@ -766,6 +768,10 @@ export class Villager {
     if (!this.near) return;
     const w = this.walker;
     const g = this.gait.update(w, this.velocity, dt, true);
+    const swayTarget = this.task === 'loto' && this.state === 'idle' ? 1 : 0;
+    this.lotoSway += (swayTarget - this.lotoSway) * (1 - Math.exp(-LOTO_SWAY.ease * dt));
+    const sway = this.lotoSway;
+    w.head.rotation.z = Math.sin(t * LOTO_SWAY.tiltSpeed + this.wobbleP * 1.7) * LOTO_SWAY.tilt * sway;
     if (this.restBlend > 0) {
       this.restClock += dt;
       layDown(w, pos, this.facing, restEase(this.restBlend), this.restClock);
@@ -776,11 +782,11 @@ export class Villager {
     }
     if (this.bubble.visible && this.state === 'idle') w.rightArm.rotation.x = -0.6 - Math.sin(t * 6) * 0.25;
     const curious = (this.state === 'idle' && !this.lookAt) || this.pauseTimer > 0;
-    const headTarget = curious ? Math.sin(t * 0.9 + this.wobbleP) * 0.55 : 0;
+    const headTarget = curious ? Math.sin(t * 0.9 + this.wobbleP) * 0.55 : Math.sin(t * LOTO_SWAY.turnSpeed + this.wobbleP) * LOTO_SWAY.turn * sway;
     w.head.rotation.y += (headTarget - w.head.rotation.y) * (1 - Math.exp(-4 * dt));
     const hop = this.velocity > 2.5 ? Math.abs(Math.sin(g.phase)) * 0.08 * Math.min(1, (this.velocity - 2.5) / 0.8) : 0;
     w.group.position.set(pos.x, pos.y + g.bob + hop, pos.z);
-    w.group.rotation.set(g.lean, this.facing + squeezeTurn(this, dt), 0);
+    w.group.rotation.set(g.lean, this.facing + squeezeTurn(this, dt), Math.sin(t * LOTO_SWAY.speed + this.wobbleP) * LOTO_SWAY.roll * sway);
     if (this.pop > 0) this.pop = Math.max(0, this.pop - dt);
     w.group.scale.setScalar(this.pop > 0 ? 1 + Math.sin((1 - this.pop / 0.25) * Math.PI) * 0.08 : 1);
     w.face.update(t, this.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');

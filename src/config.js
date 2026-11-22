@@ -415,7 +415,7 @@ export const TOWNHALL = {
 export const LOTO = {
   fee: 5,
   purse: 300,
-  signOpen: 21 * 60 + 30,
+  signOpen: 18 * 60,
   start: 22 * 60,
   callSeconds: 12,
   rounds: 3,
