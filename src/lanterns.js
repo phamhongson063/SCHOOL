@@ -63,12 +63,9 @@ export function lanternTry(id, key, day) {
   return { correct, seconds: handSeconds(key) + seconds };
 }
 
-export function lanternEnergy(left, solved, now, start, end) {
+export function lanternEnergy(left) {
   if (!(left > 0)) return 0;
-  const elapsed = Math.max(0, now - start);
-  const pace = (solved + LANTERN.pace * LANTERN.paceWeight) / (elapsed + LANTERN.paceWeight);
-  const expected = Math.max(1, pace * Math.max(0, end - now));
-  return Math.min(LANTERN.reward.energy, Math.floor(left), Math.max(1, Math.round(left / expected)));
+  return Math.min(LANTERN.reward.energy, Math.floor(left));
 }
 
 export function lanternWorth(id, key, need, diligence, points) {
@@ -229,10 +226,7 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
   }
 
   function energyAt(now) {
-    const day = dayOf(now);
-    const start = day * DAY_MINUTES + LANTERN.start;
-    const solved = state.day === day ? state.solved : 0;
-    return lanternEnergy(budget(now), solved, Math.max(now, start), start, day * DAY_MINUTES + LANTERN.end);
+    return lanternEnergy(budget(now));
   }
 
   function releaseLantern(id) {

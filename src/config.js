@@ -462,9 +462,7 @@ export const LANTERN = {
   thinkSeconds: 8,
   readSeconds: 1,
   tapSeconds: 0.55,
-  reward: { energy: 10, intellect: 1 },
-  pace: 1,
-  paceWeight: 10,
+  reward: { energy: 1, intellect: 1 },
   prepare: 60,
 };
 
