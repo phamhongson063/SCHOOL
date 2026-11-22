@@ -79,15 +79,37 @@ const kanjiCards = (list, prefix, deck) =>
     })),
   );
 
-function grammarCards(points, prefix, deck) {
+function sentenceOf(ja, vi, wrong) {
+  if (typeof ja !== 'string') return null;
+  const lines = [['', ja, vi ?? '']];
+  const cloze = clozeOf(lines);
+  return cloze ? { lines, cloze, wrong: Array.isArray(wrong) ? wrong : [] } : null;
+}
+
+function practiceByGroup(units, deck) {
+  const byGroup = new Map();
+  if (!Array.isArray(units)) return byGroup;
+  for (const unit of units) {
+    const groups = Array.isArray(unit?.groups) ? unit.groups : [];
+    for (const item of Array.isArray(unit?.practice) ? unit.practice : []) {
+      const sentence = sentenceOf(item?.ja, item?.vi, item?.wrong);
+      if (!sentence || !groups.includes(item.group)) continue;
+      byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { ...sentence, deck, groups }]);
+    }
+  }
+  return byGroup;
+}
+
+function grammarCards(points, units, prefix, deck) {
   if (!Array.isArray(points)) return [];
   const meanings = new Map(points.map((point) => [point.no, point.meaning]));
+  const practice = practiceByGroup(units, deck);
   return points.flatMap((point) =>
     (point.examples ?? []).flatMap((example, i) => {
-      if (typeof example?.ja !== 'string') return [];
-      const lines = [['', example.ja, example.vi ?? '']];
-      const cloze = clozeOf(lines);
-      if (!cloze) return [];
+      const sentence = sentenceOf(example?.ja, example?.vi);
+      if (!sentence) return [];
+      const { lines, cloze } = sentence;
+      const audio = typeof example.audio === 'string' ? example.audio : null;
       return [
         {
           key: `${prefix}:${point.no}:${i + 1}`,
@@ -102,7 +124,9 @@ function grammarCards(points, prefix, deck) {
           examples: [{ title: '', lines }],
           cloze,
           wrong: example.wrong ?? [],
-          audio: typeof example.audio === 'string' ? example.audio : null,
+          audio,
+          listen: audio ? sentenceOf(example.listen, example.vi, example.listenWrong) : null,
+          practice: practice.get(point.no) ?? [],
           siblingMeanings: (point.near ?? []).map((no) => meanings.get(no)).filter(Boolean),
         },
       ];
@@ -119,7 +143,7 @@ const VAULT_DECKS = {
     quiz: 'grammar',
     choices: 4,
     wholeGroups: true,
-    cards: (points) => grammarCards(points, 'gn2', 'grammarN2'),
+    cards: (points) => grammarCards(points, vaultItem('grammarN2Units'), 'gn2', 'grammarN2'),
   },
 };
 

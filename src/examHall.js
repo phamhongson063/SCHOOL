@@ -124,6 +124,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       minSeconds: CERTIFY.examMinutes * 60,
       more: (last) => certify.examExtra(PLAYER, deck, last),
       stops: (result) => certify.examStops(PLAYER, deck, result),
+      cardOnly: true,
     });
     const result = certify.gradeExam(PLAYER, deck, results);
     traits.note(PLAYER, result.passed ? 'pass' : 'fail', dayOf(minutes()));

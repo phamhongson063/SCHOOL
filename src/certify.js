@@ -283,6 +283,11 @@ export const certify = {
   certifiedCount(actor, deck) {
     return Object.keys(deckState(actor, deck).certified).length;
   },
+  groupsCertified(actor, deck, groups) {
+    const certified = actors[actor]?.[deck]?.certified ?? {};
+    const cards = (DECKS[deck]?.cards ?? []).filter((card) => groups.includes(card.group));
+    return cards.length > 0 && cards.every((card) => certified[card.key] !== undefined);
+  },
   certifiedTotal(actor) {
     return DECK_IDS.reduce((sum, deck) => sum + Object.keys(actors[actor]?.[deck]?.certified ?? {}).length, 0);
   },

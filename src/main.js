@@ -983,7 +983,7 @@ function settlePlayerTraits() {
 settlePlayerTraits();
 
 const angler = createAngler(scene, avatar);
-const kanjiQuiz = createKanjiQuiz();
+const kanjiQuiz = createKanjiQuiz({ practiceOpen: (item) => certify.groupsCertified(PLAYER, item.deck, item.groups) });
 
 function dropIntellect() {
   if (Math.random() >= CERTIFY.dropChance) return;

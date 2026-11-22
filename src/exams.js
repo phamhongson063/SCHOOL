@@ -6,7 +6,7 @@ const ANSWER_PAUSE_MS = 1200;
 export function createExams({ quiz, sounds = null }) {
   let running = false;
 
-  async function run({ title, deck, keys, icon, minSeconds = 0, more = null, stops = null }) {
+  async function run({ title, deck, keys, icon, minSeconds = 0, more = null, stops = null, cardOnly = false }) {
     running = true;
     const results = [];
     const endAt = performance.now() + minSeconds * 1000;
@@ -25,6 +25,7 @@ export function createExams({ quiz, sounds = null }) {
           clock,
           brief: true,
           exam: true,
+          cardOnly,
           closeAfter: ANSWER_PAUSE_MS,
           kind: Math.random() < 0.5 ? 'reading' : 'meaning',
           choices: DECKS[deck].choices,

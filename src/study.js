@@ -690,6 +690,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       minSeconds: CERTIFY.internalMinutes * 60,
       more: (last) => certify.internalExtra(PLAYER, id, last),
       stops: (result) => certify.internalStops(PLAYER, id, result),
+      cardOnly: true,
     });
     const graded = certify.gradeInternal(PLAYER, id, results);
     const right = results.filter((result) => result.correct).length;

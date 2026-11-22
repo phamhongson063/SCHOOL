@@ -13,6 +13,8 @@ function clipOf(name) {
   return clips.get(name);
 }
 
+export const voiceReady = () => ctx?.state === 'running';
+
 export function stopVoice() {
   generation++;
   if (!current) return;

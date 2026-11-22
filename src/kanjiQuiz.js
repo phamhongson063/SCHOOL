@@ -2,6 +2,7 @@ import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
 import { japanese } from './ruby.js';
 import { DECKS, unitOf, plainText as plain } from './studyDecks.js';
+import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
 
 const RECENT = 40;
 const AUTO_CLOSE_MS = 3000;
@@ -43,6 +44,7 @@ function view(prefix, textId, iconId) {
     close: node('Close'),
     clock: node('Clock'),
     icon: node(iconId),
+    voice: node('Voice'),
   };
 }
 
@@ -122,19 +124,28 @@ function kanjiQuestion(entry) {
   return { kind, answer: entry.reading, wrong: shuffle([...entry.distractors]), text };
 }
 
-function grammarQuestion(entry, kind, choices) {
+function sentenceQuestion(kind, sentence, count) {
+  return { kind, bare: true, answer: sentence.cloze.answer, wrong: shuffle([...sentence.wrong]).slice(0, count), lines: sentence.lines, cloze: sentence.cloze };
+}
+
+function grammarQuestion(entry, kind, choices, { listen = false, practice = [] } = {}) {
   const count = (choices || PHRASE_QUIZ.choices) - 1;
+  const variants = ['card', ...(listen && entry.listen ? ['listen'] : []), ...(practice.length ? ['practice'] : [])];
+  const variant = variants[Math.floor(Math.random() * variants.length)];
+  if (variant === 'listen') return { ...sentenceQuestion('listen', entry.listen, count), audio: entry.audio };
+  if (variant === 'practice') return sentenceQuestion('cloze', practice[Math.floor(Math.random() * practice.length)], count);
   const lines = entry.examples[0].lines;
   if (kind === 'meaning' || (kind !== 'reading' && Math.random() < 0.5)) return { ...meaningQuestion(entry, entry.siblingMeanings, count), kind: 'sense', text: lines[0][1] };
-  return { kind: 'cloze', answer: entry.cloze.answer, wrong: shuffle([...entry.wrong]).slice(0, count), lines, cloze: entry.cloze };
+  return sentenceQuestion('cloze', { lines, cloze: entry.cloze, wrong: entry.wrong }, count);
 }
 
 const inVietnamese = (kind) => kind === 'meaning' || kind === 'sense';
+const inSentence = (kind) => kind === 'cloze' || kind === 'listen';
 
-function question(entry, kind, choices) {
+function question(entry, kind, choices, extra) {
   const style = DECKS[entry.deck].quiz;
   if (style === 'kanji') return kanjiQuestion(entry);
-  if (style === 'grammar') return grammarQuestion(entry, kind, choices);
+  if (style === 'grammar') return grammarQuestion(entry, kind, choices, extra);
   if (style === 'vocab') {
     if (kind !== 'meaning' && entry.kanjiChoices.length && entry.examples.length) return kanjiPick(entry);
     if (kind === 'meaning' || !entry.distractors.length) return meaningQuestion(entry, entry.siblingMeanings, choices ? choices - 1 : 3);
@@ -152,12 +163,12 @@ function question(entry, kind, choices) {
 
 function quizSeconds(kind, phrase) {
   if (!phrase) return FISHING.quizSeconds;
-  return kind === 'cloze' || kind === 'pick' || kind === 'read' || kind === 'sense' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
+  return inSentence(kind) || kind === 'pick' || kind === 'read' || kind === 'sense' ? PHRASE_QUIZ.clozeSeconds : PHRASE_QUIZ.meaningSeconds;
 }
 
 const levelOf = (entry) => DECKS[entry.deck].level;
 
-export function createKanjiQuiz() {
+export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
   const views = { kanji: view('kanji', 'Word', 'Fish'), phrase: view('phrase', 'Text', 'Icon') };
   const recent = [];
   let pending = null;
@@ -216,10 +227,24 @@ export function createKanjiQuiz() {
     if (delay !== null) current.closeAt = setTimeout(finish, delay);
   }
 
+  function playClip(ui, clip) {
+    ui.voice.classList.add('playing');
+    const done = () => ui.voice.classList.remove('playing');
+    playVoice(clip, done).then((started) => started || done());
+  }
+
+  function showVoice(ui, clip) {
+    if (!ui.voice) return;
+    ui.voice.classList.remove('playing');
+    ui.voice.hidden = !clip;
+    if (clip) playClip(ui, clip);
+  }
+
   function finish() {
     const current = pending;
     if (!current?.answered) return;
     clearTimeout(current.closeAt);
+    if (current.audio) stopVoice();
     pending = null;
     const ui = current.view;
     if (!ui.dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -236,6 +261,10 @@ export function createKanjiQuiz() {
   }
 
   for (const ui of Object.values(views)) {
+    ui.voice?.addEventListener('click', () => {
+      if (ui.voice.classList.contains('playing')) stopVoice();
+      else if (pending?.view === ui && pending.audio) playClip(ui, pending.audio);
+    });
     ui.close.addEventListener('click', finish);
     ui.dialog.addEventListener('cancel', (event) => {
       event.preventDefault();
@@ -255,7 +284,7 @@ export function createKanjiQuiz() {
       ui.text.replaceChildren(...sentence.nodes);
       return sentence.blanks;
     }
-    if (asked.kind !== 'cloze') {
+    if (!inSentence(asked.kind)) {
       ui.text.className = 'phrase-text single';
       ui.text.replaceChildren(japanese(entry.word));
       return [];
@@ -278,7 +307,8 @@ export function createKanjiQuiz() {
       button.append(tag);
     }
     const label = document.createElement('span');
-    label.append(asked.kind === 'cloze' ? japanese(value) : value);
+    const shown = asked.bare ? plain(value) : value;
+    label.append(inSentence(asked.kind) ? japanese(shown) : shown);
     button.append(label);
     button.addEventListener('click', () => settle(value === pending?.answer, value));
     return button;
@@ -288,16 +318,16 @@ export function createKanjiQuiz() {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = null, choices = 0, closeAfter = null, onAnswer = null, brief = false, exam = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = null, choices = 0, closeAfter = null, onAnswer = null, brief = false, exam = false, cardOnly = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
-      const asked = question(entry, kind, choices);
+      const asked = question(entry, kind, choices, cardOnly ? {} : { listen: exam && voiceReady(), practice: (entry.practice ?? []).filter(practiceOpen) });
       const phrase = asked.kind !== 'meaning' && (DECKS[entry.deck].quiz !== 'vocab' || asked.kind === 'pick');
       const ui = phrase ? views.phrase : views.kanji;
       const lettered = phrase || choices > 0;
       return new Promise((resolve) => {
-        pending = { view: ui, entry, answer: asked.answer, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blanks: [] };
+        pending = { view: ui, entry, answer: asked.answer, audio: asked.audio ?? null, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blanks: [] };
         ui.close.hidden = true;
         ui.dialog.classList.toggle('brief', brief);
         ui.dialog.classList.toggle('exam', exam);
@@ -312,7 +342,7 @@ export function createKanjiQuiz() {
         ui.options.classList.toggle('lettered', lettered);
         ui.options.classList.toggle('meanings', inVietnamese(asked.kind));
         const values = shuffle([asked.answer, ...asked.wrong]);
-        ui.options.classList.toggle('pairs', asked.kind !== 'cloze' && fitsPairs(values));
+        ui.options.classList.toggle('pairs', !inSentence(asked.kind) && fitsPairs(values));
         ui.options.replaceChildren(...values.map((value, i) => optionButton(ui, asked, value, lettered ? LETTERS[i] : null)));
         if (lock > 0) {
           const current = pending;
@@ -333,6 +363,7 @@ export function createKanjiQuiz() {
         }, 100);
         if (!ui.dialog.open) ui.dialog.showModal();
         ui.dialog.focus({ preventScroll: true });
+        showVoice(ui, pending.audio);
       });
     },
     cancel() {
@@ -341,6 +372,7 @@ export function createKanjiQuiz() {
       clearInterval(current.tick);
       clearTimeout(current.closeAt);
       clearTimeout(current.unlock);
+      if (current.audio) stopVoice();
       pending = null;
       hide(current.view);
       current.resolve({ correct: false, entry: current.entry, cancelled: true });

@@ -2483,6 +2483,23 @@ dialog.paper.phrase-quiz {
   height: 26px;
 }
 
+.quiz-voice {
+  flex: none;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 236, 200, 0.18);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.quiz-voice.playing {
+  background: rgba(255, 236, 200, 0.4);
+}
+
 .quiz-icon {
   display: grid;
   place-items: center;
