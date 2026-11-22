@@ -196,7 +196,9 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     const vi = el('p', 'study-example-vi');
     const [only] = lines;
     if (lines.length === 1 && !only[0]) {
-      ja.append(japanese(only[1]));
+      const spoken = only[1].match(/^「([^「」]*)」$/);
+      ja.classList.toggle('spoken', Boolean(spoken));
+      ja.append(japanese(spoken ? spoken[1] : only[1]));
       vi.textContent = only[2];
       return [ja, vi];
     }

@@ -3833,6 +3833,24 @@ dialog.loto-sheet {
   line-break: strict;
 }
 
+.study-example-ja.spoken {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 2px 12px;
+  border-radius: 14px;
+  background: rgba(255, 252, 242, 0.85);
+}
+
+.study-example-ja.spoken::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  bottom: -7px;
+  border-style: solid;
+  border-width: 8px 8px 0 0;
+  border-color: rgba(255, 252, 242, 0.85) transparent transparent transparent;
+}
+
 .study-example-ja ruby {
   ruby-position: over;
 }
