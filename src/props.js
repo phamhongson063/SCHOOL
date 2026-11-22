@@ -14,9 +14,28 @@ const STRAW = 0xe6cf8f;
 const STRAW_DARK = 0xcdb070;
 const MAT_EDGE = 0xb0402c;
 const BOOKS = [0xe0b84e, 0x9c3324, 0x3d5f8f, 0x7a5233, PAPER, 0x5e8a4a];
+const PLANTER = { stone: 0xd8d4cc, rim: 0xb2ada3, soil: 0x4a3324 };
+const SHRUB = [0x3f8636, 0x4f9a3f, 0x47913b];
+const BLOOMS = [0xe8475f, 0xf5d36a, 0xfaf3e6, 0xb07ad9, 0xf08a3c, 0xf28ab2];
 
 function finish(batch, material = vertexMaterial()) {
   return batch.mesh(material, { outline: OUTLINE });
+}
+
+export function flowerBed(b, rand, obstacles, x, z, w, d) {
+  b.add(shapes.rounded(w, 0.42, d, 0.08), PLANTER.stone, { p: [x, 0.21, z] });
+  b.add(shapes.rounded(w + 0.1, 0.06, d + 0.1, 0.03), PLANTER.rim, { p: [x, 0.44, z] });
+  b.add(shapes.box(w - 0.24, 0.02, d - 0.24), PLANTER.soil, { p: [x, 0.48, z] });
+  b.add(shapes.rounded(w - 0.6, 0.55, 0.5, 0.2), SHRUB[1], { p: [x, 0.74, z] });
+  b.add(shapes.rounded(0.5, 0.61, d - 0.6, 0.2), SHRUB[0], { p: [x, 0.77, z] });
+  for (let i = 0; i < 26; i++) {
+    const px = x + (rand() - 0.5) * (w - 0.4);
+    const pz = z + (rand() - 0.5) * (d - 0.4);
+    if (Math.abs(px - x) < 0.35 || Math.abs(pz - z) < 0.35) continue;
+    b.add(shapes.sphere(0.13 + rand() * 0.05, 8, 6), BLOOMS[Math.floor(rand() * BLOOMS.length)], { p: [px, 0.56, pz], s: [1, 0.75, 1] });
+    b.add(shapes.sphere(0.12, 6, 4), SHRUB[2], { p: [px, 0.5, pz], s: [1.3, 0.5, 1.3] });
+  }
+  obstacles.push({ minX: x - w / 2 - 0.05, minZ: z - d / 2 - 0.05, maxX: x + w / 2 + 0.05, maxZ: z + d / 2 + 0.05, minY: 0, maxY: 1.1 });
 }
 
 function inkStrokes(b, rand, cx, y, cz, w, d, count) {

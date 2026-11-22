@@ -1,5 +1,6 @@
 import { CERTIFY } from './config.js';
 import { DECKS } from './studyDecks.js';
+import { certify } from './certify.js';
 import { closable } from './dialog.js';
 import { coins } from './format.js';
 import { setRich } from './goldArt.js';
@@ -34,7 +35,7 @@ export function createInternalDialog() {
     ask(deck, { onAccept, onCancel }) {
       accept = onAccept;
       cancel = onCancel;
-      setRich(text, `Lớp ${DECKS[deck].label} · Lệ phí ${coins(CERTIFY.internalFee)}`);
+      setRich(text, `Lớp ${DECKS[deck].label} · Lệ phí ${coins(certify.fee(deck, CERTIFY.internalFee))}`);
       dialog.showModal();
       yes.focus({ preventScroll: true });
     },

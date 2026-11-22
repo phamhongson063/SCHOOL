@@ -208,6 +208,7 @@ export const CERTIFY = {
   examMinutes: 10,
   pass: 0.9,
   seconds: { n2: 30, sugu1: 60, kanjiN2: 40, kanjiN3: 40, grammarN2: 60 },
+  feeScale: { grammarN2: 2 },
   open: 5 * 60,
   close: 22 * 60,
   dropChance: 0.05,

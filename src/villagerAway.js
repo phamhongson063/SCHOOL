@@ -436,7 +436,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function review(member, ctx, deck, slots) {
     takeSeat(member, deck, slots);
-    if (!member.payReview()) return AWAY.walk;
+    if (!member.payReview(deck)) return AWAY.walk;
     member.drillWeak(deck, CERTIFY.sitSeconds);
     quests.note(member.id, 'study', ctx.day);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
@@ -451,7 +451,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function speak(member, ctx, deck, slots) {
     takeSeat(member, deck, slots);
-    if (!member.payReview(CERTIFY.speakFee)) return AWAY.walk;
+    if (!member.payReview(deck, CERTIFY.speakFee)) return AWAY.walk;
     const run = planSpeech(member.id, deck, CERTIFY.sitSeconds, ctx.day);
     applySpeech(member.id, deck, run.done, run.seconds, ctx.day);
     quests.note(member.id, 'study', ctx.day);
@@ -468,7 +468,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function prep(member, ctx, deck, slots) {
     takeSeat(member, deck, slots);
-    if (!member.payReview()) return AWAY.walk;
+    if (!member.payReview(deck)) return AWAY.walk;
     member.drillCertified(deck, CERTIFY.sitSeconds);
     quests.note(member.id, 'study', ctx.day);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
@@ -477,7 +477,7 @@ export function createAwaySim({ town, contextAt }) {
 
   function study(member, ctx, deck, slots) {
     takeSeat(member, deck, slots);
-    if (!member.payStudy()) return AWAY.walk;
+    if (!member.payStudy(deck)) return AWAY.walk;
     let words = 0;
     for (let at = VIEW; at <= SIT && words < CERTIFY.sitWords && certify.learnLeft(member.id, deck).length; at += VIEW) {
       if (member.learnWord(deck)) words += 1;
@@ -543,9 +543,9 @@ export function createAwaySim({ town, contextAt }) {
     if (canHunt(member, slots)) options.push({ kind: 'hunt', as: 'walk', rate: member.huntGain(need) / (AWAY.walk + HUNT), run: () => hunt(member, slots) });
     if (ctx.night && flyDensity() > 0) options.push({ kind: 'firefly', as: 'walk', rate: member.fireflyGain() / swatMinutes(), run: () => swat(member) });
     const internal = internalDeck(member, clock);
-    if (internal) options.push({ kind: 'study', as: 'study', rate: (MIND.internalValue * member.diligence - CERTIFY.internalFee * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
+    if (internal) options.push({ kind: 'study', as: 'study', rate: (MIND.internalValue * member.diligence - certify.fee(internal, CERTIFY.internalFee) * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
     const deck = studyDeck(member, ctx, slots);
-    if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
+    if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT, deck) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
     if (reviewing) options.push({ kind: 'study', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
     const speaking = speakDeck(member, ctx, slots);

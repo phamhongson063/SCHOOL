@@ -5,6 +5,7 @@ import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { coins } from './format.js';
 import { blessingSlots, economy } from './economy.js';
+import { flowerBed } from './props.js';
 
 const STONE = 0xd8d4cc;
 const STONE_DARK = 0xb2ada3;
@@ -12,7 +13,6 @@ const PATH = 0xe6e1d6;
 const LAWN = 0x6fae4a;
 const LAWN_EDGE = 0xb8b2a6;
 const HEDGE = [0x3f8636, 0x4f9a3f, 0x47913b];
-const BLOOMS = [0xe8475f, 0xf5d36a, 0xfaf3e6, 0xb07ad9, 0xf08a3c, 0xf28ab2];
 const WOOD = 0x8a5a34;
 const IRON = 0x2b2f38;
 const WATER = 0x8fd0e6;
@@ -30,22 +30,6 @@ function rounded(w, h, d, r = 0.05) {
 
 function blockBox(obstacles, minX, minZ, maxX, maxZ, maxY = 1) {
   obstacles.push({ minX, minZ, maxX, maxZ, minY: 0, maxY });
-}
-
-function flowerBed(b, rand, obstacles, x, z, w, d) {
-  b.add(rounded(w, 0.42, d, 0.08), STONE, { p: [x, 0.21, z] });
-  b.add(rounded(w + 0.1, 0.06, d + 0.1, 0.03), STONE_DARK, { p: [x, 0.44, z] });
-  b.add(shapes.box(w - 0.24, 0.02, d - 0.24), 0x4a3324, { p: [x, 0.48, z] });
-  b.add(rounded(w - 0.6, 0.55, 0.5, 0.2), HEDGE[1], { p: [x, 0.74, z] });
-  b.add(rounded(0.5, 0.61, d - 0.6, 0.2), HEDGE[0], { p: [x, 0.77, z] });
-  for (let i = 0; i < 26; i++) {
-    const px = x + (rand() - 0.5) * (w - 0.4);
-    const pz = z + (rand() - 0.5) * (d - 0.4);
-    if (Math.abs(px - x) < 0.35 || Math.abs(pz - z) < 0.35) continue;
-    b.add(shapes.sphere(0.13 + rand() * 0.05, 8, 6), BLOOMS[Math.floor(rand() * BLOOMS.length)], { p: [px, 0.56, pz], s: [1, 0.75, 1] });
-    b.add(shapes.sphere(0.12, 6, 4), HEDGE[2], { p: [px, 0.5, pz], s: [1.3, 0.5, 1.3] });
-  }
-  blockBox(obstacles, x - w / 2 - 0.05, z - d / 2 - 0.05, x + w / 2 + 0.05, z + d / 2 + 0.05, 1.1);
 }
 
 function bench(b, obstacles, x, z, alongZ) {

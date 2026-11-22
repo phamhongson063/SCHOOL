@@ -82,20 +82,20 @@ export class MindBehavior {
     return LAMP_SAVING * MIND.energyCoin * this.diligence;
   }
 
-  studyGain(need, sit) {
-    return MIND.studyValue * this.diligence * sit - CERTIFY.learnFee * need;
+  studyGain(need, sit, deck) {
+    return MIND.studyValue * this.diligence * sit - certify.fee(deck, CERTIFY.learnFee) * need;
   }
 
   reviewGain(need, sit, deck) {
     const fresh = this.studiedToday() ? 0 : MIND.reviewValue * sit;
     const weak = certify.reviewQuestions(this.id, deck).length * MIND.weakValue;
-    return (fresh + weak) * this.diligence - CERTIFY.reviewFee * need;
+    return (fresh + weak) * this.diligence - certify.fee(deck, CERTIFY.reviewFee) * need;
   }
 
   speakGain(need, sit, deck, day) {
     const weak = Math.min(certify.reviewQuestions(this.id, deck).length, SPEAK.dialogs) * MIND.weakValue;
     const dull = 1 - fluency.average(this.id, certify.certified(this.id, deck), day);
-    return (weak + MIND.speakValue * sit * dull) * this.diligence - CERTIFY.speakFee * need;
+    return (weak + MIND.speakValue * sit * dull) * this.diligence - certify.fee(deck, CERTIFY.speakFee) * need;
   }
 
   prepDeckWanted(ctx = this.town.context) {
@@ -103,13 +103,13 @@ export class MindBehavior {
     if (!event || event.phase !== 'open' || !event.entrants.includes(this.id)) return null;
     const left = event.at - ctx.minutes;
     if (left > ARENA.prep.before || left < (CERTIFY.sitSeconds / 60) * 1.5) return null;
-    if (certify.certifiedCount(this.id, event.deck) < ARENA.prep.minCards || this.purse.money < CERTIFY.reviewFee) return null;
+    if (certify.certifiedCount(this.id, event.deck) < ARENA.prep.minCards || this.purse.money < certify.fee(event.deck, CERTIFY.reviewFee)) return null;
     return event.deck;
   }
 
   prepGain(need, sit, deck, day) {
     const dull = 1 - fluency.average(this.id, certify.certified(this.id, deck), day);
-    return MIND.prepValue * sit * dull * this.diligence - CERTIFY.reviewFee * need;
+    return MIND.prepValue * sit * dull * this.diligence - certify.fee(deck, CERTIFY.reviewFee) * need;
   }
 
   answerOdds() {
@@ -183,7 +183,7 @@ export class MindBehavior {
     if (!ctx.night && this.wantsInternal(deck)) {
       const queue = this.town.queues[`teacher:${deck}`];
       const minutes = this.walkMinutes(queue.line[0]) + (MIND.queueSeconds * (queue.members.length + 1)) / 60;
-      const gain = MIND.internalValue * this.diligence - CERTIFY.internalFee * need;
+      const gain = MIND.internalValue * this.diligence - certify.fee(deck, CERTIFY.internalFee) * need;
       return { kind: 'study', minutes, rate: gain / minutes, go: () => this.goInternal(deck) };
     }
     if (!certify.learnLeft(this.id, deck).length) return null;
@@ -193,7 +193,7 @@ export class MindBehavior {
     const sit = CERTIFY.sitSeconds / 60;
     const target = seat ? seat.spot : this.town.seatWait.look(deck);
     const minutes = this.walkMinutes(target) + sit + (waiting ? SELF_STUDY.waitMax / 60 : 0);
-    const gain = this.studyGain(need, sit);
+    const gain = this.studyGain(need, sit, deck);
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
     return { kind: 'study', minutes, rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
   }

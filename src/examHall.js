@@ -75,7 +75,10 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
         const info = document.createElement('span');
         info.className = 'exam-info';
         const reason = blocker(deck, now);
-        info.textContent = reason ?? `${certify.batch(PLAYER, deck).length} ${DECKS[deck].unit} mới · 🎓 ${certify.certifiedCount(PLAYER, deck)}/${certify.deckSize(deck)}`;
+        const fee = certify.examFee(PLAYER, deck);
+        const usual = certify.retaking(PLAYER, deck) ? CERTIFY.retakeFee : CERTIFY.examFee;
+        const feeNote = fee === usual ? '' : ` · Lệ phí ${coins(fee)}`;
+        setRich(info, reason ?? `${certify.batch(PLAYER, deck).length} ${DECKS[deck].unit} mới · 🎓 ${certify.certifiedCount(PLAYER, deck)}/${certify.deckSize(deck)}${feeNote}`);
         info.classList.toggle('short', !!reason && reason === feeShort(deck));
         const button = document.createElement('button');
         button.type = 'button';

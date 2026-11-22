@@ -313,8 +313,11 @@ export const certify = {
   retaking(actor, deck) {
     return examsToday(deckState(actor, deck)) > 0;
   },
+  fee(deck, base) {
+    return base * (CERTIFY.feeScale[deck] ?? 1);
+  },
   examFee(actor, deck) {
-    return this.retaking(actor, deck) ? CERTIFY.retakeFee : CERTIFY.examFee;
+    return this.fee(deck, this.retaking(actor, deck) ? CERTIFY.retakeFee : CERTIFY.examFee);
   },
   beginInternal(actor, deck) {
     if (!this.internalReady(actor, deck)) return null;

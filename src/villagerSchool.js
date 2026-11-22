@@ -48,7 +48,7 @@ function sample(list, count) {
 
 export class SchoolBehavior {
   canTakeInternal(deck) {
-    return certify.internalReady(this.id, deck) && this.purse.money >= CERTIFY.internalFee;
+    return certify.internalReady(this.id, deck) && this.purse.money >= certify.fee(deck, CERTIFY.internalFee);
   }
 
   hallRoom(deck) {
@@ -61,7 +61,7 @@ export class SchoolBehavior {
     let best = null;
     let bestScore = -Infinity;
     for (const deck of DECK_IDS) {
-      const learning = certify.learnLeft(this.id, deck).length > 0;
+      const learning = certify.learnLeft(this.id, deck).length > 0 && this.purse.money >= certify.fee(deck, CERTIFY.learnFee);
       const internal = !ctx.night && this.canTakeInternal(deck);
       if (!learning && !internal) continue;
       const score = (internal && !learning ? 1 : this.hallRoom(deck)) + Math.random() * 0.5;
@@ -74,7 +74,7 @@ export class SchoolBehavior {
   }
 
   studySeatFor(deck, fee = CERTIFY.learnFee) {
-    if (!deck || this.purse.money < fee) return null;
+    if (!deck || this.purse.money < certify.fee(deck, fee)) return null;
     const seats = this.town.studySeats;
     const wait = this.town.seatWait;
     return seats.nearestFree(this.position, this, (seat) => seat.deck === deck && seats.restLeft(seat, this, this.now) <= 0 && (!wait || wait.openTo(seat, this, this.now)));
@@ -83,12 +83,12 @@ export class SchoolBehavior {
   canWaitForSeat(deck) {
     const ctx = this.town.context;
     if (!deck || !this.town.seatWait?.hasRoom(deck) || this.needsSleep(ctx)) return false;
-    return this.purse.money >= CERTIFY.learnFee && certify.learnLeft(this.id, deck).length > 0;
+    return this.purse.money >= certify.fee(deck, CERTIFY.learnFee) && certify.learnLeft(this.id, deck).length > 0;
   }
 
   waitForSeat(deck) {
     const spot = this.town.seatWait.join(deck, this, {
-      ready: () => this.task === 'seatwait' && this.purse.money >= CERTIFY.learnFee && certify.learnLeft(this.id, deck).length > 0,
+      ready: () => this.task === 'seatwait' && this.purse.money >= certify.fee(deck, CERTIFY.learnFee) && certify.learnLeft(this.id, deck).length > 0,
       take: (seat) => this.takeBookedSeat(seat),
     });
     if (!spot) {
@@ -151,6 +151,7 @@ export class SchoolBehavior {
     let bestScore = -Infinity;
     for (const deck of DECK_IDS) {
       if (!certify.certifiedCount(this.id, deck) || certify.learnLeft(this.id, deck).length) continue;
+      if (this.purse.money < certify.fee(deck, CERTIFY.reviewFee)) continue;
       const weak = certify.reviewQuestions(this.id, deck).length;
       if (!weak && studied) continue;
       const score = weak + this.hallRoom(deck) + Math.random() * 0.5;
@@ -168,6 +169,7 @@ export class SchoolBehavior {
     let bestScore = -Infinity;
     for (const deck of SPEAK_DECKS) {
       if (!certify.certifiedCount(this.id, deck) || certify.learnLeft(this.id, deck).length) continue;
+      if (this.purse.money < certify.fee(deck, CERTIFY.speakFee)) continue;
       const score = this.hallRoom(deck) + Math.random() * 0.5;
       if (score > bestScore) {
         bestScore = score;
@@ -305,8 +307,9 @@ export class SchoolBehavior {
   }
 
   beginInternal(deck, pace) {
-    if (!this.canTakeInternal(deck) || !this.purse.spend(CERTIFY.internalFee)) return null;
-    economy.income(NPC.teacher, CERTIFY.internalFee, this.id);
+    const fee = certify.fee(deck, CERTIFY.internalFee);
+    if (!this.canTakeInternal(deck) || !this.purse.spend(fee)) return null;
+    economy.income(NPC.teacher, fee, this.id);
     const keys = certify.beginInternal(this.id, deck) ?? [];
     const count = Math.max(keys.length, Math.ceil((CERTIFY.internalMinutes * 60) / pace));
     while (keys.length < count) {
@@ -381,7 +384,7 @@ export class SchoolBehavior {
   affordsExam(deck) {
     const fee = certify.examFee(this.id, deck);
     if (!certify.retaking(this.id, deck)) return this.purse.money >= fee;
-    return !this.frugal() && this.purse.money >= fee + CERTIFY.retakeReserve;
+    return !this.frugal() && this.purse.money >= fee + certify.fee(deck, CERTIFY.retakeReserve);
   }
 
   goExam() {
@@ -508,7 +511,7 @@ export class SchoolBehavior {
     this.velocity = 0;
     this.state = 'seated';
     if (this.seatRef.study) {
-      if (!(this.reviewing ? this.payReview() : this.payStudy())) {
+      if (!(this.reviewing ? this.payReview(this.seatRef.deck) : this.payStudy(this.seatRef.deck))) {
         this.reviewing = false;
         this.prepping = false;
         this.speaking = false;
@@ -552,7 +555,8 @@ export class SchoolBehavior {
     return this.speaking ? CERTIFY.speakFee : CERTIFY.reviewFee;
   }
 
-  payReview(fee = this.reviewFee()) {
+  payReview(deck, base = this.reviewFee()) {
+    const fee = certify.fee(deck, base);
     if (!this.purse.spend(fee)) return false;
     economy.income(NPC.teacher, fee, this.id);
     absorption.note(this.id, 'study', this.town.context.day);
@@ -560,9 +564,10 @@ export class SchoolBehavior {
     return true;
   }
 
-  payStudy() {
-    if (!this.purse.spend(CERTIFY.learnFee)) return false;
-    economy.income(NPC.teacher, CERTIFY.learnFee, this.id);
+  payStudy(deck) {
+    const fee = certify.fee(deck, CERTIFY.learnFee);
+    if (!this.purse.spend(fee)) return false;
+    economy.income(NPC.teacher, fee, this.id);
     return true;
   }
 

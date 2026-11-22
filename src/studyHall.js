@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
-import { studentFurniture, lantern, textBoard } from './props.js';
+import { flowerBed, studentFurniture, lantern, textBoard } from './props.js';
+import { makeRandom } from './random.js';
 import { tileRoofMeshes, roundedRectShape } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
@@ -15,7 +16,7 @@ export const STUDY_HALLS = [
   { deck: 'sugu1', name: 'Lớp Sugu 1', x: -163.4, front: 43, turn: 0, sign: ['すぐに使える①'], plain: ['すぐに使える①'] },
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
   { deck: 'kanjiN3', name: 'Kanji N3', x: -45, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
-  { deck: 'grammarN2', name: 'Ngữ pháp N2', x: 40, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'] },
+  { deck: 'grammarN2', name: 'Ngữ pháp N2', x: 92, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'], garden: true },
 ].filter((hall) => DECKS[hall.deck]);
 
 const WALL = 0xd9b46a;
@@ -49,6 +50,14 @@ const STONE_LANTERNS = [
   [4.3, -2.7],
 ];
 const COURT = { x0: -5.1, z0: -3.3, x1: 5.1, z1: 0.2 };
+const GARDEN = [
+  [-7.3, -2, 2.4, 2.4],
+  [7.3, -2, 2.4, 2.4],
+  [-6.7, 3.5, 1.6, 3],
+  [6.7, 3.5, 1.6, 3],
+  [-6.7, 8.5, 1.6, 3],
+  [6.7, 8.5, 1.6, 3],
+];
 const COURT_BRICK_TOP = 0.06;
 const STEP_TOP = 0.09;
 const COUPLETS = [
@@ -289,6 +298,10 @@ export function createStudyHall(scene, hall) {
   for (const [lx, lz] of STONE_LANTERNS) {
     stoneLantern(b, lampPaper, lx, lz);
     local.push({ minX: lx - 0.28, maxX: lx + 0.28, minZ: lz - 0.28, maxZ: lz + 0.28, minY: 0, maxY: 1.9 });
+  }
+  if (hall.garden) {
+    const rand = makeRandom(Math.round(hall.x * 100));
+    for (const [lx, lz, w, d] of GARDEN) flowerBed(b, rand, local, lx, lz, w, d);
   }
 
   const group = new THREE.Group();

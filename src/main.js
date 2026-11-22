@@ -1071,7 +1071,7 @@ const examHall = createExamHall({
   onRegister: (deck) => goExamSeat(deck),
   onRetakeReady(deck) {
     const { label, unit } = DECKS[deck];
-    sendQualifyMail(deck, `Bạn rớt khảo thí lớp ${label} nhưng không có ${unit} mới nào cần học lại, được thi lại ngay hôm nay với lệ phí ${coins(CERTIFY.retakeFee)} + ${CERTIFY.examIntellect} 💡 trí lực.`);
+    sendQualifyMail(deck, `Bạn rớt khảo thí lớp ${label} nhưng không có ${unit} mới nào cần học lại, được thi lại ngay hôm nay với lệ phí ${coins(certify.fee(deck, CERTIFY.retakeFee))} + ${CERTIFY.examIntellect} 💡 trí lực.`);
   },
   arenaClash: (now, span) => arena.clash(PLAYER, now, span),
 });
@@ -2371,7 +2371,7 @@ if (purse.sleeping) showSleep(true);
 
 await itemImages;
 await loadingStep(0.9, 'Thắp đèn lồng');
-const mapKey = VERSION === 'dev' ? null : `${VERSION}-${dayOf(context.minutes)}`;
+const mapKey = VERSION === 'dev' ? null : [VERSION, dayOf(context.minutes), ...STUDY_HALLS.map((hall) => hall.deck)].join('-');
 const mapRestored = restoreMap(worldMap.ground, mapKey);
 const releaseRegions = regions.hold();
 await arenaFx.warmUp(renderer, () => renderer.compileAsync(scene, camera)).catch(() => {});

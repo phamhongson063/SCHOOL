@@ -152,7 +152,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function pay(name) {
     if (paid.has(name)) return true;
-    const { fee } = MODES[name];
+    const fee = certify.fee(deckId, MODES[name].fee);
     if (!purse.spend(fee)) {
       showNotice(notEnough(fee));
       return false;
@@ -670,7 +670,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (refusal) return refusal;
     const clash = arenaClash(INTERNAL_SPAN);
     if (clash) return ARENA_CLASH[clash];
-    if (purse.money < CERTIFY.internalFee) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
+    const fee = certify.fee(id, CERTIFY.internalFee);
+    if (purse.money < fee) return `Lệ phí thi là ${coins(fee)}, con chưa đủ tiền.`;
     return null;
   }
 
@@ -678,8 +679,9 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (exams.running) return null;
     const blocker = internalBlocker(id);
     if (blocker) return blocker;
-    if (!purse.spend(CERTIFY.internalFee)) return `Lệ phí thi là ${coins(CERTIFY.internalFee)}, con chưa đủ tiền.`;
-    economy.income(NPC.teacher, CERTIFY.internalFee);
+    const fee = certify.fee(id, CERTIFY.internalFee);
+    if (!purse.spend(fee)) return `Lệ phí thi là ${coins(fee)}, con chưa đủ tiền.`;
+    economy.income(NPC.teacher, fee);
     const results = await exams.run({
       title: 'Thi nội bộ',
       deck: id,
