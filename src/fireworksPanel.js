@@ -1,6 +1,5 @@
-import { amount } from './format.js';
-
 const FLASH_MS = 900;
+const BLANK = '＿';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -11,18 +10,17 @@ function el(tag, className, text) {
 
 export function createFireworksPanel() {
   const panel = document.getElementById('fireworksPanel');
-  const score = document.getElementById('fireworksScore');
   const reading = document.getElementById('fireworksReading');
   const meaning = document.getElementById('fireworksMeaning');
   const slots = document.getElementById('fireworksSlots');
   const bar = document.getElementById('fireworksBar');
   const flash = document.getElementById('fireworksFlash');
   let shownWord = null;
-  let shownFill = '';
+  let shownFill = null;
   let flashTimer = 0;
 
   function buildSlots(count) {
-    slots.replaceChildren(...Array.from({ length: count }, () => el('span', 'fireworks-slot')));
+    slots.replaceChildren(...Array.from({ length: count }, () => el('span', 'fireworks-slot', BLANK)));
   }
 
   return {
@@ -33,7 +31,7 @@ export function createFireworksPanel() {
     get open() {
       return !panel.hidden;
     },
-    render({ word, reading: kana, meaning: gloss, size, filled, left, limit, points }) {
+    render({ word, reading: kana, meaning: gloss, size, filled, left, limit }) {
       if (word !== shownWord) {
         shownWord = word;
         shownFill = null;
@@ -45,13 +43,12 @@ export function createFireworksPanel() {
       if (fill !== shownFill) {
         shownFill = fill;
         [...slots.children].forEach((slot, i) => {
-          slot.textContent = filled[i] ?? '';
+          slot.textContent = filled[i] ?? BLANK;
           slot.classList.toggle('filled', i < filled.length);
           slot.classList.toggle('next', i === filled.length);
         });
       }
       bar.style.transform = `scaleX(${limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0})`;
-      score.textContent = `🎆 ${amount(points)}`;
     },
     flash(kind, text) {
       flash.textContent = text;

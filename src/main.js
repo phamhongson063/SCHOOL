@@ -2281,7 +2281,6 @@ function shootFirework(clientX, clientY) {
     fireworksPanel.flash('wrong', 'Sai!');
   } else if (outcome === 'done') {
     uiSounds.correct();
-    fireworksPanel.flash('right', 'Đúng!');
   } else uiSounds.pop();
   return true;
 }
@@ -2369,13 +2368,13 @@ function updateFireworks(dt, t) {
       filled: word.filled,
       left: word.left,
       limit: word.limit,
-      points: word.score,
     });
   } else {
     fireworksShow.setWord(null, []);
     fireworksPanel.show(false);
   }
   fireworksWatching = watching;
+  document.body.classList.toggle('fireworks-watch', watching);
   fireworksShow.update(dt, t);
   if (!hasEntered()) return;
   remindFireworks(now);

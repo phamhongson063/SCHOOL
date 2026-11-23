@@ -28,7 +28,7 @@ const LIKE = (() => {
 })();
 
 export const glyphsOf = (key) => Array.from(unitOf(key)?.word ?? '');
-export const wordPoints = (key) => glyphsOf(key).length;
+export const wordPoints = () => 1;
 const shotOf = () => LANTERN.tapSeconds + FIREWORKS.aimSeconds;
 export const shotSeconds = (key) => glyphsOf(key).length * shotOf();
 const missSeconds = () => shotOf();
