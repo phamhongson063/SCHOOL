@@ -30,7 +30,7 @@ const ODDS_MINUTES = 10;
 
 const ids = (list) => (Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []);
 const freshPlay = () => ({ index: 0, filled: [], since: null, missed: false, score: 0, words: 0, lastAt: null, glyphs: 0, spent: 0 });
-const blankShow = (day) => ({ day, phase: 'open', entrants: [], joinedAt: {}, keys: {}, runs: {}, cursor: {}, play: {}, pot: 0, places: [] });
+const blankShow = (day) => ({ day, start: FIREWORKS.start, phase: 'open', entrants: [], joinedAt: {}, keys: {}, runs: {}, cursor: {}, play: {}, pot: 0, places: [] });
 const isCursor = (raw) => raw && Number.isInteger(raw.index) && raw.index >= 0 && Number.isFinite(raw.end) && (raw.ok === 0 || raw.ok === 1);
 
 function cleanPlay(raw) {
@@ -51,7 +51,7 @@ function cleanPlaces(raw) {
 }
 
 function cleanShow(raw) {
-  if (!raw || typeof raw !== 'object' || !Number.isInteger(raw.day) || !PHASES.includes(raw.phase)) return null;
+  if (!raw || typeof raw !== 'object' || !Number.isInteger(raw.day) || !PHASES.includes(raw.phase) || raw.start !== FIREWORKS.start) return null;
   const entrants = ids(raw.entrants);
   const shared = Array.isArray(raw.keys) ? ids(raw.keys).filter((key) => unitOf(key)) : null;
   const keys = {};
@@ -69,7 +69,7 @@ function cleanShow(raw) {
   for (const [id, value] of Object.entries(raw.play ?? {})) if (entrants.includes(id)) play[id] = cleanPlay(value);
   const joinedAt = Object.fromEntries(entrants.filter((id) => Number.isFinite(raw.joinedAt?.[id])).map((id) => [id, raw.joinedAt[id]]));
   const cursor = Object.fromEntries(entrants.filter((id) => isCursor(raw.cursor?.[id])).map((id) => [id, { ...raw.cursor[id] }]));
-  return { day: raw.day, phase: raw.phase, entrants, joinedAt, keys, runs, cursor, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
+  return { day: raw.day, start: FIREWORKS.start, phase: raw.phase, entrants, joinedAt, keys, runs, cursor, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
 }
 
 function cleanLast(raw) {

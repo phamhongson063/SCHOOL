@@ -9,15 +9,9 @@ function el(tag, className, text) {
   return node;
 }
 
-const clockOf = (seconds) => {
-  const total = Math.max(0, Math.ceil(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-};
-
 export function createFireworksPanel() {
   const panel = document.getElementById('fireworksPanel');
   const score = document.getElementById('fireworksScore');
-  const clock = document.getElementById('fireworksClock');
   const reading = document.getElementById('fireworksReading');
   const meaning = document.getElementById('fireworksMeaning');
   const slots = document.getElementById('fireworksSlots');
@@ -39,7 +33,7 @@ export function createFireworksPanel() {
     get open() {
       return !panel.hidden;
     },
-    render({ word, reading: kana, meaning: gloss, size, filled, left, limit, points, showLeft }) {
+    render({ word, reading: kana, meaning: gloss, size, filled, left, limit, points }) {
       if (word !== shownWord) {
         shownWord = word;
         shownFill = null;
@@ -58,7 +52,6 @@ export function createFireworksPanel() {
       }
       bar.style.transform = `scaleX(${limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0})`;
       score.textContent = `🎆 ${amount(points)}`;
-      clock.textContent = clockOf(showLeft);
     },
     flash(kind, text) {
       flash.textContent = text;

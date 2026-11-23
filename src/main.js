@@ -2370,7 +2370,6 @@ function updateFireworks(dt, t) {
       left: word.left,
       limit: word.limit,
       points: word.score,
-      showLeft: Math.max(0, (fireworksEnd(day) - now) * 60),
     });
   } else {
     fireworksShow.setWord(null, []);
