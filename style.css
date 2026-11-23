@@ -7924,9 +7924,9 @@ body.in-duel > :not(#app):not(#duelDialog) {
   bottom: calc(var(--safe-bottom) + var(--pill-gap) + var(--bar-height) + 8px);
   z-index: var(--z-hud);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 6px 14px;
+  gap: 12px;
   width: min(340px, calc(100vw - 32px));
   box-sizing: border-box;
   padding: 8px 14px 9px;
@@ -7980,7 +7980,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
 
 .fireworks-slots {
   display: flex;
-  gap: 1px;
+  gap: 3px;
   font: 800 24px/1 "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 }
 
@@ -7996,19 +7996,47 @@ body.in-duel > :not(#app):not(#duelDialog) {
   color: var(--cream);
 }
 
-.fireworks-bar {
-  grid-column: 1 / -1;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+.fireworks-timer {
+  width: 26px;
+  height: 26px;
+  transform: rotate(-90deg);
 }
 
-.fireworks-bar span {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #ff7ab8, #7fe3ff);
-  transform-origin: left;
+.fireworks-timer circle {
+  fill: none;
+  stroke-width: 4;
+}
+
+.fireworks-timer-track {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.fireworks-timer-ring {
+  stroke: #7fe3ff;
+  stroke-linecap: round;
+}
+
+.fireworks-timer.low .fireworks-timer-ring {
+  stroke: #ff6b8a;
+}
+
+.fireworks-timer.low {
+  animation: fireworks-tick 0.6s ease-in-out infinite;
+}
+
+@keyframes fireworks-tick {
+  0%, 100% {
+    transform: rotate(-90deg) scale(1);
+  }
+  50% {
+    transform: rotate(-90deg) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fireworks-timer.low {
+    animation: none;
+  }
 }
 
 .fireworks-flash {

@@ -1,5 +1,7 @@
 const FLASH_MS = 900;
-const BLANK = '＿';
+const BLANK = '□';
+const LOW_SECONDS = 5;
+const RING = 2 * Math.PI * 15;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -13,7 +15,9 @@ export function createFireworksPanel() {
   const reading = document.getElementById('fireworksReading');
   const meaning = document.getElementById('fireworksMeaning');
   const slots = document.getElementById('fireworksSlots');
-  const bar = document.getElementById('fireworksBar');
+  const timer = document.getElementById('fireworksTimer');
+  const ring = document.getElementById('fireworksRing');
+  ring.style.strokeDasharray = `${RING}`;
   const flash = document.getElementById('fireworksFlash');
   let shownWord = null;
   let shownFill = null;
@@ -48,7 +52,9 @@ export function createFireworksPanel() {
           slot.classList.toggle('next', i === filled.length);
         });
       }
-      bar.style.transform = `scaleX(${limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0})`;
+      const share = limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0;
+      ring.style.strokeDashoffset = `${RING * (1 - share)}`;
+      timer.classList.toggle('low', left <= LOW_SECONDS);
     },
     flash(kind, text) {
       flash.textContent = text;

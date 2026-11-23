@@ -2637,7 +2637,7 @@ function applyNight(k) {
   streetLamps.setNight(k);
 }
 renderer.setAnimationLoop((time) => {
-  const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active;
+  const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active || fireworksShow.visible;
   if (busy) lastInput = performance.now();
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const watching = scenePopupOpen();

@@ -283,9 +283,12 @@
     <ol class="lantern-board-list"></ol>
   </div>
   <div id="fireworksPanel" class="fireworks-panel" hidden>
-    <div class="fireworks-bar"><span id="fireworksBar"></span></div>
     <p class="fireworks-clue"><span id="fireworksReading" class="fireworks-reading" lang="ja"></span><span id="fireworksMeaning" class="fireworks-meaning"></span></p>
     <span id="fireworksSlots" class="fireworks-slots" lang="ja"></span>
+    <svg id="fireworksTimer" class="fireworks-timer" viewBox="0 0 36 36" aria-hidden="true">
+      <circle class="fireworks-timer-track" cx="18" cy="18" r="15" />
+      <circle id="fireworksRing" class="fireworks-timer-ring" cx="18" cy="18" r="15" />
+    </svg>
     <p id="fireworksFlash" class="fireworks-flash" role="status"></p>
   </div>
   <div id="picker" class="picker" role="dialog" hidden>
