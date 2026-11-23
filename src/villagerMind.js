@@ -1,10 +1,11 @@
 import { between } from './random.js';
-import { ARENA, BLESSING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, SPEAK, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, TRAINING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, SPEAK, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
 import { blessingSlots, economy } from './economy.js';
 import { blessingAskScore } from './blessingRules.js';
+import { trainingGain } from './training.js';
 import { averageYield } from './market.js';
 import { trade } from './trade.js';
 import { SELF_STUDY } from './villagerData.js';
@@ -124,6 +125,18 @@ export class MindBehavior {
     return (coins - BLESSING.fee) * need + (score / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
   }
 
+  trainingGain(need) {
+    return trainingGain({ odds: this.answerOdds(), diligence: this.diligence, need, short: this.examShortfall() });
+  }
+
+  trainingOption(ctx, need) {
+    if (!this.trainingWanted(ctx)) return null;
+    const seat = this.town.seats.nearestFree(this.position, this);
+    if (!seat) return null;
+    const minutes = this.walkMinutes(seat.spot) + TRAINING.minutes;
+    return { kind: 'study', minutes, rate: this.trainingGain(need) / minutes, go: () => this.goTraining() };
+  }
+
   blessingOption(ctx, need) {
     const blessing = this.town.blessing;
     if (!blessing?.active(ctx.minutes) || blessing.member(this.id, ctx.minutes) || this.purse.money < BLESSING.fee) return null;
@@ -233,7 +246,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.speakOption(ctx, need), this.prepOption(ctx, need), this.blessingOption(ctx, need), this.lotoOption(ctx, need), this.fireworksOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.speakOption(ctx, need), this.prepOption(ctx, need), this.trainingOption(ctx, need), this.blessingOption(ctx, need), this.lotoOption(ctx, need), this.fireworksOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

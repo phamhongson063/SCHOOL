@@ -21,6 +21,8 @@ export function atGameTime(minutes, run) {
 
 export const dayOf = (minutes) => Math.floor(minutes / DAY_MINUTES);
 
+export const weekdayOf = (day) => new Date(day * DAY_MINUTES * 60000).getUTCDay();
+
 export const minuteOfDay = (minutes) => ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
 
 export const realSeconds = (gameMinutes) => gameMinutes * 60;

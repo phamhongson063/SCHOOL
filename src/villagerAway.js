@@ -1,4 +1,4 @@
-import { AWAY, BANK, BLESSING, CERTIFY, FIREWORKS, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { AWAY, BANK, BLESSING, CERTIFY, FIREWORKS, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, TRAINING, VENDOR, VILLAGER, WILDLIFE } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
@@ -18,6 +18,7 @@ import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 import { applySpeech, planSpeech } from './speaking.js';
 import { lotoEnd, lotoGatherAt, lotoMinutes, lotoSignOpen } from './lotoRules.js';
 import { fireworksSignOpen, fireworksStayMinutes, fireworksWindow } from './fireworksSchedule.js';
+import { payTraining, trainingAnswers, trainingIntellect } from './training.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -505,6 +506,20 @@ export function createAwaySim({ town, contextAt }) {
     return from - clock + minutes;
   }
 
+  function trainingPlan(member, clock) {
+    if (!member.trainingWanted(contextAt(clock))) return null;
+    const seat = examSeats.find((bookings) => seatFree(bookings, clock, clock + AWAY.walk + TRAINING.minutes));
+    return seat ? { seat } : null;
+  }
+
+  function train(member, clock, { seat }) {
+    if (!payTraining(member.purse, member.id)) return AWAY.walk;
+    const gained = trainingIntellect(trainingAnswers(() => member.answerPool()));
+    if (gained > 0) member.purse.addIntellect(gained);
+    seat.push([clock, clock + AWAY.walk + TRAINING.minutes]);
+    return AWAY.walk + TRAINING.minutes;
+  }
+
   function lotoPlan(member, clock) {
     const loto = town.loto;
     if (!loto || !lotoSignOpen(clock) || loto.joined(member.id, clock) || member.purse.money < LOTO.fee) return null;
@@ -568,6 +583,8 @@ export function createAwaySim({ town, contextAt }) {
     if (ctx.night && flyDensity() > 0) options.push({ kind: 'firefly', as: 'walk', rate: member.fireflyGain() / swatMinutes(), run: () => swat(member) });
     const internal = internalDeck(member, clock);
     if (internal) options.push({ kind: 'study', as: 'study', rate: (MIND.internalValue * member.diligence - certify.fee(internal, CERTIFY.internalFee) * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
+    const training = trainingPlan(member, clock);
+    if (training) options.push({ kind: 'study', as: 'study', rate: member.trainingGain(need) / (AWAY.walk + TRAINING.minutes), run: () => train(member, clock, training) });
     const deck = studyDeck(member, ctx, slots);
     if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT, deck) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);

@@ -45,7 +45,8 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText, dateText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, FIREWORKS } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, FIREWORKS, TRAINING } from './config.js';
+import { trainingEarned, trainingIntellect } from './training.js';
 import { createFireworks } from './fireworks.js';
 import { createFireworksShow } from './fireworksShow.js';
 import { createFireworksPanel } from './fireworksPanel.js';
@@ -1095,6 +1096,7 @@ const examHall = createExamHall({
   minutes: () => context.minutes,
   say: (text) => sayPlayer(text, 3),
   onRegister: (deck) => goExamSeat(deck),
+  onTrain: () => goExamSeat(null, 'training'),
   onRetakeReady(deck) {
     const { label, unit } = DECKS[deck];
     sendQualifyMail(deck, `Bạn rớt khảo thí lớp ${label} nhưng không có ${unit} mới nào cần học lại, được thi lại ngay hôm nay với lệ phí ${coins(certify.fee(deck, CERTIFY.retakeFee))} + ${CERTIFY.examIntellect} 💡 trí lực.`);
@@ -1279,7 +1281,7 @@ function beginInternalExam() {
 
 let examTrip = null;
 
-function goExamSeat(deck) {
+function goExamSeat(deck, kind = 'exam') {
   if (examTrip && !examTrip.started) seats.unreserve(examTrip.seat, 'player');
   examTrip = null;
   const seat = seats.nearestFree(player.position, 'player');
@@ -1288,7 +1290,7 @@ function goExamSeat(deck) {
     return;
   }
   seats.reserve(seat, 'player');
-  examTrip = { deck, seat, started: false };
+  examTrip = { deck, kind, seat, started: false };
   player.requestSeat(seat);
 }
 
@@ -1305,6 +1307,10 @@ function beginExamSitting() {
   const trip = examTrip;
   if (!trip || trip.started || player.seat !== trip.seat) return;
   trip.started = true;
+  if (trip.kind === 'training') {
+    beginTraining(trip);
+    return;
+  }
   sitDim.classList.add('on');
   setTimeout(async () => {
     if (player.seat === trip.seat) await examHall.sit(trip.deck);
@@ -1313,6 +1319,65 @@ function beginExamSitting() {
     if (player.seat === trip.seat) player.standUp();
   }, SIT_DIM_MS);
 }
+let training = null;
+
+function beginTraining(trip) {
+  examTrip = null;
+  if (!examHall.startTraining()) {
+    player.standUp();
+    return;
+  }
+  training = { seat: trip.seat, until: context.minutes + TRAINING.minutes, correct: 0, quizIn: BLESSING.firstQuiz, ask: null };
+}
+
+function endTraining() {
+  const done = training;
+  training = null;
+  if (done.ask && !done.ask.answered) kanjiQuiz.cancel();
+  if (player.posture === 'seated' && player.seat === done.seat) player.standUp();
+  const gained = trainingIntellect(done.correct);
+  sayPlayer(`Rèn luyện xong: đúng ${done.correct} câu${gained > 0 ? `, +${gained} 💡` : ''}.`, 3);
+}
+
+function trainingClock() {
+  const left = Math.max(0, Math.ceil((training.until - context.minutes) * 60));
+  return `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+
+function updateTraining(dt) {
+  if (!training) return;
+  if (purse.sleeping || player.posture !== 'seated' || player.seat !== training.seat || context.minutes >= training.until) {
+    endTraining();
+    return;
+  }
+  if (kanjiQuiz.open || quiz.open || popupOpen()) return;
+  training.quizIn -= dt;
+  if (training.quizIn > 0) return;
+  training.quizIn = BLESSING.quizSeconds;
+  const keys = certify.pool(PLAYER);
+  if (!keys.length) return;
+  const session = training;
+  const ask = (session.ask = { answered: false });
+  const onAnswer = (right) => {
+    ask.answered = true;
+    if (!right) {
+      uiSounds.wrong();
+      return;
+    }
+    uiSounds.correct();
+    session.correct += 1;
+    const earned = trainingEarned(session.correct);
+    if (earned > 0) {
+      purse.addIntellect(earned);
+      regen.intellect(earned, player.position);
+    }
+  };
+  kanjiQuiz.ask({ keys, icon: '🏋️', note: `✅ ${session.correct}`, clock: trainingClock(), quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, lock: BLESSING.answerLock, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer }).then((result) => {
+    if (session.ask === ask) session.ask = null;
+    if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
+  });
+}
+
 const TEACHER_MENU = [
   { id: 'book', name: 'Đặt chỗ', icon: '🪑', art: 'scroll' },
   { id: 'internal', name: 'Kiểm tra nội bộ', icon: '📝', art: 'scroll' },
@@ -2745,6 +2810,7 @@ renderer.setAnimationLoop((time) => {
   updateLoto();
   updateFireworks(dt, t);
   updateBlessingQuiz(dt);
+  updateTraining(dt);
   updateBlessingRewards();
   remindBlessing();
   callArena();

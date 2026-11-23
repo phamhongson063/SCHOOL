@@ -33,7 +33,8 @@ export function arenaLines(event, nameOf) {
   const lines = [];
   const place = event.places.find((item) => item.id === PLAYER);
   const exit = exitOf(event, PLAYER);
-  const prize = place?.money > 0 ? `, nhận ${coins(place.money)}` : '';
+  const gifts = [place?.money > 0 ? coins(place.money) : '', place?.intellect > 0 ? `+${place.intellect} 💡 trí lực` : ''].filter(Boolean).join(' · ');
+  const prize = gifts ? `, nhận ${gifts}` : '';
   if (place && place.rank <= 3) {
     lines.push(`Lôi đài ${clockText(event.at)}: ngươi đạt hạng ${place.rank}${prize}.`);
   } else if (exit) {

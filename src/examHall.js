@@ -1,4 +1,4 @@
-import { CERTIFY } from './config.js';
+import { CERTIFY, TRAINING } from './config.js';
 import { DECKS, DECK_IDS, unitOf, plainText, sentenceDeck } from './studyDecks.js';
 import { certify } from './certify.js';
 import { closable } from './dialog.js';
@@ -9,6 +9,7 @@ import { hoursText, isOpenAt, dayOf } from './clock.js';
 import { traits } from './traits.js';
 import { PLAYER } from './inventory.js';
 import { NPC } from './npcIds.js';
+import { TRAINING_SPAN, payTraining } from './training.js';
 
 export const EXAM_HOURS = { open: CERTIFY.open, close: CERTIFY.close };
 
@@ -41,7 +42,7 @@ function examLines(deck, result) {
   return lines;
 }
 
-export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister, onRetakeReady, arenaClash = () => null }) {
+export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister, onTrain, onRetakeReady, arenaClash = () => null }) {
   const dialog = document.getElementById('examDialog');
   const note = document.getElementById('examNote');
   const list = document.getElementById('examList');
@@ -56,6 +57,41 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
     if (!certify.qualified(PLAYER, deck)) return 'Bạn chưa đủ điều kiện: cần đậu thi nội bộ ở phòng học trước.';
     if (purse.intellect < CERTIFY.examIntellect) return `Bạn không đủ điều kiện: cần ${CERTIFY.examIntellect} 💡 trí lực (đang có ${purse.intellect}).`;
     return feeShort(deck);
+  }
+
+  function trainingBlocker(now) {
+    if (!examOpen(now)) return `Trường khảo thí chỉ mở cửa ${hoursText(EXAM_HOURS)}.`;
+    const clash = arenaClash(now, TRAINING_SPAN);
+    if (clash) return CLASH_REASONS[clash];
+    if (!certify.pool(PLAYER).length) return 'Bạn chưa có từ nào để rèn luyện.';
+    return purse.money < TRAINING.fee ? `Bạn không đủ tiền lệ phí ${coins(TRAINING.fee)}.` : null;
+  }
+
+  function trainingRow(now) {
+    const row = document.createElement('div');
+    row.className = 'exam-row';
+    const name = document.createElement('strong');
+    name.textContent = 'Tổng rèn luyện';
+    const info = document.createElement('span');
+    info.className = 'exam-info';
+    const reason = trainingBlocker(now);
+    setRich(info, reason ?? `${TRAINING.minutes} phút · Lệ phí ${coins(TRAINING.fee)}`);
+    info.classList.toggle('short', !!reason && purse.money < TRAINING.fee);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sched-primary';
+    button.textContent = 'Rèn luyện';
+    button.disabled = !!reason || exams.running;
+    button.addEventListener('click', () => {
+      if (trainingBlocker(minutes()) || exams.running) {
+        render();
+        return;
+      }
+      dialog.close();
+      onTrain?.();
+    });
+    row.append(name, info, button);
+    return row;
   }
 
   function feeShort(deck) {
@@ -89,6 +125,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
         row.append(name, info, button);
         return row;
       }),
+      trainingRow(now),
     );
   }
 
@@ -142,5 +179,13 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
       dialog.showModal();
     },
     sit,
+    startTraining() {
+      const reason = trainingBlocker(minutes());
+      if (reason) {
+        say?.(reason);
+        return false;
+      }
+      return payTraining(purse);
+    },
   };
 }

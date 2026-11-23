@@ -1,7 +1,8 @@
-import { ARENA, DAYLIGHT } from './config.js';
+import { ARENA, DAYLIGHT, MIND } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
+import { traits } from './traits.js';
 import { economy } from './economy.js';
 import { DECKS } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
@@ -9,6 +10,7 @@ import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 import { shuffle } from './random.js';
+import { arenaStarts } from './arenaSchedule.js';
 
 const KEY = worldKey('arena');
 const DATA_VERSION = 1;
@@ -53,7 +55,7 @@ function slotOf(now) {
   const day = dayOf(now);
   let best = null;
   for (const d of [day - 1, day, day + 1]) {
-    for (const start of ARENA.starts) {
+    for (const start of arenaStarts(d)) {
       const at = d * DAY_MINUTES + start;
       if (at - ARENA.lead <= now && (best === null || at > best)) best = at;
     }
@@ -65,7 +67,7 @@ export function nextStart(now) {
   const day = dayOf(now);
   let best = null;
   for (const d of [day, day + 1]) {
-    for (const start of ARENA.starts) {
+    for (const start of arenaStarts(d)) {
       const at = d * DAY_MINUTES + start;
       if (at > now && (best === null || at < best)) best = at;
     }
@@ -382,8 +384,9 @@ export function createArena({ ledger, roster = () => [] }) {
       const rank = id === final.winner ? 1 : lost ? event.rounds.find((round) => round.includes(lost)).length + 1 : null;
       const fought = mine.some((match) => match.a && match.b && match.forfeit !== id);
       const wins = mine.filter((match) => match.winner === id).length;
+      const fights = mine.filter((match) => match.winner === id && match.a && match.b).length;
       const weight = fought ? base + perWin * wins + (rank === 1 ? champion : 0) : 0;
-      return { rank, id, weight };
+      return { rank, id, weight, fights };
     }).filter((place) => place.rank !== null);
   }
 
@@ -393,12 +396,14 @@ export function createArena({ ledger, roster = () => [] }) {
     const drafted = new Set(event.drafted ?? []);
     let paid = 0;
     event.places = places
-      .map(({ rank, id, weight }) => {
+      .map(({ rank, id, weight, fights }) => {
         const money = total > 0 ? Math.floor((event.pot * weight) / total) : 0;
         const cut = drafted.has(id) ? Math.round(money * ARENA.draftCut) : 0;
+        const intellect = fights * ARENA.intellectPerWin;
         economy.payArena(ledger.purse(id), money, cut);
+        if (intellect > 0) ledger.purse(id).addIntellect(intellect);
         paid += money;
-        return { rank, id, money: money - cut };
+        return { rank, id, money: money - cut, intellect };
       })
       .sort((a, b) => a.rank - b.rank);
     economy.returnArena(event.pot - paid);
@@ -450,14 +455,19 @@ export function createArena({ ledger, roster = () => [] }) {
     return event.rounds[event.round]?.find((match) => match.live && sideOf(match, id)) ?? null;
   }
 
-  function prizeShare(event, id) {
+  function outlook(event, id) {
     const strength = new Map(roster().map((who) => [who, certify.certifiedCount(who, event.deck) + 1]));
     const power = (who) => strength.get(who) ?? certify.certifiedCount(who, event.deck) + 1;
     const rivals = event.entrants.filter((who) => who !== id);
     const taken = new Set([id, ...rivals]);
     const hopefuls = draftOrder(roster().filter((who) => !taken.has(who) && !isHuman(who)));
     const field = [...rivals, ...hopefuls].slice(0, capacityOf(event) - 1);
-    return power(id) / field.reduce((sum, who) => sum + power(who), power(id));
+    const total = field.reduce((sum, who) => sum + power(who), 0);
+    const odds = field.length ? power(id) / (power(id) + total / field.length) : 1;
+    const rounds = Math.ceil(Math.log2(Math.max(2, field.length + 1)));
+    let wins = 0;
+    for (let k = 1; k <= rounds; k++) wins += odds ** k;
+    return { share: power(id) / (total + power(id)), wins };
   }
 
   function blocked(id) {
@@ -515,7 +525,9 @@ export function createArena({ ledger, roster = () => [] }) {
       thought.set(id, now);
       if (ledger.purse(id).money < ARENA.fee + npc.reserve) return false;
       const prize = economy.arenaPrize(event.at) + event.pot;
-      return prize * prizeShare(event, id) - cost > ARENA.fee && Math.random() < npc.eager;
+      const { share, wins } = outlook(event, id);
+      const intellect = wins * ARENA.intellectPerWin * MIND.intellectValue * traits.diligence(id);
+      return prize * share + intellect - cost > ARENA.fee && Math.random() < npc.eager;
     },
     holdOf(id, from, to) {
       const event = state.event;

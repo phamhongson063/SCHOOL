@@ -1,7 +1,5 @@
 import { FIREWORKS } from './config.js';
-import { DAY_MINUTES, dayOf } from './clock.js';
-
-const weekdayOf = (day) => new Date(day * DAY_MINUTES * 60000).getUTCDay();
+import { DAY_MINUTES, dayOf, weekdayOf } from './clock.js';
 
 export const fireworksSlots = (day) => FIREWORKS.slots.filter((slot) => !slot.weekdays || slot.weekdays.includes(weekdayOf(day)));
 export const slotStarts = (day) => fireworksSlots(day).map((slot) => slot.start);

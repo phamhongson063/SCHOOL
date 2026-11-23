@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { CERTIFY } from './config.js';
+import { BLESSING, CERTIFY, TRAINING } from './config.js';
 import { certify } from './certify.js';
 import { DECK_IDS } from './studyDecks.js';
 import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examHall.js';
@@ -11,6 +11,8 @@ import { traits } from './traits.js';
 import { quests } from './quests.js';
 import { NPC, classTeacherOf } from './npcIds.js';
 import { SPEAK_DECKS, applySpeech, planSpeech } from './speaking.js';
+import { TRAINING_SPAN, payTraining, trainingEarned, trainingThink } from './training.js';
+import { realSeconds } from './clock.js';
 
 const INTERNAL_SEAT_RETRY = 1;
 
@@ -381,6 +383,81 @@ export class SchoolBehavior {
     return DECK_IDS.find((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck) && this.affordsExam(deck)) ?? null;
   }
 
+  trainingWanted(ctx) {
+    if (!this.seated || ctx.night || !examOpen(ctx.minutes)) return false;
+    if (this.town.arena?.clash(this.id, ctx.minutes, TRAINING_SPAN)) return false;
+    return this.purse.money >= TRAINING.fee && certify.pool(this.id).length > 0;
+  }
+
+  examShortfall() {
+    const short = CERTIFY.examIntellect - this.purse.intellect;
+    if (short <= 0) return 0;
+    return DECK_IDS.some((deck) => certify.qualified(this.id, deck) && !certify.examTaken(this.id, deck)) ? short : 0;
+  }
+
+  goTraining() {
+    const seat = this.trainingWanted(this.town.context) ? this.town.seats.nearestFree(this.position, this) : null;
+    this.cancel();
+    if (!seat) {
+      this.task = null;
+      this.wait(between(2, 4));
+      return;
+    }
+    this.task = 'training';
+    this.town.seats.reserve(seat, this);
+    this.targetSeat = seat;
+    this.travel(seat.spot, {
+      then: () => this.claimSeat(this.town.seats, () => this.goTraining()),
+      fail: () => {
+        this.cancel();
+        this.task = null;
+        this.wait(between(1, 2));
+      },
+    });
+  }
+
+  startTraining() {
+    if (!payTraining(this.purse, this.id)) {
+      this.rise(() => {
+        this.task = null;
+        this.think();
+      }, between(0.5, 2));
+      return;
+    }
+    this.training = { until: this.now + realSeconds(TRAINING.minutes), at: this.now + BLESSING.firstQuiz, answerAt: null, correct: 0 };
+    this.studying = true;
+  }
+
+  trainingUpdate(t) {
+    const run = this.training;
+    if (!run) return;
+    if (t >= run.until) {
+      this.training = null;
+      this.rise(() => {
+        this.task = null;
+        this.think();
+      }, between(0.3, 1.5));
+      return;
+    }
+    if (run.answerAt === null) {
+      if (t < run.at) return;
+      const thinking = trainingThink();
+      run.answerAt = t + thinking;
+      this.say('🤔', thinking);
+      return;
+    }
+    if (t < run.answerAt) return;
+    run.answerAt = null;
+    run.at = t + BLESSING.quizSeconds;
+    if (!this.answerPool()) return;
+    run.correct += 1;
+    const earned = trainingEarned(run.correct);
+    if (earned > 0) {
+      this.purse.addIntellect(earned);
+      this.say('💡', 1.6);
+    } else this.say('✓', 1.2);
+  }
+
   affordsExam(deck) {
     const fee = certify.examFee(this.id, deck);
     if (!certify.retaking(this.id, deck)) return this.purse.money >= fee;
@@ -532,6 +609,10 @@ export class SchoolBehavior {
     }
     if (this.task === 'exam') {
       this.startExam();
+      return;
+    }
+    if (this.task === 'training') {
+      this.startTraining();
       return;
     }
     if (this.task === 'internal') {

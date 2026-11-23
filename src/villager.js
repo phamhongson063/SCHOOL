@@ -391,6 +391,7 @@ export class Villager {
     this.studying = false;
     this.examResults = null;
     this.examDeck = null;
+    this.training = null;
     this.internalResults = null;
     this.internalDeck = null;
     this.lyingDown = false;
@@ -642,6 +643,7 @@ export class Villager {
     const s = this.seated;
     if (this.task === 'selfstudy') this.selfStudyUpdate(t);
     if (this.task === 'exam') this.examUpdate(t);
+    if (this.task === 'training') this.trainingUpdate(t);
     if (this.task === 'internal') this.internalUpdate(t);
     this.seatBubble.update(t);
     const learning = this.studying;

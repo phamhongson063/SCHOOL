@@ -371,7 +371,10 @@ export const ARENA = {
   deck: 'n2',
   size: { day: 16, night: 8 },
   stages: 8,
-  starts: Array.from({ length: 11 }, (_, i) => (2 * i + 1) * 60),
+  schedule: [
+    { weekdays: [1, 2, 3, 4, 5], hours: [1, 3, 5, 9, 11, 13, 15, 21] },
+    { weekdays: [6, 0], hours: [1, 3, 5, 9, 11, 15, 17, 19, 21] },
+  ],
   lead: 30,
   opening: 0.25,
   breather: 15,
@@ -393,6 +396,7 @@ export const ARENA = {
   rage: { below: 0.3, boost: 1.5 },
   guard: 0.5,
   reward: { base: 1, perWin: 1, champion: 1 },
+  intellectPerWin: 1,
   champions: 30,
   rounds: { 4: 'Tứ kết', 2: 'Bán kết', 1: 'Chung kết' },
   npc: { reserve: 10, eager: 0.15, rethink: 5 },
@@ -506,6 +510,13 @@ export const BLESSING = {
   wrongCost: 0.5,
   answerLock: 2,
   lateMinutes: 5,
+};
+
+export const TRAINING = {
+  fee: 3,
+  minutes: 15,
+  intellectPer: 25,
+  shortValue: 10,
 };
 
 export const RANKING = {

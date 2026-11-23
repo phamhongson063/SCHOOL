@@ -1,4 +1,4 @@
-import { ARENA, AWAY, BLESSING, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
+import { AWAY, BLESSING, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -15,6 +15,7 @@ import { fate } from './fate.js';
 import { census } from './census.js';
 import { weekOf } from './quests.js';
 import { fireworksPerDay } from './fireworksSchedule.js';
+import { arenaStarts } from './arenaSchedule.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -232,11 +233,11 @@ function openBlessingPool(value) {
   return amount;
 }
 
-const draftPlan = () =>
+const draftPlan = (day) =>
   planDay({
     fund: ctx.ledger.purse(FUND).money,
     wages: dailyWages(),
-    starts: ARENA.starts.length,
+    starts: arenaStarts(day).length,
   });
 
 function refundQuest(key) {
@@ -271,7 +272,7 @@ function openQuests(day, budget) {
 function planFor(day) {
   closeBlessingPool();
   closeQuests(day);
-  const plan = draftPlan();
+  const plan = draftPlan(day);
   const blessingPool = openBlessingPool(plan.blessingPool);
   openQuests(day, plan.questBudget);
   state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, lotoBudget: plan.lotoBudget, fireworksPrize: plan.fireworksPrize, reserve: plan.reserve, blessingPool };
@@ -372,12 +373,12 @@ function settleThrough(t) {
   for (let day = state.day; day < now; day++) settleDay(day + 1);
   state.day = now;
   if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
-  if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan().lanternBudget;
-  if (!Number.isFinite(state.plans[now].lotoBudget)) state.plans[now].lotoBudget = draftPlan().lotoBudget;
-  if (!Number.isFinite(state.plans[now].fireworksPrize)) state.plans[now].fireworksPrize = draftPlan().fireworksPrize;
+  if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan(now).lanternBudget;
+  if (!Number.isFinite(state.plans[now].lotoBudget)) state.plans[now].lotoBudget = draftPlan(now).lotoBudget;
+  if (!Number.isFinite(state.plans[now].fireworksPrize)) state.plans[now].fireworksPrize = draftPlan(now).fireworksPrize;
   if (state.quest.day !== now) {
     closeQuests(now);
-    const budget = draftPlan().questBudget;
+    const budget = draftPlan(now).questBudget;
     state.plans[now].questBudget = budget;
     openQuests(now, budget);
   }

@@ -1,5 +1,7 @@
-import { ARENA, BLESSING, LOTO } from './config.js';
-import { clockText, dayOf } from './clock.js';
+import { BLESSING, LOTO } from './config.js';
+import { clockText, dayOf, DAY_MINUTES } from './clock.js';
+import { arenaStarts } from './arenaSchedule.js';
+import { arenaWindow } from './arena.js';
 import { coins } from './format.js';
 import { closable } from './dialog.js';
 import { setRich } from './goldArt.js';
@@ -102,12 +104,16 @@ export function createHallUI({ economy, now, quests }) {
     const slots = blessingSlots(day);
     const times = el('div', 'hall-times');
     times.append(...slots.map(({ start, end }) => el('span', 'hall-time', `${clockText(start)}–${clockText(end)}`)));
+    const arenaSlots = arenaStarts(day).map((start) => arenaWindow({ at: day * DAY_MINUTES + start }));
+    const arenaTimes = el('div', 'hall-times');
+    arenaTimes.append(...arenaSlots.map(({ from, to }) => el('span', 'hall-time', `${clockText(from)}–${clockText(to)}`)));
     return [
       el('h3', 'bank-ribbon', 'Chúc phúc'),
       row('✨', `${slots.length}/${BLESSING.windows.length} buổi`, economy.blessingBudget(day)),
       times,
       el('h3', 'bank-ribbon', 'Lôi đài'),
-      row('🏆', `Giải mỗi trận · ${ARENA.starts.length} trận`, economy.arenaPrize()),
+      row('🏆', `Giải mỗi trận · ${arenaSlots.length} trận`, economy.arenaPrize(day * DAY_MINUTES)),
+      arenaTimes,
       el('h3', 'bank-ribbon', 'Lô tô chữ'),
       row('🎴', `Quỹ thưởng · ${clockText(LOTO.start)}`, LOTO.purse),
       el('h3', 'bank-ribbon', 'Nhiệm vụ'),
