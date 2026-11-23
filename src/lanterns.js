@@ -7,6 +7,7 @@ import { absorption } from './absorption.js';
 import { createStore } from './persist.js';
 import { drainBetween } from './stamina.js';
 import { worldKey } from './saveKeys.js';
+import { northBank } from './riverShape.js';
 
 const KEY = worldKey('lanterns');
 const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
@@ -75,6 +76,8 @@ export function lanternWindow(minutes) {
   return { day, start: day * DAY_MINUTES + LANTERN.start, end: day * DAY_MINUTES + LANTERN.end };
 }
 
+const villageSide = (x, z) => z < northBank(x) - LANTERN.bankGap;
+
 export const landedAt = (lantern) => lantern.dropAt + LANTERN.fall;
 
 export function lanternNeed(now) {
@@ -110,7 +113,7 @@ const blank = () => ({ day: null, seq: 0, solved: 0, list: [], locks: {}, tally:
 const blankSignup = () => ({ day: null, ids: [] });
 
 function validLantern(raw) {
-  return raw && Number.isInteger(raw.id) && typeof raw.key === 'string' && unitOf(raw.key) && ['x', 'y', 'z', 'dropAt'].every((name) => Number.isFinite(raw[name]));
+  return raw && Number.isInteger(raw.id) && typeof raw.key === 'string' && unitOf(raw.key) && ['x', 'y', 'z', 'dropAt'].every((name) => Number.isFinite(raw[name])) && villageSide(raw.x, raw.z);
 }
 
 function counts(raw) {
@@ -186,7 +189,7 @@ export function createLanterns({ ground, roster, reward, charge, budget }) {
     let best = null;
     let bestGap = -1;
     for (let i = 0; i < LANTERN.candidates; i++) {
-      const spot = ground.pick(rand);
+      const spot = ground.pick(rand, villageSide);
       if (!spot) continue;
       const gap = others.reduce((nearest, other) => Math.min(nearest, Math.hypot(other.x - spot.x, other.z - spot.z)), Infinity);
       if (gap > bestGap) {

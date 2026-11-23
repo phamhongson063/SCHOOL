@@ -493,6 +493,7 @@ export const LANTERN = {
   sky: 45,
   hover: 1.9,
   candidates: 30,
+  bankGap: 1.5,
   reach: 3,
   lock: 20,
   extraTiles: 3,
