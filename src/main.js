@@ -2726,6 +2726,7 @@ function applyNight(k) {
   village.setNight(k);
   district.setNight(k);
   river.setNight(k);
+  riverIsle.setNight(k);
   streetLamps.setNight(k);
 }
 renderer.setAnimationLoop((time) => {

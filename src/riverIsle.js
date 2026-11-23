@@ -9,6 +9,7 @@ import { SHOPKEEPERS } from './economy.js';
 import { NPC } from './npcIds.js';
 import { createAttention } from './attention.js';
 import { arcSlots, claimHold, createSlotClaims } from './blessingSpots.js';
+import { createIsleLights } from './isleLights.js';
 
 export const ISLE_NAME = 'Cù lao Hoài';
 
@@ -300,6 +301,8 @@ export function createRiverIsle({ visitHost }) {
   }));
   const obstacles = [...rails, ...castleObstacles(), hostBox, ...trees.map(({ x, z }) => ({ minX: x + 0.2, minZ: z + 0.2, maxX: x + 0.8, maxZ: z + 0.8, minY: 0, maxY: 3 }))];
   let built = null;
+  let lights = null;
+  let night = 0;
 
   function build() {
     const group = new THREE.Group();
@@ -327,9 +330,20 @@ export function createRiverIsle({ visitHost }) {
     castleMesh.position.set(CASTLE.x * (1 - CASTLE.scale), 0, CASTLE.z * (1 - CASTLE.scale));
     group.add(bridgeMesh, details, castleMesh);
     freeze(group);
+    lights = createIsleLights({
+      castle: { ...CASTLE, keepTiers: KEEP_TIERS },
+      castleFront,
+      bridge: { postGap: POST_GAP, railHeight: RAIL_HEIGHT, inWater },
+      clearOfCastle: (x, z) => clearOfCastle(x, z, CASTLE.clear),
+    });
+    lights.setNight(night);
     const root = new THREE.Group();
-    root.add(group, host.group);
-    return { group: root, clickables: [bridgeMesh, ...paths, castleMesh, host.group], obstacles: [], update: (t) => host.update(t), castleMesh };
+    root.add(group, lights.group, host.group);
+    const update = (t, dt) => {
+      host.update(t);
+      lights.update(t, dt);
+    };
+    return { group: root, clickables: [bridgeMesh, ...paths, castleMesh, host.group], obstacles: [], update, castleMesh };
   }
 
   const ownsHost = (object) => {
@@ -341,6 +355,10 @@ export function createRiverIsle({ visitHost }) {
     obstacles,
     host,
     field,
+    setNight(k) {
+      night = k;
+      lights?.setNight(k);
+    },
     region: {
       id: 'isle',
       name: ISLE_NAME,

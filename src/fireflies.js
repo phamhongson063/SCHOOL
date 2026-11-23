@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
 import { between } from './random.js';
 
-const GLOW = new THREE.Color(0xd9ff6a);
+export const FIREFLY_GLOW = new THREE.Color(0xd9ff6a);
 const FADE_RATE = 0.6;
 const LAMP_FLIES = 6;
 
@@ -28,7 +28,7 @@ function glowTexture() {
 let sharedTexture = null;
 const texture = () => (sharedTexture ??= glowTexture());
 
-function glowPoints(count, size) {
+export function glowPoints(count, size) {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const geometry = new THREE.BufferGeometry();
@@ -47,7 +47,7 @@ function glowPoints(count, size) {
   return { points, positions, colors, geometry, material };
 }
 
-const blink = (t, fly) => {
+export const blink = (t, fly) => {
   const wave = Math.sin(t * fly.rate + fly.phase);
   return 0.15 + 0.85 * Math.max(0, wave) ** 3;
 };
@@ -74,9 +74,9 @@ export function createFireflies({ scene, field }) {
         positions[i * 3 + 1] = fly.y;
         positions[i * 3 + 2] = fly.z;
         const k = blink(t, fly) * shown;
-        colors[i * 3] = GLOW.r * k;
-        colors[i * 3 + 1] = GLOW.g * k;
-        colors[i * 3 + 2] = GLOW.b * k;
+        colors[i * 3] = FIREFLY_GLOW.r * k;
+        colors[i * 3 + 1] = FIREFLY_GLOW.g * k;
+        colors[i * 3 + 2] = FIREFLY_GLOW.b * k;
       }
       swarm.geometry.attributes.position.needsUpdate = true;
       swarm.geometry.attributes.color.needsUpdate = true;
@@ -93,7 +93,7 @@ export function createFireflyLamp(scene) {
   jar.position.y = 0.085;
   const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.025, 14), new THREE.MeshBasicMaterial({ color: 0x6a4a2a }));
   lid.position.y = 0.18;
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture(), color: 0xd9ff6a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture(), color: FIREFLY_GLOW, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
   halo.scale.setScalar(0.7);
   halo.position.y = 0.09;
   const inside = glowPoints(LAMP_FLIES, 0.07);
@@ -122,9 +122,9 @@ export function createFireflyLamp(scene) {
         inside.positions[i * 3 + 2] = Math.sin(a) * 0.045;
         const k = blink(t, fly);
         glow += k;
-        inside.colors[i * 3] = GLOW.r * k;
-        inside.colors[i * 3 + 1] = GLOW.g * k;
-        inside.colors[i * 3 + 2] = GLOW.b * k;
+        inside.colors[i * 3] = FIREFLY_GLOW.r * k;
+        inside.colors[i * 3 + 1] = FIREFLY_GLOW.g * k;
+        inside.colors[i * 3 + 2] = FIREFLY_GLOW.b * k;
       }
       inside.geometry.attributes.position.needsUpdate = true;
       inside.geometry.attributes.color.needsUpdate = true;
