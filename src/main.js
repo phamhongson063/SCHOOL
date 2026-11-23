@@ -2222,6 +2222,14 @@ function updateLoto() {
   reportLoto(now);
 }
 
+const FIREWORKS_TEST_NIGHT = 23 * 60;
+function fireworksSkyMinutes(minutes) {
+  const day = dayOf(minutes);
+  const start = fireworksStart(day);
+  if (minutes < start - FIREWORKS.gather || minutes >= fireworksEnd(day) + 2) return minutes;
+  return day * DAY_MINUTES + FIREWORKS_TEST_NIGHT + (minutes - start);
+}
+
 const FIREWORKS_CALL = 'fireworksCall';
 const FIREWORKS_AWAY = 'fireworksAway';
 const FIREWORKS_RESULT_KEY = 'langsch.fireworksResult';
@@ -2659,7 +2667,7 @@ renderer.setAnimationLoop((time) => {
     savePlace();
   }
   if (mapCapture && !study.dimmed) stepMapCapture(MAP_TILES_PER_FRAME);
-  const night = sky.update(context.minutes, camera, player.position, SHADOW_SPAN);
+  const night = sky.update(fireworksSkyMinutes(context.minutes), camera, player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01) {
     shownNight = night;

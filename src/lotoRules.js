@@ -1,7 +1,7 @@
 import { LOTO } from './config.js';
 import { DAY_MINUTES, minuteOfDay } from './clock.js';
 import { hashText, makeRandom, shuffle } from './random.js';
-import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
+import { DECKS, unitOf } from './studyDecks.js';
 
 export const LOTO_CELLS = LOTO.size * LOTO.size;
 export const OPEN = '.';
@@ -18,14 +18,12 @@ const CARD_CACHE = 400;
 const BY_CHAR = (() => {
   const map = new Map();
   const words = new Set();
-  for (const id of DECK_IDS.filter((deck) => DECKS[deck].quiz === 'kanji')) {
-    for (const card of DECKS[id].cards) {
-      if (words.has(card.word)) continue;
-      words.add(card.word);
-      const list = map.get(card.kanji.char);
-      if (list) list.push(card);
-      else map.set(card.kanji.char, [card]);
-    }
+  for (const card of DECKS[LOTO.deck].cards) {
+    if (words.has(card.word)) continue;
+    words.add(card.word);
+    const list = map.get(card.kanji.char);
+    if (list) list.push(card);
+    else map.set(card.kanji.char, [card]);
   }
   return map;
 })();

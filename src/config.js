@@ -415,8 +415,8 @@ export const TOWNHALL = {
 
 export const FIREWORKS = {
   fee: 5,
-  signOpen: 18 * 60,
-  start: 23 * 60,
+  signOpen: 6 * 60,
+  start: 10 * 60 + 21,
   minutes: 15,
   gather: 5,
   heraldLead: 15,
@@ -433,6 +433,7 @@ export const FIREWORKS = {
 };
 
 export const LOTO = {
+  deck: 'kanjiN3',
   fee: 5,
   purse: 300,
   signOpen: 18 * 60,
