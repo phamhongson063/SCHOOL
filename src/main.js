@@ -903,11 +903,11 @@ town.loto = loto;
 town.lotoCourt = lotoCourt;
 const fireworks = createFireworks({
   charge: chargeFee('fireworks'),
-  sponsor: (at) => economy.sponsorFireworks(at),
+  sponsor: () => 0,
   pay: (id, money) => economy.payFireworks(ledger.purse(id), money),
   refund: (value) => economy.returnFireworks(value),
   award: (id, intellect) => ledger.purse(id).addIntellect(intellect),
-  prize: (at) => economy.fireworksPrize(at),
+  prize: () => 0,
   human: (id) => id === PLAYER,
 });
 town.fireworks = fireworks;

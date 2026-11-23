@@ -414,9 +414,9 @@ export const TOWNHALL = {
 };
 
 export const FIREWORKS = {
-  fee: 5,
+  fee: 0,
   signOpen: 6 * 60,
-  start: 10 * 60 + 21,
+  start: 10 * 60 + 24,
   minutes: 15,
   gather: 5,
   heraldLead: 15,
