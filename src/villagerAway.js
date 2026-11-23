@@ -65,7 +65,7 @@ function blessingAnswers(member, minutes) {
   let correct = 0;
   let wrong = 0;
   while (left > 0 && certify.pool(member.id).length) {
-    left -= Math.max(BLESSING.answerLock, between(...FISHING.villagerAnswer));
+    left -= Math.max(BLESSING.answerLock, between(...BLESSING.villagerAnswer));
     if (left < 0) break;
     if (member.answerPool()) correct += 1;
     else wrong += 1;

@@ -502,6 +502,7 @@ export const BLESSING = {
   remindBefore: 10,
   firstQuiz: 3,
   villagerStay: [5 * 60, 15 * 60],
+  villagerAnswer: [2.4, 7.2],
   wrongCost: 0.5,
   answerLock: 2,
   lateMinutes: 5,

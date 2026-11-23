@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, ENERGY, EATERY, FOODS, VENDOR, MART, SNACKS, BLESSING, FISHING, MIND } from './config.js';
+import { VILLAGER, ENERGY, EATERY, FOODS, VENDOR, MART, SNACKS, BLESSING, MIND } from './config.js';
 import { certify } from './certify.js';
 import { ITEMS, snackId } from './inventory.js';
 import { book, heldTonight, isFree, leaveRoom, lodgeNightOf, release, roomTier } from './lodging.js';
@@ -219,7 +219,7 @@ export class RestBehavior {
     const ask = (this.blessingAsk ??= { at: this.now + BLESSING.firstQuiz, answerAt: null });
     if (ask.answerAt === null) {
       if (this.now < ask.at || !certify.pool(this.id).length) return;
-      const thinking = Math.max(BLESSING.answerLock, between(...FISHING.villagerAnswer));
+      const thinking = Math.max(BLESSING.answerLock, between(...BLESSING.villagerAnswer));
       ask.answerAt = this.now + thinking;
       this.say('🤔', thinking);
       return;

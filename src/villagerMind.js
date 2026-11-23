@@ -24,7 +24,7 @@ const FISH_VALUE = weighted(Object.values(FISH).map((fish) => [fish.price, fish.
 const GAME_VALUE = weighted(Object.values(WILDLIFE).filter((animal) => animal.gentle).map((animal) => [animal.price, animal.count]));
 const BAIT_PER_CAST = FISHING.baitPack / FISHING.baitPerPack;
 export const AVERAGE_CASTS = (FISHING.villagerCasts[0] + FISHING.villagerCasts[1]) / 2;
-const BLESSING_ASK_SECONDS = BLESSING.quizSeconds + (FISHING.villagerAnswer[0] + FISHING.villagerAnswer[1]) / 2;
+const BLESSING_ASK_SECONDS = BLESSING.quizSeconds + (BLESSING.villagerAnswer[0] + BLESSING.villagerAnswer[1]) / 2;
 export const BLESSING_STAY = (BLESSING.villagerStay[0] + BLESSING.villagerStay[1]) / 2 / 60;
 
 function blessingMinutesLeft(minutes) {
