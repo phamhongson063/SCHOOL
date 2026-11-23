@@ -9,7 +9,7 @@ import { SHOPKEEPERS } from './economy.js';
 import { NPC } from './npcIds.js';
 import { createAttention } from './attention.js';
 import { arcSlots, claimHold, createSlotClaims } from './blessingSpots.js';
-import { createIsleLights } from './isleLights.js';
+import { createIsleLamps, createIsleLights } from './isleLights.js';
 
 export const ISLE_NAME = 'Cù lao Hoài';
 
@@ -290,6 +290,7 @@ export function createRiverIsle({ visitHost }) {
   const trees = pickTrees(makeRandom(7171));
   const host = createHost();
   const field = createWatchField();
+  const lamps = createIsleLamps({ castleX: CASTLE.x, castleFront });
   const hostBox = { minX: HOST_AT.x - 0.3, maxX: HOST_AT.x + 0.3, minZ: HOST_AT.z - 0.3, maxZ: HOST_AT.z + 0.3, minY: 0, maxY: 2 };
   const rails = [-1, 1].map((side) => ({
     minX: railX(side) - CROSSING.rail / 2,
@@ -355,8 +356,10 @@ export function createRiverIsle({ visitHost }) {
     obstacles,
     host,
     field,
+    lamps: lamps.group,
     setNight(k) {
       night = k;
+      lamps.setNight(k);
       lights?.setNight(k);
     },
     region: {

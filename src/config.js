@@ -141,7 +141,7 @@ export const MIND = {
 
 export const ENERGY = {
   max: 100,
-  costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 0, fish: 2 },
+  costs: { plant: 2 / 3, water: 2 / 3, fertilize: 2 / 3, harvest: 1, clear: 0, fish: 1 },
   workMin: 1,
   drain: { seated: 2, idle: 2, walk: 4, study: 6, run: 8 },
   nightFactor: 2,

@@ -13,24 +13,32 @@ const CORD = 0x3a2414;
 const STONE = 0x8a8273;
 const WOOD_DARK = 0x553820;
 const PANE = 0x5a4428;
-const TINTS = [0xd8321e, 0xf2b630];
+const TINTS = [0xc8301c, 0xe8a030];
+const LIT = new THREE.Color(0xffc46a);
 const WATER_Y = 0.06;
 const SHOWN = 0.02;
 
-const CASTLE_STRING = { keepLift: 0.9, towerLift: 0.6, pole: 0.9, keepSag: 0.5, wallSag: 0.7, keepCount: 5, wallCount: 6, size: 0.14, drop: 0.16 };
+const CASTLE_STRING = { keepLift: 0.9, towerLift: 0.6, pole: 0.9, keepSag: 0.5, keepCount: 4, size: 0.14, drop: 0.16 };
 const PLAZA_POST = { spread: 2.6, back: 0.5, height: 3.1, arm: 0.42, hang: 2.75, size: 0.22 };
-const BRIDGE_POLE = { every: 4, top: 2.5, arm: 0.4, hang: 2.1, size: 0.17, sag: 0.35, count: 3, small: 0.1, drop: 0.12 };
-const FLOATS = { count: 16, speed: [0.12, 0.22], margin: 10, fade: 6, bankGap: 2.2, lane: [0.25, 0.75] };
-const FLIES = { count: 40, edge: 3, gap: 2, height: [0.7, 2.3], roam: [0.5, 1.6] };
-const POOL = { radius: 2.2, strength: 0.45 };
-const GLOW = { windows: 1.15, lanterns: 1, floats: 0.9, reflection: 0.85 };
+const BRIDGE_POLE = { every: 4, top: 2.5, arm: 0.4, hang: 2.1, size: 0.17, sag: 0.35, count: 1, small: 0.1, drop: 0.12 };
+const FLOATS = { count: 12, speed: [0.12, 0.22], margin: 10, fade: 6, bankGap: 2.2, lane: [0.25, 0.75] };
+const FLIES = { count: 15, edge: 3, gap: 3, height: [0.7, 2.3], roam: [0.5, 1.6] };
+const POOL = { radius: 1.6, strength: 0.22 };
+const GLOW = { windows: 1.15, lanterns: 1.1, floats: 0.55, reflection: 0.6 };
+const SHELL = { lit: 0.3, edge: 0.5, spread: 0.6 };
+const HALO = { size: 1.1, plaza: 0.85, bridge: 0.6 };
+const LAMP_LIGHT = {
+  color: 0xffb466,
+  plaza: { intensity: 10, distance: 7, height: 2.4, ahead: 0.8 },
+  bridge: { intensity: 6, distance: 6, height: 2.2, at: [1 / 3, 2 / 3] },
+};
 
 function glowMaterial() {
   const material = toonMaterial({ vertexColors: true, emissive: 0xffffff, emissiveIntensity: 0 });
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor * 1.6 + 0.25;',
+      '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor;',
     );
   };
   return material;
@@ -48,8 +56,14 @@ function festoon(frame, lamps, a, b, { sag, count, size, drop }) {
   }
 }
 
-function lanternShape(b, { p: [x, y, z], size, tint }) {
-  b.add(shapes.sphere(size, 10, 8), tint, { p: [x, y, z], s: [1, 1.25, 1] });
+function lanternShell(b, { p: [x, y, z], size, tint }) {
+  const lit = new THREE.Color(tint).lerp(LIT, SHELL.lit);
+  const edge = new THREE.Color(tint).multiplyScalar(SHELL.edge);
+  const paint = (_, py) => edge.clone().lerp(lit, Math.max(0, 1 - (py / size) ** 2) ** SHELL.spread);
+  b.add(shapes.sphere(size, 10, 8), tint, { p: [x, y, z], s: [1, 1.25, 1], paint });
+}
+
+function lanternCaps(b, { p: [x, y, z], size }) {
   b.add(shapes.cylinder(size * 0.45, size * 0.5, size * 0.28, 8), GILT, { p: [x, y + size * 1.22, z] });
   b.add(shapes.cylinder(size * 0.5, size * 0.45, size * 0.28, 8), GILT, { p: [x, y - size * 1.22, z] });
 }
@@ -68,7 +82,6 @@ function castleLamps(frame, castle) {
   });
   const string = { size: CASTLE_STRING.size, drop: CASTLE_STRING.drop };
   for (const tower of towers) festoon(frame, lamps, keep, tower, { ...string, sag: CASTLE_STRING.keepSag, count: CASTLE_STRING.keepCount });
-  towers.forEach((tower, i) => festoon(frame, lamps, tower, towers[(i + 1) % 4], { ...string, sag: CASTLE_STRING.wallSag, count: CASTLE_STRING.wallCount }));
   return lamps;
 }
 
@@ -247,10 +260,6 @@ function createReflections(count) {
       size.setXY(i, width, length);
       phase.setX(i, Math.random() * Math.PI * 2);
     },
-    move(i, x, z, strength, base) {
-      spot.setXYZ(i, x, WATER_Y, z);
-      glow.setXYZ(i, base.r * strength, base.g * strength, base.b * strength);
-    },
     flush() {
       spot.needsUpdate = true;
       glow.needsUpdate = true;
@@ -302,13 +311,6 @@ function createFloats(rand) {
   mesh.receiveShadow = false;
   mesh.frustumCulled = false;
   mesh.raycast = () => {};
-  const glow = createLanternGlow(items.map(() => ({ position: new THREE.Vector3(0, -50, 0), tint: 0xffb070, intensity: 0.7 })), { rays: false });
-  const glowPositions = glow.object.geometry.attributes.position;
-  const glowTints = glow.object.geometry.attributes.tint;
-  const baseTint = new THREE.Color().fromArray(glowTints.array, 0);
-  glowPositions.setUsage(THREE.DynamicDrawUsage);
-  glowTints.setUsage(THREE.DynamicDrawUsage);
-  glow.object.frustumCulled = false;
   const matrix = new THREE.Matrix4();
   const spin = new THREE.Quaternion();
   const place = new THREE.Vector3();
@@ -316,11 +318,9 @@ function createFloats(rand) {
   const UP = new THREE.Vector3(0, 1, 0);
   const smooth = (v) => Math.min(1, Math.max(0, v / FLOATS.fade));
   return {
-    group: [mesh, glow.object],
-    items,
+    mesh,
     material,
-    step(t, dt, night, onMove) {
-      glow.update(t, night);
+    step(t, dt, night) {
       mesh.visible = night > SHOWN;
       if (!mesh.visible) return;
       items.forEach((item, i) => {
@@ -333,13 +333,8 @@ function createFloats(rand) {
         place.set(item.x, 0.03 + Math.sin(t * 1.2 + item.phase) * 0.02, z);
         spin.setFromAxisAngle(UP, item.turn);
         mesh.setMatrixAt(i, matrix.compose(place, spin, scale.setScalar(Math.max(0.001, fade))));
-        glowPositions.setXYZ(i, item.x, 0.45, z);
-        glowTints.setXYZ(i, baseTint.r * fade, baseTint.g * fade, baseTint.b * fade);
-        onMove(i, item.x, z, fade);
       });
       mesh.instanceMatrix.needsUpdate = true;
-      glowPositions.needsUpdate = true;
-      glowTints.needsUpdate = true;
     },
   };
 }
@@ -389,7 +384,6 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
   const group = new THREE.Group();
   const s = castle.scale;
   const offset = [castle.x * (1 - s), 0, castle.z * (1 - s)];
-  const toWorld = ([x, y, z]) => [x * s + offset[0], y * s, z * s + offset[2]];
 
   const frame = new Batch();
   const shells = new Batch();
@@ -399,7 +393,10 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
     castleSet = castleLamps(frame, castle);
   }, s);
   shells.group(offset, [0, 0, 0], () => {
-    for (const lamp of castleSet) lanternShape(shells, lamp);
+    for (const lamp of castleSet) lanternShell(shells, lamp);
+  }, s);
+  frame.group(offset, [0, 0, 0], () => {
+    for (const lamp of castleSet) lanternCaps(frame, lamp);
   }, s);
   panes.group(offset, [0, 0, 0], () => {
     for (const { p, angle, w, h } of castleWindows(castle)) panes.add(shapes.box(w, h, 0.06), PANE, { p, r: [0, angle, 0] });
@@ -407,7 +404,10 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
   }, s);
   const plaza = plazaLamps(frame, castleFront, castle.x);
   const bridgeSet = bridgeLamps(frame, bridge);
-  for (const lamp of [...plaza, ...bridgeSet]) lanternShape(shells, lamp);
+  for (const lamp of [...plaza, ...bridgeSet]) {
+    lanternShell(shells, lamp);
+    lanternCaps(frame, lamp);
+  }
 
   const lanternMaterial = glowMaterial();
   const paneMaterial = toonMaterial({ vertexColors: true, emissive: 0xffbf5a, emissiveIntensity: 0 });
@@ -415,12 +415,11 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
   const shellMesh = shells.mesh(lanternMaterial, { shadow: false });
   const paneMesh = panes.mesh(paneMaterial, { shadow: false });
 
-  const lamps = [
-    ...castleSet.map((lamp) => ({ ...lamp, p: toWorld(lamp.p), size: lamp.size * s })),
-    ...plaza,
-    ...bridgeSet,
+  const haloed = [
+    ...plaza.map((lamp) => ({ ...lamp, strength: HALO.plaza })),
+    ...bridgeSet.filter((lamp) => !lamp.small).map((lamp) => ({ ...lamp, strength: HALO.bridge })),
   ];
-  const glow = createLanternGlow(lamps.map(({ p, tint, small }) => ({ position: new THREE.Vector3(...p), tint, intensity: small ? 0.45 : 1 })));
+  const glow = createLanternGlow(haloed.map(({ p, tint, strength }) => ({ position: new THREE.Vector3(...p), tint, intensity: strength })), { rays: false, size: HALO.size });
 
   const poolMaterial = new THREE.MeshBasicMaterial({ map: poolTexture(), color: 0xffc070, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   const poolShape = new THREE.PlaneGeometry(POOL.radius * 2, POOL.radius * 2).rotateX(-Math.PI / 2);
@@ -433,18 +432,16 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
   });
 
   const floats = createFloats(rand);
-  const mirrored = bridgeSet.filter((lamp) => lamp.water);
-  const reflections = createReflections(mirrored.length + floats.items.length);
-  mirrored.forEach(({ p: [x, y, z], tint, small }, i) => {
-    reflections.set(i, { x, z, tint, strength: (small ? 0.4 : 0.85) * GLOW.reflection, width: small ? 0.28 : 0.5, length: Math.min(4, Math.max(1.5, y * 1.1)) });
+  const mirrored = bridgeSet.filter((lamp) => lamp.water && !lamp.small);
+  const reflections = createReflections(mirrored.length);
+  mirrored.forEach(({ p: [x, y, z], tint }, i) => {
+    reflections.set(i, { x, z, tint, strength: GLOW.reflection, width: 0.45, length: Math.min(4, Math.max(1.5, y * 1.1)) });
   });
-  const floatTint = new THREE.Color(0xffb070).lerp(new THREE.Color(0xffc070), 0.5).multiplyScalar(0.6 * GLOW.reflection);
-  floats.items.forEach((item, i) => reflections.set(mirrored.length + i, { x: item.x, z: 0, tint: 0xffb070, strength: 0, width: 0.32, length: 1.3 }));
   reflections.flush();
 
   const fireflies = createIsleFireflies(rand, clearOfCastle);
 
-  group.add(frameMesh, shellMesh, paneMesh, glow.object, ...pools, reflections.mesh, ...floats.group, fireflies.points);
+  group.add(frameMesh, shellMesh, paneMesh, glow.object, ...pools, reflections.mesh, floats.mesh, fireflies.points);
   freeze(group);
 
   let night = 0;
@@ -462,8 +459,32 @@ export function createIsleLights({ castle, castleFront, bridge, clearOfCastle })
       glow.update(t, night);
       reflections.update(t, night);
       fireflies.step(t, night);
-      floats.step(t, dt, night, (i, x, z, fade) => reflections.move(mirrored.length + i, x, z, fade, floatTint));
-      if (night > SHOWN) reflections.flush();
+      floats.step(t, dt, night);
+    },
+  };
+}
+
+export function createIsleLamps({ castleX, castleFront }) {
+  const group = new THREE.Group();
+  const { plaza, bridge } = LAMP_LIGHT;
+  const lamp = (x, y, z, spec) => {
+    const light = new THREE.PointLight(LAMP_LIGHT.color, 0, spec.distance, 2);
+    light.position.set(x, y, z);
+    group.add(light);
+    return { light, spec };
+  };
+  const lamps = [
+    lamp(castleX, plaza.height, castleFront - PLAZA_POST.back - plaza.ahead, plaza),
+    ...bridge.at.map((k) => {
+      const z = CROSSING.z0 + CROSSING.length * k;
+      return lamp(CROSSING.x, deckHeight(z) + bridge.height, z, bridge);
+    }),
+  ];
+  return {
+    group,
+    setNight(k) {
+      const night = Math.min(1, Math.max(0, k));
+      for (const { light, spec } of lamps) light.intensity = night * spec.intensity;
     },
   };
 }

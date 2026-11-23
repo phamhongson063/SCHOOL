@@ -78,7 +78,7 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-export function createLanternGlow(lights, { warmth = 0.55, steady = false, rays = true } = {}) {
+export function createLanternGlow(lights, { warmth = 0.55, steady = false, rays = true, size = HALO_SIZE } = {}) {
   const positions = new Float32Array(lights.length * 3);
   const tints = new Float32Array(lights.length * 3);
   const phases = new Float32Array(lights.length);
@@ -115,7 +115,7 @@ export function createLanternGlow(lights, { warmth = 0.55, steady = false, rays 
   const buffer = new THREE.Vector2();
   points.onBeforeRender = (renderer, scene, camera) => {
     renderer.getDrawingBufferSize(buffer);
-    uniforms.scale.value = (HALO_SIZE * buffer.y) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    uniforms.scale.value = (size * buffer.y) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
   };
 
   return {

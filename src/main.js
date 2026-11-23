@@ -202,6 +202,7 @@ const streetLamps = createStreetLamps();
 scene.add(streetLamps.group);
 const river = createRiver();
 const riverIsle = createRiverIsle({ visitHost: (host) => goDo(sandHostDesk, { stand: host.stand, x: host.at.x, z: host.at.z }, 'sandFest') });
+scene.add(riverIsle.lamps);
 const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
 const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
 const internalHallSeats = studyHalls.flatMap((hall) => hall.internalSeats);
