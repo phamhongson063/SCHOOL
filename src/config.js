@@ -212,9 +212,13 @@ export const CERTIFY = {
   open: 5 * 60 + 30,
   close: 23 * 60 + 30,
   dropChance: 0.05,
-  harvestQuiz: 0.1,
+  harvestQuiz: 0.2,
+  harvestDrop: 0.5,
+  harvestIntellectCap: 10,
+  harvestCoin: 1,
   blessingCoinPer: 10,
   blessingIntellectPer: 5,
+  blessingIntellectCap: 30,
 };
 
 export const SPEAK = {
@@ -314,7 +318,7 @@ export const TRADE = {
   turnoverWeight: 0.3,
 };
 
-export const QUIZ = { seconds: 5 * 60, reward: 1, closeMs: 500 };
+export const QUIZ = { seconds: 5 * 60, reward: 1, closeMs: 500, intellectCap: 5 };
 
 export const TRAITS = {
   anchor: [0.5, 0.7],
@@ -437,7 +441,8 @@ export const FIREWORKS = {
   decoys: 26,
   answerCopies: 2,
   prizes: [0.5, 0.3, 0.2],
-  intellectPer: 4,
+  intellectPer: 5,
+  intellectCap: 20,
   champions: 30,
   sample: 12,
 };
@@ -452,7 +457,7 @@ export const LOTO = {
   rounds: 3,
   prizes: [0.6, 0.25, 0.15],
   places: 5,
-  intellect: 15,
+  intellect: 10,
   pool: 40,
   size: 4,
   wordsPerKanji: 2,

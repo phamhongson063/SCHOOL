@@ -122,7 +122,8 @@ export class MindBehavior {
   blessingGain(need, stay, session) {
     const score = (blessingAskScore(this.answerOdds()) * stay * 60) / BLESSING_ASK_SECONDS;
     const coins = Math.min(score / CERTIFY.blessingCoinPer, economy.blessingLeft(session));
-    return (coins - BLESSING.fee) * need + (score / CERTIFY.blessingIntellectPer) * MIND.intellectValue * this.diligence;
+    const intellect = Math.min(score / CERTIFY.blessingIntellectPer, economy.blessingIntellectLeft(this.id, session));
+    return (coins - BLESSING.fee) * need + intellect * MIND.intellectValue * this.diligence;
   }
 
   trainingGain(need) {

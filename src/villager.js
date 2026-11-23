@@ -178,8 +178,9 @@ export class Villager {
     return correct;
   }
 
-  luckyIntellect() {
+  luckyIntellect(claim = null) {
     if (Math.random() >= CERTIFY.dropChance || !certify.pool(this.id).length) return;
+    if (claim && !claim()) return;
     this.purse.addIntellect(1);
     this.say('💡', 1.6);
   }

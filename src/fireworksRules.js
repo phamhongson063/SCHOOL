@@ -28,7 +28,7 @@ const LIKE = (() => {
 
 export const glyphsOf = (key) => Array.from(unitOf(key)?.word ?? '');
 export const wordPoints = () => 1;
-export const fireworksIntellect = (words) => Math.floor(words / FIREWORKS.intellectPer);
+export const fireworksIntellect = (words) => Math.min(FIREWORKS.intellectCap, Math.floor(words / FIREWORKS.intellectPer));
 const shotOf = () => LANTERN.tapSeconds + FIREWORKS.aimSeconds;
 export const shotSeconds = (key) => glyphsOf(key).length * shotOf();
 const missSeconds = () => shotOf();
@@ -143,7 +143,7 @@ export function fireworksOdds(id, keys) {
 export function fireworksWorth({ mine, rivals, pot, need, diligence }) {
   const field = rivals.reduce((sum, score) => sum + score, mine.score);
   const share = field > 0 ? mine.score / field : 0;
-  return need * (pot * share - FIREWORKS.fee) + (mine.words / FIREWORKS.intellectPer) * MIND.intellectValue * diligence;
+  return need * (pot * share - FIREWORKS.fee) + Math.min(FIREWORKS.intellectCap, mine.words / FIREWORKS.intellectPer) * MIND.intellectValue * diligence;
 }
 
 export function placeOrder(rows) {

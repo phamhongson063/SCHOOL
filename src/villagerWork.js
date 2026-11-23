@@ -9,6 +9,7 @@ import { BAGGED, CAUGHT, ESCAPED, FIELD, GOSSIP, MISSED, REST, TEND, pick } from
 import { traits } from './traits.js';
 import { quests } from './quests.js';
 import { dayOf } from './clock.js';
+import { economy } from './economy.js';
 
 const SIGN_SECONDS = 2.4;
 const SWAT_POLL = 0.25;
@@ -350,7 +351,19 @@ export class WorkBehavior {
     traits.train(this.id, 'farm', ENERGY.costs[job.action] ?? 0, this.town.context?.day);
     const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
     if (this.town.farm.changed()) quests.note(this.id, 'farm', this.town.context?.day);
-    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) this.luckyIntellect();
+    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) {
+      const day = this.town.context?.day;
+      const prize = economy.harvestPrize(this.id, Number.isInteger(day) ? day : undefined);
+      if (prize === 'intellect') {
+        this.purse.addIntellect(1);
+        this.say('💡', 1.6);
+      } else if (prize === 'coin') {
+        economy.reward(this.purse, CERTIFY.harvestCoin);
+      } else {
+        this.purse.add('energy', 1);
+        this.say('⚡', 1.6);
+      }
+    }
     return reply;
   }
 

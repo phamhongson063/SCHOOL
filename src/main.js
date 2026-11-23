@@ -662,7 +662,7 @@ function perform(task, cost) {
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
-      if (task.action.id === 'harvest' && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) workQuiz.ask({ icon: '🧺', quick: true });
+      if (task.action.id === 'harvest' && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) harvestQuiz.ask({ icon: '🧺', quick: true });
     } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
     if (heldFarm === task.target && task.region.actionFor(task.target).id !== 'clear') holdFarm(null);
@@ -1012,35 +1012,54 @@ settlePlayerTraits();
 const angler = createAngler(scene, avatar);
 const kanjiQuiz = createKanjiQuiz({ practiceOpen: (item) => certify.groupsCertified(PLAYER, item.deck, item.groups) });
 
-function dropIntellect() {
-  if (Math.random() >= CERTIFY.dropChance) return;
+function gainIntellect() {
   purse.addIntellect(1);
   regen.intellect(1, player.position);
   uiSounds.correct();
 }
 
+function dropIntellect(claim = null) {
+  if (Math.random() >= CERTIFY.dropChance) return;
+  if (claim && !claim()) return;
+  gainIntellect();
+}
+
+function harvestPrize() {
+  const prize = economy.harvestPrize(PLAYER);
+  if (prize === 'intellect') return gainIntellect();
+  if (prize === 'coin') {
+    purse.earn(CERTIFY.harvestCoin);
+    regen.coin(CERTIFY.harvestCoin, player.position);
+  } else {
+    purse.add('energy', 1);
+    sayPlayer(`+1 ${ITEMS.energy.icon}`, 1.2, { plain: true });
+  }
+  uiSounds.correct();
+}
+
 const answerSound = (right) => (right ? uiSounds.correct() : uiSounds.wrong());
 
-function sideAsk(options, skipEmpty) {
+function sideAsk(options, skipEmpty, onCorrect = () => dropIntellect()) {
   return kanjiQuiz.ask({ closeAfter: QUIZ.closeMs, onAnswer: answerSound, ...options, keys: certify.pool(PLAYER) }).then((result) => {
     if (result.empty) return skipEmpty ? { correct: true, entry: null, skipped: true } : result;
     if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
-    if (result.correct) dropIntellect();
+    if (result.correct) onCorrect();
     return result;
   });
 }
 
-const sideQuiz = (skipEmpty) => ({
+const sideQuiz = (skipEmpty, onCorrect) => ({
   get open() {
     return kanjiQuiz.open;
   },
-  ask: (options) => sideAsk(options, skipEmpty),
+  ask: (options) => sideAsk(options, skipEmpty, onCorrect),
   cancel: () => kanjiQuiz.cancel(),
 });
 const workQuiz = sideQuiz(true);
+const harvestQuiz = sideQuiz(true, harvestPrize);
 
 const quiz = createQuiz({
-  quiz: sideQuiz(false),
+  quiz: sideQuiz(false, () => dropIntellect(() => economy.quizDrop(PLAYER))),
   onPass: () => {
     purse.earn(QUIZ.reward);
     regen.coin(QUIZ.reward, player.position);

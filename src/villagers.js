@@ -126,7 +126,7 @@ export class Town {
       }
       if (!member.answerPool()) continue;
       economy.reward(member.purse, QUIZ.reward);
-      member.luckyIntellect();
+      member.luckyIntellect(() => economy.quizDrop(member.id, Number.isInteger(day) ? day : undefined));
     }
   }
 

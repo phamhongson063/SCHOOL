@@ -1,4 +1,4 @@
-import { AWAY, BLESSING, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
+import { AWAY, BLESSING, CERTIFY, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, QUIZ, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -64,11 +64,12 @@ function load() {
         tuition: Number.isFinite(saved.tuition) ? saved.tuition : 0,
         tuitionPay: saved.tuitionPay && typeof saved.tuitionPay === 'object' ? saved.tuitionPay : {},
         lanternPaid: Number.isFinite(saved.lanternPaid?.day) && Number.isFinite(saved.lanternPaid?.paid) ? saved.lanternPaid : { day: null, paid: 0 },
+        intellectDays: saved.intellectDays && typeof saved.intellectDays === 'object' ? saved.intellectDays : {},
         quest: cleanQuest(saved.quest),
       };
     }
   } catch {}
-  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, tuitionPay: {}, lanternPaid: { day: null, paid: 0 }, quest: cleanQuest(null) };
+  return { day: null, owed: {}, seeded: false, seen: null, observed: 0, flows: {}, book: {}, plans: {}, blessingPool: 0, blessingCaps: {}, blessingJoins: {}, blessingCarry: {}, tuition: 0, tuitionPay: {}, lanternPaid: { day: null, paid: 0 }, intellectDays: {}, quest: cleanQuest(null) };
 }
 
 let ctx = null;
@@ -88,6 +89,22 @@ function pay(id, value) {
 }
 
 const today = () => dayOf(gameNow());
+
+const intellectGiven = (source, id, day) => state.intellectDays[day]?.[source]?.[id] ?? 0;
+
+function grantIntellect(source, id, day, amount, cap) {
+  const granted = Math.max(0, Math.min(amount, cap - intellectGiven(source, id, day)));
+  if (!(granted > 0)) return 0;
+  const given = ((state.intellectDays[day] ??= {})[source] ??= {});
+  given[id] = (given[id] ?? 0) + granted;
+  for (const key of Object.keys(state.intellectDays)) if (Number(key) < day - 1) delete state.intellectDays[key];
+  store.save();
+  return granted;
+}
+
+const sessionDay = (session) => parseSession(session)?.day ?? today();
+
+const blessingIntellectLeft = (id, session) => Math.max(0, CERTIFY.blessingIntellectCap - intellectGiven('blessing', id, sessionDay(session)));
 
 function deposit(value, kind) {
   if (!(value > 0)) return;
@@ -526,13 +543,22 @@ export const economy = {
     purse.earn(amount);
     if (ctx) trackEarn(purse.id, amount);
   },
+  quizDrop(id, day = today()) {
+    return grantIntellect('quiz', id, day, 1, QUIZ.intellectCap) > 0;
+  },
+  harvestPrize(id, day = today()) {
+    if (Math.random() >= CERTIFY.harvestDrop) return 'energy';
+    return grantIntellect('harvest', id, day, 1, CERTIFY.harvestIntellectCap) > 0 ? 'intellect' : 'coin';
+  },
+  blessingIntellectLeft,
   payBlessing(id, session, score) {
     const reward = blessingReward(score, state.blessingCarry[id]);
-    if (!ctx) return { money: 0, intellect: reward.intellect };
+    if (!ctx) return { money: 0, intellect: Math.min(reward.intellect, blessingIntellectLeft(id, session)) };
     state.blessingCarry[id] = reward.carry;
     const money = grantBlessing(session, reward.money);
+    const intellect = grantIntellect('blessing', id, sessionDay(session), reward.intellect, CERTIFY.blessingIntellectCap);
     store.save();
-    return { money, intellect: reward.intellect };
+    return { money, intellect };
   },
   blessingLeft(session) {
     return headShare(session, joinsOf(session).length ? 1 : 0);
