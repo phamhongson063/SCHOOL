@@ -198,6 +198,13 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
     play.missed = false;
   }
 
+  let tilesFor = { id: null, tiles: null };
+  function tilesOf(key, salt) {
+    const id = `${key}:${salt}`;
+    if (tilesFor.id !== id) tilesFor = { id, tiles: skyTiles(key, salt) };
+    return tilesFor.tiles;
+  }
+
   function current(who, now) {
     const show = liveShow(who, now);
     if (!show) return null;
@@ -221,7 +228,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       limit,
       score: play.score,
       words: play.words,
-      tiles: skyTiles(key, `${show.day}:${play.index}`),
+      tiles: tilesOf(key, `${show.day}:${play.index}`),
     };
   }
 

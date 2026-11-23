@@ -12,7 +12,9 @@ const SHOT = { angle: 0.14, ...FIREWORKS.sky };
 const AMBIENT = { angle: 0.075, rise: 0.8, hang: 4.4, fade: 1.2, pool: 12 };
 const SPARKS = { count: 30, speed: [3.5, 6.5], gravity: 2.6, drag: 1.6, life: 1.5, size: 0.34, trail: 0.12 };
 const TRAIL = 8;
-const HALO = 1.9;
+const HALO = 1.3;
+const GLYPH_CACHE = 80;
+const WHITEN = 0.45;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -61,38 +63,50 @@ function paintHalo(ctx, size) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function paintGlyph(ctx, size, char, color) {
+function paintGlyph(ctx, size, char) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
-  ctx.shadowColor = color;
-  ctx.shadowBlur = size * 0.12;
   ctx.font = `800 ${size * 0.62}px ${SERIF}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = color;
-  ctx.fillText(char, c, c * 1.05);
-  ctx.shadowBlur = size * 0.04;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = size * 0.06;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.strokeText(char, c, c * 1.05);
   ctx.fillStyle = '#ffffff';
   ctx.fillText(char, c, c * 1.05);
 }
 
-function createTextures() {
+function createTextures(inUse) {
   const glyphs = new Map();
   const dot = canvasTexture(64, paintDot);
   const halo = canvasTexture(128, paintHalo);
+  const blank = canvasTexture(4, (ctx, size) => ctx.clearRect(0, 0, size, size));
+  function trim() {
+    for (const [char, texture] of glyphs) {
+      if (glyphs.size <= GLYPH_CACHE) return;
+      if (inUse(texture)) continue;
+      glyphs.delete(char);
+      texture.dispose();
+    }
+  }
   return {
     dot,
     halo,
-    glyph(char, color) {
-      const id = `${char}|${color}`;
-      if (!glyphs.has(id)) glyphs.set(id, canvasTexture(128, (ctx, size) => paintGlyph(ctx, size, char, color)));
-      return glyphs.get(id);
+    blank,
+    glyph(char) {
+      let texture = glyphs.get(char);
+      if (texture) glyphs.delete(char);
+      else texture = canvasTexture(128, (ctx, size) => paintGlyph(ctx, size, char));
+      glyphs.set(char, texture);
+      if (glyphs.size > GLYPH_CACHE) trim();
+      return texture;
     },
   };
 }
 
-function createShell(textures, group, angle) {
-  const glyph = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+function createShell(textures, group, angle, glow = true) {
+  const glyph = new THREE.Sprite(new THREE.SpriteMaterial({ map: textures.blank, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 }));
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: textures.halo, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 }));
   glyph.renderOrder = 12;
   halo.renderOrder = 11;
@@ -127,6 +141,7 @@ function createShell(textures, group, angle) {
     char: null,
     word: null,
     angle,
+    glow,
     size: BASE_SIZE,
     seed: Math.random() * 10,
   };
@@ -140,6 +155,7 @@ function hideShell(shell) {
 
 function burst(shell, scale = 1) {
   shell.burstAge = 0;
+  shell.sparks.visible = true;
   shell.sparks.material.size = SPARKS.size * (shell.size / BASE_SIZE + 0.4);
   const p = shell.to;
   for (let i = 0; i < SPARKS.count; i++) {
@@ -162,6 +178,10 @@ function paintSparks(shell, dt, rising, head) {
       colors.set([fade, fade * 0.85, fade * 0.6], at);
     }
   } else {
+    if (shell.burstAge >= SPARKS.life) {
+      shell.sparks.visible = false;
+      return;
+    }
     for (let k = 0; k < TRAIL; k++) colors.set([0, 0, 0], (SPARKS.count + k) * 3);
     shell.burstAge += dt;
     const life = Math.max(0, 1 - shell.burstAge / SPARKS.life);
@@ -184,9 +204,11 @@ function paintSparks(shell, dt, rising, head) {
 export function createFireworksShow({ anchor, eye }) {
   const group = new THREE.Group();
   group.visible = false;
-  const textures = createTextures();
   const shells = [];
-  const ambient = Array.from({ length: AMBIENT.pool }, () => createShell(textures, group, AMBIENT.angle));
+  const ambient = [];
+  const textures = createTextures((texture) => shells.some((shell) => shell.glyph.material.map === texture) || ambient.some((shell) => shell.glyph.material.map === texture));
+  for (let i = 0; i < AMBIENT.pool; i++) ambient.push(createShell(textures, group, AMBIENT.angle, false));
+  const white = new THREE.Color(0xffffff);
   let word = null;
   let tiles = [];
   let deal = 0;
@@ -219,8 +241,8 @@ export function createFireworksShow({ anchor, eye }) {
     shell.word = word;
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
     shell.tint.set(color);
-    shell.glyph.material.map = textures.glyph(char, color);
-    shell.glyph.material.needsUpdate = true;
+    shell.glyph.material.map = textures.glyph(char);
+    shell.glyph.material.color.copy(shell.tint).lerp(white, WHITEN);
     shell.halo.material.color.copy(shell.tint);
     const taken = [...shells, ...ambient].filter((other) => other !== shell && other.phase !== 'wait').map((other) => other.glyph.visible ? other.glyph.position : other.to);
     shell.to.copy(spot(field, taken));
@@ -267,7 +289,7 @@ export function createFireworksShow({ anchor, eye }) {
         shell.glyph.position.copy(shell.to);
         shell.halo.position.copy(shell.to);
         shell.glyph.visible = true;
-        shell.halo.visible = true;
+        shell.halo.visible = shell.glow;
       }
       return;
     }
