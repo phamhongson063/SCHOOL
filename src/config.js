@@ -450,6 +450,7 @@ export const FIREWORKS = {
 
 export const LOTO = {
   deck: 'kanjiN3',
+  clues: ['meaning'],
   fee: 5,
   purse: 300,
   signOpen: 18 * 60,

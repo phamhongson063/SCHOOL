@@ -2238,7 +2238,7 @@ function markLotoCalls(now) {
   const heard = new Set();
   for (let i = 0; i < loto.closedCount(now); i++) {
     const call = loto.callAt(now, i);
-    if (call) heard.add(call.key);
+    for (const key of call?.keys ?? []) heard.add(key);
   }
   for (const key of heard) {
     const cell = card.indexOf(key);

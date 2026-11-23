@@ -197,7 +197,7 @@ export function createLoto({ charge, payout, award, human }) {
     tap(who, cell, now) {
       const open = current(now);
       if (!open || !state.joined.includes(who) || placeIn(who)) return null;
-      const { marks, result } = applyTap(cardFor(who, state.day), state.marks[who], new Set([open.call.key]), cell);
+      const { marks, result } = applyTap(cardFor(who, state.day), state.marks[who], new Set(open.call.keys), cell);
       if (!result) return null;
       state.marks[who] = marks;
       store.save();

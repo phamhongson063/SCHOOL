@@ -12,8 +12,11 @@ export const callMinutes = LOTO.callSeconds / 60;
 
 export const LOTO_CLUE_LABELS = { meaning: 'Nghĩa', reading: 'Cách đọc' };
 const CLUE_KINDS = Object.keys(LOTO_CLUE_LABELS);
+const CALLED_KINDS = CLUE_KINDS.filter((kind) => LOTO.clues.includes(kind));
 const CACHE_DAYS = 3;
 const CARD_CACHE = 400;
+
+const CARD_BY_KEY = new Map(DECKS[LOTO.deck].cards.map((card) => [card.key, card]));
 
 const BY_CHAR = (() => {
   const map = new Map();
@@ -32,6 +35,7 @@ const neighborsOf = (char) => (BY_CHAR.get(char)?.[0]?.kanji.like ?? []).filter(
 
 const clueText = (card, kind) => String(card[kind] ?? '').trim();
 const clueId = (text) => text.toLowerCase();
+const entryClue = (entry, kind) => clueId(entry.kind === kind ? entry.text : clueText(CARD_BY_KEY.get(entry.key) ?? {}, kind));
 
 const LINES = (() => {
   const n = LOTO.size;
@@ -66,16 +70,9 @@ function pickClusters(rand) {
 function buildPool(day) {
   const rand = makeRandom(hashText(`loto:${day}`));
   const entries = pickClusters(rand);
-  const counts = Object.fromEntries(CLUE_KINDS.map((kind) => [kind, new Map()]));
-  for (const { card } of entries) {
-    for (const kind of CLUE_KINDS) {
-      const id = clueId(clueText(card, kind));
-      if (id) counts[kind].set(id, (counts[kind].get(id) ?? 0) + 1);
-    }
-  }
   const calls = [];
   for (const { card, char, cluster } of entries) {
-    const kinds = CLUE_KINDS.filter((kind) => clueText(card, kind) && counts[kind].get(clueId(clueText(card, kind))) === 1);
+    const kinds = CALLED_KINDS.filter((kind) => clueText(card, kind));
     if (!kinds.length) continue;
     const kind = kinds[Math.floor(rand() * kinds.length)];
     calls.push({ key: card.key, char, cluster, kind, text: clueText(card, kind) });
@@ -98,20 +95,36 @@ export function adoptPool(day, pool) {
 }
 
 const sequences = new WeakMap();
+const rounds = new WeakMap();
+
+function roundCalls(pool) {
+  let calls = rounds.get(pool);
+  if (!calls) {
+    const byClue = new Map();
+    for (const entry of pool) {
+      const id = `${entry.kind}:${clueId(entry.text)}`;
+      if (!byClue.has(id)) byClue.set(id, { ...entry, keys: pool.filter((other) => entryClue(other, entry.kind) === clueId(entry.text)).map((other) => other.key) });
+    }
+    calls = [...byClue.values()];
+    rounds.set(pool, calls);
+  }
+  return calls;
+}
 
 export function lotoCalls(day) {
   const pool = lotoPool(day);
   let calls = sequences.get(pool);
   if (!calls) {
+    const round = roundCalls(pool);
     calls = [];
-    for (let round = 0; round < LOTO.rounds; round++) calls.push(...(round === 0 ? pool : shuffle([...pool], makeRandom(hashText(`loto:${day}:round:${round}`)))));
+    for (let i = 0; i < LOTO.rounds; i++) calls.push(...(i === 0 ? round : shuffle([...round], makeRandom(hashText(`loto:${day}:round:${i}`)))));
     sequences.set(pool, calls);
   }
   return calls;
 }
 
 export const roundOf = (day, index) => {
-  const size = lotoPool(day).length || 1;
+  const size = roundCalls(lotoPool(day)).length || 1;
   return { round: Math.floor(index / size) + 1, turn: (index % size) + 1, size };
 };
 
@@ -191,14 +204,19 @@ export function applyTap(card, marks, called, cell) {
 }
 
 export function npcCall(card, marks, call, pool, respond, rand = Math.random) {
-  const cell = card.indexOf(call.key);
-  if (cell < 0 || marks[cell] !== OPEN) return marks;
-  const called = new Set([call.key]);
-  if (respond(call.key)) return applyTap(card, marks, called, cell).marks;
+  const called = new Set(call.keys);
   const cluster = clusterOf(pool);
-  const lookalikes = card.map((key, i) => i).filter((i) => i !== cell && marks[i] === OPEN && cluster.get(card[i]) === call.cluster);
   let next = marks;
-  if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, marks, called, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
+  for (const key of call.keys) {
+    const cell = card.indexOf(key);
+    if (cell < 0 || next[cell] !== OPEN) continue;
+    if (respond(key)) {
+      next = applyTap(card, next, called, cell).marks;
+      continue;
+    }
+    const lookalikes = card.map((other, i) => i).filter((i) => i !== cell && next[i] === OPEN && cluster.get(card[i]) === cluster.get(key));
+    if (lookalikes.length && rand() < LOTO.slip) next = applyTap(card, next, called, lookalikes[Math.floor(rand() * lookalikes.length)]).marks;
+  }
   return next;
 }
 
