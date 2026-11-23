@@ -1319,7 +1319,58 @@ function beginExamSitting() {
     if (player.seat === trip.seat) player.standUp();
   }, SIT_DIM_MS);
 }
+const trainingOpen = document.getElementById('trainingOpen');
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let training = null;
+
+function trainingClock(until) {
+  const left = Math.max(0, Math.ceil((until - context.minutes) * 60));
+  return `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+
+function showTraining(on) {
+  sitDim.classList.toggle('on', on);
+  trainingOpen.hidden = on;
+}
+
+trainingOpen.addEventListener('click', () => {
+  if (!training) return;
+  training.minimized = false;
+  showTraining(true);
+});
+
+async function runTraining(session) {
+  const active = () => !purse.sleeping && player.posture === 'seated' && player.seat === session.seat && context.minutes < session.until;
+  while (active()) {
+    if (session.minimized) {
+      await pause(200);
+      continue;
+    }
+    const keys = certify.pool(PLAYER);
+    if (!keys.length) break;
+    const onAnswer = (right) => {
+      if (!right) {
+        uiSounds.wrong();
+        return;
+      }
+      uiSounds.correct();
+      session.correct += 1;
+      const earned = trainingEarned(session.correct);
+      if (earned > 0) {
+        purse.addIntellect(earned);
+        regen.intellect(earned, player.position);
+      }
+    };
+    const result = await kanjiQuiz.ask({ keys, icon: '🏋️', note: `✅ ${session.correct}`, clock: trainingClock(session.until), quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, lock: BLESSING.answerLock, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', minimizable: true, onAnswer });
+    if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
+    if (result.minimized) {
+      session.minimized = true;
+      showTraining(false);
+      continue;
+    }
+    await pause(TRAINING.gap * 1000);
+  }
+}
 
 function beginTraining(trip) {
   examTrip = null;
@@ -1327,55 +1378,17 @@ function beginTraining(trip) {
     player.standUp();
     return;
   }
-  training = { seat: trip.seat, until: context.minutes + TRAINING.minutes, correct: 0, quizIn: BLESSING.firstQuiz, ask: null };
-}
-
-function endTraining() {
-  const done = training;
-  training = null;
-  if (done.ask && !done.ask.answered) kanjiQuiz.cancel();
-  if (player.posture === 'seated' && player.seat === done.seat) player.standUp();
-  const gained = trainingIntellect(done.correct);
-  sayPlayer(`Rèn luyện xong: đúng ${done.correct} câu${gained > 0 ? `, +${gained} 💡` : ''}.`, 3);
-}
-
-function trainingClock() {
-  const left = Math.max(0, Math.ceil((training.until - context.minutes) * 60));
-  return `⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-}
-
-function updateTraining(dt) {
-  if (!training) return;
-  if (purse.sleeping || player.posture !== 'seated' || player.seat !== training.seat || context.minutes >= training.until) {
-    endTraining();
-    return;
-  }
-  if (kanjiQuiz.open || quiz.open || popupOpen()) return;
-  training.quizIn -= dt;
-  if (training.quizIn > 0) return;
-  training.quizIn = BLESSING.quizSeconds;
-  const keys = certify.pool(PLAYER);
-  if (!keys.length) return;
-  const session = training;
-  const ask = (session.ask = { answered: false });
-  const onAnswer = (right) => {
-    ask.answered = true;
-    if (!right) {
-      uiSounds.wrong();
-      return;
-    }
-    uiSounds.correct();
-    session.correct += 1;
-    const earned = trainingEarned(session.correct);
-    if (earned > 0) {
-      purse.addIntellect(earned);
-      regen.intellect(earned, player.position);
-    }
-  };
-  kanjiQuiz.ask({ keys, icon: '🏋️', note: `✅ ${session.correct}`, clock: trainingClock(), quick: true, brief: true, closeAfter: BLESSING.quizCloseMs, lock: BLESSING.answerLock, choices: 3, kind: Math.random() < 0.5 ? 'reading' : 'meaning', onAnswer }).then((result) => {
-    if (session.ask === ask) session.ask = null;
-    if (result.entry && !result.cancelled) certify.markWeak(PLAYER, result.entry.key, result.correct);
-  });
+  const session = (training = { seat: trip.seat, until: context.minutes + TRAINING.minutes, correct: 0, minimized: false });
+  showTraining(true);
+  setTimeout(async () => {
+    await runTraining(session);
+    training = null;
+    sitDim.classList.remove('on');
+    trainingOpen.hidden = true;
+    if (player.posture === 'seated' && player.seat === session.seat) player.standUp();
+    const gained = trainingIntellect(session.correct);
+    sayPlayer(`Rèn luyện xong: đúng ${session.correct} câu${gained > 0 ? `, +${gained} 💡` : ''}.`, 3);
+  }, SIT_DIM_MS);
 }
 
 const TEACHER_MENU = [
@@ -2810,7 +2823,6 @@ renderer.setAnimationLoop((time) => {
   updateLoto();
   updateFireworks(dt, t);
   updateBlessingQuiz(dt);
-  updateTraining(dt);
   updateBlessingRewards();
   remindBlessing();
   callArena();

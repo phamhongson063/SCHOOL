@@ -190,7 +190,9 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     node.type = 'button';
     node.disabled = !item.point;
     const text = el('span', 'profile-asset-text');
-    text.append(el('span', 'profile-asset-title', item.title), el('small', 'profile-asset-detail', item.detail));
+    const detail = el('small', 'profile-asset-detail');
+    setRich(detail, item.detail ?? '');
+    text.append(el('span', 'profile-asset-title', item.title), detail);
     const badges = el('span', 'profile-asset-badges');
     badges.append(...(item.badges ?? []).map((badge) => el('span', 'profile-asset-badge', badge)));
     node.append(el('span', 'profile-asset-icon', item.icon), text, badges, el('span', 'profile-asset-go', '➜'));
@@ -198,9 +200,19 @@ export function createProfile({ ledger, bank, estate, arena, people, portraitOf,
     return node;
   }
 
+  function walletRows(id) {
+    const account = ledger.accounts[id];
+    return [
+      { icon: '👛', title: 'Tiền trong túi', detail: coins(Math.floor(account?.money ?? 0)) },
+      { icon: '🏦', title: 'Tiền gửi ngân hàng', detail: coins(bank.deposited(id)) },
+      { icon: '📉', title: 'Nợ ngân hàng', detail: coins(bank.debt(id)) },
+      { icon: '💡', title: 'Trí lực', detail: `${amount(account?.items?.intellect ?? 0)} điểm` },
+    ];
+  }
+
   function renderAssets() {
     const items = assetsOf(current.id).map((item) => (item.left === undefined ? item : { ...item, detail: `Còn ${durationText(item.left)}` }));
-    assets.replaceChildren(...(items.length ? items.map(assetRow) : [el('p', 'profile-empty', 'Chưa có tài sản.')]));
+    assets.replaceChildren(...[...walletRows(current.id), ...items].map(assetRow));
   }
 
   function showConfirm(shown) {

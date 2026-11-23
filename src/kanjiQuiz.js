@@ -35,6 +35,7 @@ function view(prefix, textId, iconId) {
     bar: node('Bar'),
     result: node('Result'),
     close: node('Close'),
+    min: node('Min'),
     clock: node('Clock'),
     icon: node(iconId),
     voice: node('Voice'),
@@ -250,15 +251,35 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
     const ui = current.view;
     if (!ui.dialog.open || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       hide(ui);
-      current.resolve({ correct: current.correct, entry: current.entry });
+      current.resolve({ correct: current.correct, entry: current.entry, minimized: !!current.minimized });
       return;
     }
     ui.dialog.classList.add('closing');
     closing = {
       view: ui,
       timer: setTimeout(endClosing, CLOSE_ANIMATION_MS),
-      done: () => current.resolve({ correct: current.correct, entry: current.entry }),
+      done: () => current.resolve({ correct: current.correct, entry: current.entry, minimized: !!current.minimized }),
     };
+  }
+
+  function drop(extra) {
+    if (!pending) return;
+    const current = pending;
+    clearInterval(current.tick);
+    clearTimeout(current.closeAt);
+    clearTimeout(current.unlock);
+    if (current.audio) stopVoice();
+    pending = null;
+    hide(current.view);
+    current.resolve({ correct: false, entry: current.entry, cancelled: true, ...extra });
+  }
+
+  function minimize() {
+    const current = pending;
+    if (!current) return;
+    current.minimized = true;
+    if (current.answered) finish();
+    else drop({ minimized: true });
   }
 
   for (const ui of Object.values(views)) {
@@ -267,6 +288,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
       else if (pending?.view === ui && pending.audio) playClip(ui, pending.audio);
     });
     ui.close.addEventListener('click', finish);
+    ui.min?.addEventListener('click', minimize);
     ui.dialog.addEventListener('cancel', (event) => {
       event.preventDefault();
       if (pending?.answered) finish();
@@ -319,7 +341,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
     get open() {
       return !!pending || !!closing;
     },
-    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = null, choices = 0, closeAfter = null, onAnswer = null, brief = false, exam = false, cardOnly = false, seconds = null, level = null, note = null, clock = null, lock = 0 } = {}) {
+    async ask({ keys = ALL_KEYS, key = null, fish = null, icon = null, quick = false, kind = null, choices = 0, closeAfter = null, onAnswer = null, brief = false, exam = false, cardOnly = false, seconds = null, level = null, note = null, clock = null, lock = 0, minimizable = false } = {}) {
       endClosing();
       const entry = key ? unitOf(key) : keys.length ? pick(keys) : null;
       if (!entry) return { correct: false, entry: null, empty: true };
@@ -330,6 +352,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
       return new Promise((resolve) => {
         pending = { view: ui, entry, answer: asked.answer, audio: asked.audio ?? null, resolve, quick: quick || !!fish, closeAfter, onAnswer, brief, answered: false, correct: false, tick: null, closeAt: null, blanks: [] };
         ui.close.hidden = true;
+        if (ui.min) ui.min.hidden = !minimizable;
         ui.dialog.classList.toggle('brief', brief);
         ui.dialog.classList.toggle('exam', exam);
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
@@ -368,15 +391,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
       });
     },
     cancel() {
-      if (!pending) return;
-      const current = pending;
-      clearInterval(current.tick);
-      clearTimeout(current.closeAt);
-      clearTimeout(current.unlock);
-      if (current.audio) stopVoice();
-      pending = null;
-      hide(current.view);
-      current.resolve({ correct: false, entry: current.entry, cancelled: true });
+      drop();
     },
   };
 }

@@ -54,6 +54,7 @@
 #payPopup,
 #lessonOpen,
 #studyOpen,
+#trainingOpen,
 #picker,
 #lanternBoard,
 #fireworksBoard,
@@ -1687,7 +1688,8 @@ dialog.paper::backdrop {
 }
 
 #lessonOpen,
-#studyOpen {
+#studyOpen,
+#trainingOpen {
   position: fixed;
   right: 16px;
   bottom: calc(var(--pill-gap) + var(--safe-bottom));
@@ -1705,7 +1707,8 @@ dialog.paper::backdrop {
 
 @media (hover: hover) {
   #lessonOpen:hover,
-  #studyOpen:hover {
+  #studyOpen:hover,
+  #trainingOpen:hover {
     background: #a3271b;
   }
 }
@@ -1789,7 +1792,8 @@ dialog.paper::backdrop {
 }
 
 #lessonOpen[hidden],
-#studyOpen[hidden] {
+#studyOpen[hidden],
+#trainingOpen[hidden] {
   display: none;
 }
 

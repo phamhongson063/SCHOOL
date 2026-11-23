@@ -1,4 +1,4 @@
-import { FIREWORKS, RANKING } from './config.js';
+import { RANKING } from './config.js';
 import { clockText, dayOf, minuteOfDay, DAY_MINUTES } from './clock.js';
 import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
@@ -11,6 +11,7 @@ import { netWorth } from './profileRules.js';
 
 const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
+const DAILY_TABS = new Set(['arena', 'lantern', 'fireworks']);
 const CHECK_MS = 5000;
 
 function load() {
@@ -30,8 +31,8 @@ function latestCheckpoint(minutes) {
 }
 
 function dailyCheckpoint(minutes) {
-  const day = dayOf(minutes - FIREWORKS.rankHour);
-  return { day, at: day * DAY_MINUTES + FIREWORKS.rankHour };
+  const day = dayOf(minutes - RANKING.dailyHour);
+  return { day, at: day * DAY_MINUTES + RANKING.dailyHour };
 }
 
 function el(tag, className, text) {
@@ -80,16 +81,24 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
     return { day, rows: rows.map(({ id, score }) => ({ id, score })) };
   }
 
-  function fireworksBoard(previous) {
+  const dailyFresh = (previous) => previous?.dailyDay === dailyCheckpoint(now()).day && previous.arenaVersion === arena.version && !!previous.arena && !!previous.lantern && !!previous.fireworks;
+
+  function dailyBoard(previous) {
+    if (dailyFresh(previous)) return { arena: previous.arena, arenaVersion: previous.arenaVersion, lantern: previous.lantern, fireworks: previous.fireworks, dailyDay: previous.dailyDay, dailyAt: previous.dailyAt };
     const checkpoint = dailyCheckpoint(now());
-    if (previous?.fireworksDay === checkpoint.day && previous.fireworks) return { fireworks: previous.fireworks, fireworksDay: previous.fireworksDay, fireworksAt: previous.fireworksAt };
-    return { fireworks: standings(fireworksOf, previous?.fireworks), fireworksDay: checkpoint.day, fireworksAt: checkpoint.at };
+    return {
+      arena: standings(titlesOf, previous?.arenaVersion === arena.version ? previous?.arena : null),
+      arenaVersion: arena.version,
+      lantern: standings(lanternsOf, previous?.lantern),
+      fireworks: standings(fireworksOf, previous?.fireworks),
+      dailyDay: checkpoint.day,
+      dailyAt: checkpoint.at,
+    };
   }
 
   function snapshot({ slot, at }) {
     const certsBase = certsBaseFor(dayOf(at));
-    board = {
-      ...fireworksBoard(board), slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows, learnerIds), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
+    board = { ...dailyBoard(board), slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows, learnerIds), certsBase };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -127,14 +136,13 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
     const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0), fireworks: board.fireworks.filter((entry) => entry.score > 0) };
     const rows = (pick[tab] ?? board.rows).filter((entry) => names.has(entry.id));
     list.replaceChildren(...(rows.length ? rows.map(row) : [el('li', 'rank-empty', 'Chưa có nhà vô địch.')]));
-    stamp.textContent = `Cập nhật lúc ${clockText(tab === 'fireworks' ? board.fireworksAt : board.at)}`;
+    stamp.textContent = `Cập nhật lúc ${clockText(DAILY_TABS.has(tab) ? board.dailyAt : board.at)}`;
   }
 
   function update() {
     const checkpoint = latestCheckpoint(now());
     const certsFresh = board?.certs?.every(({ id }) => learners.has(id));
-    const fireworksFresh = board?.fireworks && board.fireworksDay === dailyCheckpoint(now()).day;
-    if (board?.slot === checkpoint.slot && certsFresh && board.arena && board.lantern && fireworksFresh && board.arenaVersion === arena.version) return;
+    if (board?.slot === checkpoint.slot && certsFresh && dailyFresh(board)) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }

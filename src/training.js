@@ -4,13 +4,13 @@ import { economy } from './economy.js';
 import { NPC } from './npcIds.js';
 
 export const TRAINING_SPAN = TRAINING.minutes + 2;
-const ASK_SECONDS = BLESSING.quizSeconds + Math.max(BLESSING.answerLock, (BLESSING.villagerAnswer[0] + BLESSING.villagerAnswer[1]) / 2);
+const ASK_SECONDS = TRAINING.gap + Math.max(BLESSING.answerLock, (TRAINING.villagerAnswer[0] + TRAINING.villagerAnswer[1]) / 2);
 
 export const trainingIntellect = (correct) => Math.floor(correct / TRAINING.intellectPer);
 
 export const trainingEarned = (correct) => trainingIntellect(correct) - trainingIntellect(correct - 1);
 
-export const trainingThink = () => Math.max(BLESSING.answerLock, between(...BLESSING.villagerAnswer));
+export const trainingThink = () => Math.max(BLESSING.answerLock, between(...TRAINING.villagerAnswer));
 
 export function payTraining(purse, payer = null) {
   if (!purse.spend(TRAINING.fee)) return false;
@@ -32,7 +32,7 @@ export function trainingAnswers(answer, seconds = TRAINING.minutes * 60) {
     left -= trainingThink();
     if (left < 0) break;
     if (answer()) correct += 1;
-    left -= BLESSING.quizSeconds;
+    left -= TRAINING.gap;
   }
   return correct;
 }

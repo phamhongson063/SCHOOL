@@ -439,7 +439,6 @@ export const FIREWORKS = {
   prizes: [0.5, 0.3, 0.2],
   intellectPer: 4,
   champions: 30,
-  rankHour: 6 * 60,
   sample: 12,
 };
 
@@ -515,12 +514,15 @@ export const BLESSING = {
 export const TRAINING = {
   fee: 3,
   minutes: 15,
+  gap: 1,
+  villagerAnswer: [7, 15],
   intellectPer: 25,
   shortValue: 10,
 };
 
 export const RANKING = {
   hours: Array.from({ length: 24 }, (_, hour) => hour * 60),
+  dailyHour: 0,
 };
 
 export const BANK = {

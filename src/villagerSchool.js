@@ -448,7 +448,7 @@ export class SchoolBehavior {
     }
     if (t < run.answerAt) return;
     run.answerAt = null;
-    run.at = t + BLESSING.quizSeconds;
+    run.at = t + TRAINING.gap;
     if (!this.answerPool()) return;
     run.correct += 1;
     const earned = trainingEarned(run.correct);
