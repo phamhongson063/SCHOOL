@@ -17,7 +17,7 @@ import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 import { applySpeech, planSpeech } from './speaking.js';
 import { lotoEnd, lotoGatherAt, lotoMinutes, lotoSignOpen } from './lotoRules.js';
-import { fireworksEnd, fireworksGatherAt, fireworksSignOpen, fireworksStayMinutes } from './fireworksRules.js';
+import { fireworksSignOpen, fireworksStayMinutes, fireworksWindow } from './fireworksSchedule.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -541,9 +541,9 @@ export function createAwaySim({ town, contextAt }) {
 
   function fireworksAt(member, clock) {
     const fireworks = town.fireworks;
-    const day = dayOf(clock);
-    if (!fireworks || !fireworks.joined(member.id, clock) || fireworks.result(clock) || clock < fireworksGatherAt(day) || clock >= fireworksEnd(day)) return false;
-    occupy(memoOf(member), clock, fireworksEnd(day), 'idle');
+    const window = fireworksWindow(clock);
+    if (!fireworks || !window || !fireworks.joined(member.id, clock) || fireworks.result(clock) || clock < window.gather) return false;
+    occupy(memoOf(member), clock, window.end, 'idle');
     return true;
   }
 

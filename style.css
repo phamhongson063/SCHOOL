@@ -8004,8 +8004,8 @@ body.in-duel > :not(#app):not(#duelDialog) {
 }
 
 .fireworks-timer {
-  width: 26px;
-  height: 26px;
+  width: 16px;
+  height: 16px;
   transform: rotate(-90deg);
 }
 

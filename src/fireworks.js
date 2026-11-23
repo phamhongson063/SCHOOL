@@ -1,17 +1,13 @@
 import { FIREWORKS } from './config.js';
-import { dayOf } from './clock.js';
 import { createStore } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
 import { unitOf } from './studyDecks.js';
 import {
   SHOW_SECONDS,
-  fireworksEnd,
-  fireworksLeft,
+  fireworksIntellect,
   fireworksOdds,
   fireworksPace,
-  fireworksSignOpen,
-  fireworksStart,
   fireworksWorth,
   glyphsOf,
   knownKeys,
@@ -23,6 +19,7 @@ import {
   wordLimit,
   wordPoints,
 } from './fireworksRules.js';
+import { fireworksLeft, fireworksWindow, showEnd, showStart, validSlot } from './fireworksSchedule.js';
 
 const KEY = worldKey('fireworks');
 const PHASES = ['open', 'live', 'done'];
@@ -30,7 +27,7 @@ const ODDS_MINUTES = 10;
 
 const ids = (list) => (Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []);
 const freshPlay = () => ({ index: 0, filled: [], since: null, missed: false, score: 0, words: 0, lastAt: null, glyphs: 0, spent: 0 });
-const blankShow = (day) => ({ day, start: FIREWORKS.start, phase: 'open', entrants: [], joinedAt: {}, keys: {}, runs: {}, cursor: {}, play: {}, pot: 0, places: [] });
+const blankShow = (day, start) => ({ day, start, phase: 'open', entrants: [], joinedAt: {}, keys: {}, runs: {}, cursor: {}, play: {}, pot: 0, places: [] });
 const isCursor = (raw) => raw && Number.isInteger(raw.index) && raw.index >= 0 && Number.isFinite(raw.end) && (raw.ok === 0 || raw.ok === 1);
 
 function cleanPlay(raw) {
@@ -47,11 +44,11 @@ function cleanPlaces(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((place) => typeof place?.id === 'string')
-    .map((place) => ({ id: place.id, score: Number.isFinite(place.score) ? place.score : 0, words: Number.isFinite(place.words) ? place.words : 0, prize: Number.isFinite(place.prize) ? place.prize : 0 }));
+    .map((place) => ({ id: place.id, score: Number.isFinite(place.score) ? place.score : 0, words: Number.isFinite(place.words) ? place.words : 0, prize: Number.isFinite(place.prize) ? place.prize : 0, intellect: Number.isFinite(place.intellect) ? place.intellect : 0 }));
 }
 
 function cleanShow(raw) {
-  if (!raw || typeof raw !== 'object' || !Number.isInteger(raw.day) || !PHASES.includes(raw.phase) || raw.start !== FIREWORKS.start) return null;
+  if (!raw || typeof raw !== 'object' || !Number.isInteger(raw.day) || !PHASES.includes(raw.phase) || !validSlot(raw.start)) return null;
   const entrants = ids(raw.entrants);
   const shared = Array.isArray(raw.keys) ? ids(raw.keys).filter((key) => unitOf(key)) : null;
   const keys = {};
@@ -69,12 +66,12 @@ function cleanShow(raw) {
   for (const [id, value] of Object.entries(raw.play ?? {})) if (entrants.includes(id)) play[id] = cleanPlay(value);
   const joinedAt = Object.fromEntries(entrants.filter((id) => Number.isFinite(raw.joinedAt?.[id])).map((id) => [id, raw.joinedAt[id]]));
   const cursor = Object.fromEntries(entrants.filter((id) => isCursor(raw.cursor?.[id])).map((id) => [id, { ...raw.cursor[id] }]));
-  return { day: raw.day, start: FIREWORKS.start, phase: raw.phase, entrants, joinedAt, keys, runs, cursor, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
+  return { day: raw.day, start: raw.start, phase: raw.phase, entrants, joinedAt, keys, runs, cursor, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
 }
 
 function cleanLast(raw) {
   if (!raw || !Number.isInteger(raw.day)) return null;
-  return { day: raw.day, places: cleanPlaces(raw.places), entrants: ids(raw.entrants) };
+  return { day: raw.day, start: Number.isFinite(raw.start) ? raw.start : null, places: cleanPlaces(raw.places), entrants: ids(raw.entrants) };
 }
 
 function load() {
@@ -95,8 +92,13 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
   const finished = [];
   const oddsCache = new Map();
 
-  const showOn = (day) => (state.show?.day === day ? state.show : null);
-  const secondsOf = (show, now) => Math.max(0, Math.min(SHOW_SECONDS, (now - fireworksStart(show.day)) * 60));
+  const startOf = (show) => showStart(show.day, show.start);
+  const endOf = (show) => showEnd(show.day, show.start);
+  const showAt = (now) => {
+    const window = fireworksWindow(now);
+    return window && state.show?.day === window.day && state.show.start === window.slot ? state.show : null;
+  };
+  const secondsOf = (show, now) => Math.max(0, Math.min(SHOW_SECONDS, (now - startOf(show)) * 60));
   const keyAt = (show, id, index) => show.keys[id][index % show.keys[id].length];
 
   function tallyOf(show, id, seconds) {
@@ -141,7 +143,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       show.phase = 'done';
       return;
     }
-    show.pot = sponsor(fireworksStart(show.day));
+    show.pot = sponsor(startOf(show));
     for (const id of show.entrants) enter(show, id, show.joinedAt[id] ?? 0);
     show.phase = 'live';
   }
@@ -154,9 +156,9 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       const money = Math.floor(show.pot * share);
       if (money > 0) pay(row.id, money);
       paid += money;
-      const intellect = row.words * FIREWORKS.intellect;
+      const intellect = fireworksIntellect(row.words);
       if (intellect > 0) award(row.id, intellect);
-      return { id: row.id, score: row.score, words: row.words, prize: money };
+      return { id: row.id, score: row.score, words: row.words, prize: money, intellect };
     });
     refund(show.pot - paid);
     const champion = show.places[0];
@@ -165,7 +167,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       state.champions = [{ day: show.day, id: champion.id }, ...state.champions].slice(0, FIREWORKS.champions);
     }
     show.phase = 'done';
-    state.last = { day: show.day, places: show.places.map((place) => ({ ...place })), entrants: [...show.entrants] };
+    state.last = { day: show.day, start: show.start, places: show.places.map((place) => ({ ...place })), entrants: [...show.entrants] };
     for (const listener of finished) listener(state.last);
   }
 
@@ -173,12 +175,12 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
     const show = state.show;
     if (!show) return false;
     let changed = false;
-    if (show.phase === 'open' && now >= fireworksStart(show.day)) {
+    if (show.phase === 'open' && now >= startOf(show)) {
       begin(show);
       changed = true;
     }
     if (show.phase === 'live' && stepNpcs(show, secondsOf(show, now))) changed = true;
-    if (show.phase === 'live' && now >= fireworksEnd(show.day)) {
+    if (show.phase === 'live' && now >= endOf(show)) {
       finish(show);
       changed = true;
     }
@@ -186,8 +188,8 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
   }
 
   function liveShow(who, now) {
-    const show = showOn(dayOf(now));
-    if (show?.phase !== 'live' || now >= fireworksEnd(show.day) || !show.play[who]) return null;
+    const show = showAt(now);
+    if (show?.phase !== 'live' || now >= endOf(show) || !show.play[who]) return null;
     return show;
   }
 
@@ -247,11 +249,11 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
     },
     register(who, now) {
       advance(now);
-      const day = dayOf(now);
-      if (!fireworksSignOpen(now)) return 'closed';
-      if (showOn(day)?.entrants.includes(who)) return 'already';
+      const window = fireworksWindow(now);
+      if (!window) return 'closed';
+      if (showAt(now)?.entrants.includes(who)) return 'already';
       if (!charge(who, FIREWORKS.fee)) return 'poor';
-      if (!showOn(day)) state.show = blankShow(day);
+      if (!showAt(now)) state.show = blankShow(window.day, window.slot);
       const show = state.show;
       show.entrants.push(who);
       show.joinedAt[who] = secondsOf(show, now);
@@ -261,14 +263,14 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       store.save();
       return 'ok';
     },
-    joined: (who, now) => !!showOn(dayOf(now))?.entrants.includes(who),
-    entrants: (now) => [...(showOn(dayOf(now))?.entrants ?? [])],
+    joined: (who, now) => !!showAt(now)?.entrants.includes(who),
+    entrants: (now) => [...(showAt(now)?.entrants ?? [])],
     pot(now) {
-      const show = showOn(dayOf(now));
+      const show = showAt(now);
       return show && show.phase !== 'open' ? show.pot : prize(now);
     },
     worth(id, now, need, diligence) {
-      const rivals = (showOn(dayOf(now))?.entrants ?? []).filter((other) => other !== id);
+      const rivals = (showAt(now)?.entrants ?? []).filter((other) => other !== id);
       const keys = knownKeys(id);
       if (!keys.length) return -FIREWORKS.fee * need;
       const full = oddsOf(id, keys, now);
@@ -277,12 +279,12 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       return fireworksWorth({ mine, rivals: rivals.map((other) => oddsOf(other, knownKeys(other), now).score), pot: prize(now), need, diligence });
     },
     live(now) {
-      const show = showOn(dayOf(now));
-      return show?.phase === 'live' && now < fireworksEnd(show.day);
+      const show = showAt(now);
+      return show?.phase === 'live' && now < endOf(show);
     },
     playing: (who, now) => !!liveShow(who, now),
     standings(now) {
-      const show = showOn(dayOf(now));
+      const show = showAt(now);
       if (!show) return [];
       if (show.phase === 'done') return show.places.map(({ id, score }) => ({ id, score }));
       const seconds = secondsOf(show, now);
@@ -316,7 +318,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       return 'done';
     },
     burstsBetween(from, to, now) {
-      const show = showOn(dayOf(now));
+      const show = showAt(now);
       if (show?.phase !== 'live') return [];
       const a = secondsOf(show, from);
       const b = secondsOf(show, to);
@@ -327,7 +329,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       return out;
     },
     result(now) {
-      const show = showOn(dayOf(now));
+      const show = showAt(now);
       return show?.phase === 'done' ? show.places.map((place) => ({ ...place })) : null;
     },
     lastResult: () => (state.last ? { ...state.last, places: state.last.places.map((place) => ({ ...place })), entrants: [...state.last.entrants] } : null),

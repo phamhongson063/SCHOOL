@@ -49,7 +49,8 @@ import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTE
 import { createFireworks } from './fireworks.js';
 import { createFireworksShow } from './fireworksShow.js';
 import { createFireworksPanel } from './fireworksPanel.js';
-import { fireworksEnd, fireworksSignOpen, fireworksStart, glyphsOf } from './fireworksRules.js';
+import { glyphsOf } from './fireworksRules.js';
+import { fireworksSkyMinutes, fireworksWindow } from './fireworksSchedule.js';
 import { createLoto } from './loto.js';
 import { createLotoCourt } from './lotoCourt.js';
 import { createLotoDialog, createLotoSign } from './lotoDialog.js';
@@ -907,11 +908,11 @@ const fireworks = createFireworks({
     economy.fireworksFee(fee, who);
     return true;
   },
-  sponsor: () => 0,
+  sponsor: (at) => economy.sponsorFireworks(at),
   pay: (id, money) => economy.payFireworks(ledger.purse(id), money),
   refund: (value) => economy.returnFireworks(value),
   award: (id, intellect) => ledger.purse(id).addIntellect(intellect),
-  prize: () => 0,
+  prize: (at) => economy.fireworksPrize(at),
   human: (id) => id === PLAYER,
 });
 town.fireworks = fireworks;
@@ -1435,7 +1436,7 @@ const sandHostDesk = {
         mailbox.removeTag(FIREWORKS_CALL);
       }
       if (outcome === 'ok' || outcome === 'already') goWatchFireworks();
-      const reply = sandFestReply(outcome);
+      const reply = sandFestReply(outcome, fireworksWindow(context.minutes)?.start);
       if (reply) host.say(reply, 2.6);
     });
     return null;
@@ -2228,14 +2229,6 @@ function updateLoto() {
   reportLoto(now);
 }
 
-const FIREWORKS_TEST_NIGHT = 23 * 60;
-function fireworksSkyMinutes(minutes) {
-  const day = dayOf(minutes);
-  const start = fireworksStart(day);
-  if (minutes < start - FIREWORKS.gather || minutes >= fireworksEnd(day) + 2) return minutes;
-  return day * DAY_MINUTES + FIREWORKS_TEST_NIGHT + (minutes - start);
-}
-
 const FIREWORKS_CALL = 'fireworksCall';
 const FIREWORKS_AWAY = 'fireworksAway';
 const FIREWORKS_RESULT_KEY = 'langsch.fireworksResult';
@@ -2291,14 +2284,14 @@ function fireworksOutcome(last) {
   const head = champion && champion.score > 0 ? `Vô địch: ${champion.id === PLAYER ? 'Bạn' : lotoNameOf(champion.id)}` : 'Chưa ai bắn trúng chữ nào.';
   if (rank < 0) return head;
   const mine = last.places[rank];
-  const gifts = [mine.prize > 0 ? coins(mine.prize) : '', mine.words > 0 ? `+${mine.words * FIREWORKS.intellect} trí lực` : ''].filter(Boolean).join(' · ');
+  const gifts = [mine.prize > 0 ? coins(mine.prize) : '', mine.intellect > 0 ? `+${mine.intellect} trí lực` : ''].filter(Boolean).join(' · ');
   return `${head} · Bạn hạng ${rank + 1}/${last.places.length} · 🎆 ${mine.score}${gifts ? ` · ${gifts}` : ''}`;
 }
 
 function reportFireworks(now) {
   const last = fireworks.lastResult();
   if (!last || !last.entrants.includes(PLAYER)) return;
-  const tag = String(last.day);
+  const tag = `${last.day}:${last.start}`;
   let shown = null;
   try {
     shown = localStorage.getItem(FIREWORKS_RESULT_KEY);
@@ -2310,24 +2303,25 @@ function reportFireworks(now) {
   const mine = last.places.find((place) => place.id === PLAYER);
   if (mine && last.day === dayOf(now)) {
     if (mine.prize > 0) regen.coin(mine.prize, player.position);
-    if (mine.words > 0) regen.intellect(mine.words * FIREWORKS.intellect, player.position);
+    if (mine.intellect > 0) regen.intellect(mine.intellect, player.position);
   }
-  const when = last.day === dayOf(now) ? '' : ` tối ${dateText(last.day * DAY_MINUTES)}`;
+  const when = last.day === dayOf(now) ? '' : ` ${Number.isFinite(last.start) ? `${clockText(last.start)} ` : ''}${dateText(last.day * DAY_MINUTES)}`;
   mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME}${when}: ${fireworksOutcome(last)}`], keep: true, expires: endOfDay() });
 }
 
+const fireworksTag = (window) => `${window.day}:${window.slot}`;
+
 function remindFireworks(now) {
-  const day = dayOf(now);
-  const selling = fireworksSignOpen(now) && !fireworks.joined(PLAYER, now);
-  if (!selling) {
+  const window = fireworksWindow(now);
+  if (!window || fireworks.joined(PLAYER, now)) {
     if (fireworksRemindedFor !== null) mailbox.removeTag(FIREWORKS_CALL);
     fireworksRemindedFor = null;
     return;
   }
-  if (fireworksRemindedFor === day) return;
-  fireworksRemindedFor = day;
+  if (fireworksRemindedFor === fireworksTag(window)) return;
+  fireworksRemindedFor = fireworksTag(window);
   mailbox.removeTag(FIREWORKS_CALL);
-  mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME} bắn lúc ${clockText(FIREWORKS.start)} ở ${SAND_CASTLE_NAME}. Gặp chủ hội ghi danh nhé.`], place: SAND_CASTLE_NAME, point: CASTLE_STAND, tag: FIREWORKS_CALL });
+  mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME} bắn lúc ${clockText(window.start)} ở ${SAND_CASTLE_NAME}. Gặp chủ hội ghi danh nhé.`], place: SAND_CASTLE_NAME, point: CASTLE_STAND, tag: FIREWORKS_CALL });
 }
 
 function fireworksAmbient(now, near) {
@@ -2342,7 +2336,6 @@ function fireworksAmbient(now, near) {
 
 function updateFireworks(dt, t) {
   const now = context.minutes;
-  const day = dayOf(now);
   riverIsle.field.tick(t);
   if (!economy.catching) fireworks.tick(now);
   const live = fireworks.live(now);
@@ -2379,13 +2372,14 @@ function updateFireworks(dt, t) {
   if (!hasEntered()) return;
   remindFireworks(now);
   const playing = fireworks.playing(PLAYER, now);
-  if (live && fireworksAnnounced !== day && now >= fireworksStart(day)) {
-    fireworksAnnounced = day;
+  const window = fireworksWindow(now);
+  if (live && window && fireworksAnnounced !== fireworksTag(window)) {
+    fireworksAnnounced = fireworksTag(window);
     broadcast.show(`${FIREWORKS_NAME} bắt đầu! Lên ${SAND_CASTLE_NAME} ngắm pháo hoa nhé.`);
   }
   const inside = riverIsle.field.inside(player.position);
-  if (playing && !inside && fireworksAwayFor !== day) {
-    fireworksAwayFor = day;
+  if (playing && !inside && window && fireworksAwayFor !== fireworksTag(window)) {
+    fireworksAwayFor = fireworksTag(window);
     fireworksAwayMail = true;
     mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME} đang bắn chữ, lên ${SAND_CASTLE_NAME} nhé.`], place: SAND_CASTLE_NAME, point: CASTLE_STAND, tag: FIREWORKS_AWAY });
   }

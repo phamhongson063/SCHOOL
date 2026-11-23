@@ -1,5 +1,4 @@
 import { ABSORB, FIREWORKS, LANTERN, MIND } from './config.js';
-import { DAY_MINUTES, minuteOfDay } from './clock.js';
 import { hashText, makeRandom, shuffle } from './random.js';
 import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
 import { absorption } from './absorption.js';
@@ -29,32 +28,12 @@ const LIKE = (() => {
 
 export const glyphsOf = (key) => Array.from(unitOf(key)?.word ?? '');
 export const wordPoints = () => 1;
+export const fireworksIntellect = (words) => Math.floor(words / FIREWORKS.intellectPer);
 const shotOf = () => LANTERN.tapSeconds + FIREWORKS.aimSeconds;
 export const shotSeconds = (key) => glyphsOf(key).length * shotOf();
 const missSeconds = () => shotOf();
 export const appearSeconds = () => FIREWORKS.sky.retire + FIREWORKS.sky.deal + FIREWORKS.sky.rise;
 export const wordLimit = (key) => (appearSeconds() + LANTERN.readSeconds + LANTERN.thinkSeconds + shotSeconds(key)) * FIREWORKS.wordSlack;
-
-export const fireworksStart = (day) => day * DAY_MINUTES + FIREWORKS.start;
-export const fireworksEnd = (day) => fireworksStart(day) + FIREWORKS.minutes;
-export const fireworksGatherAt = (day) => fireworksStart(day) - FIREWORKS.gather;
-
-export function fireworksSignOpen(now) {
-  const m = minuteOfDay(now);
-  return m >= FIREWORKS.signOpen && m < FIREWORKS.start + FIREWORKS.minutes;
-}
-
-export function fireworksLeft(now) {
-  const m = minuteOfDay(now);
-  return Math.max(0, Math.min(FIREWORKS.minutes, FIREWORKS.start + FIREWORKS.minutes - m));
-}
-
-export const fireworksStayMinutes = (now) => (fireworksLive(now) ? 0 : FIREWORKS.gather) + fireworksLeft(now);
-
-export function fireworksLive(now) {
-  const m = minuteOfDay(now);
-  return m >= FIREWORKS.start && m < FIREWORKS.start + FIREWORKS.minutes;
-}
 
 export function skyTiles(key, salt) {
   const card = unitOf(key);
@@ -164,7 +143,7 @@ export function fireworksOdds(id, keys) {
 export function fireworksWorth({ mine, rivals, pot, need, diligence }) {
   const field = rivals.reduce((sum, score) => sum + score, mine.score);
   const share = field > 0 ? mine.score / field : 0;
-  return need * (pot * share - FIREWORKS.fee) + mine.words * FIREWORKS.intellect * MIND.intellectValue * diligence;
+  return need * (pot * share - FIREWORKS.fee) + (mine.words / FIREWORKS.intellectPer) * MIND.intellectValue * diligence;
 }
 
 export function placeOrder(rows) {

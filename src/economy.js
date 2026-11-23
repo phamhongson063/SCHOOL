@@ -14,6 +14,7 @@ import { traits } from './traits.js';
 import { fate } from './fate.js';
 import { census } from './census.js';
 import { weekOf } from './quests.js';
+import { fireworksPerDay } from './fireworksSchedule.js';
 
 const KEY = worldKey('economy');
 const FUND = 'fund';
@@ -29,7 +30,7 @@ export const SHOPKEEPERS = [
   { id: NPC.grocer, name: 'Jessica' },
   { id: NPC.chief, name: 'Youngsoo', role: 'chief' },
   { id: NPC.mayor, name: 'Haruto', role: 'mayor' },
-  { id: NPC.host, name: 'Ngọc' },
+  { id: NPC.host, name: 'Ngọc', role: 'host' },
 ];
 
 const QUEST_POOL = { day: { pool: 'dayPool', reward: 'dayReward' }, week: { pool: 'weekPool', reward: 'weekReward' } };
@@ -628,7 +629,8 @@ export const economy = {
     if (ctx && value > 0) ctx.ledger.purse(FUND).earn(value);
   },
   fireworksPrize(at = gameNow()) {
-    return planOf(dayOf(at))?.fireworksPrize ?? 0;
+    const day = dayOf(at);
+    return Math.floor((planOf(day)?.fireworksPrize ?? 0) / Math.max(1, fireworksPerDay(day)));
   },
   sponsorFireworks(at) {
     return ctx ? takeFund(economy.fireworksPrize(at)) : 0;

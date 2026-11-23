@@ -1,6 +1,6 @@
 import { between } from './random.js';
 import { FIREWORKS } from './config.js';
-import { fireworksEnd, fireworksGatherAt, fireworksSignOpen, fireworksStayMinutes } from './fireworksRules.js';
+import { fireworksSignOpen, fireworksStayMinutes, fireworksWindow } from './fireworksSchedule.js';
 
 const WATCH_POLL = 1.5;
 
@@ -37,7 +37,8 @@ export class FireworksBehavior {
   fireworksSeatWanted(ctx = this.town.context) {
     const fireworks = this.town.fireworks;
     if (!fireworks || !this.town.fireworksField || this.fireworksGaveUp === ctx.day || !fireworks.joined(this.id, ctx.minutes) || fireworks.result(ctx.minutes)) return false;
-    return ctx.minutes >= fireworksGatherAt(ctx.day) && ctx.minutes < fireworksEnd(ctx.day) && !this.needsSleep(ctx);
+    const window = fireworksWindow(ctx.minutes);
+    return !!window && ctx.minutes >= window.gather && !this.needsSleep(ctx);
   }
 
   goFireworksSeat() {
@@ -65,7 +66,7 @@ export class FireworksBehavior {
   stayFireworks() {
     const field = this.town.fireworksField;
     const ctx = this.town.context;
-    if (!field || ctx.minutes < fireworksGatherAt(ctx.day) || !this.fireworksSeatWanted(ctx)) {
+    if (!field || !this.fireworksSeatWanted(ctx)) {
       this.endFireworks();
       return;
     }

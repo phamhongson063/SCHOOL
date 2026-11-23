@@ -280,7 +280,7 @@ export const FIREFLY = {
 
 export const ECONOMY = {
   vat: 0.1,
-  wages: { guard: 12, chief: 15, mayor: 20 },
+  wages: { guard: 12, chief: 15, mayor: 20, host: 10 },
   tuitionShare: { examiner: 0.05, classroom: 0.1 },
   fundSeed: 5000,
   living: 12,
@@ -414,9 +414,13 @@ export const TOWNHALL = {
 };
 
 export const FIREWORKS = {
-  fee: 0,
-  signOpen: 6 * 60,
-  start: 11 * 60 + 40,
+  fee: 5,
+  slots: [
+    { start: 12 * 60, signOpen: 11 * 60, weekdays: [6, 0] },
+    { start: 23 * 60, signOpen: 18 * 60 },
+  ],
+  night: 23 * 60,
+  dusk: 1.5,
   minutes: 15,
   gather: 5,
   heraldLead: 15,
@@ -429,7 +433,7 @@ export const FIREWORKS = {
   decoys: 26,
   answerCopies: 2,
   prizes: [0.5, 0.3, 0.2],
-  intellect: 1,
+  intellectPer: 4,
   champions: 30,
   rankHour: 6 * 60,
   sample: 12,
