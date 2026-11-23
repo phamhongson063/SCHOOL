@@ -1,5 +1,6 @@
 const FLASH_MS = 900;
-const BLANK = '□';
+const READING_SIZE = 20;
+const READING_MIN = 14;
 const LOW_SECONDS = 5;
 const RING = 2 * Math.PI * 15;
 
@@ -23,8 +24,17 @@ export function createFireworksPanel() {
   let shownFill = null;
   let flashTimer = 0;
 
-  function buildSlots(count) {
-    slots.replaceChildren(...Array.from({ length: count }, () => el('span', 'fireworks-slot', BLANK)));
+  function fitReading() {
+    reading.style.fontSize = `${READING_SIZE}px`;
+    const room = reading.clientWidth;
+    const need = reading.scrollWidth;
+    if (room > 0 && need > room) reading.style.fontSize = `${Math.max(READING_MIN, Math.floor((READING_SIZE * room) / need))}px`;
+  }
+
+  function paintSlots(size, filled) {
+    slots.replaceChildren(
+      ...Array.from({ length: size }, (_, i) => (i < filled.length ? el('span', 'fireworks-glyph', filled[i]) : el('span', i === filled.length ? 'fireworks-dot next' : 'fireworks-dot'))),
+    );
   }
 
   return {
@@ -41,16 +51,12 @@ export function createFireworksPanel() {
         shownFill = null;
         reading.textContent = kana;
         meaning.textContent = gloss;
-        buildSlots(size);
+        fitReading();
       }
       const fill = filled.join('');
       if (fill !== shownFill) {
         shownFill = fill;
-        [...slots.children].forEach((slot, i) => {
-          slot.textContent = filled[i] ?? BLANK;
-          slot.classList.toggle('filled', i < filled.length);
-          slot.classList.toggle('next', i === filled.length);
-        });
+        paintSlots(size, filled);
       }
       const share = limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0;
       ring.style.strokeDashoffset = `${RING * (1 - share)}`;
