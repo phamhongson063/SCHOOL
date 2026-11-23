@@ -372,8 +372,8 @@ export const ARENA = {
   size: { day: 16, night: 8 },
   stages: 8,
   schedule: [
-    { weekdays: [1, 2, 3, 4, 5], hours: [1, 3, 5, 9, 11, 13, 15, 21] },
-    { weekdays: [6, 0], hours: [1, 3, 5, 9, 11, 15, 17, 19, 21] },
+    { weekdays: [1, 2, 3, 4, 5], hours: [1, 5, 9, 13, 15, 21] },
+    { weekdays: [6, 0], hours: [1, 5, 9, 15, 17, 19, 21] },
   ],
   lead: 30,
   opening: 0.25,
