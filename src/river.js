@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial, vertexMaterial } from './toon.js';
 import { between, makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
 import { FISHING, WORLD } from './config.js';
 import { gameNow } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { BOAT_X, DOCK, DOCK_X, SEGMENT, northBank, southBank } from './riverShape.js';
+import { BOAT_X, CROSSING, DOCK, DOCK_X, ISLE, SEGMENT, clearOfCrossing, inIsleSpan, isleNorth, isleSouth, laneSouth, northBank, southBank } from './riverShape.js';
 import { createFishZones } from './fishZones.js';
 
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
@@ -13,6 +14,7 @@ const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
 const PATH = { x0: 44.4, x1: 46.6, z0: 39, bypassX0: 47.8, bypassX1: 49.8, bendZ0: 56, bendZ1: 58 };
 const REACH = { x0: WORLD.x0 - 2, x1: WORLD.x1 + 2 };
 const STEP = 1;
+const ISLE_STEP = 0.5;
 const FISH_PICK_RADIUS = 6;
 const DROPS = 300;
 const RING_SECONDS = 1.3;
@@ -26,12 +28,12 @@ const PEBBLES = [0x9e9484, 0xb3ab99, 0x857c6c];
 const FLOW_SPEED = 0.05;
 const HYACINTHS = 30;
 
-function ribbon(x0, x1, edgeA, edgeB) {
+function ribbon(x0, x1, edgeA, edgeB, step = STEP) {
   const positions = [];
   const uvs = [];
   const indices = [];
   let row = 0;
-  for (let x = x0; x <= x1 + 1e-6; x += STEP, row++) {
+  for (let x = x0; x <= x1 + 1e-6; x += step, row++) {
     const a = edgeA(x);
     const b = edgeB(x);
     positions.push(x, 0, a, x, 0, b);
@@ -46,6 +48,21 @@ function ribbon(x0, x1, edgeA, edgeB) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   for (let i = 0; i < geometry.attributes.normal.count; i++) geometry.attributes.normal.setXYZ(i, 0, 1, 0);
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function waterGeometry() {
+  const north = (x) => northBank(x) - 0.3;
+  const south = (x) => southBank(x) + 0.3;
+  const strips = [
+    ribbon(SPAN.x0, ISLE.x0, north, south),
+    ribbon(ISLE.x0, ISLE.x1, north, (x) => Math.min(isleNorth(x) + 0.3, ISLE.z), ISLE_STEP),
+    ribbon(ISLE.x0, ISLE.x1, (x) => Math.max(isleSouth(x) - 0.3, ISLE.z), south, ISLE_STEP),
+    ribbon(ISLE.x1, SPAN.x1, north, south),
+  ];
+  const geometry = mergeGeometries(strips, false);
+  for (const strip of strips) strip.dispose();
   geometry.computeBoundingSphere();
   return geometry;
 }
@@ -108,31 +125,50 @@ function dock(b) {
 }
 
 function shoreline(b, rand) {
-  const skip = (x) => Math.abs(x - DOCK_X) < 5 || Math.abs(x - BOAT_X) < 3;
+  const skip = (x) => Math.abs(x - DOCK_X) < 5 || Math.abs(x - BOAT_X) < 3 || !clearOfCrossing(x, 1.5);
   for (let i = 0; i < 90 * SPAN_SCALE; i++) {
     const x = SPAN.x0 + 8 + rand() * (SPAN.x1 - SPAN.x0 - 16);
     if (skip(x)) continue;
     const north = rand() < 0.55;
-    const z = north ? northBank(x) + 0.1 + rand() * 0.4 : southBank(x) - 0.1 - rand() * 0.4;
-    const blades = 4 + Math.floor(rand() * 4);
-    for (let k = 0; k < blades; k++) {
-      const h = 0.6 + rand() * 0.8;
-      const a = rand() * Math.PI * 2;
-      b.add(shapes.cone(0.025, h, 4), REED[k % REED.length], {
-        p: [x + Math.cos(a) * 0.12, h / 2 - 0.05, z + Math.sin(a) * 0.12],
-        r: [Math.cos(a) * 0.2, 0, Math.sin(a) * 0.2],
-        flat: true,
-      });
-    }
+    reeds(b, rand, x, north ? northBank(x) + 0.1 + rand() * 0.4 : southBank(x) - 0.1 - rand() * 0.4);
   }
   for (let i = 0; i < 140 * SPAN_SCALE; i++) {
     const x = SPAN.x0 + 4 + rand() * (SPAN.x1 - SPAN.x0 - 8);
     if (Math.abs(x - DOCK_X) < 2) continue;
     const north = rand() < 0.5;
     const z = north ? northBank(x) - 0.1 + rand() * 0.25 : southBank(x) - 0.15 + rand() * 0.25;
-    const r = 0.08 + rand() * 0.16;
-    b.add(shapes.ico(r, 0), shade(PEBBLES[i % PEBBLES.length], 0.85 + rand() * 0.25), { p: [x, r * 0.25, z], s: [1.4, 0.55, 1.1], r: [0, rand() * 3, 0], flat: true });
+    pebble(b, rand, x, z, i);
   }
+  for (let i = 0; i < 70; i++) {
+    const x = ISLE.x0 + 3 + rand() * (ISLE.x1 - ISLE.x0 - 6);
+    if (!clearOfCrossing(x, 1.5)) continue;
+    const north = rand() < 0.55;
+    reeds(b, rand, x, north ? isleNorth(x) - 0.1 - rand() * 0.4 : isleSouth(x) + 0.1 + rand() * 0.4);
+  }
+  for (let i = 0; i < 90; i++) {
+    const x = ISLE.x0 + 1 + rand() * (ISLE.x1 - ISLE.x0 - 2);
+    if (!clearOfCrossing(x)) continue;
+    const north = rand() < 0.5;
+    pebble(b, rand, x, north ? isleNorth(x) + 0.1 - rand() * 0.25 : isleSouth(x) - 0.1 + rand() * 0.25, i);
+  }
+}
+
+function reeds(b, rand, x, z) {
+  const blades = 4 + Math.floor(rand() * 4);
+  for (let k = 0; k < blades; k++) {
+    const h = 0.6 + rand() * 0.8;
+    const a = rand() * Math.PI * 2;
+    b.add(shapes.cone(0.025, h, 4), REED[k % REED.length], {
+      p: [x + Math.cos(a) * 0.12, h / 2 - 0.05, z + Math.sin(a) * 0.12],
+      r: [Math.cos(a) * 0.2, 0, Math.sin(a) * 0.2],
+      flat: true,
+    });
+  }
+}
+
+function pebble(b, rand, x, z, i) {
+  const r = 0.08 + rand() * 0.16;
+  b.add(shapes.ico(r, 0), shade(PEBBLES[i % PEBBLES.length], 0.85 + rand() * 0.25), { p: [x, r * 0.25, z], s: [1.4, 0.55, 1.1], r: [0, rand() * 3, 0], flat: true });
 }
 
 let lanternMaterial = null;
@@ -197,22 +233,40 @@ function fishGeometry() {
   return b.geometry();
 }
 
+function edgeReach(x0, x1, edge, pick) {
+  let value = pick === Math.min ? Infinity : -Infinity;
+  for (let x = x0; x <= x1 + 1e-6; x += 0.2) value = pick(value, edge(x));
+  return value;
+}
+
 function waterObstacles() {
   const boxes = [];
+  const box = (x0, x1, minZ, maxZ) => boxes.push({ minX: x0, maxX: x1, minZ, maxZ, minY: -1, maxY: 2 });
+  const southChannel = (x0, x1) => box(x0, x1, edgeReach(x0, x1, isleSouth, Math.min), edgeReach(x0, x1, southBank, Math.max));
   const segment = (x0, x1) => {
-    let low = Infinity;
-    let high = -Infinity;
-    for (let x = x0; x <= x1 + 1e-6; x += 0.25) {
-      low = Math.min(low, northBank(x));
-      high = Math.max(high, southBank(x));
-    }
-    boxes.push({ minX: x0, maxX: x1, minZ: low, maxZ: high, minY: -1, maxY: 2 });
+    const north = edgeReach(x0, x1, northBank, Math.min);
+    if (x1 <= ISLE.x0 || x0 >= ISLE.x1) return box(x0, x1, north, edgeReach(x0, x1, southBank, Math.max));
+    box(x0, x1, north, edgeReach(x0, x1, isleNorth, Math.max));
+    southChannel(x0, x1);
   };
-  for (let x = REACH.x0; x < DOCK.x0 - 0.1; x += SEGMENT) segment(x, Math.min(x + SEGMENT, DOCK.x0 - 0.1));
-  for (let x = DOCK.x1 + 0.1; x < REACH.x1; x += SEGMENT) segment(x, Math.min(x + SEGMENT, REACH.x1));
-  let high = -Infinity;
-  for (let x = DOCK.x0 - 0.1; x <= DOCK.x1 + 0.1; x += 0.2) high = Math.max(high, southBank(x));
-  boxes.push({ minX: DOCK.x0 - 0.1, maxX: DOCK.x1 + 0.1, minZ: DOCK.z1, maxZ: high, minY: -1, maxY: 2 });
+  const crossingHalf = CROSSING.half + CROSSING.rail;
+  const gaps = [
+    { x0: DOCK.x0 - 0.1, x1: DOCK.x1 + 0.1, fill: (x0, x1) => box(x0, x1, DOCK.z1, edgeReach(x0, x1, southBank, Math.max)) },
+    { x0: CROSSING.x - crossingHalf, x1: CROSSING.x + crossingHalf, fill: southChannel },
+  ];
+  let x = REACH.x0;
+  while (x < REACH.x1 - 1e-6) {
+    const gap = gaps.find((g) => x >= g.x0 - 1e-6 && x < g.x1);
+    if (gap) {
+      gap.fill(gap.x0, gap.x1);
+      x = gap.x1;
+      continue;
+    }
+    const step = inIsleSpan(x) || inIsleSpan(x + SEGMENT) ? 1 : SEGMENT;
+    const next = Math.min(x + step, REACH.x1, ...gaps.filter((g) => g.x0 > x + 1e-6).map((g) => g.x0));
+    segment(x, next);
+    x = next;
+  }
   return boxes;
 }
 
@@ -224,7 +278,7 @@ export function createRiver() {
   const group = new THREE.Group();
   const flow = flowTexture();
   const water = new THREE.Mesh(
-    ribbon(SPAN.x0, SPAN.x1, (x) => northBank(x) - 0.3, (x) => southBank(x) + 0.3),
+    waterGeometry(),
     toonMaterial({ color: 0x4f9fc9, map: flow, transparent: true, opacity: 0.92 }),
   );
   water.position.y = 0.03;
@@ -234,6 +288,8 @@ export function createRiver() {
   const banks = [
     groundDecal(ribbon(SPAN.x0, SPAN.x1, (x) => northBank(x) - 1.8, (x) => northBank(x) + 0.35), earth, GROUND_LAYER.earth, 0.012),
     groundDecal(ribbon(SPAN.x0, SPAN.x1, (x) => southBank(x) - 0.35, (x) => southBank(x) + 1.6), earth, GROUND_LAYER.earth, 0.012),
+    groundDecal(ribbon(ISLE.x0, ISLE.x1, (x) => isleNorth(x) - 0.35, (x) => Math.min(isleNorth(x) + 1.8, ISLE.z), ISLE_STEP), earth, GROUND_LAYER.earth, 0.012),
+    groundDecal(ribbon(ISLE.x0, ISLE.x1, (x) => Math.max(isleSouth(x) - 1.8, ISLE.z), (x) => isleSouth(x) + 0.35, ISLE_STEP), earth, GROUND_LAYER.earth, 0.012),
     groundDecal(roundedRectGeometry(PATH.bypassX0, PATH.z0, PATH.bypassX1, PATH.bendZ1, 0.5), earth, GROUND_LAYER.earth),
     groundDecal(roundedRectGeometry(PATH.x0, PATH.bendZ0, PATH.bypassX1, PATH.bendZ1, 0.5), earth, GROUND_LAYER.earth),
     groundDecal(roundedRectGeometry(PATH.x0, PATH.bendZ0, PATH.x1, northBank(DOCK_X) - 0.2, 0.5), earth, GROUND_LAYER.earth),
@@ -268,7 +324,7 @@ export function createRiver() {
 
   const laneZ = (x, offset) => {
     const north = northBank(x);
-    const south = southBank(x);
+    const south = laneSouth(x);
     const lo = north + 4.2;
     const hi = south - 1;
     let z = lo > hi ? (north + south) / 2 : Math.min(hi, Math.max(lo, (north + south) / 2 + offset));

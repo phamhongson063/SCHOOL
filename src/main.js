@@ -70,6 +70,8 @@ import { createSettings, wipeGame } from './settings.js';
 import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
+import { ISLE_BOUNDS, ISLE_LOOK, ISLE_NAME, ISLE_STAND, createRiverIsle } from './riverIsle.js';
+import { crossingDeck, crossingFloor } from './riverShape.js';
 import { BANK_POINTS } from './fishZones.js';
 import { createAngler } from './angler.js';
 import { createKanjiQuiz } from './kanjiQuiz.js';
@@ -138,7 +140,7 @@ const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
 const IDLE_AFTER = 20000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
-const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: 84 };
+const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: Math.max(84, ISLE_BOUNDS.z1) };
 const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
 const MAP_HOUR = 14;
 const MAP_TILES_PER_FRAME = 1;
@@ -192,6 +194,7 @@ scene.add(village.lights);
 const streetLamps = createStreetLamps();
 scene.add(streetLamps.group);
 const river = createRiver();
+const riverIsle = createRiverIsle();
 const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
 const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
 const internalHallSeats = studyHalls.flatMap((hall) => hall.internalSeats);
@@ -205,6 +208,7 @@ school.obstacles.push(
   ...atms.obstacles,
   ...village.obstacles,
   ...river.obstacles,
+  ...riverIsle.obstacles,
   ...studyHalls.flatMap((hall) => hall.obstacles),
   ...inn.obstacles,
   ...quarter.obstacles,
@@ -260,7 +264,7 @@ const player = new PlayerController({
   stepSound,
   shadow: createBlobShadow(scene, 0.34),
 });
-player.surfaceAt = (x, z) => islandFloor(x, z) ?? stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
+player.surfaceAt = (x, z) => islandFloor(x, z) ?? crossingDeck(x, z) ?? stairHeight(x, z) ?? plazaFloor(x, z) ?? terrainFloor(x, z);
 player.terrainAt = terrainHeight;
 player.viewBlocked = islandBlocksView;
 
@@ -418,6 +422,7 @@ regions.add(
     startFishing: (spot, berth) => fishing.start(spot, berth),
   }),
 );
+regions.add(riverIsle.region);
 const PLACE_KEY = 'langsch.player';
 const BLESSING_KEY = 'langsch.blessing';
 const VILLAGERS_KEY = worldKey('villagers');
@@ -433,7 +438,7 @@ regions.stream(savedPlace?.x ?? SPAWN.x, savedPlace?.z ?? SPAWN.z);
 
 await loadingStep(0.72, 'Mở lối đi');
 player.nav = new NavGrid(world, (p) => player.collides(p), NAV_BOUNDS, {
-  surfaceAt: (x, z) => (x > WORLD.x1 ? islandNavFloor(x, z) : stairHeight(x, z) ?? plazaFloor(x, z) ?? navSurface(x, z)),
+  surfaceAt: (x, z) => (x > WORLD.x1 ? islandNavFloor(x, z) : crossingFloor(x, z) ?? stairHeight(x, z) ?? plazaFloor(x, z) ?? navSurface(x, z)),
   blocked: (p) => player.blocks(p),
 });
 regions.onLoad = (region) => {
@@ -1690,6 +1695,7 @@ for (const [name, at, stand] of [
   ['Nhà Lý trưởng', village.places.chief],
   ['Quán trọ', INN, INN_STAND],
   ['Bến sông Hoài', midRiver],
+  [ISLE_NAME, ISLE_LOOK, ISLE_STAND],
   ['Sân lô tô', lotoCourt.center, lotoCourt.stand],
 ]) {
   const label = worldMap.add(name, at, stand ?? at);

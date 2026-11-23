@@ -2,7 +2,7 @@ import { FISH, FISHING, WORLD } from './config.js';
 import { minuteOfDay } from './clock.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
-import { BOAT_X, DOCK_X, SEGMENT, lowestNorth, northBank } from './riverShape.js';
+import { BOAT_X, DOCK_X, SEGMENT, clearOfCrossing, lowestNorth, northBank } from './riverShape.js';
 
 const KEY = worldKey('river');
 const BANK = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5 };
@@ -13,7 +13,7 @@ const SPREAD = 6;
 const PLACE_TRIES = 40;
 
 const randomInt = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
-const clearOfDock = (x) => Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3;
+const clearOfDock = (x) => Math.abs(x - DOCK_X) > 4 && Math.abs(x - BOAT_X) > 3 && clearOfCrossing(x, 2);
 const onBank = (x) => x >= BANK.x0 && x <= BANK.x1 && clearOfDock(x);
 const gap = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const standAt = (x) => ({ x, z: lowestNorth(x, SEGMENT) - 0.5 });
