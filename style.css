@@ -55,7 +55,9 @@
 #lessonOpen,
 #studyOpen,
 #picker,
-#lanternBoard {
+#lanternBoard,
+#fireworksBoard,
+#fireworksPanel {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -7747,7 +7749,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
 }
 
 #rankDialog .bank-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 #lanternBtn {
@@ -7882,4 +7884,157 @@ body.in-duel > :not(#app):not(#duelDialog) {
   font: 600 14px/1.3 var(--font-ui);
   text-align: center;
   opacity: 0.7;
+}
+
+#fireworksBtn {
+  position: fixed;
+  left: var(--hud-edge);
+  top: calc(var(--hud-clock-top) + 40px);
+  z-index: var(--z-scene-ui);
+  width: var(--hud-face);
+}
+
+.fireworks-btn span {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  animation: fireworks-glow 1.3s ease-in-out infinite;
+}
+
+@keyframes fireworks-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(255, 140, 200, 0.4));
+    transform: scale(0.94);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 220, 120, 0.95)) brightness(1.25);
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fireworks-btn span {
+    animation: none;
+  }
+}
+
+.fireworks-panel {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + var(--pill-gap) + var(--bar-height) + 8px);
+  z-index: var(--z-scene-ui);
+  width: min(420px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 8px 12px 10px;
+  border: 1.5px solid rgba(120, 80, 48, 0.9);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(40, 26, 52, 0.92) 0%, rgba(18, 12, 30, 0.92) 100%);
+  color: var(--cream);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.fireworks-panel.shake {
+  animation: fireworks-shake 0.32s ease;
+}
+
+@keyframes fireworks-shake {
+  0%, 100% {
+    transform: translateX(-50%);
+  }
+  25% {
+    transform: translateX(calc(-50% - 6px));
+  }
+  75% {
+    transform: translateX(calc(-50% + 6px));
+  }
+}
+
+.fireworks-head {
+  display: flex;
+  justify-content: space-between;
+  font: 800 14px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.fireworks-clock {
+  opacity: 0.8;
+}
+
+.fireworks-clue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 10px;
+  margin: 4px 0 6px;
+  text-align: center;
+}
+
+.fireworks-reading {
+  font: 700 22px/1.2 "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+
+.fireworks-meaning {
+  font: 600 15px/1.3 var(--font-ui);
+  opacity: 0.9;
+}
+
+.fireworks-slots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.fireworks-slot {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  font: 800 26px/1 "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+}
+
+.fireworks-slot.next {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.fireworks-slot.filled {
+  background: rgba(120, 220, 150, 0.28);
+}
+
+.fireworks-slot.wrong {
+  background: rgba(230, 70, 90, 0.55);
+}
+
+.fireworks-bar {
+  height: 5px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fireworks-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff7ab8, #7fe3ff);
+  transform-origin: left;
+}
+
+.fireworks-flash {
+  min-height: 1.2em;
+  margin: 4px 0 0;
+  font: 800 14px/1.2 var(--font-ui);
+  text-align: center;
+}
+
+.fireworks-flash.right {
+  color: #a6ff8a;
+}
+
+.fireworks-flash.wrong {
+  color: #ff8a9a;
 }

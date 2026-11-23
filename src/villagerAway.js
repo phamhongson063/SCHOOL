@@ -1,4 +1,4 @@
-import { AWAY, BANK, BLESSING, CERTIFY, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { AWAY, BANK, BLESSING, CERTIFY, FIREWORKS, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, VENDOR, VILLAGER, WILDLIFE } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
@@ -17,6 +17,7 @@ import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
 import { applySpeech, planSpeech } from './speaking.js';
 import { lotoEnd, lotoGatherAt, lotoMinutes, lotoSignOpen } from './lotoRules.js';
+import { fireworksEnd, fireworksGatherAt, fireworksSignOpen } from './fireworksRules.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -525,6 +526,27 @@ export function createAwaySim({ town, contextAt }) {
     return true;
   }
 
+  function fireworksPlan(member, clock, need) {
+    const fireworks = town.fireworks;
+    if (!fireworks || !fireworksSignOpen(clock) || fireworks.joined(member.id, clock) || member.purse.money < FIREWORKS.fee) return null;
+    const worth = fireworks.worth(member.id, clock, need, member.diligence);
+    if (!(worth > 0)) return null;
+    return { worth, minutes: AWAY.walk + FIREWORKS.gather + FIREWORKS.minutes };
+  }
+
+  function playFireworks(member, clock) {
+    town.fireworks.register(member.id, clock);
+    return AWAY.walk;
+  }
+
+  function fireworksAt(member, clock) {
+    const fireworks = town.fireworks;
+    const day = dayOf(clock);
+    if (!fireworks || !fireworks.joined(member.id, clock) || fireworks.result(clock) || clock < fireworksGatherAt(day) || clock >= fireworksEnd(day)) return false;
+    occupy(memoOf(member), clock, fireworksEnd(day), 'idle');
+    return true;
+  }
+
   function choose(member, ctx, slots, clock, end) {
     const need = member.moneyNeed();
     const options = [];
@@ -532,6 +554,8 @@ export function createAwaySim({ town, contextAt }) {
     if (blessing) options.push({ kind: 'blessing', as: 'idle', rate: member.blessingGain(need, blessing.stay, blessing.window.session) / (blessing.from - clock + blessing.stay), run: () => bless(member, clock, blessing) });
     const loto = lotoPlan(member, clock);
     if (loto) options.push({ kind: 'loto', as: 'idle', rate: (loto.worth * need) / loto.minutes, run: () => playLoto(member, clock) });
+    const fireworks = fireworksPlan(member, clock, need);
+    if (fireworks) options.push({ kind: 'fireworks', as: 'idle', rate: fireworks.worth / fireworks.minutes, run: () => playFireworks(member, clock) });
     const lantern = lanternPlan(member, clock);
     if (lantern) options.push({ kind: 'lantern', as: 'walk', rate: lanternWorth(member.id, lantern.lantern.key, need, member.diligence, town.lanterns.energyAt(clock)) / (lantern.ready + lantern.solve), run: () => solveLantern(member, clock, end, lantern) });
     const trip = member.farmTrip(need);
@@ -567,7 +591,7 @@ export function createAwaySim({ town, contextAt }) {
     const end = ctx.minutes + minutes;
     let clock = Math.max(ctx.minutes, memo.busyUntil);
     while (clock < end && member.purse.energy >= ENERGY.workMin) {
-      if (examAt(member, clock) || lotoAt(member, clock)) {
+      if (examAt(member, clock) || lotoAt(member, clock) || fireworksAt(member, clock)) {
         clock = memo.busyUntil;
         continue;
       }
@@ -664,6 +688,7 @@ export function createAwaySim({ town, contextAt }) {
       if (event && event.phase !== 'done' && event.at < to) town.arena.tick(to);
       town.lanterns?.tick(from);
       town.loto?.tick(from);
+      town.fireworks?.tick(from);
       farm.grow();
       river.restock(from);
       for (const bookings of allSeats()) bookings.splice(0, bookings.length, ...bookings.filter(([, stop]) => stop > from));

@@ -1,4 +1,4 @@
-import { ARENA, HERALD, LANTERN, LOTO } from './config.js';
+import { ARENA, FIREWORKS, HERALD, LANTERN, LOTO } from './config.js';
 import { DAY_MINUTES, dayOf } from './clock.js';
 import { blessingSlots } from './economy.js';
 
@@ -7,6 +7,7 @@ const EVENTS = [
   { kind: 'arena', starts: () => ARENA.starts, lead: ARENA.lead },
   { kind: 'lantern', starts: () => [LANTERN.start], lead: LANTERN.heraldLead },
   { kind: 'loto', starts: () => [LOTO.start], lead: LOTO.heraldLead },
+  { kind: 'fireworks', starts: () => [FIREWORKS.start], lead: FIREWORKS.heraldLead },
 ];
 
 function nextAt(now, starts) {

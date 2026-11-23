@@ -470,6 +470,10 @@ export class Town {
       member.stayLoto();
       return true;
     }
+    if (this.fireworks?.joined(member.id, ctx.minutes) && this.fireworksField?.inside(member.position)) {
+      member.stayFireworks();
+      return true;
+    }
     member.wait(between(0.2, 1.5));
     return true;
   }
@@ -539,6 +543,10 @@ export class Town {
       }
       if (member.lotoSeatWanted(ctx)) {
         member.seatLoto();
+        continue;
+      }
+      if (member.fireworksSeatWanted(ctx)) {
+        member.seatFireworks();
         continue;
       }
       if (this.resumeInn(member, jobs.inns.get(member.id), ctx)) continue;

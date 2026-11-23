@@ -371,7 +371,7 @@ export const ARENA = {
   deck: 'n2',
   size: { day: 16, night: 8 },
   stages: 8,
-  starts: Array.from({ length: 12 }, (_, i) => (2 * i + 1) * 60),
+  starts: Array.from({ length: 11 }, (_, i) => (2 * i + 1) * 60),
   lead: 30,
   opening: 0.25,
   breather: 15,
@@ -405,14 +405,32 @@ export const TOWNHALL = {
   reserveDays: 5,
   spend: 0.45,
   blessingShare: 0.3,
-  arenaShare: 0.25,
+  arenaShare: 0.23,
+  fireworksShare: 0.02,
   history: 14,
   lanternShare: 0.2,
   questShare: 0.15,
   lotoShare: 0.1,
 };
 
-export const SAND_FEST = { fee: 0, prize: 0 };
+export const FIREWORKS = {
+  fee: 5,
+  signOpen: 18 * 60,
+  start: 23 * 60,
+  minutes: 15,
+  gather: 5,
+  heraldLead: 15,
+  deck: 'kanjiN2',
+  aimSeconds: 2,
+  words: 240,
+  decoys: 7,
+  erasers: 2,
+  prizes: [0.5, 0.3, 0.2],
+  intellect: 1,
+  champions: 30,
+  rankHour: 6 * 60,
+  sample: 12,
+};
 
 export const LOTO = {
   fee: 5,

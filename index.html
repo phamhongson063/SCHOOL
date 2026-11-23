@@ -272,6 +272,26 @@
     </div>
     <ol class="lantern-board-list"></ol>
   </div>
+  <button id="fireworksBtn" class="icon-btn fireworks-btn" type="button" title="Hội pháo hoa" aria-label="Hội pháo hoa" aria-expanded="false" aria-controls="fireworksBoard" hidden>
+    <span aria-hidden="true">🎆</span>
+  </button>
+  <div id="fireworksBoard" class="picker menu tailless lantern-board" role="dialog" aria-label="Hội pháo hoa" hidden>
+    <div class="picker-head">
+      <span class="picker-title">Hội pháo hoa</span>
+      <button class="picker-x" type="button" aria-label="Đóng">×</button>
+    </div>
+    <ol class="lantern-board-list"></ol>
+  </div>
+  <div id="fireworksPanel" class="fireworks-panel" hidden>
+    <div class="fireworks-head">
+      <span id="fireworksScore" class="fireworks-score"></span>
+      <span id="fireworksClock" class="fireworks-clock"></span>
+    </div>
+    <p class="fireworks-clue"><span id="fireworksReading" class="fireworks-reading" lang="ja"></span><span id="fireworksMeaning" class="fireworks-meaning"></span></p>
+    <div id="fireworksSlots" class="fireworks-slots" lang="ja"></div>
+    <div class="fireworks-bar"><span id="fireworksBar"></span></div>
+    <p id="fireworksFlash" class="fireworks-flash" role="status"></p>
+  </div>
   <div id="picker" class="picker" role="dialog" hidden>
     <div class="picker-head" hidden>
       <span class="picker-title"></span>
@@ -695,6 +715,7 @@
         <button type="button" role="tab" data-tab="certs" aria-selected="false" aria-label="Chứng chỉ"><span class="rank-tab-art" aria-hidden="true">🎓</span></button>
         <button type="button" role="tab" data-tab="arena" aria-selected="false" aria-label="Lôi đài"><span class="rank-tab-art" aria-hidden="true">⚔️</span></button>
         <button type="button" role="tab" data-tab="lantern" aria-selected="false" aria-label="Đèn trời"><span class="rank-tab-art" aria-hidden="true">🏮</span></button>
+        <button type="button" role="tab" data-tab="fireworks" aria-selected="false" aria-label="Pháo hoa"><span class="rank-tab-art" aria-hidden="true">🎆</span></button>
       </div>
       <div class="bank-panel">
         <ol id="rankList" class="rank-list"></ol>

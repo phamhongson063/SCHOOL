@@ -27,6 +27,7 @@ import { ErrandBehavior } from './villagerErrands.js';
 import { MindBehavior } from './villagerMind.js';
 import { LanternBehavior } from './villagerLantern.js';
 import { LotoBehavior } from './villagerLoto.js';
+import { FireworksBehavior } from './villagerFireworks.js';
 
 const LOTO_SWAY = { speed: 1.8, roll: 0.07, tiltSpeed: 0.8, tilt: 0.16, turnSpeed: 0.45, turn: 0.3, ease: 3 };
 
@@ -211,6 +212,7 @@ export class Villager {
     this.lookAt = null;
     this.task = null;
     if (this.lotoSeatWanted(ctx)) return this.goLotoSeat();
+    if (this.fireworksSeatWanted(ctx)) return this.goFireworksSeat();
     const nightPlan = ctx.night ? this.plan(ctx) : null;
     if (ctx.night && (this.needsSleep(ctx) || !nightPlan)) return this.wantsVendor() ? this.goVendor() : this.goHome();
     if (this.wantsInn()) return this.goInn();
@@ -804,4 +806,4 @@ function mixin(target, ...sources) {
   }
 }
 
-mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior, LanternBehavior, LotoBehavior);
+mixin(Villager, RestBehavior, SchoolBehavior, WorkBehavior, ErrandBehavior, MindBehavior, LanternBehavior, LotoBehavior, FireworksBehavior);

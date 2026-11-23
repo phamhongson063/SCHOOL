@@ -45,7 +45,11 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText, dateText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, FIREWORKS } from './config.js';
+import { createFireworks } from './fireworks.js';
+import { createFireworksShow } from './fireworksShow.js';
+import { createFireworksPanel } from './fireworksPanel.js';
+import { fireworksEnd, fireworksSignOpen, fireworksStart, glyphsOf } from './fireworksRules.js';
 import { createLoto } from './loto.js';
 import { createLotoCourt } from './lotoCourt.js';
 import { createLotoDialog, createLotoSign } from './lotoDialog.js';
@@ -71,7 +75,7 @@ import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
 import { CASTLE_LOOK, CASTLE_STAND, ISLE_BOUNDS, ISLE_LOOK, ISLE_NAME, ISLE_STAND, createRiverIsle } from './riverIsle.js';
-import { SAND_CASTLE_NAME, sandFestMenu, sandFestReply, sandHostLine } from './sandFest.js';
+import { FIREWORKS_NAME, SAND_CASTLE_NAME, sandFestMenu, sandFestReply, sandHostLine } from './sandFest.js';
 import { crossingDeck, crossingFloor } from './riverShape.js';
 import { BANK_POINTS } from './fishZones.js';
 import { createAngler } from './angler.js';
@@ -95,7 +99,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
-import { createLanternBoard } from './lanternBoard.js';
+import { createStandingsBoard } from './lanternBoard.js';
 import { createProfile } from './profile.js';
 import { traits } from './traits.js';
 import { economy, SHOPKEEPERS, CLASS_TEACHERS } from './economy.js';
@@ -897,6 +901,20 @@ const loto = createLoto({
 });
 town.loto = loto;
 town.lotoCourt = lotoCourt;
+const fireworks = createFireworks({
+  charge: chargeFee('fireworks'),
+  sponsor: (at) => economy.sponsorFireworks(at),
+  pay: (id, money) => economy.payFireworks(ledger.purse(id), money),
+  refund: (value) => economy.returnFireworks(value),
+  award: (id, intellect) => ledger.purse(id).addIntellect(intellect),
+  prize: (at) => economy.fireworksPrize(at),
+  human: (id) => id === PLAYER,
+});
+town.fireworks = fireworks;
+town.fireworksField = riverIsle.field;
+const fireworksShow = createFireworksShow({ anchor: CASTLE_LOOK });
+scene.add(fireworksShow.group);
+const fireworksPanel = createFireworksPanel();
 town.lanternDesk = district.lanternDesk;
 town.hallDesk = district.hallDesk;
 const everyone = [{ id: PLAYER, name: 'Bạn' }, ...town.all.map((member) => ({ id: member.id, name: member.name })), ...SHOPKEEPERS, ...CLASS_TEACHERS];
@@ -940,9 +958,10 @@ const profileDialog = createProfile({
   self: PLAYER,
   onReset: resetGame,
 });
-createRanking({ ledger, bank, estate, arena, lanterns, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
+createRanking({ ledger, bank, estate, arena, lanterns, fireworks, people: everyone, learners: traitHolders, now: gameNow, onPick: profileDialog.open });
 document.getElementById('vitals').addEventListener('click', () => profileDialog.open(PLAYER));
-createLanternBoard({ lanterns, people: everyone, now: gameNow, onPick: profileDialog.open });
+createStandingsBoard({ buttonId: 'lanternBtn', boardId: 'lanternBoard', icon: '🏮', active: () => lanterns.active(gameNow()), standings: () => lanterns.standings(gameNow()), people: everyone, onPick: profileDialog.open });
+createStandingsBoard({ buttonId: 'fireworksBtn', boardId: 'fireworksBoard', icon: '🎆', active: () => fireworks.live(gameNow()), standings: () => fireworks.standings(gameNow()), people: everyone, every: 5000, onPick: profileDialog.open });
 window.census = () => economy.census();
 
 window.uploadVault = uploadPrivate;
@@ -1399,8 +1418,18 @@ const sandHostDesk = {
     const host = riverIsle.host;
     attendPlayer(host);
     host.say(sandHostLine(Math.random()), 2.2);
-    picker.open({ title: SAND_CASTLE_NAME, options: sandFestMenu(), menu: true, x: window.innerWidth / 2, y: window.innerHeight / 2 }, (option) => {
-      const reply = sandFestReply(option.id);
+    if (fireworks.playing(PLAYER, context.minutes)) {
+      watchFireworks();
+      return null;
+    }
+    picker.open({ title: FIREWORKS_NAME, options: sandFestMenu(Math.round(fireworks.pot(context.minutes))), menu: true, x: window.innerWidth / 2, y: window.innerHeight / 2 }, (option) => {
+      if (option.id !== 'join') return;
+      const outcome = fireworks.register(PLAYER, context.minutes);
+      if (outcome === 'ok') {
+        sayPlayer('🎆', 1.6);
+        mailbox.removeTag(FIREWORKS_CALL);
+      }
+      const reply = sandFestReply(outcome);
       if (reply) host.say(reply, 2.6);
     });
     return null;
@@ -1657,6 +1686,7 @@ function sceneClick(clientX, clientY, run) {
 }
 
 player.onClick = (clientX, clientY, run) => {
+  if (shootFirework(clientX, clientY)) return;
   if (sceneClick(clientX, clientY, run)) uiSounds.click();
 };
 
@@ -1899,6 +1929,7 @@ const HERALD_TEXT = {
   blessing: (at, left) => `Chúc phúc ${clockText(at)} sắp bắt đầu, còn ${left} phút!`,
   lantern: (at, left) => `Hội đèn trời ${clockText(at)} sắp thả đèn, còn ${left} phút!`,
   loto: (at, left) => `Lô tô chữ ${clockText(at)} sắp hô, còn ${left} phút!`,
+  fireworks: (at, left) => `Hội pháo hoa ${clockText(at)} ở ${SAND_CASTLE_NAME} sắp bắn, còn ${left} phút!`,
 };
 const heraldText = ({ kind, at, left }) => HERALD_TEXT[kind](at, left);
 
@@ -2189,6 +2220,159 @@ function updateLoto() {
     });
   }
   reportLoto(now);
+}
+
+const FIREWORKS_CALL = 'fireworksCall';
+const FIREWORKS_AWAY = 'fireworksAway';
+const FIREWORKS_RESULT_KEY = 'langsch.fireworksResult';
+const FIREWORKS_VIEW = { range: 70, pitch: -0.3 };
+let fireworksRemindedFor = null;
+let fireworksAwayFor = null;
+let fireworksAwayMail = false;
+let fireworksAnnounced = null;
+let fireworksBurstAt = null;
+let fireworksWatching = false;
+
+const fireworksNear = () => Math.hypot(player.position.x - CASTLE_LOOK.x, player.position.z - CASTLE_LOOK.z) < FIREWORKS_VIEW.range;
+
+function watchFireworks() {
+  player.lookUpToward(riverIsle.field.sky, FIREWORKS_VIEW.pitch);
+}
+
+function shootFirework(clientX, clientY) {
+  if (!fireworksPanel.open) return false;
+  pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const shell = fireworksShow.pick(raycaster);
+  if (!shell) return false;
+  const outcome = fireworks.shoot(PLAYER, shell.char, context.minutes);
+  if (!outcome || outcome === 'idle') return true;
+  if (outcome === 'blocked') {
+    uiSounds.wrong();
+    fireworksPanel.flash('wrong', '⌫');
+    return true;
+  }
+  fireworksShow.pop(shell);
+  if (outcome === 'wrong') {
+    uiSounds.wrong();
+    fireworksPanel.flash('wrong', 'Sai!');
+  } else if (outcome === 'done') {
+    uiSounds.correct();
+    fireworksPanel.flash('right', 'Đúng!');
+  } else uiSounds.pop();
+  return true;
+}
+
+function fireworksOutcome(last) {
+  const rank = last.places.findIndex((place) => place.id === PLAYER);
+  const champion = last.places[0];
+  const head = champion && champion.score > 0 ? `Vô địch: ${champion.id === PLAYER ? 'Bạn' : lotoNameOf(champion.id)}` : 'Chưa ai bắn trúng chữ nào.';
+  if (rank < 0) return head;
+  const mine = last.places[rank];
+  const gifts = [mine.prize > 0 ? coins(mine.prize) : '', mine.words > 0 ? `+${mine.words * FIREWORKS.intellect} trí lực` : ''].filter(Boolean).join(' · ');
+  return `${head} · Bạn hạng ${rank + 1}/${last.places.length} · 🎆 ${mine.score}${gifts ? ` · ${gifts}` : ''}`;
+}
+
+function reportFireworks(now) {
+  const last = fireworks.lastResult();
+  if (!last || !last.entrants.includes(PLAYER)) return;
+  const tag = String(last.day);
+  let shown = null;
+  try {
+    shown = localStorage.getItem(FIREWORKS_RESULT_KEY);
+  } catch {}
+  if (shown === tag) return;
+  try {
+    writeGameItem(FIREWORKS_RESULT_KEY, tag);
+  } catch {}
+  const mine = last.places.find((place) => place.id === PLAYER);
+  if (mine && last.day === dayOf(now)) {
+    if (mine.prize > 0) regen.coin(mine.prize, player.position);
+    if (mine.words > 0) regen.intellect(mine.words * FIREWORKS.intellect, player.position);
+  }
+  const when = last.day === dayOf(now) ? '' : ` tối ${dateText(last.day * DAY_MINUTES)}`;
+  mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME}${when}: ${fireworksOutcome(last)}`], keep: true, expires: endOfDay() });
+}
+
+function remindFireworks(now) {
+  const day = dayOf(now);
+  const selling = fireworksSignOpen(now) && !fireworks.joined(PLAYER, now);
+  if (!selling) {
+    if (fireworksRemindedFor !== null) mailbox.removeTag(FIREWORKS_CALL);
+    fireworksRemindedFor = null;
+    return;
+  }
+  if (fireworksRemindedFor === day) return;
+  fireworksRemindedFor = day;
+  mailbox.removeTag(FIREWORKS_CALL);
+  mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME} bắn lúc ${clockText(FIREWORKS.start)} ở ${SAND_CASTLE_NAME}. Gặp chủ hội ghi danh nhé.`], place: SAND_CASTLE_NAME, point: CASTLE_STAND, tag: FIREWORKS_CALL });
+}
+
+function fireworksAmbient(now, near) {
+  const from = fireworksBurstAt ?? now;
+  fireworksBurstAt = now;
+  if (!near) return;
+  for (const { key } of fireworks.burstsBetween(from, now, now)) {
+    const glyphs = glyphsOf(key);
+    if (glyphs.length) fireworksShow.ambient(glyphs[Math.floor(Math.random() * glyphs.length)]);
+  }
+}
+
+function updateFireworks(dt, t) {
+  const now = context.minutes;
+  const day = dayOf(now);
+  riverIsle.field.tick(t);
+  if (!economy.catching) fireworks.tick(now);
+  const live = fireworks.live(now);
+  const near = fireworksNear();
+  fireworksShow.show(live && near);
+  if (!live) {
+    if (fireworksBurstAt !== null) fireworksShow.clear();
+    fireworksBurstAt = null;
+  } else fireworksAmbient(now, near);
+  const word = fireworks.current(PLAYER, now);
+  const watching = !!word && riverIsle.field.inside(player.position);
+  if (watching) {
+    if (!fireworksWatching) watchFireworks();
+    const card = unitOf(word.key);
+    fireworksShow.setWord(`${word.index}:${word.key}`, word.tiles.sky);
+    fireworksPanel.show(true);
+    fireworksPanel.render({
+      word: `${word.index}:${word.key}`,
+      reading: card?.reading ?? '',
+      meaning: card?.meaning ?? '',
+      size: word.answer.length,
+      filled: word.filled,
+      wrong: word.wrong,
+      left: word.left,
+      limit: word.limit,
+      points: word.score,
+      showLeft: Math.max(0, (fireworksEnd(day) - now) * 60),
+    });
+  } else {
+    fireworksShow.setWord(null, []);
+    fireworksPanel.show(false);
+  }
+  fireworksWatching = watching;
+  fireworksShow.update(dt, t);
+  if (!hasEntered()) return;
+  remindFireworks(now);
+  const playing = fireworks.playing(PLAYER, now);
+  if (live && fireworksAnnounced !== day && now >= fireworksStart(day)) {
+    fireworksAnnounced = day;
+    broadcast.show(`${FIREWORKS_NAME} bắt đầu! Lên ${SAND_CASTLE_NAME} ngắm pháo hoa nhé.`);
+  }
+  const inside = riverIsle.field.inside(player.position);
+  if (playing && !inside && fireworksAwayFor !== day) {
+    fireworksAwayFor = day;
+    fireworksAwayMail = true;
+    mailbox.notify({ icon: '🎆', lines: [`${FIREWORKS_NAME} đang bắn chữ, lên ${SAND_CASTLE_NAME} nhé.`], place: SAND_CASTLE_NAME, point: CASTLE_STAND, tag: FIREWORKS_AWAY });
+  }
+  if (fireworksAwayMail && (!playing || inside)) {
+    fireworksAwayMail = false;
+    mailbox.removeTag(FIREWORKS_AWAY);
+  }
+  reportFireworks(now);
 }
 
 const ARENA_CALL = 'arenaCall';
@@ -2544,6 +2728,7 @@ renderer.setAnimationLoop((time) => {
   blessing.update(dt, context.minutes, camera, night);
   lotoCourt.update(t, camera, night);
   updateLoto();
+  updateFireworks(dt, t);
   updateBlessingQuiz(dt);
   updateBlessingRewards();
   remindBlessing();

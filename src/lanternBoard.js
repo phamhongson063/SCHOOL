@@ -15,9 +15,9 @@ function el(tag, className, text) {
   return node;
 }
 
-export function createLanternBoard({ lanterns, people, now, onPick = () => {} }) {
-  const button = document.getElementById('lanternBtn');
-  const board = document.getElementById('lanternBoard');
+export function createStandingsBoard({ buttonId, boardId, icon, active, standings, people, every = UPDATE_MS, onPick = () => {} }) {
+  const button = document.getElementById(buttonId);
+  const board = document.getElementById(boardId);
   const list = board.querySelector('.lantern-board-list');
   const names = new Map(people.map(({ id, name }) => [id, name]));
   let shown = '';
@@ -29,12 +29,12 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
     const name = el('button', 'lantern-board-name', names.get(id) ?? 'người khác');
     name.type = 'button';
     name.dataset.id = id;
-    item.append(el('span', 'lantern-board-place', MEDALS[i] ?? String(i + 1)), name, el('span', 'lantern-board-score', `🏮 ${amount(score)}`));
+    item.append(el('span', 'lantern-board-place', MEDALS[i] ?? String(i + 1)), name, el('span', 'lantern-board-score', `${icon} ${amount(score)}`));
     return item;
   }
 
   function capture() {
-    rows = lanterns.standings(now()).filter((entry) => names.has(entry.id));
+    rows = standings().filter((entry) => names.has(entry.id));
     takenAt = performance.now();
   }
 
@@ -63,14 +63,14 @@ export function createLanternBoard({ lanterns, people, now, onPick = () => {} })
   }
 
   function refresh() {
-    const active = lanterns.active(now());
-    button.hidden = !active;
-    if (!active) {
+    const on = active();
+    button.hidden = !on;
+    if (!on) {
       rows = null;
       setOpen(false);
       return;
     }
-    if (rows && performance.now() - takenAt < UPDATE_MS) return;
+    if (rows && performance.now() - takenAt < every) return;
     capture();
     if (!board.hidden) {
       render();

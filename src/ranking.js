@@ -1,4 +1,4 @@
-import { RANKING } from './config.js';
+import { FIREWORKS, RANKING } from './config.js';
 import { clockText, dayOf, minuteOfDay, DAY_MINUTES } from './clock.js';
 import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
@@ -29,6 +29,11 @@ function latestCheckpoint(minutes) {
   return { slot, at };
 }
 
+function dailyCheckpoint(minutes) {
+  const day = dayOf(minutes - FIREWORKS.rankHour);
+  return { day, at: day * DAY_MINUTES + FIREWORKS.rankHour };
+}
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -42,7 +47,7 @@ function richSpan(className, text) {
   return node;
 }
 
-export function createRanking({ ledger, bank, estate, arena, lanterns, people, learners, now, onPick = () => {} }) {
+export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks, people, learners, now, onPick = () => {} }) {
   const dialog = document.getElementById('rankDialog');
   const list = document.getElementById('rankList');
   const stamp = document.getElementById('rankStamp');
@@ -67,6 +72,7 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, l
 
   const certsOf = (id) => certify.certifiedTotal(id);
   const lanternsOf = (id) => lanterns.totalOf(id);
+  const fireworksOf = (id) => fireworks.titlesOf(id);
 
   function certsBaseFor(day) {
     if (board?.certsBase?.day === day) return board.certsBase;
@@ -74,9 +80,16 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, l
     return { day, rows: rows.map(({ id, score }) => ({ id, score })) };
   }
 
+  function fireworksBoard(previous) {
+    const checkpoint = dailyCheckpoint(now());
+    if (previous?.fireworksDay === checkpoint.day && previous.fireworks) return { fireworks: previous.fireworks, fireworksDay: previous.fireworksDay, fireworksAt: previous.fireworksAt };
+    return { fireworks: standings(fireworksOf, previous?.fireworks), fireworksDay: checkpoint.day, fireworksAt: checkpoint.at };
+  }
+
   function snapshot({ slot, at }) {
     const certsBase = certsBaseFor(dayOf(at));
-    board = { slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows, learnerIds), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
+    board = {
+      ...fireworksBoard(board), slot, at, rows: standings(worthOf, board?.rows), certs: standings(certsOf, certsBase.rows, learnerIds), certsBase, arena: standings(titlesOf, board?.arenaVersion === arena.version ? board?.arena : null), arenaVersion: arena.version, lantern: standings(lanternsOf, board?.lantern) };
     try {
       writeGameItem(KEY, JSON.stringify(board));
     } catch {}
@@ -87,6 +100,7 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, l
     certs: (count) => el('span', 'rank-worth', `🎓 ${amount(count)}`),
     arena: (count) => el('span', 'rank-worth', `🏆 ${amount(count)}`),
     lantern: (count) => el('span', 'rank-worth', `🏮 ${amount(count)}`),
+    fireworks: (count) => el('span', 'rank-worth', `🎆 ${amount(count)}`),
   };
 
   function nameButton(id) {
@@ -110,16 +124,17 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, people, l
 
   function render() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
-    const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0) };
+    const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0), fireworks: board.fireworks.filter((entry) => entry.score > 0) };
     const rows = (pick[tab] ?? board.rows).filter((entry) => names.has(entry.id));
     list.replaceChildren(...(rows.length ? rows.map(row) : [el('li', 'rank-empty', 'Chưa có nhà vô địch.')]));
-    stamp.textContent = `Cập nhật lúc ${clockText(board.at)}`;
+    stamp.textContent = `Cập nhật lúc ${clockText(tab === 'fireworks' ? board.fireworksAt : board.at)}`;
   }
 
   function update() {
     const checkpoint = latestCheckpoint(now());
     const certsFresh = board?.certs?.every(({ id }) => learners.has(id));
-    if (board?.slot === checkpoint.slot && certsFresh && board.arena && board.lantern && board.arenaVersion === arena.version) return;
+    const fireworksFresh = board?.fireworks && board.fireworksDay === dailyCheckpoint(now()).day;
+    if (board?.slot === checkpoint.slot && certsFresh && board.arena && board.lantern && fireworksFresh && board.arenaVersion === arena.version) return;
     snapshot(checkpoint);
     if (dialog.open) render();
   }

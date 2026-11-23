@@ -6,6 +6,7 @@ import { ROAD } from './road.js';
 import { CROSSING, ISLE, deckHeight, isleNorth, northBank, onIsle } from './riverShape.js';
 import { keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
+import { arcSlots, claimHold, createSlotClaims } from './blessingSpots.js';
 
 export const ISLE_NAME = 'Cù lao Hoài';
 
@@ -42,6 +43,14 @@ const HOST_MODEL = 'girl-jade';
 const HOST_GAP = 1.5;
 const STAND_GAP = 1.6;
 const PLAZA = { half: 3.2, back: 1.2 };
+const WATCH = {
+  rows: [
+    { radius: 8.6, angles: [-1.15, -0.9, -0.65, -0.4, 0.4, 0.65, 0.9, 1.15] },
+    { radius: 9.6, angles: [-1.05, -0.8, -0.55, -0.3, 0.3, 0.55, 0.8, 1.05] },
+  ],
+  reach: 11,
+  sky: 9,
+};
 
 const landingZ = isleNorth(CROSSING.x);
 export const ISLE_LOOK = { x: ISLE.x, z: ISLE.z + 13 };
@@ -253,9 +262,29 @@ function bushes(b, rand, trees) {
   }
 }
 
+function createWatchField() {
+  const center = { x: CASTLE.x, z: CASTLE.z };
+  const claims = createSlotClaims(arcSlots(center, Math.PI, WATCH.rows));
+  let clock = 0;
+  return {
+    center,
+    sky: new THREE.Vector3(CASTLE.x, WATCH.sky, CASTLE.z),
+    inside: (position) => Math.hypot(position.x - center.x, position.z - center.z) < WATCH.reach && position.z < CASTLE.z,
+    spotFor(id, from, speed) {
+      const slot = claims.claim(id, clock, claimHold(from, center, speed));
+      return new THREE.Vector3(slot.x, 0, slot.z);
+    },
+    leaveSpot: (id) => claims.release(id),
+    tick(t) {
+      clock = t;
+    },
+  };
+}
+
 export function createRiverIsle({ visitHost }) {
   const trees = pickTrees(makeRandom(7171));
   const host = createHost();
+  const field = createWatchField();
   const hostBox = { minX: HOST_AT.x - 0.3, maxX: HOST_AT.x + 0.3, minZ: HOST_AT.z - 0.3, maxZ: HOST_AT.z + 0.3, minY: 0, maxY: 2 };
   const rails = [-1, 1].map((side) => ({
     minX: railX(side) - CROSSING.rail / 2,
@@ -305,6 +334,7 @@ export function createRiverIsle({ visitHost }) {
   return {
     obstacles,
     host,
+    field,
     region: {
       id: 'isle',
       name: ISLE_NAME,

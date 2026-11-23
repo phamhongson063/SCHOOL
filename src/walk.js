@@ -415,6 +415,12 @@ export class PlayerController {
     this.cameraGoal = { yaw: this.yaw + diff, pitch: 0.22, then };
   }
 
+  lookUpToward(target, pitch) {
+    const yaw = Math.atan2(-(target.x - this.position.x), -(target.z - this.position.z));
+    const diff = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
+    this.cameraGoal = { yaw: this.yaw + diff, pitch: THREE.MathUtils.clamp(pitch, -0.35, 1.25), then: () => {} };
+  }
+
   completeFacing() {
     const goal = this.cameraGoal;
     this.cameraGoal = null;

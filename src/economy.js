@@ -272,7 +272,7 @@ function planFor(day) {
   const plan = draftPlan();
   const blessingPool = openBlessingPool(plan.blessingPool);
   openQuests(day, plan.questBudget);
-  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, lotoBudget: plan.lotoBudget, reserve: plan.reserve, blessingPool };
+  state.plans[day] = { arenaPrize: plan.arenaPrize, lanternBudget: plan.lanternBudget, questBudget: plan.questBudget, lotoBudget: plan.lotoBudget, fireworksPrize: plan.fireworksPrize, reserve: plan.reserve, blessingPool };
   for (const key of Object.keys(state.plans)) if (Number(key) < day - 1) delete state.plans[key];
   pruneBook(state.book, day);
 }
@@ -372,6 +372,7 @@ function settleThrough(t) {
   if (!Number.isFinite(state.plans[now]?.blessingPool)) planFor(now);
   if (!Number.isFinite(state.plans[now].lanternBudget)) state.plans[now].lanternBudget = draftPlan().lanternBudget;
   if (!Number.isFinite(state.plans[now].lotoBudget)) state.plans[now].lotoBudget = draftPlan().lotoBudget;
+  if (!Number.isFinite(state.plans[now].fireworksPrize)) state.plans[now].fireworksPrize = draftPlan().fireworksPrize;
   if (state.quest.day !== now) {
     closeQuests(now);
     const budget = draftPlan().questBudget;
@@ -617,6 +618,23 @@ export const economy = {
   },
   returnArena(value) {
     if (ctx && value > 0) ctx.ledger.purse(FUND).earn(value);
+  },
+  fireworksPrize(at = gameNow()) {
+    return planOf(dayOf(at))?.fireworksPrize ?? 0;
+  },
+  sponsorFireworks(at) {
+    return ctx ? takeFund(economy.fireworksPrize(at)) : 0;
+  },
+  returnFireworks(value) {
+    if (ctx && value > 0) ctx.ledger.purse(FUND).earn(value);
+  },
+  payFireworks(purse, amount) {
+    if (!(amount > 0)) return;
+    purse.earn(amount);
+    if (!ctx) return;
+    trackEarn(purse.id, amount);
+    record(state.book, today(), 'out', 'fireworks', amount);
+    store.save();
   },
   get treasury() {
     return ctx ? ctx.ledger.purse(FUND).money : 0;

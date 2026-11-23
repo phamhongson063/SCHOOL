@@ -8,7 +8,7 @@ import { clamp } from './math.js';
 const KEY = worldKey('traits');
 export const SKILLS = ['farm', 'fish', 'hunt'];
 const BASE_TASTES = ['farm', 'fish', 'hunt', 'study', 'blessing'];
-const LATE_TASTES = ['loto'];
+const LATE_TASTES = ['loto', 'fireworks'];
 export const TASTES = [...BASE_TASTES, ...LATE_TASTES];
 const FACTS = ['study', 'pass', 'fail', 'tired', 'debt'];
 
