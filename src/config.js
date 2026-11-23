@@ -412,6 +412,8 @@ export const TOWNHALL = {
   lotoShare: 0.1,
 };
 
+export const SAND_FEST = { fee: 0, prize: 0 };
+
 export const LOTO = {
   fee: 5,
   purse: 300,

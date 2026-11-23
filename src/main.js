@@ -70,7 +70,8 @@ import { createSettings, wipeGame } from './settings.js';
 import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
-import { ISLE_BOUNDS, ISLE_LOOK, ISLE_NAME, ISLE_STAND, createRiverIsle } from './riverIsle.js';
+import { CASTLE_LOOK, CASTLE_STAND, ISLE_BOUNDS, ISLE_LOOK, ISLE_NAME, ISLE_STAND, createRiverIsle } from './riverIsle.js';
+import { SAND_CASTLE_NAME, sandFestMenu, sandFestReply, sandHostLine } from './sandFest.js';
 import { crossingDeck, crossingFloor } from './riverShape.js';
 import { BANK_POINTS } from './fishZones.js';
 import { createAngler } from './angler.js';
@@ -194,7 +195,7 @@ scene.add(village.lights);
 const streetLamps = createStreetLamps();
 scene.add(streetLamps.group);
 const river = createRiver();
-const riverIsle = createRiverIsle();
+const riverIsle = createRiverIsle({ visitHost: (host) => goDo(sandHostDesk, { stand: host.stand, x: host.at.x, z: host.at.z }, 'sandFest') });
 const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
 const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
 const internalHallSeats = studyHalls.flatMap((hall) => hall.internalSeats);
@@ -1393,6 +1394,19 @@ const lotoDesk = {
   },
 };
 
+const sandHostDesk = {
+  act() {
+    const host = riverIsle.host;
+    attendPlayer(host);
+    host.say(sandHostLine(Math.random()), 2.2);
+    picker.open({ title: SAND_CASTLE_NAME, options: sandFestMenu(), menu: true, x: window.innerWidth / 2, y: window.innerHeight / 2 }, (option) => {
+      const reply = sandFestReply(option.id);
+      if (reply) host.say(reply, 2.6);
+    });
+    return null;
+  },
+};
+
 const innDesk = {
   act() {
     return lodgeDesk.rent('inn');
@@ -1696,6 +1710,7 @@ for (const [name, at, stand] of [
   ['Quán trọ', INN, INN_STAND],
   ['Bến sông Hoài', midRiver],
   [ISLE_NAME, ISLE_LOOK, ISLE_STAND],
+  [SAND_CASTLE_NAME, CASTLE_LOOK, CASTLE_STAND],
   ['Sân lô tô', lotoCourt.center, lotoCourt.stand],
 ]) {
   const label = worldMap.add(name, at, stand ?? at);
