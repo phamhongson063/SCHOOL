@@ -15,7 +15,7 @@ const goldBadge = (emoji) =>
 const STUDY = goldBadge('📖');
 const PEN = goldBadge('✍️');
 const LANTERN = goldBadge('🏮');
-const LOTO = goldBadge('🎴');
+const LOTO = goldBadge('🎯');
 
 const BOWL = '<path d="M7 16H25Q24 23.5 16 24Q8 23.5 7 16Z" fill="#b8402e" stroke="#2b1c12" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 24h6v1.6h-6z" fill="#7a2416"/>';
 const MOODS = {
