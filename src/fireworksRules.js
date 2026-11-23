@@ -1,4 +1,4 @@
-import { FIREWORKS, LANTERN, MIND } from './config.js';
+import { ABSORB, FIREWORKS, LANTERN, MIND } from './config.js';
 import { DAY_MINUTES, minuteOfDay } from './clock.js';
 import { hashText, makeRandom, shuffle } from './random.js';
 import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
@@ -119,18 +119,28 @@ export function runTally(run, keys, seconds) {
   return { score, words, lastAt };
 }
 
-export function knownKeys(ids, deck = FIREWORKS.deck) {
-  const known = new Set(ids.flatMap((id) => certify.certified(id, deck)));
-  return [...known].sort();
+export function knownKeys(id, deck = FIREWORKS.deck) {
+  return [...new Set(certify.certified(id, deck))].sort();
 }
 
-export function showKeys(day, entrants, salt = 0, deck = FIREWORKS.deck) {
-  const known = knownKeys(entrants, deck);
+export function showKeys(day, id, deck = FIREWORKS.deck) {
+  const known = knownKeys(id, deck);
   const pool = known.length ? known : DECKS[deck].cards.map((card) => card.key);
-  const rand = makeRandom(hashText(`fireworks:${day}:${salt}`));
+  const rand = makeRandom(hashText(`fireworks:${day}:${id}`));
   const keys = [];
   while (keys.length < FIREWORKS.words) keys.push(...shuffle([...pool], rand));
   return keys.slice(0, FIREWORKS.words);
+}
+
+export function fireworksPace({ words, glyphs, spent }) {
+  if (!(words > 0) || !(glyphs > 0)) return null;
+  const fixed = appearSeconds() + LANTERN.readSeconds + ABSORB.think.sure * LANTERN.thinkSeconds;
+  return {
+    words,
+    perWord: spent / words,
+    perGlyph: spent / glyphs,
+    aimSeconds: (spent - words * fixed) / glyphs - LANTERN.tapSeconds,
+  };
 }
 
 export function fireworksOdds(id, keys) {

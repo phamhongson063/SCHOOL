@@ -967,6 +967,7 @@ document.getElementById('vitals').addEventListener('click', () => profileDialog.
 createStandingsBoard({ buttonId: 'lanternBtn', boardId: 'lanternBoard', icon: '🏮', active: () => lanterns.active(gameNow()), standings: () => lanterns.standings(gameNow()), people: everyone, onPick: profileDialog.open });
 createStandingsBoard({ buttonId: 'fireworksBtn', boardId: 'fireworksBoard', icon: '🎆', active: () => fireworks.live(gameNow()), standings: () => fireworks.standings(gameNow()), people: everyone, every: 5000, onPick: profileDialog.open });
 window.census = () => economy.census();
+window.fireworksPace = () => fireworks.pace(PLAYER);
 
 window.uploadVault = uploadPrivate;
 

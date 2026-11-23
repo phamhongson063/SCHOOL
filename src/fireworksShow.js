@@ -4,13 +4,13 @@ import { FIREWORKS } from './config.js';
 
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const COLORS = ['#ffd36b', '#ff7ab8', '#7fe3ff', '#a6ff8a', '#c79bff', '#ff9a5a'];
-const FIELD = { yaw: 0.8, elev: [0.3, 0.85], dist: [15, 28], gap: 0.24, tries: 18, sway: [1.5, 4], swaySpeed: [0.35, 0.8], lift: [0.3, 0.9] };
+const FIELD = { yaw: 0.8, elev: [0.3, 0.85], dist: [15, 28], gap: 0.24, tries: 18, sway: [0.5, 1.5], swaySpeed: [0.18, 0.4], lift: [0.1, 0.3] };
 const LAUNCH = { x: 14, z: [-2, 8], y: 0.6 };
-const FAR = { yaw: 0.95, elev: [0.45, 0.95], dist: [34, 48], gap: 0.12, tries: 6, sway: [0.5, 1.5], swaySpeed: [0.3, 0.6], lift: [0.2, 0.5] };
+const FAR = { yaw: 0.95, elev: [0.45, 0.95], dist: [34, 48], gap: 0.12, tries: 6, sway: [0.3, 0.8], swaySpeed: [0.15, 0.35], lift: [0.1, 0.25] };
 const BASE_SIZE = 2.3;
-const SHOT = { angle: 0.17, ...FIREWORKS.sky };
-const AMBIENT = { angle: 0.09, rise: 0.8, hang: 4.4, fade: 1.2, pool: 12 };
-const SPARKS = { count: 30, speed: [3.5, 6.5], gravity: 2.6, drag: 1.6, life: 1.5, size: 0.42 };
+const SHOT = { angle: 0.14, ...FIREWORKS.sky };
+const AMBIENT = { angle: 0.075, rise: 0.8, hang: 4.4, fade: 1.2, pool: 12 };
+const SPARKS = { count: 30, speed: [3.5, 6.5], gravity: 2.6, drag: 1.6, life: 1.5, size: 0.34, trail: 0.12 };
 const TRAIL = 8;
 const HALO = 1.9;
 
@@ -140,6 +140,7 @@ function hideShell(shell) {
 
 function burst(shell, scale = 1) {
   shell.burstAge = 0;
+  shell.sparks.material.size = SPARKS.size * (shell.size / BASE_SIZE + 0.4);
   const p = shell.to;
   for (let i = 0; i < SPARKS.count; i++) {
     const v = shell.velocity[i].set(rand(-1, 1), rand(-1, 1), rand(-1, 1));
@@ -224,7 +225,7 @@ export function createFireworksShow({ anchor, eye }) {
     const taken = [...shells, ...ambient].filter((other) => other !== shell && other.phase !== 'wait').map((other) => other.glyph.visible ? other.glyph.position : other.to);
     shell.to.copy(spot(field, taken));
     shell.size = viewer.distanceTo(shell.to) * Math.tan(shell.angle);
-    shell.sparks.material.size = SPARKS.size * (shell.size / BASE_SIZE + 0.4);
+    shell.sparks.material.size = SPARKS.trail * (shell.size / BASE_SIZE + 0.4);
     const side = Math.random() < 0.5 ? -1 : 1;
     shell.sway.amp = side * rand(...field.sway);
     shell.sway.speed = rand(...field.swaySpeed);
@@ -309,9 +310,9 @@ export function createFireworksShow({ anchor, eye }) {
     }
     const twinkle = 0.82 + 0.18 * Math.sin(t * 9 + shell.seed) * Math.sin(t * 3.7 + shell.seed * 2);
     shell.glyph.material.opacity = glow * twinkle;
-    shell.glyph.scale.setScalar(shell.size * grow * (1 + 0.04 * Math.sin(t * 2.4 + shell.seed)));
+    shell.glyph.scale.setScalar(shell.size * grow * (1 + 0.02 * Math.sin(t * 2.4 + shell.seed)));
     shell.halo.material.opacity = glow * (0.55 + 0.25 * Math.sin(t * 5.3 + shell.seed));
-    shell.halo.scale.setScalar(shell.size * HALO * grow * (1 + 0.08 * Math.sin(t * 1.7 + shell.seed)));
+    shell.halo.scale.setScalar(shell.size * HALO * grow * (1 + 0.04 * Math.sin(t * 1.7 + shell.seed)));
   }
 
   const shotTiming = { rise: SHOT.rise, hang: SHOT.hang, fade: SHOT.fade };
