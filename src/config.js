@@ -422,6 +422,7 @@ export const FIREWORKS = {
   heraldLead: 15,
   deck: 'kanjiN2',
   aimSeconds: 6,
+  wordSlack: 1.3,
   hostShare: 0.1,
   sky: { rise: 0.9, hang: 14, fade: 1.6, retire: 0.35, deal: 1.6, wait: [0.3, 1.6], pop: 0.6 },
   words: 240,

@@ -33,7 +33,7 @@ const shotOf = () => LANTERN.tapSeconds + FIREWORKS.aimSeconds;
 export const shotSeconds = (key) => glyphsOf(key).length * shotOf();
 const missSeconds = () => shotOf();
 export const appearSeconds = () => FIREWORKS.sky.retire + FIREWORKS.sky.deal + FIREWORKS.sky.rise;
-export const wordLimit = (key) => appearSeconds() + LANTERN.readSeconds + LANTERN.thinkSeconds + shotSeconds(key);
+export const wordLimit = (key) => (appearSeconds() + LANTERN.readSeconds + LANTERN.thinkSeconds + shotSeconds(key)) * FIREWORKS.wordSlack;
 
 export const fireworksStart = (day) => day * DAY_MINUTES + FIREWORKS.start;
 export const fireworksEnd = (day) => fireworksStart(day) + FIREWORKS.minutes;
