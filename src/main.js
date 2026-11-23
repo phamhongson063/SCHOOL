@@ -662,7 +662,8 @@ function perform(task, cost) {
       uiSounds.pop();
       if (task.action.id === 'fertilize') sayPlayer(ITEMS.fertilizer.icon, 1.2, { plain: true });
       if (task.action.id === 'harvest' && reply) sayPlayer(reply, 1.2, { plain: true });
-      if (task.action.id === 'harvest' && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) harvestQuiz.ask({ icon: '🧺', quick: true });
+      const quizIcon = CERTIFY.harvestQuizIcons[task.action.id];
+      if (quizIcon && !kanjiQuiz.open && !exams.running && Math.random() < CERTIFY.harvestQuiz) harvestQuiz.ask({ icon: quizIcon, quick: true });
     } else if (reply) sayPlayer(reply, 1.8);
     if (cost && task.region.didChange?.()) purse.spendEnergy(cost);
     if (heldFarm === task.target && task.region.actionFor(task.target).id !== 'clear') holdFarm(null);

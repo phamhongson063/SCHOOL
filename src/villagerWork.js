@@ -350,8 +350,9 @@ export class WorkBehavior {
   tend(job) {
     traits.train(this.id, 'farm', ENERGY.costs[job.action] ?? 0, this.town.context?.day);
     const reply = this.town.farm.act(job.action, job.index, job.choice, this.id);
-    if (this.town.farm.changed()) quests.note(this.id, 'farm', this.town.context?.day);
-    if (reply && job.action === 'harvest' && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) {
+    const changed = this.town.farm.changed();
+    if (changed) quests.note(this.id, 'farm', this.town.context?.day);
+    if (changed && CERTIFY.harvestQuizIcons[job.action] && Math.random() < CERTIFY.harvestQuiz && this.answerPool()) {
       const day = this.town.context?.day;
       const prize = economy.harvestPrize(this.id, Number.isInteger(day) ? day : undefined);
       if (prize === 'intellect') {
