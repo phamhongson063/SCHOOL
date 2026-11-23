@@ -120,7 +120,12 @@ function grammarCards(points, units, prefix, deck) {
           hanViet: '',
           meaning: point.meaning,
           note: '',
-          grammar: { gloss: point.gloss ?? '', form: point.form ?? '', explain: point.explain ?? '' },
+          grammar: {
+            gloss: point.gloss ?? '',
+            form: point.form ?? '',
+            explain: point.explain ?? '',
+            follow: Array.isArray(point.follow) ? point.follow : [],
+          },
           examples: [{ title: '', lines }],
           cloze,
           wrong: example.wrong ?? [],

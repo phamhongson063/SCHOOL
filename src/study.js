@@ -190,7 +190,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     }
   }
 
-  function exampleNodes({ title: situation, lines }) {
+  function exampleNodes({ title: situation, lines }, follow) {
     const ja = el('p', 'study-example-ja');
     ja.lang = 'ja';
     const vi = el('p', 'study-example-vi');
@@ -198,7 +198,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (lines.length === 1 && !only[0]) {
       const spoken = spokenOf(only[1]);
       ja.classList.toggle('spoken', spoken !== null);
-      ja.append(japanese(spoken ?? only[1]));
+      ja.append(japanese(markFollow(spoken ?? only[1], follow)));
       vi.textContent = only[2];
       return [ja, vi];
     }
@@ -216,8 +216,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     return [ja, vi];
   }
 
-  function showExamples(examples) {
-    example.replaceChildren(...examples.flatMap(exampleNodes));
+  function showExamples(examples, follow = []) {
+    example.replaceChildren(...examples.flatMap((item) => exampleNodes(item, follow)));
   }
 
   function kanjiLines({ char, hanViet: name, parts, on, kun }) {
@@ -245,7 +245,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function grammarGloss(gloss) {
     const line = el('span', 'study-grammar-gloss');
-    line.append(el('span', 'study-grammar-label', 'Giải nghĩa'), japaneseSpan('study-grammar-text', gloss.replace(NUANCE, '').trim()));
+    line.append(japaneseSpan('study-grammar-text', gloss.replace(NUANCE, '').trim()));
     const nuances = [...gloss.matchAll(NUANCE)].flatMap((match) => match[1].split(/[・／]/));
     if (nuances.length) {
       const tags = el('span', 'study-grammar-tags');
@@ -257,7 +257,6 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function grammarForm(form) {
     const line = el('span', 'study-grammar-form');
-    line.append(el('span', 'study-grammar-label', 'Cách nối'));
     const [before, after] = form.split(/\s*＋\s*/);
     if (after === undefined) {
       line.append(japaneseSpan('study-grammar-text', form));
@@ -269,12 +268,46 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       el('span', 'study-grammar-plus', '＋'),
       japaneseSpan('study-grammar-ending', ending),
     );
-    if (remark) line.append(japaneseSpan('study-grammar-remark', `（${remark}）`));
+    if (remark) {
+      const note = el('span', 'study-grammar-remark');
+      note.append(japanese(remark));
+      line.append(note);
+    }
     return line;
   }
 
+  const JAPANESE_RUN = /([\u3040-\u30ff\u3400-\u9fff々〜～]+)/;
+
+  function grammarExplain(explain) {
+    const text = el('span', 'study-grammar-explain');
+    text.append(
+      ...explain.split(JAPANESE_RUN).map((part, i) => (i % 2 ? japaneseSpan('study-grammar-ja', part) : document.createTextNode(part))),
+    );
+    return text;
+  }
+
+  function grammarSection(label, content) {
+    const section = el('span', 'study-grammar-section');
+    section.append(el('span', 'study-grammar-label', label), content);
+    return section;
+  }
+
   function grammarLines({ gloss, form, explain }) {
-    return [gloss && grammarGloss(gloss), form && grammarForm(form), explain && el('span', 'study-grammar-explain', explain)].filter(Boolean);
+    const box = el('span', 'study-grammar-box');
+    if (form) box.append(grammarSection('Cách nối', grammarForm(form)));
+    if (explain) box.append(grammarSection('Lưu ý', grammarExplain(explain)));
+    return [gloss && grammarGloss(gloss), box.childElementCount && box].filter(Boolean);
+  }
+
+  function markFollow(text, follow) {
+    let marked = text;
+    for (const tail of follow) {
+      const at = marked.lastIndexOf(tail);
+      const before = marked.slice(0, at);
+      if (at < 0 || before.split('[').length !== before.split(']').length || before.split('⟪').length !== before.split('⟫').length || before.split('{').length !== before.split('}').length) continue;
+      marked = `${before}⟪${tail}⟫${marked.slice(at + tail.length)}`;
+    }
+    return marked;
   }
 
   function fill(key) {
@@ -287,10 +320,11 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     hanViet.classList.remove('show');
     word.classList.toggle('has-hint', Boolean(card.hanViet));
     meaning.textContent = card.meaning;
+    note.classList.toggle('grammar', Boolean(card.grammar));
     if (card.kanji) note.replaceChildren(...kanjiLines(card.kanji));
     else if (card.grammar) note.replaceChildren(...grammarLines(card.grammar));
     else note.textContent = card.note;
-    showExamples(card.examples);
+    showExamples(card.examples, card.grammar?.follow);
     stopVoice();
     voice.hidden = !card.audio;
   }
