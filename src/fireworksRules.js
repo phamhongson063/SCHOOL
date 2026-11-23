@@ -40,8 +40,15 @@ export const fireworksGatherAt = (day) => fireworksStart(day) - FIREWORKS.gather
 
 export function fireworksSignOpen(now) {
   const m = minuteOfDay(now);
-  return m >= FIREWORKS.signOpen && m < FIREWORKS.start;
+  return m >= FIREWORKS.signOpen && m < FIREWORKS.start + FIREWORKS.minutes;
 }
+
+export function fireworksLeft(now) {
+  const m = minuteOfDay(now);
+  return Math.max(0, Math.min(FIREWORKS.minutes, FIREWORKS.start + FIREWORKS.minutes - m));
+}
+
+export const fireworksStayMinutes = (now) => (fireworksLive(now) ? 0 : FIREWORKS.gather) + fireworksLeft(now);
 
 export function fireworksLive(now) {
   const m = minuteOfDay(now);
@@ -94,10 +101,10 @@ export function npcWord(id, key, day) {
   }
 }
 
-export function npcRun(id, keys, day) {
+export function npcRun(id, keys, day, from = 0) {
   const run = [];
   if (!keys.length) return run;
-  let t = 0;
+  let t = from;
   for (let index = 0; t < SHOW_SECONDS; index++) {
     const word = npcWord(id, keys[index % keys.length], day);
     t += word.seconds;

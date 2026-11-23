@@ -1428,6 +1428,7 @@ const sandHostDesk = {
       if (outcome === 'ok') {
         sayPlayer('🎆', 1.6);
         mailbox.removeTag(FIREWORKS_CALL);
+        if (fireworks.playing(PLAYER, context.minutes)) watchFireworks();
       }
       const reply = sandFestReply(outcome);
       if (reply) host.say(reply, 2.6);

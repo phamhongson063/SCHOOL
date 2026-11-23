@@ -1,6 +1,6 @@
 import { between } from './random.js';
 import { FIREWORKS } from './config.js';
-import { fireworksEnd, fireworksGatherAt, fireworksSignOpen } from './fireworksRules.js';
+import { fireworksEnd, fireworksGatherAt, fireworksSignOpen, fireworksStayMinutes } from './fireworksRules.js';
 
 const WATCH_POLL = 1.5;
 
@@ -11,7 +11,7 @@ export class FireworksBehavior {
     if (!fireworks || !field || !fireworksSignOpen(ctx.minutes) || fireworks.joined(this.id, ctx.minutes) || this.purse.money < FIREWORKS.fee) return null;
     const worth = fireworks.worth(this.id, ctx.minutes, need, this.diligence);
     if (!(worth > 0)) return null;
-    const minutes = this.walkMinutes(field.center) + FIREWORKS.gather + FIREWORKS.minutes;
+    const minutes = this.walkMinutes(field.center) + fireworksStayMinutes(ctx.minutes);
     return { kind: 'fireworks', minutes, rate: worth / minutes, go: () => this.goFireworks() };
   }
 

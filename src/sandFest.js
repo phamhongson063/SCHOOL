@@ -18,7 +18,7 @@ const REPLIES = {
   ok: 'Ghi danh xong rồi! Hẹn bạn lúc pháo hoa lên nhé.',
   already: `Bạn đã ghi danh rồi, ${clockText(FIREWORKS.start)} pháo hoa lên nhé!`,
   poor: `Ghi danh cần ${coins(FIREWORKS.fee)} đó.`,
-  closed: `Ghi danh mở từ ${clockText(FIREWORKS.signOpen)} đến ${clockText(FIREWORKS.start)}.`,
+  closed: `Ghi danh mở từ ${clockText(FIREWORKS.signOpen)} đến ${clockText(FIREWORKS.start + FIREWORKS.minutes)}.`,
 };
 
 export const sandFestReply = (outcome) => REPLIES[outcome] ?? null;
