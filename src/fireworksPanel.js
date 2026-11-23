@@ -39,22 +39,21 @@ export function createFireworksPanel() {
     get open() {
       return !panel.hidden;
     },
-    render({ word, reading: kana, meaning: gloss, size, filled, wrong, left, limit, points, showLeft }) {
+    render({ word, reading: kana, meaning: gloss, size, filled, left, limit, points, showLeft }) {
       if (word !== shownWord) {
         shownWord = word;
-        shownFill = '';
+        shownFill = null;
         reading.textContent = kana;
         meaning.textContent = gloss;
         buildSlots(size);
       }
-      const fill = `${filled.join('')}|${wrong}`;
+      const fill = filled.join('');
       if (fill !== shownFill) {
         shownFill = fill;
         [...slots.children].forEach((slot, i) => {
           slot.textContent = filled[i] ?? '';
           slot.classList.toggle('filled', i < filled.length);
-          slot.classList.toggle('wrong', wrong && i === filled.length - 1);
-          slot.classList.toggle('next', i === filled.length && !wrong);
+          slot.classList.toggle('next', i === filled.length);
         });
       }
       bar.style.transform = `scaleX(${limit > 0 ? Math.max(0, Math.min(1, left / limit)) : 0})`;

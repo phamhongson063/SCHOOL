@@ -6,7 +6,6 @@ import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
 import { certify } from './certify.js';
 
-export const ERASE = '⌫';
 export const SHOW_SECONDS = FIREWORKS.minutes * 60;
 
 const IS_KANJI = /[㐀-鿿々〆]/;
@@ -17,6 +16,7 @@ const HIRAGANA_TWINS = {
   く: 'へ', へ: 'く', あ: 'お', お: 'あ', す: 'む', む: 'す', た: 'な', な: 'た', う: 'つ', つ: 'う', し: 'も', も: 'し', け: 'は', ら: 'う', か: 'が', が: 'か',
   げ: 'け', じ: 'し', ず: 'す', ぶ: 'ふ', ふ: 'ぶ', ば: 'ぱ', び: 'ぴ', よ: 'ま', え: 'ん', ん: 'え', そ: 'て', て: 'そ', と: 'ど', ど: 'と',
 };
+const HIRAGANA_POOL = ['あ', 'お', 'ぬ', 'め', 'ね', 'れ', 'わ', 'る', 'ろ', 'さ', 'ち', 'き', 'は', 'ほ', 'ま', 'た', 'な', 'こ', 'い', 'り'];
 const KATAKANA_POOL = ['ソ', 'ン', 'シ', 'ツ', 'ノ', 'メ', 'ヌ', 'ク', 'ケ', 'ム', 'ヨ', 'ラ', 'ワ', 'チ', 'テ', 'ナ', 'ネ'];
 
 const LIKE = (() => {
@@ -31,8 +31,9 @@ export const glyphsOf = (key) => Array.from(unitOf(key)?.word ?? '');
 export const wordPoints = (key) => glyphsOf(key).length;
 const shotOf = () => LANTERN.tapSeconds + FIREWORKS.aimSeconds;
 export const shotSeconds = (key) => glyphsOf(key).length * shotOf();
-const missSeconds = () => 2 * shotOf();
-export const wordLimit = (key) => LANTERN.readSeconds + LANTERN.thinkSeconds + shotSeconds(key);
+const missSeconds = () => shotOf();
+export const appearSeconds = () => FIREWORKS.sky.retire + FIREWORKS.sky.deal + FIREWORKS.sky.rise;
+export const wordLimit = (key) => appearSeconds() + LANTERN.readSeconds + LANTERN.thinkSeconds + shotSeconds(key);
 
 export const fireworksStart = (day) => day * DAY_MINUTES + FIREWORKS.start;
 export const fireworksEnd = (day) => fireworksStart(day) + FIREWORKS.minutes;
@@ -80,13 +81,16 @@ export function skyTiles(key, salt) {
   if (!decoys.some((char) => KATAKANA_POOL.includes(char) || Object.values(KATAKANA_TWINS).includes(char))) add(shuffle([...KATAKANA_POOL], rand), 1);
   add(kanji);
   add(reading);
-  add(shuffle([...KATAKANA_POOL], rand));
-  const sky = shuffle([...answer, ...decoys, ...Array(FIREWORKS.erasers).fill(ERASE)], rand);
+  add(shuffle([...KATAKANA_POOL], rand), 6);
+  add(shuffle([...HIRAGANA_POOL], rand), 5);
+  add(shuffle([...LIKE.keys()], rand));
+  const copies = Array.from({ length: FIREWORKS.answerCopies }, () => answer).flat();
+  const sky = shuffle([...copies, ...decoys], rand);
   return { answer, decoys, sky };
 }
 
 export function attemptSeconds(key, { correct, seconds }, first) {
-  return (first ? LANTERN.readSeconds : 0) + seconds + (correct ? shotSeconds(key) : missSeconds());
+  return (first ? appearSeconds() + LANTERN.readSeconds : 0) + seconds + (correct ? shotSeconds(key) : missSeconds());
 }
 
 export function npcWord(id, key, day) {
@@ -101,25 +105,13 @@ export function npcWord(id, key, day) {
   }
 }
 
-export function npcRun(id, keys, day, from = 0) {
-  const run = [];
-  if (!keys.length) return run;
-  let t = from;
-  for (let index = 0; t < SHOW_SECONDS; index++) {
-    const word = npcWord(id, keys[index % keys.length], day);
-    t += word.seconds;
-    if (t > SHOW_SECONDS) break;
-    if (word.correct) run.push([Math.round(t * 10) / 10, index]);
-  }
-  return run;
-}
-
 export function runTally(run, keys, seconds) {
   let score = 0;
   let words = 0;
   let lastAt = null;
-  for (const [at, index] of run) {
+  for (const [at, index, ok = 1] of run) {
     if (at > seconds) break;
+    if (!ok) continue;
     score += wordPoints(keys[index % keys.length]);
     words += 1;
     lastAt = at;
@@ -132,10 +124,10 @@ export function knownKeys(ids, deck = FIREWORKS.deck) {
   return [...known].sort();
 }
 
-export function showKeys(day, entrants, deck = FIREWORKS.deck) {
+export function showKeys(day, entrants, salt = 0, deck = FIREWORKS.deck) {
   const known = knownKeys(entrants, deck);
   const pool = known.length ? known : DECKS[deck].cards.map((card) => card.key);
-  const rand = makeRandom(hashText(`fireworks:${day}`));
+  const rand = makeRandom(hashText(`fireworks:${day}:${salt}`));
   const keys = [];
   while (keys.length < FIREWORKS.words) keys.push(...shuffle([...pool], rand));
   return keys.slice(0, FIREWORKS.words);
@@ -153,7 +145,7 @@ export function fireworksOdds(id, keys) {
     const hit = 1 - (1 - p) ** 2;
     points += hit * wordPoints(key);
     words += hit;
-    seconds += hit * (LANTERN.readSeconds + LANTERN.thinkSeconds / 2 + shotSeconds(key)) + (1 - hit) * wordLimit(key);
+    seconds += hit * (appearSeconds() + LANTERN.readSeconds + LANTERN.thinkSeconds / 2 + shotSeconds(key)) + (1 - hit) * wordLimit(key);
   }
   if (!(seconds > 0)) return { score: 0, words: 0 };
   return { score: (SHOW_SECONDS * points) / seconds, words: (SHOW_SECONDS * words) / seconds };

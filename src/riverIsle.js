@@ -5,6 +5,8 @@ import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTre
 import { ROAD } from './road.js';
 import { CROSSING, ISLE, deckHeight, isleNorth, northBank, onIsle } from './riverShape.js';
 import { keeperNPC } from './village.js';
+import { SHOPKEEPERS } from './economy.js';
+import { NPC } from './npcIds.js';
 import { createAttention } from './attention.js';
 import { arcSlots, claimHold, createSlotClaims } from './blessingSpots.js';
 
@@ -32,7 +34,7 @@ const SAND_DARK = 0xb8955c;
 const SAND_SHADOW = 0x5a4428;
 const SHELL = [0xf2d6c8, 0xf6e9da, 0xe8b9a6];
 const FLAG = 0xc23a26;
-const CASTLE = { x: ISLE.x, z: ISLE.z, half: 4.2, wall: 2.2, thick: 0.6, tower: 1.05, towerHeight: 3.2, clear: 9.5 };
+const CASTLE = { x: ISLE.x, z: ISLE.z, scale: 0.9, half: 4.2, wall: 2.2, thick: 0.6, tower: 1.05, towerHeight: 3.2, clear: 9.5 };
 const KEEP_TIERS = [
   { r: 2.1, h: 3.4 },
   { r: 1.45, h: 1.9 },
@@ -48,14 +50,15 @@ const WATCH = {
     { radius: 8.6, angles: [-1.15, -0.9, -0.65, -0.4, 0.4, 0.65, 0.9, 1.15] },
     { radius: 9.6, angles: [-1.05, -0.8, -0.55, -0.3, 0.3, 0.55, 0.8, 1.05] },
   ],
-  reach: 11,
+  reach: 12,
   sky: 9,
+  back: 10.6,
 };
 
 const landingZ = isleNorth(CROSSING.x);
 export const ISLE_LOOK = { x: ISLE.x, z: ISLE.z + 13 };
 export const CASTLE_LOOK = { x: CASTLE.x, z: CASTLE.z };
-const castleFront = CASTLE.z - CASTLE.half - CASTLE.thick / 2;
+const castleFront = CASTLE.z - (CASTLE.half + CASTLE.thick / 2) * CASTLE.scale;
 const HOST_AT = { x: CASTLE.x, z: castleFront - HOST_GAP };
 export const CASTLE_STAND = { x: CASTLE.x, z: HOST_AT.z - STAND_GAP };
 export const ISLE_STAND = { x: CROSSING.x, z: landingZ + LANDING.depth - 1 };
@@ -195,13 +198,13 @@ function castle(b, rand) {
 const clearOfCastle = (x, z, gap) => Math.hypot(x - CASTLE.x, z - CASTLE.z) > gap;
 
 function castleObstacles() {
-  const { x, z, half, tower: r } = CASTLE;
-  const reach = half + r;
+  const { x, z, half, tower: r, scale } = CASTLE;
+  const reach = (half + r) * scale;
   return [{ minX: x - reach, maxX: x + reach, minZ: z - reach, maxZ: z + reach, minY: 0, maxY: 8 }];
 }
 
 function createHost() {
-  const npc = keeperNPC(HOST_LOOK, HOST_MODEL);
+  const npc = keeperNPC(HOST_LOOK, HOST_MODEL, SHOPKEEPERS.find((keeper) => keeper.id === NPC.host)?.name ?? '');
   const at = new THREE.Vector3(HOST_AT.x, 0, HOST_AT.z);
   npc.walker.group.position.copy(at);
   npc.walker.group.rotation.y = Math.PI;
@@ -269,6 +272,7 @@ function createWatchField() {
   return {
     center,
     sky: new THREE.Vector3(CASTLE.x, WATCH.sky, CASTLE.z),
+    watch: { x: CASTLE.x, z: CASTLE.z - WATCH.back },
     inside: (position) => Math.hypot(position.x - center.x, position.z - center.z) < WATCH.reach && position.z < CASTLE.z,
     spotFor(id, from, speed) {
       const slot = claims.claim(id, clock, claimHold(from, center, speed));
@@ -319,6 +323,8 @@ export function createRiverIsle({ visitHost }) {
     const keep = new Batch();
     castle(keep, makeRandom(7373));
     const castleMesh = keep.mesh();
+    castleMesh.scale.setScalar(CASTLE.scale);
+    castleMesh.position.set(CASTLE.x * (1 - CASTLE.scale), 0, CASTLE.z * (1 - CASTLE.scale));
     group.add(bridgeMesh, details, castleMesh);
     freeze(group);
     const root = new THREE.Group();

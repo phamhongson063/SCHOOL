@@ -902,7 +902,11 @@ const loto = createLoto({
 town.loto = loto;
 town.lotoCourt = lotoCourt;
 const fireworks = createFireworks({
-  charge: chargeFee('fireworks'),
+  charge: (who, fee) => {
+    if (!ledger.purse(who).spend(fee)) return false;
+    economy.fireworksFee(fee, who);
+    return true;
+  },
   sponsor: () => 0,
   pay: (id, money) => economy.payFireworks(ledger.purse(id), money),
   refund: (value) => economy.returnFireworks(value),
@@ -912,7 +916,7 @@ const fireworks = createFireworks({
 });
 town.fireworks = fireworks;
 town.fireworksField = riverIsle.field;
-const fireworksShow = createFireworksShow({ anchor: CASTLE_LOOK });
+const fireworksShow = createFireworksShow({ anchor: CASTLE_LOOK, eye: { x: riverIsle.field.watch.x, y: 1.6, z: riverIsle.field.watch.z } });
 scene.add(fireworksShow.group);
 const fireworksPanel = createFireworksPanel();
 town.lanternDesk = district.lanternDesk;
@@ -1418,8 +1422,8 @@ const sandHostDesk = {
     const host = riverIsle.host;
     attendPlayer(host);
     host.say(sandHostLine(Math.random()), 2.2);
-    if (fireworks.playing(PLAYER, context.minutes)) {
-      watchFireworks();
+    if (fireworks.joined(PLAYER, context.minutes)) {
+      goWatchFireworks();
       return null;
     }
     picker.open({ title: FIREWORKS_NAME, options: sandFestMenu(Math.round(fireworks.pot(context.minutes))), menu: true, x: window.innerWidth / 2, y: window.innerHeight / 2 }, (option) => {
@@ -1428,8 +1432,8 @@ const sandHostDesk = {
       if (outcome === 'ok') {
         sayPlayer('🎆', 1.6);
         mailbox.removeTag(FIREWORKS_CALL);
-        if (fireworks.playing(PLAYER, context.minutes)) watchFireworks();
       }
+      if (outcome === 'ok' || outcome === 'already') goWatchFireworks();
       const reply = sandFestReply(outcome);
       if (reply) host.say(reply, 2.6);
     });
@@ -2248,6 +2252,20 @@ function watchFireworks() {
   player.lookUpToward(riverIsle.field.sky, FIREWORKS_VIEW.pitch);
 }
 
+let fireworksWalk = false;
+function goWatchFireworks() {
+  const { watch } = riverIsle.field;
+  fireworksWalk = true;
+  player.requestMove(new THREE.Vector3(watch.x, 0, watch.z), true);
+}
+
+function arriveFireworks() {
+  if (!fireworksWalk || player.path) return;
+  const { watch } = riverIsle.field;
+  fireworksWalk = false;
+  if (Math.hypot(player.position.x - watch.x, player.position.z - watch.z) < 0.8) watchFireworks();
+}
+
 function shootFirework(clientX, clientY) {
   if (!fireworksPanel.open) return false;
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
@@ -2255,12 +2273,7 @@ function shootFirework(clientX, clientY) {
   const shell = fireworksShow.pick(raycaster);
   if (!shell) return false;
   const outcome = fireworks.shoot(PLAYER, shell.char, context.minutes);
-  if (!outcome || outcome === 'idle') return true;
-  if (outcome === 'blocked') {
-    uiSounds.wrong();
-    fireworksPanel.flash('wrong', '⌫');
-    return true;
-  }
+  if (!outcome) return true;
   fireworksShow.pop(shell);
   if (outcome === 'wrong') {
     uiSounds.wrong();
@@ -2340,9 +2353,10 @@ function updateFireworks(dt, t) {
     fireworksBurstAt = null;
   } else fireworksAmbient(now, near);
   const word = fireworks.current(PLAYER, now);
+  arriveFireworks();
   const watching = !!word && riverIsle.field.inside(player.position);
   if (watching) {
-    if (!fireworksWatching) watchFireworks();
+    if (!fireworksWatching && !fireworksWalk) watchFireworks();
     const card = unitOf(word.key);
     fireworksShow.setWord(`${word.index}:${word.key}`, word.tiles.sky);
     fireworksPanel.show(true);
@@ -2352,7 +2366,6 @@ function updateFireworks(dt, t) {
       meaning: card?.meaning ?? '',
       size: word.answer.length,
       filled: word.filled,
-      wrong: word.wrong,
       left: word.left,
       limit: word.limit,
       points: word.score,
@@ -2733,7 +2746,7 @@ renderer.setAnimationLoop((time) => {
   angler.update(dt);
   regions.update(t, dt, player.position);
   updateSoundscape(player.position);
-  quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused);
+  quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused && !fireworks.playing(PLAYER, context.minutes));
   blessing.update(dt, context.minutes, camera, night);
   lotoCourt.update(t, camera, night);
   updateLoto();

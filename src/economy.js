@@ -1,4 +1,4 @@
-import { ARENA, AWAY, BLESSING, ECONOMY, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
+import { ARENA, AWAY, BLESSING, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
 import { createStore } from './persist.js';
@@ -29,6 +29,7 @@ export const SHOPKEEPERS = [
   { id: NPC.grocer, name: 'Jessica' },
   { id: NPC.chief, name: 'Youngsoo', role: 'chief' },
   { id: NPC.mayor, name: 'Haruto', role: 'mayor' },
+  { id: NPC.host, name: 'Ngọc' },
 ];
 
 const QUEST_POOL = { day: { pool: 'dayPool', reward: 'dayReward' }, week: { pool: 'weekPool', reward: 'weekReward' } };
@@ -457,6 +458,13 @@ export const economy = {
     deposit(fee, 'tuition');
     state.tuition += fee;
     state.tuitionPay[collector] = (state.tuitionPay[collector] ?? 0) + fee * share;
+    trackSpend(payer, fee, { [FUND]: fee });
+    store.save();
+  },
+  fireworksFee(fee, payer) {
+    if (!ctx || !(fee > 0)) return;
+    deposit(fee, 'fireworks');
+    state.tuitionPay[NPC.host] = (state.tuitionPay[NPC.host] ?? 0) + fee * FIREWORKS.hostShare;
     trackSpend(payer, fee, { [FUND]: fee });
     store.save();
   },

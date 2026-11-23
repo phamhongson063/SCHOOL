@@ -8005,10 +8005,6 @@ body.in-duel > :not(#app):not(#duelDialog) {
   background: rgba(120, 220, 150, 0.28);
 }
 
-.fireworks-slot.wrong {
-  background: rgba(230, 70, 90, 0.55);
-}
-
 .fireworks-bar {
   height: 5px;
   margin-top: 8px;

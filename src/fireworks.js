@@ -5,7 +5,6 @@ import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
 import { unitOf } from './studyDecks.js';
 import {
-  ERASE,
   SHOW_SECONDS,
   fireworksEnd,
   fireworksLeft,
@@ -15,7 +14,7 @@ import {
   fireworksWorth,
   glyphsOf,
   knownKeys,
-  npcRun,
+  npcWord,
   placeOrder,
   runTally,
   showKeys,
@@ -29,8 +28,9 @@ const PHASES = ['open', 'live', 'done'];
 const ODDS_MINUTES = 10;
 
 const ids = (list) => (Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []);
-const freshPlay = () => ({ index: 0, filled: [], since: null, wrong: false, missed: false, score: 0, words: 0, lastAt: null });
-const blankShow = (day) => ({ day, phase: 'open', entrants: [], joinedAt: {}, keys: [], runs: {}, play: {}, pot: 0, places: [] });
+const freshPlay = () => ({ index: 0, filled: [], since: null, missed: false, score: 0, words: 0, lastAt: null });
+const blankShow = (day) => ({ day, phase: 'open', entrants: [], joinedAt: {}, keys: [], runs: {}, cursor: {}, play: {}, pot: 0, places: [], deals: 0 });
+const isCursor = (raw) => raw && Number.isInteger(raw.index) && raw.index >= 0 && Number.isFinite(raw.end) && (raw.ok === 0 || raw.ok === 1);
 
 function cleanPlay(raw) {
   const play = freshPlay();
@@ -38,7 +38,6 @@ function cleanPlay(raw) {
   for (const name of ['index', 'score', 'words']) if (Number.isInteger(raw[name]) && raw[name] >= 0) play[name] = raw[name];
   for (const name of ['since', 'lastAt']) if (Number.isFinite(raw[name])) play[name] = raw[name];
   play.filled = ids(raw.filled);
-  play.wrong = raw.wrong === true;
   play.missed = raw.missed === true;
   return play;
 }
@@ -63,7 +62,8 @@ function cleanShow(raw) {
   const play = {};
   for (const [id, value] of Object.entries(raw.play ?? {})) if (entrants.includes(id)) play[id] = cleanPlay(value);
   const joinedAt = Object.fromEntries(entrants.filter((id) => Number.isFinite(raw.joinedAt?.[id])).map((id) => [id, raw.joinedAt[id]]));
-  return { day: raw.day, phase: raw.phase, entrants, joinedAt, keys, runs, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
+  const cursor = Object.fromEntries(entrants.filter((id) => isCursor(raw.cursor?.[id])).map((id) => [id, { ...raw.cursor[id] }]));
+  return { day: raw.day, phase: raw.phase, entrants, joinedAt, keys, runs, cursor, deals: Number.isInteger(raw.deals) ? raw.deals : 0, play, pot: Number.isFinite(raw.pot) ? raw.pot : 0, places: cleanPlaces(raw.places) };
 }
 
 function cleanLast(raw) {
@@ -100,9 +100,44 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
     return runTally(show.runs[id] ?? [], show.keys, seconds);
   }
 
+  function startWord(show, id, index, from) {
+    const word = npcWord(id, keyAt(show, index), show.day);
+    show.cursor[id] = { index, end: from + word.seconds, ok: word.correct ? 1 : 0 };
+  }
+
   function enter(show, id, from) {
-    if (human(id)) show.play[id] = freshPlay();
-    else show.runs[id] = npcRun(id, show.keys, show.day, from);
+    if (human(id)) {
+      show.play[id] = freshPlay();
+      return;
+    }
+    show.runs[id] = [];
+    startWord(show, id, 0, from);
+  }
+
+  function stepNpcs(show, seconds) {
+    let changed = false;
+    for (const [id, cursor] of Object.entries(show.cursor)) {
+      let at = cursor;
+      while (at && at.end <= seconds && at.end <= SHOW_SECONDS) {
+        show.runs[id] ??= [];
+        show.runs[id].push([Math.round(at.end * 10) / 10, at.index, at.ok]);
+        startWord(show, id, at.index + 1, at.end);
+        at = show.cursor[id];
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  function reached(show) {
+    const spots = show.entrants.map((id) => show.play[id]?.index ?? show.cursor[id]?.index ?? -1);
+    return Math.max(-1, ...spots);
+  }
+
+  function redeal(show) {
+    show.deals += 1;
+    const keep = show.keys.slice(0, reached(show) + 1);
+    show.keys = [...keep, ...showKeys(show.day, show.entrants, show.deals)];
   }
 
   function begin(show) {
@@ -147,6 +182,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       begin(show);
       changed = true;
     }
+    if (show.phase === 'live' && stepNpcs(show, secondsOf(show, now))) changed = true;
     if (show.phase === 'live' && now >= fireworksEnd(show.day)) {
       finish(show);
       changed = true;
@@ -164,7 +200,6 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
     play.index += 1;
     play.filled = [];
     play.since = seconds;
-    play.wrong = false;
     play.missed = false;
   }
 
@@ -187,7 +222,6 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       index: play.index,
       answer: glyphsOf(key),
       filled: [...play.filled],
-      wrong: play.wrong,
       left: Math.max(0, limit - (seconds - play.since)),
       limit,
       score: play.score,
@@ -219,8 +253,10 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       const show = state.show;
       show.entrants.push(who);
       show.joinedAt[who] = secondsOf(show, now);
-      if (show.phase === 'live') enter(show, who, secondsOf(show, now));
-      else advance(now);
+      if (show.phase === 'live') {
+        redeal(show);
+        enter(show, who, secondsOf(show, now));
+      } else advance(now);
       oddsCache.clear();
       store.save();
       return 'ok';
@@ -258,21 +294,12 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       if (!word) return null;
       const show = liveShow(who, now);
       const play = show.play[who];
-      if (char === ERASE) {
-        if (!play.filled.length) return 'idle';
-        play.filled.pop();
-        play.wrong = false;
-        store.save();
-        return 'erase';
-      }
-      if (play.wrong) return 'blocked';
-      play.filled.push(char);
-      if (char !== word.answer[play.filled.length - 1]) {
-        play.wrong = true;
+      if (char !== word.answer[play.filled.length]) {
         play.missed = true;
         store.save();
         return 'wrong';
       }
+      play.filled.push(char);
       if (play.filled.length < word.answer.length) {
         store.save();
         return 'hit';
@@ -293,7 +320,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       const b = secondsOf(show, to);
       const out = [];
       for (const [id, run] of Object.entries(show.runs)) {
-        for (const [at, index] of run) if (at > a && at <= b) out.push({ id, key: keyAt(show, index) });
+        for (const [at, index, ok = 1] of run) if (ok && at > a && at <= b) out.push({ id, key: keyAt(show, index) });
       }
       return out;
     },

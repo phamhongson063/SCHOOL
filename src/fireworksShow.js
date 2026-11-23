@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
-import { ERASE } from './fireworksRules.js';
+import { FIREWORKS } from './config.js';
 
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const COLORS = ['#ffd36b', '#ff7ab8', '#7fe3ff', '#a6ff8a', '#c79bff', '#ff9a5a'];
-const ERASE_COLOR = '#ff5a6e';
-const FIELD = { x: 10, y: [7, 12.5], z: [5, 16], gap: 3.2, tries: 14 };
-const LAUNCH = { x: 6, z: [-1, 4], y: 0.6 };
-const FAR = { x: 22, y: [13, 21], z: [18, 32] };
-const SHOT = { size: 2.3, rise: 0.9, hang: 7, fade: 0.8, wait: [0.3, 1.6], pop: 0.6, retire: 0.35 };
-const AMBIENT = { size: 1.35, rise: 0.8, hang: 2.2, fade: 0.6, pool: 12 };
+const FIELD = { yaw: 0.8, elev: [0.3, 0.85], dist: [15, 28], gap: 0.24, tries: 18, sway: [1.5, 4], swaySpeed: [0.35, 0.8], lift: [0.3, 0.9] };
+const LAUNCH = { x: 14, z: [-2, 8], y: 0.6 };
+const FAR = { yaw: 0.95, elev: [0.45, 0.95], dist: [34, 48], gap: 0.12, tries: 6, sway: [0.5, 1.5], swaySpeed: [0.3, 0.6], lift: [0.2, 0.5] };
+const BASE_SIZE = 2.3;
+const SHOT = { angle: 0.17, ...FIREWORKS.sky };
+const AMBIENT = { angle: 0.09, rise: 0.8, hang: 4.4, fade: 1.2, pool: 12 };
 const SPARKS = { count: 30, speed: [3.5, 6.5], gravity: 2.6, drag: 1.6, life: 1.5, size: 0.42 };
 const TRAIL = 8;
 const HALO = 1.9;
@@ -61,39 +61,11 @@ function paintHalo(ctx, size) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function paintEraser(ctx, size, color) {
-  const s = size / 128;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(26 * s, 64 * s);
-  ctx.lineTo(48 * s, 38 * s);
-  ctx.lineTo(102 * s, 38 * s);
-  ctx.lineTo(102 * s, 90 * s);
-  ctx.lineTo(48 * s, 90 * s);
-  ctx.closePath();
-  ctx.moveTo(62 * s, 52 * s);
-  ctx.lineTo(86 * s, 76 * s);
-  ctx.moveTo(86 * s, 52 * s);
-  ctx.lineTo(62 * s, 76 * s);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 12 * s;
-  ctx.stroke();
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 5 * s;
-  ctx.stroke();
-}
-
 function paintGlyph(ctx, size, char, color) {
   const c = size / 2;
   ctx.clearRect(0, 0, size, size);
   ctx.shadowColor = color;
   ctx.shadowBlur = size * 0.12;
-  if (char === ERASE) {
-    paintEraser(ctx, size, color);
-    paintEraser(ctx, size, color);
-    return;
-  }
   ctx.font = `800 ${size * 0.62}px ${SERIF}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -119,11 +91,11 @@ function createTextures() {
   };
 }
 
-function createShell(textures, group, size) {
-  const glyph = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: textures.halo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
-  glyph.renderOrder = 6;
-  halo.renderOrder = 5;
+function createShell(textures, group, angle) {
+  const glyph = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: textures.halo, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+  glyph.renderOrder = 12;
+  halo.renderOrder = 11;
   glyph.visible = false;
   halo.visible = false;
   const count = SPARKS.count + TRAIL;
@@ -132,9 +104,9 @@ function createShell(textures, group, size) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const sparks = new THREE.Points(geometry, new THREE.PointsMaterial({ map: textures.dot, size: SPARKS.size * (size / SHOT.size + 0.4), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  const sparks = new THREE.Points(geometry, new THREE.PointsMaterial({ map: textures.dot, size: SPARKS.size, vertexColors: true, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
   sparks.frustumCulled = false;
-  sparks.renderOrder = 4;
+  sparks.renderOrder = 10;
   sparks.visible = false;
   group.add(sparks, halo, glyph);
   return {
@@ -145,6 +117,8 @@ function createShell(textures, group, size) {
     colors,
     velocity: Array.from({ length: SPARKS.count }, () => new THREE.Vector3()),
     from: new THREE.Vector3(),
+    base: new THREE.Vector3(),
+    sway: { amp: 0, speed: 0, lift: 0, since: 0 },
     to: new THREE.Vector3(),
     tint: new THREE.Color(),
     phase: 'wait',
@@ -152,7 +126,8 @@ function createShell(textures, group, size) {
     burstAge: Infinity,
     char: null,
     word: null,
-    size,
+    angle,
+    size: BASE_SIZE,
     seed: Math.random() * 10,
   };
 }
@@ -169,7 +144,7 @@ function burst(shell, scale = 1) {
   for (let i = 0; i < SPARKS.count; i++) {
     const v = shell.velocity[i].set(rand(-1, 1), rand(-1, 1), rand(-1, 1));
     if (v.lengthSq() < 0.01) v.set(0, 1, 0);
-    v.normalize().multiplyScalar(rand(...SPARKS.speed) * scale * (shell.size / SHOT.size + 0.3));
+    v.normalize().multiplyScalar(rand(...SPARKS.speed) * scale * (shell.size / BASE_SIZE + 0.3));
     shell.positions.set([p.x, p.y, p.z], i * 3);
   }
 }
@@ -205,28 +180,35 @@ function paintSparks(shell, dt, rising, head) {
   shell.sparks.geometry.attributes.color.needsUpdate = true;
 }
 
-export function createFireworksShow({ anchor }) {
+export function createFireworksShow({ anchor, eye }) {
   const group = new THREE.Group();
   group.visible = false;
   const textures = createTextures();
   const shells = [];
-  const ambient = Array.from({ length: AMBIENT.pool }, () => createShell(textures, group, AMBIENT.size));
+  const ambient = Array.from({ length: AMBIENT.pool }, () => createShell(textures, group, AMBIENT.angle));
   let word = null;
   let tiles = [];
   let deal = 0;
   const head = new THREE.Vector3();
 
+  const viewer = new THREE.Vector3(eye.x, eye.y, eye.z);
+  const facing = Math.atan2(anchor.x - eye.x, anchor.z - eye.z);
+  const look = (point) => point.clone().sub(viewer).normalize();
+
   function spot(field, avoid) {
+    const seen = avoid.map(look);
     let best = null;
     let bestGap = -1;
-    for (let i = 0; i < FIELD.tries; i++) {
-      const candidate = new THREE.Vector3(anchor.x + rand(-field.x, field.x), rand(...field.y), anchor.z + rand(...field.z));
-      const gap = avoid.reduce((nearest, other) => Math.min(nearest, other.distanceTo(candidate)), Infinity);
+    for (let i = 0; i < field.tries; i++) {
+      const yaw = facing + rand(-field.yaw, field.yaw);
+      const elev = rand(...field.elev);
+      const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(elev), Math.sin(elev), Math.cos(yaw) * Math.cos(elev));
+      const gap = seen.reduce((nearest, other) => Math.min(nearest, other.angleTo(dir)), Infinity);
       if (gap > bestGap) {
-        best = candidate;
+        best = viewer.clone().addScaledVector(dir, rand(...field.dist));
         bestGap = gap;
       }
-      if (gap > FIELD.gap * 2) break;
+      if (gap > field.gap * 1.5) break;
     }
     return best;
   }
@@ -234,13 +216,19 @@ export function createFireworksShow({ anchor }) {
   function launch(shell, char, field, timing) {
     shell.char = char;
     shell.word = word;
-    const color = char === ERASE ? ERASE_COLOR : COLORS[Math.floor(Math.random() * COLORS.length)];
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
     shell.tint.set(color);
     shell.glyph.material.map = textures.glyph(char, color);
     shell.glyph.material.needsUpdate = true;
     shell.halo.material.color.copy(shell.tint);
-    const taken = shells.filter((other) => other !== shell && other.phase !== 'wait').map((other) => other.to);
+    const taken = [...shells, ...ambient].filter((other) => other !== shell && other.phase !== 'wait').map((other) => other.glyph.visible ? other.glyph.position : other.to);
     shell.to.copy(spot(field, taken));
+    shell.size = viewer.distanceTo(shell.to) * Math.tan(shell.angle);
+    shell.sparks.material.size = SPARKS.size * (shell.size / BASE_SIZE + 0.4);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    shell.sway.amp = side * rand(...field.sway);
+    shell.sway.speed = rand(...field.swaySpeed);
+    shell.sway.lift = rand(...field.lift);
     shell.from.set(anchor.x + rand(-LAUNCH.x, LAUNCH.x), LAUNCH.y, anchor.z + rand(...LAUNCH.z));
     shell.dir = shell.to.clone().sub(shell.from).normalize();
     shell.timing = timing;
@@ -273,6 +261,8 @@ export function createFireworksShow({ anchor }) {
         shell.phase = 'hang';
         shell.clock = 0;
         burst(shell);
+        shell.base.copy(shell.to);
+        shell.sway.since = t;
         shell.glyph.position.copy(shell.to);
         shell.halo.position.copy(shell.to);
         shell.glyph.visible = true;
@@ -281,10 +271,11 @@ export function createFireworksShow({ anchor }) {
       return;
     }
     paintSparks(shell, dt, false, head);
-    const drift = dt * 0.12;
-    shell.glyph.position.y -= drift;
-    shell.halo.position.y -= drift;
-    shell.to.y -= drift;
+    shell.base.y -= dt * 0.12;
+    const { amp, speed, lift, since } = shell.sway;
+    const age = t - since;
+    shell.glyph.position.set(shell.base.x + amp * Math.sin(speed * age), shell.base.y + lift * Math.sin(speed * 1.7 * age), shell.base.z);
+    shell.halo.position.copy(shell.glyph.position);
     let glow = 1;
     let grow = 1;
     if (shell.phase === 'hang') {
@@ -334,14 +325,14 @@ export function createFireworksShow({ anchor }) {
       tiles = [...next];
       deal += 1;
       while (shells.length < tiles.length) {
-        const shell = createShell(textures, group, SHOT.size);
+        const shell = createShell(textures, group, SHOT.angle);
         shell.delay = 0;
         shells.push(shell);
       }
       shells.forEach((shell, i) => {
         if (shell.phase === 'wait') {
           shell.clock = 0;
-          shell.delay = (i / Math.max(1, tiles.length)) * 1.6;
+          shell.delay = (i / Math.max(1, tiles.length)) * SHOT.deal;
         } else {
           shell.phase = 'retire';
           shell.clock = 0;
