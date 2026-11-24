@@ -2698,6 +2698,7 @@ else {
     scene,
     bounds: MAP_BOUNDS,
     hide: [villagerRoot, avatar.group, seatedAvatar.group, player.shadow.mesh, clouds.group, arenaIsland.region.handle?.group].filter(Boolean),
+    reveal: () => regions.regions.map((region) => region.handle?.group).filter(Boolean),
     light: (view, at) => sky.update(minutes, view, at, SHADOW_SPAN),
     look: (day) => applyNight(day ? 0 : Math.max(0, shownNight)),
   });

@@ -58,7 +58,7 @@ function glowsOf(scene) {
   return glows;
 }
 
-export function createMapCapture({ renderer, scene, bounds, hide, light, look }) {
+export function createMapCapture({ renderer, scene, bounds, hide, reveal, light, look }) {
   const canvas = document.createElement('canvas');
   canvas.width = Math.round((bounds.x1 - bounds.x0) * PIXELS_PER_METER);
   canvas.height = Math.round((bounds.z1 - bounds.z0) * PIXELS_PER_METER);
@@ -83,11 +83,14 @@ export function createMapCapture({ renderer, scene, bounds, hide, light, look })
     if (next >= tiles.length) return true;
     glows ??= glowsOf(scene);
     const hidden = [...hide, ...glows];
+    const revealed = reveal();
     const shown = hidden.map((object) => object.visible);
+    const wasRevealed = revealed.map((object) => object.visible);
     const fog = scene.fog ? { near: scene.fog.near, far: scene.fog.far } : null;
     renderer.getSize(size);
     const side = Math.max(1, Math.floor(Math.min(size.x, size.y, drawn / renderer.getPixelRatio())));
     const source = renderer.domElement;
+    for (const object of revealed) object.visible = true;
     for (const object of hidden) object.visible = false;
     if (fog) Object.assign(scene.fog, { near: DEPTH * 10, far: DEPTH * 20 });
     look(true);
@@ -106,6 +109,7 @@ export function createMapCapture({ renderer, scene, bounds, hide, light, look })
         context.drawImage(source, viewport.x, top, viewport.z, viewport.w, (x - bounds.x0) * PIXELS_PER_METER, (z - bounds.z0) * PIXELS_PER_METER, drawn, drawn);
       }
     } finally {
+      revealed.forEach((object, i) => (object.visible = wasRevealed[i]));
       hidden.forEach((object, i) => (object.visible = shown[i]));
       if (fog) Object.assign(scene.fog, fog);
       look(false);
