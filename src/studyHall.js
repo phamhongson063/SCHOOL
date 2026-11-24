@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { FLUORESCENT } from './config.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { flowerBed, studentFurniture, lantern, textBoard } from './props.js';
@@ -380,7 +381,7 @@ export function createStudyHall(scene, hall) {
     ...STONE_LANTERNS.map(([lx, lz]) => ({ position: new THREE.Vector3(lx, 1.27, lz), tint: 0xffc070, intensity: STONE_HALO_BOOST })),
   ]);
   group.add(lanternGlow.object);
-  const roomLight = new THREE.PointLight(FLUORESCENT, 0, 13, 2);
+  const roomLight = pooledLight(FLUORESCENT, 0, 13, 2);
   roomLight.position.set(0, height - 0.8, depth / 2);
   group.add(roomLight);
   let night = 0;

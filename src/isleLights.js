@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
@@ -468,7 +469,7 @@ export function createIsleLamps({ castleX, castleFront }) {
   const group = new THREE.Group();
   const { plaza, bridge } = LAMP_LIGHT;
   const lamp = (x, y, z, spec) => {
-    const light = new THREE.PointLight(LAMP_LIGHT.color, 0, spec.distance, 2);
+    const light = pooledLight(LAMP_LIGHT.color, 0, spec.distance, 2);
     light.position.set(x, y, z);
     group.add(light);
     return { light, spec };

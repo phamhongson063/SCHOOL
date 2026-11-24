@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { Batch, canvasTexture, freeze, labelBox, shade, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
@@ -400,7 +401,7 @@ export function createVillage() {
     [cookAt, eateryCounter],
     [fishmongerAt, fishCounter],
   ].map(([from, to]) => {
-    const light = new THREE.PointLight(FLUORESCENT, 0, KEEPER_LIGHT.distance, 2);
+    const light = pooledLight(FLUORESCENT, 0, KEEPER_LIGHT.distance, 2);
     light.position.set(from.x + (to.x - from.x) * KEEPER_LIGHT.toward, KEEPER_LIGHT.height, from.z + (to.z - from.z) * KEEPER_LIGHT.toward);
     lightGroup.add(light);
     return light;

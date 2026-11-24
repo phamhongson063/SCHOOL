@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { shapes, toonMaterial } from './toon.js';
 import { roundTree } from './scenery.js';
 import { keepCanvas } from './canvasRestore.js';
@@ -297,7 +298,7 @@ export function createHallLife({ plaza, hallFront, built, toWorld, turn }) {
   });
   const notice = createBoard(board);
   const glowAt = toWorld(built.glow);
-  const light = new THREE.PointLight(0xffe2a8, 0, GLOW.distance, 2);
+  const light = pooledLight(0xffe2a8, 0, GLOW.distance, 2);
   light.position.set(glowAt.x, built.glow.y, glowAt.z);
   group.add(water.group, clock.group, notice.mesh, light, ...flags.map((flag) => flag.mesh));
   const center = new THREE.Vector3(fountain.x, 2, fountain.z);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { createLotoStage } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
@@ -156,7 +157,7 @@ export function createLotoCourt(scene) {
     canopy: new THREE.Vector3(0, COURT.rise * (LIGHTS.canopy.row + 1) + LIGHTS.canopy.height, -COURT.front + COURT.step * (LIGHTS.canopy.row + 0.5)),
   }).map(([kind, local]) => {
     const spec = LIGHTS[kind];
-    const lamp = new THREE.PointLight(spec.color, 0, spec.distance, 2);
+    const lamp = pooledLight(spec.color, 0, spec.distance, 2);
     lamp.position.copy(stage.group.localToWorld(local));
     scene.add(lamp);
     return { lamp, spec };

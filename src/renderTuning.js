@@ -4,6 +4,7 @@ import { outlineMaterial } from './toon.js';
 import { cullCharacterOutlines } from './characterModels.js';
 
 export const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
+const BATTERY_PIXEL_RATIO = Math.min(MAX_PIXEL_RATIO, 1.25);
 const MIN_PIXEL_RATIO = 0.75;
 const SHADOW_REFRESH = 2;
 const OUTLINE_DISTANCE = 26;
@@ -11,6 +12,7 @@ const CHARACTER_OUTLINE_DISTANCE = OUTLINE_DISTANCE;
 
 export function createRenderTuning({ renderer, scene, camera, sun, frameRate }) {
   let pixelRatio = MAX_PIXEL_RATIO;
+  let ceiling = MAX_PIXEL_RATIO;
   const pace = { target: frameRate, frames: 0, since: 0, steady: 0 };
   let shadowKey = '';
   let shadowAt = 0;
@@ -34,7 +36,7 @@ export function createRenderTuning({ renderer, scene, camera, sun, frameRate }) 
       next = Math.max(MIN_PIXEL_RATIO, pixelRatio - 0.25);
       pace.steady = 0;
     } else if (fps >= target * 0.95 && ++pace.steady >= 5) {
-      next = Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.25);
+      next = Math.min(ceiling, pixelRatio + 0.25);
       pace.steady = 0;
     }
     if (next === pixelRatio) return;
@@ -44,6 +46,14 @@ export function createRenderTuning({ renderer, scene, camera, sun, frameRate }) 
 
   function pauseResolution() {
     pace.since = 0;
+  }
+
+  function limitForBattery(unplugged) {
+    ceiling = unplugged ? BATTERY_PIXEL_RATIO : MAX_PIXEL_RATIO;
+    const next = LOW_POWER ? Math.min(pixelRatio, ceiling) : ceiling;
+    if (next === pixelRatio) return;
+    pixelRatio = next;
+    renderer.setPixelRatio(pixelRatio);
   }
 
   function refreshShadows(t) {
@@ -75,5 +85,5 @@ export function createRenderTuning({ renderer, scene, camera, sun, frameRate }) 
     cullCharacterOutlines(camera, CHARACTER_OUTLINE_DISTANCE);
   }
 
-  return { adaptResolution, pauseResolution, refreshShadows, invalidateShadows, trackOutlines, updateOutlines };
+  return { adaptResolution, pauseResolution, limitForBattery, refreshShadows, invalidateShadows, trackOutlines, updateOutlines };
 }

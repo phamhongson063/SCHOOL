@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
@@ -591,7 +592,7 @@ function createAura(statueMaterial) {
 
   group.add(floor, ringSpin, glow, ...bursts, halo, crown.orbit, sky.orbit, sparks);
   group.visible = false;
-  const lamp = new THREE.PointLight(AURA_GOLD, 0, LAMP.distance, 2);
+  const lamp = pooledLight(AURA_GOLD, 0, LAMP.distance, 2);
   lamp.position.set(0, LAMP.y, LAMP.ahead);
   let clock = 0;
   const color = new THREE.Color();

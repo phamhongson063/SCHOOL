@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { Batch, freeze, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { createArenaSky } from './arenaSky.js';
@@ -690,7 +691,7 @@ export function createArenaIsland({ onPortal, onBoard, boardSize, camera, night 
         skyGate.visible = false;
 
         const heaven = createArenaSky(skyLayout());
-        const orbLight = new THREE.PointLight(GLOW, 0, 0, 2);
+        const orbLight = pooledLight(GLOW, 0, 0, 2);
         group.add(orbLight, scenery, heaven.group, skyGate, vortex, gateRunes, daisRunes, crystal, beam, threadMotes.points, ...stageRunes, sky.holder, gateMotes.points, islandMotes.points);
         const look = new THREE.Vector3();
         return {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { FLUORESCENT } from './config.js';
 import { makeRandom } from './random.js';
 import { freeze } from './toon.js';
@@ -298,7 +299,7 @@ export function populate(scene) {
   root.add(lanternGlow.object);
   let night = 0;
   const classLights = [[CX, TEACHER_Z + 2], [CX - 5.2, HOUSE.back + 9.2], [CX + 5.2, HOUSE.back + 9.2]].map(([x, z]) => {
-    const light = new THREE.PointLight(FLUORESCENT, 0, 15, 2);
+    const light = pooledLight(FLUORESCENT, 0, 15, 2);
     light.position.set(x, 4.8, z);
     root.add(light);
     return light;

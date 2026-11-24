@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pooledLight } from './lightPool.js';
 import { keepCanvas } from './canvasRestore.js';
 import { createLanternGlow } from './lanternGlow.js';
 
@@ -30,7 +31,7 @@ function poolTexture() {
 export function createArenaNight({ lights, desk, toWorld, layer }) {
   const group = new THREE.Group();
   const deskAt = toWorld({ x: desk.x, z: desk.z + DESK_LIGHT.ahead });
-  const lamp = new THREE.PointLight(DESK_LIGHT.color, 0, DESK_LIGHT.distance, 2);
+  const lamp = pooledLight(DESK_LIGHT.color, 0, DESK_LIGHT.distance, 2);
   lamp.position.set(deskAt.x, DESK_LIGHT.height, deskAt.z);
 
   const glow = createLanternGlow(lights.map(({ position, tint }) => {

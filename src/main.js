@@ -115,6 +115,7 @@ import { createLodgeDesk } from './lodgeDesk.js';
 import { createScheduleBoard } from './scheduleBoard.js';
 import { createHoverTip } from './hoverTip.js';
 import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
+import { createLightPool } from './lightPool.js';
 import { coins } from './format.js';
 import { haltStores } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
@@ -147,6 +148,7 @@ const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
 const IDLE_AFTER = 20000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
+const POINT_LIGHT_SLOTS = LOW_POWER ? 4 : 6;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: Math.max(84, ISLE_BOUNDS.z1) };
 const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
 const MAP_HOUR = 14;
@@ -165,6 +167,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 });
 
 const scene = new THREE.Scene();
+const lightPool = createLightPool(scene, POINT_LIGHT_SLOTS);
 const sky = createSky(scene, { renderer });
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 500);
 
@@ -176,6 +179,13 @@ sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
 const tuning = createRenderTuning({ renderer, scene, camera, sun, frameRate: FRAME_RATE });
+navigator.getBattery?.()
+  .then((battery) => {
+    const follow = () => tuning.limitForBattery(!battery.charging);
+    follow();
+    battery.addEventListener('chargingchange', follow);
+  })
+  .catch(() => {});
 
 const itemImages = loadItemImages();
 const characterModels = loadCharacterModels();
@@ -2730,6 +2740,7 @@ function applyNight(k) {
   river.setNight(k);
   riverIsle.setNight(k);
   streetLamps.setNight(k);
+  lightPool.apply();
 }
 renderer.setAnimationLoop((time) => {
   const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active || fireworksShow.visible;
@@ -2740,7 +2751,7 @@ renderer.setAnimationLoop((time) => {
   if (popup && !busy && performance.now() - lastScroll < SCROLL_PAUSE) return;
   const reading = study.visible;
   const resting = reading || idle;
-  const still = resting && !town.anyMoving() && !mountain.moving();
+  const still = resting && ((idle && !document.hasFocus()) || (!town.anyMoving() && !mountain.moving()));
   const frameRate = purse.sleeping
     ? SLEEP_FRAME_RATE
     : study.focused
@@ -2872,6 +2883,7 @@ renderer.setAnimationLoop((time) => {
   }
   if (avatar.group.visible) avatar.pose?.();
   marker.update(t);
+  lightPool.update(dt, camera);
   if (!study.dimmed) renderer.render(scene, camera);
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
 });
