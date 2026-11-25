@@ -1965,7 +1965,22 @@ restBtn.addEventListener('click', () => {
   refreshRest();
 });
 
-for (const button of [ui.modeBtn, restBtn]) {
+const runBtn = document.getElementById('runBtn');
+let runShown = '';
+function refreshRun() {
+  const walking = !!player.path && !player.tired;
+  const key = `${walking}|${player.running}`;
+  if (key === runShown) return;
+  runShown = key;
+  runBtn.hidden = !walking;
+  runBtn.setAttribute('aria-pressed', String(walking && player.running));
+}
+runBtn.addEventListener('click', () => {
+  if (player.path && !player.tired) player.running = true;
+  refreshRun();
+});
+
+for (const button of [ui.modeBtn, restBtn, runBtn]) {
   button.addEventListener('pointerup', () => button.blur());
 }
 
@@ -2800,6 +2815,7 @@ renderer.setAnimationLoop((time) => {
   mailbox.tick();
   scheduleBoard.refresh();
   refreshRest();
+  refreshRun();
   if (farm.tick()) mailbox.sync(farm.chores(PLAYER, player.position));
   cullRooms();
   const simSpan = Math.min(elapsed, SIM_SPAN);
