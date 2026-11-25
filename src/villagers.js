@@ -11,7 +11,6 @@ import { Villager } from './villager.js';
 import { Guard, Peddler, Teacher } from './staff.js';
 import { SQUEEZE, squeezePast } from './squeeze.js';
 import { PLAYER } from './inventory.js';
-import { certify } from './certify.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 import { traits } from './traits.js';

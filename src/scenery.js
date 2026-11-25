@@ -160,8 +160,6 @@ export function groundMaterial() {
   return sharedGroundMaterial;
 }
 
-export const GROUND_SIZE = GROUND.size;
-
 function groundMesh() {
   const { size, segments } = GROUND;
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments);

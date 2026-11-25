@@ -511,8 +511,6 @@ function sweetPotatoVarieties() {
   });
 }
 
-export const STAGE_NAMES = ['Đất trống', 'Hạt giống', 'Nảy mầm', 'Cây non', 'Ra hoa', 'Quả xanh', 'Quả chín', 'Đã hái'];
-
 export const CROPS = {
   waterSpinach: {
     icon: '🌿',
@@ -583,7 +581,3 @@ export const CROPS = {
     build: sweetPotatoPlant,
   },
 };
-
-export function stageName(crop, stage) {
-  return CROPS[crop]?.stages?.[stage] ?? STAGE_NAMES[stage];
-}

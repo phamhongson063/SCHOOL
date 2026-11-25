@@ -1,6 +1,6 @@
 import { CROPS } from './crops.js';
 import { ITEMS, seedId, fishId, gameId, snackId } from './inventory.js';
-import { CROP_ECONOMY, SHOP, CERTIFY, VILLAGER, FARMING, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
+import { CROP_ECONOMY, SHOP, CERTIFY, VILLAGER, FISH, FISHING, FISH_SHOP, WILDLIFE, MART, SNACKS, growDays } from './config.js';
 import { holesWanted } from './holdings.js';
 import { isOpenAt, hoursText, durationText, DAY_MINUTES } from './clock.js';
 import { amount, coins, notEnough } from './format.js';

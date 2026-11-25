@@ -45,7 +45,7 @@ import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText, dateText } from './clock.js';
-import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, FIREWORKS, TRAINING } from './config.js';
+import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, TRAINING } from './config.js';
 import { trainingEarned, trainingIntellect } from './training.js';
 import { createFireworks } from './fireworks.js';
 import { createFireworksShow } from './fireworksShow.js';

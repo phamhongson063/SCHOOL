@@ -7,7 +7,6 @@ const WHITE = 0xfaf6ec;
 const HAIR = 0x33241c;
 const HAIR_OUTLINE = 0.006;
 const GOLD = 0xf2c14e;
-const UP = new THREE.Vector3(0, 1, 0);
 const HEAD_SCALE = [1.05, 0.96, 1];
 
 function part(parent, pivot, build, outline = OUTLINE) {

@@ -22,7 +22,6 @@ const ROCK_DARK = 0x5e5850;
 export const LACQUER = 0x9a2418;
 export const GILT = 0xd8b45a;
 const GLOW = 0xffd36e;
-const SPIRIT = 0x9ad8ff;
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const GLYPHS = ['文', '智', '福', '學', '道', '神', '靈', '光', '德', '明', '聖', '仁'];
 
