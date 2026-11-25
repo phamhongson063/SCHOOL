@@ -6,9 +6,9 @@ import { trade } from './trade.js';
 import { PLAYER } from './inventory.js';
 
 const HOMELANDS = [
-  { flag: '🇻🇳', name: 'Việt Nam', people: ['Long', 'Ngọc'] },
+  { flag: '🇻🇳', name: 'Việt Nam', people: ['Ngọc'] },
   { flag: '🇯🇵', name: 'Nhật Bản', people: ['Kaito', 'Sakura', 'Haru', 'Hiroshi', 'Ryo', 'Akemi', 'Kenji', 'Takeshi', 'Yumi', 'Sora', 'Hana', 'Yoshiko', 'Haruto', 'Ken', 'Aiko'] },
-  { flag: '🇰🇷', name: 'Hàn Quốc', people: ['Minho', 'Yuna', 'Jiwoo', 'Taeyang', 'Soojin', 'Hyejin', 'Eunji', 'Dongwoo', 'Minji', 'Youngsoo', 'Jinho', 'Sunhee', 'Seoyeon'] },
+  { flag: '🇰🇷', name: 'Hàn Quốc', people: ['Minho', 'Yuna', 'Jiwoo', 'Taeyang', 'Soojin', 'Hyejin', 'Eunji', 'Dongwoo', 'Minji', 'Youngsoo', 'Sunhee', 'Seoyeon'] },
   { flag: '🇨🇳', name: 'Trung Quốc', people: ['Mei', 'Haoran', 'Xiaoyu', 'Wei', 'Liang', 'Jianguo', 'Fang', 'Meiling', 'Zhiwei', 'Shen', 'Xiulan'] },
   { flag: '🇺🇸', name: 'Mỹ', people: ['Jake', 'Riley', 'Tyler', 'Daniel', 'Noah', 'Bobby', 'Jessica', 'Mason', 'Megan'] },
   { flag: '🇬🇧', name: 'Anh', people: ['Emily', 'Lily', 'Walter', 'Martha', 'Henry', 'Grace', 'Clara', 'Alice'] },

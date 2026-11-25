@@ -19,6 +19,7 @@ import { applySpeech, planSpeech } from './speaking.js';
 import { lotoEnd, lotoGatherAt, lotoMinutes, lotoSignOpen } from './lotoRules.js';
 import { fireworksSignOpen, fireworksStayMinutes, fireworksWindow } from './fireworksSchedule.js';
 import { payTraining, trainingAnswers, trainingIntellect } from './training.js';
+import { advancePatrol, patrolEnergyRate } from './patrol.js';
 
 const SIT = CERTIFY.sitSeconds / 60;
 const VIEW = CERTIFY.viewSeconds / 60;
@@ -247,6 +248,25 @@ export function createAwaySim({ town, contextAt }) {
     if (member.purse.energy < line) member.purse.eatEnergy();
     if (member.purse.energy >= line) return;
     if (!(member.wantsFood(ctx) && member.feast(FOODS, NPC.cook).length)) member.snack();
+  }
+
+  function patrolEntry(guard) {
+    if (!town.saved || typeof town.saved !== 'object') town.saved = {};
+    if (!Array.isArray(town.saved.guards)) town.saved.guards = [];
+    let entry = town.saved.guards.find((item) => item?.id === guard.id);
+    if (!entry) town.saved.guards.push((entry = { id: guard.id }));
+    if (!Number.isInteger(entry.stop) || entry.stop < 0 || entry.stop >= town.patrolXs.length) Object.assign(entry, { stop: 0, step: 1 });
+    if (entry.step !== -1) entry.step = 1;
+    return entry;
+  }
+
+  function patrol(guard, ctx, end) {
+    guard.purse.tickEnergy(end, patrolEnergyRate(town.patrolXs, ctx.night));
+    eat(guard, ctx);
+    const entry = patrolEntry(guard);
+    const next = advancePatrol(entry, end - ctx.minutes, town.patrolXs);
+    Object.assign(entry, { stop: next.stop, step: next.step, carry: next.carry });
+    if (next.moved) delete entry.at;
   }
 
   function examAt(member, at) {
@@ -711,6 +731,7 @@ export function createAwaySim({ town, contextAt }) {
       for (const bookings of allSeats()) bookings.splice(0, bookings.length, ...bookings.filter(([, stop]) => stop > from));
       const slots = { anglers: new Set(), hunters: new Set(), study: new Map(), seats: { ...seatsOf } };
       for (const member of shuffled(town.members)) live(member, ctx, minutes, slots);
+      for (const guard of town.guards) patrol(guard, ctx, to);
       quizCarry += minutes;
       while (quizCarry >= QUIZ_MINUTES) {
         quizCarry -= QUIZ_MINUTES;

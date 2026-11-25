@@ -131,10 +131,8 @@ export const NAGS = ['Mua xong rồi thì nhường chỗ với!', 'Xong rồi t
 
 const GUARD_LOOK = { pants: 0x2a2622, style: 'khan', khan: 0x8a2a1a, sash: 0x9a2a1a, iris: 0x4a2a18 };
 export const GUARDS = [
-  { id: NPC.guardHung, name: 'Ken', shift: 'day', follower: false, exit: 0, look: { ...GUARD_LOOK, shirt: 0x5a3a24, skin: 0xe0ad84 } },
-  { id: NPC.guardDung, name: 'Mason', shift: 'day', follower: true, exit: 0, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
-  { id: NPC.guardLuc, name: 'Jinho', shift: 'night', follower: false, exit: 1, look: { ...GUARD_LOOK, shirt: 0x3a3a3a, skin: 0xe6b08a } },
-  { id: NPC.guardManh, name: 'Long', shift: 'night', follower: true, exit: 1, look: { ...GUARD_LOOK, shirt: 0x34302c, skin: 0xd9a479 } },
+  { id: NPC.guardHung, name: 'Ken', follower: false, look: { ...GUARD_LOOK, shirt: 0x5a3a24, skin: 0xe0ad84 } },
+  { id: NPC.guardDung, name: 'Mason', follower: true, look: { ...GUARD_LOOK, shirt: 0x4a3420, skin: 0xd9a479 } },
 ].map((guard) => ({ ...guard, kind: 'guard', model: 'police' }));
 export const GUARD_DAY_CALLS = ['Dân binh đi tuần đây!', 'Bà con yên tâm làm ăn nhé!', 'Trật tự, trật tự nào!'];
 export const GUARD_NIGHT_CALLS = ['Cốc! Cốc! Bình an vô sự!', 'Khuya rồi, đóng cửa cẩn thận nhé!', 'Canh khuya, giữ lửa cẩn thận!'];

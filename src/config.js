@@ -263,8 +263,11 @@ export const VENDOR = {
   },
 };
 
+export const GATES = { west: -188, east: 188 };
+
 export const GUARD = {
-  day: [6 * 60, 18 * 60],
+  stride: 20,
+  gateInset: 3,
   pause: 4,
   lag: 1.4,
   gap: 1.3,

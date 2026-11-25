@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { between } from './random.js';
 import { ENERGY, QUIZ, VILLAGER } from './config.js';
+import { patrolXs } from './patrol.js';
 import { INN_STAND } from './inn.js';
 import { ServiceQueue } from './queue.js';
 import { createRestGlow } from './regen.js';
@@ -69,6 +70,8 @@ export class Town {
       .sort((a, b) => a - b)
       .filter((x, i, xs) => i === 0 || x - xs[i - 1] >= STOP_SPACING)
       .map((x) => this.walkable({ x, z: STREET_MID }));
+    this.patrolXs = patrolXs();
+    this.patrolStops = this.patrolXs.map((x) => this.walkable({ x, z: STREET_MID }));
     this.vendor = new Peddler(PEDDLER, this);
     this.guards = GUARDS.map((profile) => new Guard(profile, this));
     this.shiftWorkers = [this.vendor, ...this.guards];
@@ -425,7 +428,7 @@ export class Town {
       }
       return entry;
     });
-    return { minutes, members, rests };
+    return { minutes, members, rests, guards: this.guards.map((guard) => guard.patrolPlace()) };
   }
 
   resumable(ctx) {
@@ -479,6 +482,11 @@ export class Town {
     return true;
   }
 
+  savedPatrols() {
+    const list = Array.isArray(this.saved?.guards) ? this.saved.guards : [];
+    return new Map(list.filter((entry) => typeof entry?.id === 'string').map((entry) => [entry.id, entry]));
+  }
+
   savedJobs() {
     const entries = (Array.isArray(this.saved?.members) ? this.saved.members : []).filter((entry) => typeof entry?.id === 'string');
     const lantern = (job) => job && Number.isInteger(job.id) && Number.isFinite(job.at);
@@ -508,6 +516,7 @@ export class Town {
     if (!this.started || !Number.isFinite(minutes)) return;
     this.saved = this.snapshot(this.clockAt, minutes);
     for (const member of this.members) if (member.state !== 'arena') member.suspend();
+    for (const guard of this.guards) guard.vanish();
     this.started = false;
     this.resuming = true;
   }
@@ -522,6 +531,7 @@ export class Town {
 
   restore(ctx, t = 0) {
     const jobs = this.savedJobs();
+    const patrols = this.savedPatrols();
     const saved = this.resumable(ctx);
     const resuming = this.resuming;
     this.resuming = false;
@@ -534,6 +544,10 @@ export class Town {
       else if (ctx.night) this.teacher.settleNight();
       else this.teacher.vanish();
       for (const worker of this.shiftWorkers) worker.vanish();
+    }
+    for (const guard of this.guards) {
+      const entry = patrols.get(guard.id);
+      if (entry) guard.resumePatrol(entry);
     }
     for (const member of this.members) if (member.state !== 'arena') leaveRoom(member);
     for (const member of this.members) {

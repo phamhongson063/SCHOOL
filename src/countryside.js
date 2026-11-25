@@ -6,6 +6,7 @@ import { plaqueBoard } from './village.js';
 import { terrainHeight } from './terrain.js';
 import { FIELDS } from './fieldPlan.js';
 import { ROAD } from './road.js';
+import { GATES } from './config.js';
 
 const ROAD_MID = (ROAD.z0 + ROAD.z1) / 2;
 const GATE_HALF = (ROAD.z1 - ROAD.z0) / 2 + 0.9;
@@ -17,8 +18,8 @@ const HEDGES = [
 ];
 const FIELD_GAP = 0.8;
 const fieldGaps = (z) => FIELDS.flatMap(({ soil: [patch] }) => (z >= patch.z0 && z <= patch.z1 ? [[patch.x0 - FIELD_GAP, patch.x1 + FIELD_GAP]] : []));
-const WEST_GATE = -188;
-const EAST_GATE = 188;
+const WEST_GATE = GATES.west;
+const EAST_GATE = GATES.east;
 const GATE_BOUNDS = { x0: -200, z0: 30, x1: -183, z1: 42 };
 const EAST_GATE_BOUNDS = { x0: 183, z0: 30, x1: 200, z1: 42 };
 const SIGNS = [

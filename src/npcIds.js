@@ -9,8 +9,6 @@ export const NPC = {
   mayor: 'v-t1t4b5xo',
   guardHung: 'v-dw1fhtkg',
   guardDung: 'v-cptp2ido',
-  guardLuc: 'v-g9e8otlb',
-  guardManh: 'v-68vrasy7',
   host: 'v-k7m2q9rf',
 };
 
@@ -27,6 +25,4 @@ export const LEGACY_NPC_IDS = new Map([
   ['mayor', NPC.mayor],
   ['guard-hung', NPC.guardHung],
   ['guard-dung', NPC.guardDung],
-  ['guard-luc', NPC.guardLuc],
-  ['guard-manh', NPC.guardManh],
 ]);

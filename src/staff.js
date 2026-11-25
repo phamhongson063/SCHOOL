@@ -11,6 +11,7 @@ import { Villager } from './villager.js';
 import { createBubble, nameColor } from './bubble.js';
 import { homelandOf } from './profileRules.js';
 import { trade } from './trade.js';
+import { patrolNext } from './patrol.js';
 
 export class Teacher extends Villager {
   constructor(profile, town) {
@@ -106,11 +107,13 @@ class ShiftWorker extends Villager {
     this.step = 1;
   }
 
+  get stops() {
+    return this.town.streetStops;
+  }
+
   nextStop() {
-    const stops = this.town.streetStops;
-    if (this.stop + this.step < 0 || this.stop + this.step >= stops.length) this.step = -this.step;
-    this.stop += this.step;
-    return stops[this.stop];
+    ({ stop: this.stop, step: this.step } = patrolNext(this, this.stops.length));
+    return this.stops[this.stop];
   }
 
   goHome() {
@@ -123,7 +126,7 @@ class ShiftWorker extends Villager {
 
   appear() {
     super.appear();
-    this.stop = this.homePoint().x < 0 ? -1 : this.town.streetStops.length;
+    this.stop = this.homePoint().x < 0 ? -1 : this.stops.length;
     this.step = this.stop < 0 ? 1 : -1;
   }
 }
@@ -225,9 +228,12 @@ export class Guard extends ShiftWorker {
     this.lag = profile.follower ? GUARD.lag : 0;
   }
 
-  onDuty(ctx) {
-    const day = ctx.minute >= GUARD.day[0] && ctx.minute < GUARD.day[1];
-    return this.profile.shift === 'day' ? day : !day;
+  get stops() {
+    return this.town.patrolStops;
+  }
+
+  onDuty() {
+    return true;
   }
 
   appear() {
@@ -235,13 +241,39 @@ export class Guard extends ShiftWorker {
     this.wait(0.5);
   }
 
+  patrolPlace() {
+    const entry = { id: this.id, stop: this.stop, step: this.step };
+    if (this.state !== 'away') entry.at = [this.position.x, this.position.z, this.facing].map((value) => Math.round(value * 100) / 100);
+    return entry;
+  }
+
+  resumePatrol({ stop, step, at }) {
+    const stops = this.stops;
+    if (!Number.isInteger(stop) || stop < 0 || stop >= stops.length) return false;
+    this.cancel();
+    this.step = step === -1 ? -1 : 1;
+    this.stop = stop;
+    const [x, z, facing] = Array.isArray(at) ? at : [];
+    const target = stops[stop];
+    const spot = [x, z].every(Number.isFinite) ? { x, z } : this.profile.follower ? this.behind(stops[stop - this.step] ?? target, target) : target;
+    const height = this.town.nav.heightAt(spot.x, spot.z);
+    if (height === null) return false;
+    this.task = 'patrol';
+    this.position.set(spot.x, height, spot.z);
+    this.facing = Number.isFinite(facing) ? facing : this.step > 0 ? Math.PI / 2 : -Math.PI / 2;
+    this.velocity = 0;
+    this.wakeAt = null;
+    this.setVisible(true);
+    this.wait(0.3 + this.lag, () => this.think());
+    return true;
+  }
+
   think() {
     const ctx = this.town.context;
     this.lookAt = null;
-    if (!this.onDuty(ctx)) return this.goHome();
     if (this.goMeal(ctx)) return;
     this.task = 'patrol';
-    const from = this.town.streetStops[this.stop] ?? this.position;
+    const from = this.stops[this.stop] ?? this.position;
     const stop = this.nextStop();
     const target = this.profile.follower ? this.behind(from, stop) : stop;
     const rest = () => this.wait(GUARD.pause, () => this.think());
