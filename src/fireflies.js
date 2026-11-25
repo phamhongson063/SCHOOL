@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { keepCanvas } from './canvasRestore.js';
 import { between } from './random.js';
+import { pointsGeometry } from './toon.js';
 
 export const FIREFLY_GLOW = new THREE.Color(0xd9ff6a);
 const FADE_RATE = 0.6;
@@ -31,9 +32,7 @@ const texture = () => (sharedTexture ??= glowTexture());
 export function glowPoints(count, size) {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const geometry = pointsGeometry(positions, colors);
   const material = new THREE.PointsMaterial({
     size,
     map: texture(),

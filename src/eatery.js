@@ -1,15 +1,16 @@
 import * as THREE from 'three';
-import { Batch, shapes, shade, toonMaterial } from './toon.js';
+import { Batch, shapes, shade, toonMaterial, texturedBox } from './toon.js';
 import { makeRandom } from './random.js';
 import { ENERGY, FOODS, EATERY } from './config.js';
 import { isOpenAt, hoursText } from './clock.js';
 import { amount, notEnough } from './format.js';
-import { plasterMaterial, texturedBox } from './architecture.js';
+import { plasterMaterial } from './architecture.js';
 import { closable } from './dialog.js';
 import { stallCard, paintStallArt } from './stallCard.js';
 import { trade } from './trade.js';
 import { setRich } from './goldArt.js';
 import { NPC } from './npcIds.js';
+import { STONE, TEAK } from './palette.js';
 
 const W = 6.6;
 const D = 5.8;
@@ -18,11 +19,9 @@ const LIFT = H - 3.2;
 const RISE = 1.3;
 const LAMP_X = 2.1;
 const WALL = 0xe8b84a;
-const WOOD = 0x6a3f24;
 const WOOD_DARK = 0x3f2516;
 const TILE = 0x8e3524;
 const RIDGE = 0x7a2a1c;
-const STONE = 0xb3ab99;
 
 let glowMaterial = null;
 
@@ -58,7 +57,7 @@ export function createEatery({ seed = 9 } = {}) {
     block(side < 0 ? -W / 2 : W / 2 - 0.3, -D, side < 0 ? -W / 2 + 0.3 : W / 2, 0);
     b.add(shapes.box(0.22, H - 0.2, 0.22), WOOD_DARK, { p: [side * (W / 2 - 0.15), (H - 0.2) / 2, -0.06] });
   }
-  b.add(shapes.box(W - 0.04, 0.2, 0.22), WOOD, { p: [0, H - 0.22, -0.09] });
+  b.add(shapes.box(W - 0.04, 0.2, 0.22), TEAK, { p: [0, H - 0.22, -0.09] });
 
   const eave = H - 0.15;
   const ridge = eave + RISE;
@@ -71,7 +70,7 @@ export function createEatery({ seed = 9 } = {}) {
   }
 
   const counterW = W - 1.2;
-  b.add(shapes.box(counterW, 0.6, 0.55), WOOD, { p: [0, 0.3, -0.75] });
+  b.add(shapes.box(counterW, 0.6, 0.55), TEAK, { p: [0, 0.3, -0.75] });
   b.add(shapes.box(counterW + 0.1, 0.06, 0.65), WOOD_DARK, { p: [0, 0.63, -0.75] });
   block(-counterW / 2, -1.05, counterW / 2, -0.45, 1.2);
   b.add(shapes.cylinder(0.3, 0.26, 0.42, 14), 0x4a4a4a, { p: [-1.05, 0.87, -0.8] });
@@ -91,7 +90,7 @@ export function createEatery({ seed = 9 } = {}) {
 
   const tableZ = -D + 1.45;
   for (const tx of [-1.7, 1.7]) {
-    b.add(shapes.box(1.1, 0.06, 0.75), WOOD, { p: [tx, 0.62, tableZ] });
+    b.add(shapes.box(1.1, 0.06, 0.75), TEAK, { p: [tx, 0.62, tableZ] });
     for (const [dx, dz] of [[-0.45, -0.28], [0.45, -0.28], [-0.45, 0.28], [0.45, 0.28]]) {
       b.add(shapes.box(0.05, 0.6, 0.05), WOOD_DARK, { p: [tx + dx, 0.3, tableZ + dz] });
     }
@@ -102,7 +101,7 @@ export function createEatery({ seed = 9 } = {}) {
     block(tx - 1.0, tableZ - 0.45, tx + 1.0, tableZ + 0.85, 1);
   }
   b.add(shapes.box(0.9, 1.2, 0.05), 0x2a2a2a, { p: [0, 1.7 + LIFT, -D + 0.23] });
-  b.add(shapes.box(0.96, 1.26, 0.03), WOOD, { p: [0, 1.7 + LIFT, -D + 0.21] });
+  b.add(shapes.box(0.96, 1.26, 0.03), TEAK, { p: [0, 1.7 + LIFT, -D + 0.21] });
 
   for (const x of [-LAMP_X, LAMP_X]) b.limb([x, 2.74 + LIFT, 0.35], [x, H - 0.22, 0.2], 0.008, 0x3a2414, { capsule: false, seg: 4 });
   const mesh = b.mesh();

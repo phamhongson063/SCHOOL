@@ -93,7 +93,10 @@ export const shapes = {
 
 const dummy = new THREE.Object3D();
 const color = new THREE.Color();
-const UP = new THREE.Vector3(0, 1, 0);
+export const UP = new THREE.Vector3(0, 1, 0);
+export const X_AXIS = new THREE.Vector3(1, 0, 0);
+export const GLYPHS = ['文', '智', '福', '學', '道', '神', '靈', '光', '德', '明', '聖', '仁'];
+export const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const KEEP = new Set(['position', 'normal', 'uv']);
 
 export class Batch {
@@ -211,6 +214,35 @@ export function glowPoolTexture(stops, size = 128) {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
   });
+}
+
+export function pointsGeometry(positions, colors) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+export function indexedGeometry(positions, uvs, index) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+export function texturedBox(w, h, d, tile = 1) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  const uv = g.attributes.uv;
+  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  for (let f = 0; f < 6; f++) {
+    for (let i = 0; i < 4; i++) {
+      const k = f * 4 + i;
+      uv.setXY(k, (uv.getX(k) * dims[f][0]) / tile, (uv.getY(k) * dims[f][1]) / tile);
+    }
+  }
+  return g;
 }
 
 export function canvasTexture(size, paint, repeat = [1, 1]) {

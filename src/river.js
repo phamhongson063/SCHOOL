@@ -8,6 +8,7 @@ import { gameNow } from './clock.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { BOAT_X, CROSSING, DOCK, DOCK_X, ISLE, SEGMENT, clearOfCrossing, inIsleSpan, isleNorth, isleSouth, laneSouth, northBank, southBank } from './riverShape.js';
 import { createFishZones } from './fishZones.js';
+import { TIMBER, TIMBER_DARK } from './palette.js';
 
 const SPAN = { x0: WORLD.x0 - 200, x1: WORLD.x1 + 200 };
 const SPAN_SCALE = (SPAN.x1 - SPAN.x0) / 200;
@@ -21,8 +22,6 @@ const RING_SECONDS = 1.3;
 const SPLASH_GROW = 4.5;
 const RIPPLE_GROW = 2.2;
 const RIPPLE_REACH = 2;
-const WOOD = 0x7a5232;
-const WOOD_DARK = 0x553820;
 const REED = [0x7fa443, 0x9ab84a, 0x6a8a3a];
 const PEBBLES = [0x9e9484, 0xb3ab99, 0x857c6c];
 const FLOW_SPEED = 0.05;
@@ -102,7 +101,7 @@ function boat(b, z) {
     b.add(shapes.box(3.4, 0.35, 1.1), hull, { p: [0, 0.05, 0] });
     for (const side of [-1, 1]) {
       b.add(shapes.box(0.9, 0.35, 0.9), hull, { p: [side * 1.95, 0.12, 0], r: [0, 0, side * 0.35], s: [1, 1, 0.85] });
-      b.add(shapes.box(3.6, 0.08, 0.08), WOOD_DARK, { p: [0, 0.26, side * 0.55] });
+      b.add(shapes.box(3.6, 0.08, 0.08), TIMBER_DARK, { p: [0, 0.26, side * 0.55] });
     }
     b.add(shapes.box(3.2, 0.04, 0.95), 0x8a6a42, { p: [0, 0.2, 0] });
     b.add(new THREE.CylinderGeometry(0.62, 0.62, 1.4, 12, 1, true, 0, Math.PI), 0x9a7a4a, { p: [0.2, 0.22, 0], r: [0, 0, Math.PI / 2] });
@@ -114,13 +113,13 @@ function dock(b) {
   const { x0, x1, z0, z1 } = DOCK;
   let k = 0;
   for (let z = z0; z < z1; z += 0.32, k++) {
-    b.add(shapes.box(x1 - x0, 0.06, 0.28), k % 2 ? 0x8a603a : WOOD, { p: [(x0 + x1) / 2, 0.035, z + 0.14] });
+    b.add(shapes.box(x1 - x0, 0.06, 0.28), k % 2 ? 0x8a603a : TIMBER, { p: [(x0 + x1) / 2, 0.035, z + 0.14] });
   }
   for (const x of [x0 + 0.08, x1 - 0.08]) {
-    b.add(shapes.box(0.1, 0.1, z1 - z0), WOOD_DARK, { p: [x, -0.02, (z0 + z1) / 2] });
-    for (let z = z0 + 1.2; z <= z1; z += 2) b.add(shapes.cylinder(0.09, 0.1, 1.2, 6), WOOD_DARK, { p: [x, -0.45, z] });
-    b.add(shapes.cylinder(0.07, 0.08, 1.6, 6), WOOD_DARK, { p: [x, 0.8, z1 - 0.15] });
-    b.add(shapes.box(0.35, 0.05, 0.05), WOOD_DARK, { p: [x + (x < DOCK_X ? 0.12 : -0.12), 1.55, z1 - 0.15] });
+    b.add(shapes.box(0.1, 0.1, z1 - z0), TIMBER_DARK, { p: [x, -0.02, (z0 + z1) / 2] });
+    for (let z = z0 + 1.2; z <= z1; z += 2) b.add(shapes.cylinder(0.09, 0.1, 1.2, 6), TIMBER_DARK, { p: [x, -0.45, z] });
+    b.add(shapes.cylinder(0.07, 0.08, 1.6, 6), TIMBER_DARK, { p: [x, 0.8, z1 - 0.15] });
+    b.add(shapes.box(0.35, 0.05, 0.05), TIMBER_DARK, { p: [x + (x < DOCK_X ? 0.12 : -0.12), 1.55, z1 - 0.15] });
   }
 }
 

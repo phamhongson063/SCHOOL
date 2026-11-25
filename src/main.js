@@ -43,7 +43,7 @@ import { createBag } from './bag.js';
 import { createMailbox } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
-import { freeze } from './toon.js';
+import { freeze, X_AXIS } from './toon.js';
 import { gameNow, dayOf, minuteOfDay, DAY_MINUTES, hoursText, clockText, dateText } from './clock.js';
 import { ROUTINE, ENERGY, WORLD, HUNTING, VENDOR, QUIZ, BLESSING, CERTIFY, LANTERN, LOTO, TRAINING } from './config.js';
 import { trainingEarned, trainingIntellect } from './training.js';
@@ -540,7 +540,6 @@ setBubbleOcclusion((from, to) => {
 });
 const BUBBLE_STAND = new THREE.Vector3(0, modelReady ? 2.12 : 1.95, 0);
 const BUBBLE_LYING = new THREE.Vector3(0, 1.15, -1.1);
-const X_AXIS = new THREE.Vector3(1, 0, 0);
 function placeBubble() {
   const k = player.restAmount;
   const anchor = playerBubble.sprite.position.lerpVectors(BUBBLE_STAND, BUBBLE_LYING, k);

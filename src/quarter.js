@@ -1,19 +1,15 @@
 import * as THREE from 'three';
 import { Batch, canvasTexture, freeze, shade, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
-import { groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
+import { groundDecal, roundedRectGeometry, roundTree } from './scenery.js';
 import { createShophouse, createChiefHouse } from './architecture.js';
-import { brickMaterial, paving, plaqueBoard, housePlaqueLines, visitHouse } from './village.js';
+import { ABOVE_PAVING, NORTH_FRONT, PAVING_LAYER, SOUTH_FRONT, brickMaterial, housePlaqueLines, lotFrame, paving, plaqueBoard, visitHouse } from './village.js';
 import { PLAZA, ENCLOSURE } from './school.js';
 import { ROAD } from './road.js';
 import { MART } from './config.js';
 
-const NORTH_FRONT = 28;
-const SOUTH_FRONT = 43;
 const PLAZA_FRONT = 40.6;
 const DINH_FRONT = 45.4;
-const PAVING_LAYER = GROUND_LAYER.mark + 1;
-const ABOVE_PAVING = PAVING_LAYER + 1;
 const BOUNDS = { x0: -38, z0: 19, x1: 37, z1: 66 };
 
 const HOUSES = [
@@ -51,16 +47,6 @@ const C = {
   leafDark: 0x3a7d36,
   leafLight: 0x74b84f,
 };
-
-function frame(side, x, front) {
-  const north = side === 'north';
-  const toWorld = (p) => (north ? { x: x + p.x, z: front + p.z } : { x: x - p.x, z: front - p.z });
-  const box = (b) =>
-    north
-      ? { minX: x + b.minX, maxX: x + b.maxX, minZ: front + b.minZ, maxZ: front + b.maxZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 }
-      : { minX: x - b.maxX, maxX: x - b.minX, minZ: front - b.maxZ, maxZ: front - b.minZ, minY: b.minY ?? 0, maxY: b.maxY ?? 3 };
-  return { toWorld, box, turn: north ? 0 : Math.PI };
-}
 
 export const PLAZA_ZONE = { x0: RING_OUT.x0, x1: RING_OUT.x1, z0: FORECOURT.z1, z1: RING_OUT.z1, y: PLAZA.rise };
 
@@ -207,7 +193,7 @@ export function createQuarter() {
   pave(WELL.x - 2, WELL.z - 2, WELL.x + 2, WELL.z + 2, 1.2);
 
   const addPlace = (built, spec, name, front, door) => {
-    const f = frame(spec.side, spec.x, front);
+    const f = lotFrame(spec.side, spec.x, front);
     built.group.position.set(spec.x, 0, front);
     built.group.rotation.y = f.turn;
     built.group.updateMatrixWorld(true);

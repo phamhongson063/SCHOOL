@@ -7,12 +7,9 @@ import { GROUND_LAYER } from './scenery.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { blink, FIREFLY_GLOW, glowPoints } from './fireflies.js';
 import { CROSSING, ISLE, deckHeight, inIsleSpan, isleNorth, northBank, onIsle } from './riverShape.js';
+import { GILT, STONE_DARK, TIMBER_DARK, LACQUER_BRIGHT } from './palette.js';
 
-const LACQUER = 0xa12a1c;
-const GILT = 0xd8b45a;
 const CORD = 0x3a2414;
-const STONE = 0x8a8273;
-const WOOD_DARK = 0x553820;
 const PANE = 0x5a4428;
 const TINTS = [0xc8301c, 0xe8a030];
 const LIT = new THREE.Color(0xffc46a);
@@ -78,7 +75,7 @@ function castleLamps(frame, castle) {
   const towers = corners.map(([sx, sz], i) => {
     const tx = x + sx * half;
     const tz = z + sz * half;
-    if (i >= 2) frame.add(shapes.cylinder(0.035, 0.035, CASTLE_STRING.pole, 6), WOOD_DARK, { p: [tx, towerHeight + CASTLE_STRING.pole / 2, tz] });
+    if (i >= 2) frame.add(shapes.cylinder(0.035, 0.035, CASTLE_STRING.pole, 6), TIMBER_DARK, { p: [tx, towerHeight + CASTLE_STRING.pole / 2, tz] });
     return [tx, towerHeight + CASTLE_STRING.towerLift, tz];
   });
   const string = { size: CASTLE_STRING.size, drop: CASTLE_STRING.drop };
@@ -128,11 +125,11 @@ function bridgeLamps(frame, { postGap, railHeight, inWater }) {
       const deck = deckHeight(z);
       const bottom = deck + railHeight;
       const top = deck + BRIDGE_POLE.top;
-      frame.add(shapes.cylinder(0.045, 0.055, top - bottom, 8), LACQUER, { p: [x, (top + bottom) / 2, z] });
+      frame.add(shapes.cylinder(0.045, 0.055, top - bottom, 8), LACQUER_BRIGHT, { p: [x, (top + bottom) / 2, z] });
       frame.add(shapes.sphere(0.07, 8, 6), GILT, { p: [x, top + 0.05, z] });
       const ax = x + side * BRIDGE_POLE.arm;
       const armY = top - 0.15;
-      frame.limb([x, armY, z], [ax, armY, z], 0.025, LACQUER, { capsule: false, seg: 5 });
+      frame.limb([x, armY, z], [ax, armY, z], 0.025, LACQUER_BRIGHT, { capsule: false, seg: 5 });
       frame.limb([ax, armY, z], [ax, deck + BRIDGE_POLE.hang + BRIDGE_POLE.size * 1.4, z], 0.01, CORD, { capsule: false, seg: 4 });
       lamps.push({ p: [ax, deck + BRIDGE_POLE.hang, z], size: BRIDGE_POLE.size, tint: TINTS[(i / BRIDGE_POLE.every) % 2 ? 1 : 0], water: inWater(z) });
       poles.push([x, top - 0.1, z]);
@@ -151,12 +148,12 @@ function plazaLamps(frame, castleFront, castleX) {
   const z = castleFront - PLAZA_POST.back;
   for (const side of [-1, 1]) {
     const x = castleX + side * PLAZA_POST.spread;
-    frame.add(shapes.box(0.36, 0.3, 0.36), STONE, { p: [x, 0.15, z] });
-    frame.add(shapes.cylinder(0.06, 0.08, PLAZA_POST.height, 8), LACQUER, { p: [x, PLAZA_POST.height / 2, z] });
+    frame.add(shapes.box(0.36, 0.3, 0.36), STONE_DARK, { p: [x, 0.15, z] });
+    frame.add(shapes.cylinder(0.06, 0.08, PLAZA_POST.height, 8), LACQUER_BRIGHT, { p: [x, PLAZA_POST.height / 2, z] });
     frame.add(shapes.sphere(0.09, 8, 6), GILT, { p: [x, PLAZA_POST.height + 0.06, z] });
     const armY = PLAZA_POST.height - 0.12;
     const az = z - PLAZA_POST.arm;
-    frame.limb([x, armY, z], [x, armY, az], 0.03, LACQUER, { capsule: false, seg: 5 });
+    frame.limb([x, armY, z], [x, armY, az], 0.03, LACQUER_BRIGHT, { capsule: false, seg: 5 });
     frame.limb([x, armY, az], [x, PLAZA_POST.hang + PLAZA_POST.size * 1.4, az], 0.012, CORD, { capsule: false, seg: 4 });
     lamps.push({ p: [x, PLAZA_POST.hang, az], size: PLAZA_POST.size, tint: TINTS[0], pool: true });
   }

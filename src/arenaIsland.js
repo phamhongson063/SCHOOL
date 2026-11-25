@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
-import { Batch, freeze, paintedTexture, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, paintedTexture, shapes, toonMaterial, SERIF, GLYPHS } from './toon.js';
 import { makeRandom } from './random.js';
 import { createArenaSky } from './arenaSky.js';
+import { GILT, STONE_DARK, STONE_DEEP, MARBLE, LACQUER } from './palette.js';
 
 export const ISLAND = { x: 240, z: 30, y: 70, radius: 14 };
 export const ISLAND_BOUNDS = { x0: 208, z0: -6, x1: 272, z1: 57 };
@@ -14,16 +15,9 @@ const TILE = 2;
 const TILE_DEPTH = 0.12;
 const RIM_DEPTH = 0.2;
 const SINK = -0.12;
-export const MARBLE = 0xf2efe6;
 const SLATE = 0x3e4a58;
 export const JADE = 0x5fb8a0;
-const ROCK = 0x8a8273;
-const ROCK_DARK = 0x5e5850;
-export const LACQUER = 0x9a2418;
-export const GILT = 0xd8b45a;
 const GLOW = 0xffd36e;
-const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
-const GLYPHS = ['文', '智', '福', '學', '道', '神', '靈', '光', '德', '明', '聖', '仁'];
 
 const STAGE_HEIGHT = 3.5;
 const PLATFORMS = [
@@ -212,8 +206,8 @@ function floatingRock(b, x, top, z, radius, depth) {
   const rim = top - TILE_DEPTH;
   const lid = rim - RIM_DEPTH - SINK;
   b.add(shapes.cylinder(radius + 0.12, radius + 0.12, RIM_DEPTH, 32), MARBLE, { p: [x, rim - RIM_DEPTH / 2, z] });
-  b.add(shapes.cylinder(radius, radius * 0.96, 0.7, 32), ROCK, { p: [x, lid - 0.35, z] });
-  b.add(shapes.cone(radius * 0.94, depth, 16), ROCK_DARK, { p: [x, lid - 0.7 - depth / 2, z], r: [Math.PI, 0, 0] });
+  b.add(shapes.cylinder(radius, radius * 0.96, 0.7, 32), STONE_DARK, { p: [x, lid - 0.35, z] });
+  b.add(shapes.cone(radius * 0.94, depth, 16), STONE_DEEP, { p: [x, lid - 0.7 - depth / 2, z], r: [Math.PI, 0, 0] });
 }
 
 function islandMesh() {
@@ -282,7 +276,6 @@ function glowMesh() {
   b.add(shapes.torus(ISLAND.radius + 0.44, 0.07, 140), GLOW, { p: [ISLAND.x, ISLAND.y - 0.2, ISLAND.z], r: [Math.PI / 2, 0, 0] });
   return b.mesh(glowMaterial(), { shadow: false });
 }
-
 
 export function runeTexture() {
   return paintedTexture(512, 512, (ctx, size) => {

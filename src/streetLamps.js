@@ -5,6 +5,7 @@ import { GROUND_LAYER } from './scenery.js';
 import { ROAD, TREES } from './road.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { FLUORESCENT } from './config.js';
+import { STONE_DARK } from './palette.js';
 
 const SPACING = 14;
 const END_MARGIN = 6;
@@ -18,7 +19,6 @@ const LAMP_GLOW = 3;
 const POOL_COLOR = FLUORESCENT;
 const POOL_LAYER = GROUND_LAYER.mark + 3;
 const TREE_CLEARANCE = 2.5;
-const STONE = 0x8a8273;
 const WOOD = 0x3a2414;
 const BRASS = 0xb8862e;
 const PAPER = 0xf4f8ff;
@@ -60,7 +60,7 @@ export function createStreetLamps() {
   for (const { x, z, toward } of spots) {
     const headZ = z + toward * ARM;
     obstacles.push({ minX: x - POST_REACH, maxX: x + POST_REACH, minZ: z - POST_REACH, maxZ: z + POST_REACH, minY: 0, maxY: HEIGHT });
-    posts.add(shapes.cylinder(0.16, 0.2, 0.25, 8), STONE, { p: [x, 0.125, z] });
+    posts.add(shapes.cylinder(0.16, 0.2, 0.25, 8), STONE_DARK, { p: [x, 0.125, z] });
     posts.add(shapes.cylinder(0.06, 0.075, HEIGHT, 8), WOOD, { p: [x, HEIGHT / 2, z] });
     posts.add(shapes.box(0.07, 0.07, ARM + 0.1), WOOD, { p: [x, HEIGHT - 0.1, z + (toward * ARM) / 2] });
     posts.add(shapes.cone(0.24, 0.18, 4), WOOD, { p: [x, HEIGHT - 0.32, headZ], r: [0, Math.PI / 4, 0] });

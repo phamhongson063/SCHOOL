@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneRig } from 'three/addons/utils/SkeletonUtils.js';
-import { toonMaterial } from './toon.js';
+import { toonMaterial, X_AXIS } from './toon.js';
 
 const MODELS = {
   player: { url: 'assets/player/player.glb', height: 1.7 },
@@ -33,7 +33,6 @@ const SKINS = {
 const ARM_DROP = 1.32;
 const OUTLINE = 0.007;
 const SEAT_HIP = 0.13;
-const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 const templates = new Map();

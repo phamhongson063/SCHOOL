@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, toonMaterial } from './toon.js';
+import { Batch, shapes, toonMaterial, indexedGeometry } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundColorAt, groundMaterial, groundTone, patchField, smoothstep, tileRoofMeshes, GROUND_LAYER } from './scenery.js';
 import { keepCanvas } from './canvasRestore.js';
@@ -625,12 +625,7 @@ function ribbonGeometry(points, half, lift, along = 1) {
       index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   });
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(index);
-  geometry.computeVertexNormals();
-  return geometry;
+  return indexedGeometry(positions, uvs, index);
 }
 
 function trailMesh(trail) {

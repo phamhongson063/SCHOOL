@@ -1,4 +1,5 @@
-const MAX_STEP = 0.55;
+import { MAX_STEP } from './config.js';
+
 const BODY_RADIUS = 0.3;
 const GOAL_RADIUS = 12;
 const FAR_GOAL_RADIUS = 40;

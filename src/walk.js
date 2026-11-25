@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { Gait } from './gait.js';
-import { ENERGY, MOVE } from './config.js';
+import { ENERGY, MOVE, MAX_STEP } from './config.js';
 import { ObstacleGrid } from './obstacleGrid.js';
 import { SQUEEZE, squeezeTurn } from './squeeze.js';
 
 const RADIUS = 0.3;
-const MAX_STEP = 0.55;
 const SNAP_DOWN = 0.45;
 const HEIGHT = 1.7;
 const PIVOT = 1.5;

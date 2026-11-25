@@ -1,0 +1,11 @@
+export const STONE = 0xb3ab99;
+export const STONE_DARK = 0x8a8273;
+export const STONE_DEEP = 0x5e5850;
+export const GILT = 0xd8b45a;
+export const TIMBER = 0x7a5232;
+export const TIMBER_DARK = 0x553820;
+export const TEAK = 0x6a3f24;
+export const MARBLE = 0xf2efe6;
+export const LACQUER = 0x9a2418;
+export const LACQUER_BRIGHT = 0xa12a1c;
+export const GOLD = 0xf2c14e;

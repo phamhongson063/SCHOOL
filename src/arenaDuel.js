@@ -2,9 +2,10 @@ import { ARENA } from './config.js';
 import { enraged, roundName } from './arena.js';
 import { stageOf } from './arenaIsland.js';
 import { END_REASONS } from './arenaBoard.js';
-import { KIND_LABELS, LETTERS, buildQuestion } from './arenaQuestion.js';
+import { KIND_LABELS, buildQuestion } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
 import { wait } from './wait.js';
+import { LETTERS } from './format.js';
 
 const COUNTDOWN = ['3', '2', '1', 'Đấu!'];
 const BEAT_MS = 800;

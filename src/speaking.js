@@ -1,11 +1,10 @@
 import { FLUENCY, SPEAK } from './config.js';
-import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, RUBY } from './studyDecks.js';
 import { certify } from './certify.js';
 import { fluency } from './fluency.js';
 import { absorption } from './absorption.js';
 import { between } from './random.js';
 
-const RUBY = /([㐀-鿿々〆Ａ-Ｚａ-ｚ]+)\{([^}]+)\}/g;
 const SOUND = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}ー0-9a-z]/u;
 
 export const SPEAK_DECKS = DECK_IDS.filter((id) => DECKS[id].speak);

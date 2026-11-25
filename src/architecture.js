@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, shade, toonMaterial, vertexMaterial, canvasTexture } from './toon.js';
+import { Batch, shapes, shade, toonMaterial, vertexMaterial, canvasTexture, indexedGeometry, texturedBox } from './toon.js';
 import { between, makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
 
@@ -220,19 +220,6 @@ export function setNightGlow(k) {
   applyGlow();
 }
 
-export function texturedBox(w, h, d) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  const uv = g.attributes.uv;
-  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-  for (let f = 0; f < 6; f++) {
-    for (let i = 0; i < 4; i++) {
-      const k = f * 4 + i;
-      uv.setXY(k, uv.getX(k) * dims[f][0], uv.getY(k) * dims[f][1]);
-    }
-  }
-  return g;
-}
-
 function createKit(seed) {
   return {
     rand: makeRandom(seed),
@@ -270,6 +257,15 @@ function block(kit, minX, minZ, maxX, maxZ, maxY = 3) {
 
 function plaster(kit, color, w, h, d, x, y, z) {
   kit.walls.add(texturedBox(w, h, d), color, { p: [x, y, z] });
+}
+
+function pilasters(kit, wall, { W, P, T, wallTop }, bands) {
+  for (const side of [-1, 1]) {
+    const px = side * (W / 2 - P / 2);
+    plaster(kit, wall, P, wallTop, T + 0.08, px, wallTop / 2, -T / 2 + 0.04);
+    kit.body.add(shapes.box(P + 0.04, 0.5, T + 0.14), PAL.plinth, { p: [px, 0.25, -T / 2 + 0.04] });
+    for (const y of bands) kit.body.add(shapes.box(P + 0.08, 0.12, T + 0.16), PAL.mortar, { p: [px, y, -T / 2 + 0.05] });
+  }
 }
 
 function gableWall(kit, color, x, zFront, zBack, wallTop, ridgeTop, thickness) {
@@ -839,13 +835,7 @@ export function createShophouse({ seed = 1, width = 7, depth = 9, stories } = {}
     bush(kit, -W / 2 + T + 0.5, 0.3, zc, 0.35, [PAL.leaf, PAL.leafDark, PAL.leafLight]);
   }
 
-  for (const side of [-1, 1]) {
-    const px = side * (W / 2 - P / 2);
-    plaster(kit, wall, P, wallTop, T + 0.08, px, wallTop / 2, -T / 2 + 0.04);
-    b.add(shapes.box(P + 0.04, 0.5, T + 0.14), PAL.plinth, { p: [px, 0.25, -T / 2 + 0.04] });
-    b.add(shapes.box(P + 0.08, 0.12, T + 0.16), PAL.mortar, { p: [px, groundH - 0.06, -T / 2 + 0.05] });
-    if (levels === 2) b.add(shapes.box(P + 0.08, 0.12, T + 0.16), PAL.mortar, { p: [px, wallTop - 0.08, -T / 2 + 0.05] });
-  }
+  pilasters(kit, wall, { W, P, T, wallTop }, levels === 2 ? [groundH - 0.06, wallTop - 0.08] : [groundH - 0.06]);
 
   const Hg = groundH;
   b.add(shapes.box(xb - xa, Hg, 0.08), PAL.woodDark, { p: [0, Hg / 2, -0.1] });
@@ -1398,12 +1388,7 @@ export function createMarket({ seed = 1 } = {}) {
   roofPitch(kit, { x0: -W / 2 + 0.04, x1: W / 2 - 0.04, ridgeZ: 0, ridgeY: pentTop, run: 1.15, slope: pentSlope, facing: 1, tint: roofTint, tileEnds: true });
   b.add(shapes.box(W - 0.1, 0.1, 0.14), PAL.mortar, { p: [0, pentTop + 0.03, 0.02] });
 
-  for (const side of [-1, 1]) {
-    const px = side * (W / 2 - P / 2);
-    plaster(kit, wall, P, wallTop, T + 0.08, px, wallTop / 2, -T / 2 + 0.04);
-    b.add(shapes.box(P + 0.04, 0.5, T + 0.14), PAL.plinth, { p: [px, 0.25, -T / 2 + 0.04] });
-    b.add(shapes.box(P + 0.08, 0.12, T + 0.16), PAL.mortar, { p: [px, wallTop - 0.08, -T / 2 + 0.05] });
-  }
+  pilasters(kit, wall, { W, P, T, wallTop }, [wallTop - 0.08]);
 
   b.add(shapes.box(W - 2 * T, 0.03, D - T), 0xb4704c, { p: [0, 0.015, -(D - T) / 2] });
   for (const x of [xa + 0.1, -1.5, 1.5, xb - 0.1]) {
@@ -1510,6 +1495,18 @@ export function createMarket({ seed = 1 } = {}) {
     keeper: { x: 0, z: -2.2, facing: 0 },
     plaque: { x: 0, y: 2.86, z: 0.12 },
   };
+}
+
+function lacquerPortico(kit, posts, span, { front, g, plinth, inner }) {
+  for (const x of posts) lacquerColumn(kit, x, front, g, plinth);
+  kit.body.add(shapes.box(span, 0.3, 0.3), PAL.lacquer, { p: [0, g - 0.15, front] });
+  kit.body.add(shapes.box(span, 0.05, 0.32), PAL.gold, { p: [0, g - 0.32, front] });
+  for (const x of posts) {
+    for (const side of [-1, 1]) {
+      if (Math.abs(x + side * 0.5) > inner) continue;
+      kit.body.limb([x, g - 0.95, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
+    }
+  }
 }
 
 function lacquerColumn(kit, x, z, height, floor = 0) {
@@ -1816,15 +1813,7 @@ export function createBank({ seed = 1, width = 8.4, depth = 8 } = {}) {
   b.add(shapes.box(W - 2 * T, 0.14, front - hallBack), wood, { p: [0, g - 0.07, (front + hallBack) / 2] });
   plaster(kit, wall, W - 2 * T, g, T, 0, g / 2, hallBack - T / 2);
 
-  for (const x of posts) lacquerColumn(kit, x, front, g, plinth);
-  b.add(shapes.box(W - 2 * T, 0.3, 0.3), PAL.lacquer, { p: [0, g - 0.15, front] });
-  b.add(shapes.box(W - 2 * T, 0.05, 0.32), PAL.gold, { p: [0, g - 0.32, front] });
-  for (const x of posts) {
-    for (const side of [-1, 1]) {
-      if (Math.abs(x + side * 0.5) > inner) continue;
-      b.limb([x, g - 0.95, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
-    }
-  }
+  lacquerPortico(kit, posts, W - 2 * T, { front, g, plinth, inner });
 
   const door = 1.2;
   b.add(shapes.box(2 * door, g - 2.9, 0.12), wood, { p: [0, (2.9 + g) / 2, facade] });
@@ -2213,15 +2202,7 @@ function arenaHall(kit, { half, front, back }) {
   for (const side of [-1, 1]) gableWall(kit, ARENA_ART.wall, side * (half - T / 2), front, back, wallTop + lip, ridgeY + lip, T);
   plaster(kit, ARENA_ART.wall, half * 2 - 2 * T, wallTop, T, 0, wallTop / 2, back + T / 2);
   const posts = [-(inner - 0.15), -1.3, 1.3, inner - 0.15];
-  for (const x of posts) lacquerColumn(kit, x, front, g, plinth);
-  b.add(shapes.box(half * 2 - 2 * T, 0.3, 0.3), PAL.lacquer, { p: [0, g - 0.15, front] });
-  b.add(shapes.box(half * 2 - 2 * T, 0.05, 0.32), PAL.gold, { p: [0, g - 0.32, front] });
-  for (const x of posts) {
-    for (const side of [-1, 1]) {
-      if (Math.abs(x + side * 0.5) > inner) continue;
-      b.limb([x, g - 0.95, front], [x + side * 0.45, g - 0.3, front], 0.05, PAL.lacquer, { capsule: false, seg: 4 });
-    }
-  }
+  lacquerPortico(kit, posts, half * 2 - 2 * T, { front, g, plinth, inner });
   for (const [x0, x1] of [[-inner, -1.45], [1.45, inner]]) lattice(kit, x0, x1, g, wallTop, front);
   b.add(shapes.box(2.9, wallTop - g, 0.1), PAL.woodDark, { p: [0, (g + wallTop) / 2, front - 0.05] });
   textSign(kit, 0, g + 0.45, front + 0.06, 2.6, 0.62, { text: 'Thượng Võ' });
@@ -2835,12 +2816,7 @@ function roofFace(face, { cz, eaveY, topY, flare }, drop = 0, flip = false) {
       else index.push(k, k + 1, k + row, k + 1, k + row + 1, k + row);
     }
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(index);
-  geometry.computeVertexNormals();
-  return geometry;
+  return indexedGeometry(positions, uvs, index);
 }
 
 function roofPoint([e0, e1, r0, r1], a, s, { cz, eaveY, topY, flare }) {

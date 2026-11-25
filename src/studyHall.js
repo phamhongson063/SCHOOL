@@ -1,15 +1,16 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
 import { FLUORESCENT } from './config.js';
-import { Batch, freeze, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, shapes, toonMaterial, texturedBox } from './toon.js';
 import { flowerBed, studentFurniture, lantern, textBoard } from './props.js';
 import { makeRandom } from './random.js';
 import { tileRoofMeshes, roundedRectShape } from './scenery.js';
-import { plasterMaterial, texturedBox } from './architecture.js';
+import { plasterMaterial } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { brickMaterial, idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { DECKS } from './studyDecks.js';
+import { STONE, STONE_DARK } from './palette.js';
 
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
 export const STUDY_HALLS = [
@@ -23,7 +24,6 @@ export const STUDY_HALLS = [
 const WALL = 0xd9b46a;
 const WOOD = 0x5e3a24;
 const WOOD_DARK = 0x4a2c1e;
-const STONE = 0xb3ab99;
 const FLOOR_TILE = 0x9c624a;
 const DESK_ROWS = [3, 6.2];
 const INTERNAL_ROW = 9.4;
@@ -41,7 +41,6 @@ const LAMP_PAPER = 0xe8dcc0;
 const LAMP_EMISSIVE = 0xffb35c;
 const LAMP_NIGHT_GLOW = 0.85;
 const STONE_HALO_BOOST = 1.2;
-const STONE_DARK = 0x8a8273;
 const PLINTH = 0.42;
 const T = 0.25;
 const PORCH_Z = -1.6;

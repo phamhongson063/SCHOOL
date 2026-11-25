@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Batch, shapes, shade, toonMaterial, canvasTexture } from './toon.js';
+import { Batch, shapes, shade, toonMaterial, canvasTexture, texturedBox, UP } from './toon.js';
 import { makeRandom } from './random.js';
 import { STAIRS, HOUSE, KHUE_VAN_CAC, STELES, ENCLOSURE, POND, VU, STELE_SHEDS, SIDE_GATES, THUONG_DIEN } from './school.js';
 import { ROAD } from './road.js';
@@ -32,7 +32,6 @@ const C = {
   terracotta: 0x9a4a36,
 };
 
-const UP = new THREE.Vector3(0, 1, 0);
 const HALL_FRONT = HOUSE.front + 2;
 const HALL_Z = (HOUSE.foundationBack + HALL_FRONT) / 2;
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -403,19 +402,6 @@ function plasterTexture() {
       ctx.fill();
     }
   });
-}
-
-function texturedBox(w, h, d, tile = 1) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  const uv = g.attributes.uv;
-  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-  for (let f = 0; f < 6; f++) {
-    for (let i = 0; i < 4; i++) {
-      const k = f * 4 + i;
-      uv.setXY(k, (uv.getX(k) * dims[f][0]) / tile, (uv.getY(k) * dims[f][1]) / tile);
-    }
-  }
-  return g;
 }
 
 function foundation(scene, b, clickables) {

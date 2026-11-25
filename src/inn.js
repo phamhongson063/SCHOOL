@@ -1,16 +1,15 @@
 import * as THREE from 'three';
-import { Batch, freeze, shapes, shade, toonMaterial } from './toon.js';
+import { Batch, freeze, shapes, shade, toonMaterial, texturedBox } from './toon.js';
 import { lantern, textBoard } from './props.js';
-import { plasterMaterial, texturedBox } from './architecture.js';
+import { plasterMaterial } from './architecture.js';
 import { tileRoofMeshes } from './scenery.js';
 import { createLanternGlow } from './lanternGlow.js';
+import { STONE, TEAK } from './palette.js';
 
 export const INN = { x: -41, z: 25, width: 9.2, depth: 7.2 };
 export const INN_STAND = { x: INN.x, z: INN.z + INN.depth / 2 + 2.6 };
 export const INN_DOOR = { x: INN.x, z: INN.z + INN.depth / 2 };
 
-const STONE = 0xb3ab99;
-const WOOD = 0x6a3f24;
 const WOOD_DARK = 0x45281a;
 const WALL = 0xe6d2a8;
 const RAIL = 0x8a2a1c;
@@ -54,8 +53,8 @@ function latticeWindow(b, paper, { x, y, z, w, h, side = false }) {
     target.add(shapes.box(side ? depth : sw, sh, side ? sw : depth), color, { p: side ? [x, y + dy, z + dx] : [x + dx, y + dy, z] });
   along(0, 0, w + 0.16, h + 0.16, 0.08, WOOD_DARK);
   along(0, 0, w, h, 0.1, PAPER, paper);
-  for (let i = 1; i < 4; i++) along(-w / 2 + (i * w) / 4, 0, 0.04, h, 0.12, WOOD);
-  for (let i = 1; i < 3; i++) along(0, -h / 2 + (i * h) / 3, w, 0.04, 0.12, WOOD);
+  for (let i = 1; i < 4; i++) along(-w / 2 + (i * w) / 4, 0, 0.04, h, 0.12, TEAK);
+  for (let i = 1; i < 3; i++) along(0, -h / 2 + (i * h) / 3, w, 0.04, 0.12, TEAK);
 }
 
 function fence(b, obstacles, x0, x1, z) {
@@ -88,10 +87,10 @@ export function createInn(scene) {
   walls.add(texturedBox(doorW, GROUND_H - 2.3, T), WALL, { p: [0, BASE + 2.3 + (GROUND_H - 2.3) / 2, front - T / 2] });
   for (const s of [-1, 1]) {
     b.add(shapes.box(0.78, 2.3, 0.06), WOOD_DARK, { p: [s * 0.4, BASE + 1.15, front - 0.02] });
-    b.add(shapes.box(0.04, 2.2, 0.08), WOOD, { p: [s * 0.4, BASE + 1.15, front + 0.02] });
-    b.add(shapes.box(0.14, 2.4, 0.26), WOOD, { p: [s * (doorW / 2 + 0.07), BASE + 1.2, front - 0.02] });
+    b.add(shapes.box(0.04, 2.2, 0.08), TEAK, { p: [s * 0.4, BASE + 1.15, front + 0.02] });
+    b.add(shapes.box(0.14, 2.4, 0.26), TEAK, { p: [s * (doorW / 2 + 0.07), BASE + 1.2, front - 0.02] });
   }
-  b.add(shapes.box(doorW + 0.28, 0.14, 0.26), WOOD, { p: [0, BASE + 2.37, front - 0.02] });
+  b.add(shapes.box(doorW + 0.28, 0.14, 0.26), TEAK, { p: [0, BASE + 2.37, front - 0.02] });
 
   const upperMid = upperY + UPPER_H / 2;
   walls.add(texturedBox(W, UPPER_H, T), WALL, { p: [0, upperMid, -front + T / 2] });
@@ -110,12 +109,12 @@ export function createInn(scene) {
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) b.add(shapes.box(0.24, topY - BASE, 0.24), WOOD_DARK, { p: [sx * W / 2, (BASE + topY) / 2, sz * front] });
   }
-  b.add(shapes.box(W + 0.3, BEAM, D + 0.3), WOOD, { p: [0, BASE + GROUND_H + BEAM / 2, 0] });
-  b.add(shapes.box(W + 0.3, 0.22, D + 0.3), WOOD, { p: [0, topY + 0.11, 0] });
+  b.add(shapes.box(W + 0.3, BEAM, D + 0.3), TEAK, { p: [0, BASE + GROUND_H + BEAM / 2, 0] });
+  b.add(shapes.box(W + 0.3, 0.22, D + 0.3), TEAK, { p: [0, topY + 0.11, 0] });
 
   const deckY = upperY - 0.06;
   const deckZ = front + BALCONY / 2;
-  b.add(shapes.box(W + 0.3, 0.12, BALCONY), WOOD, { p: [0, deckY, deckZ] });
+  b.add(shapes.box(W + 0.3, 0.12, BALCONY), TEAK, { p: [0, deckY, deckZ] });
   for (const x of [-W / 2, -2.7, -1.0, 1.0, 2.7, W / 2]) b.add(shapes.box(0.18, deckY - BASE, 0.18), WOOD_DARK, { p: [x, (BASE + deckY) / 2, front + BALCONY - 0.1] });
   const railZ = front + BALCONY - 0.04;
   const floorY = deckY + 0.06;

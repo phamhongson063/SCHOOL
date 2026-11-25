@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, shapes, toonMaterial } from './toon.js';
-import { GILT, JADE, LACQUER, MARBLE, additive, motes, runeTexture, swirlTexture } from './arenaIsland.js';
+import { JADE, additive, motes, runeTexture, swirlTexture } from './arenaIsland.js';
+import { GILT, LACQUER, MARBLE } from './palette.js';
 
 const RING = { radius: 1.85, tube: 0.32, lift: 0.35 };
 const SCALE = 0.6;

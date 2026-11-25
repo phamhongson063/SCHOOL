@@ -5,9 +5,11 @@ import { KANJI_N3 } from './kanjiN3.js';
 import { vaultItem } from './vault.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
-const MARKS = /\[([^\]]+)\]/g;
+export const MARKS = /\[([^\]]+)\]/g;
 
+export const RUBY = /([㐀-鿿々〆Ａ-Ｚａ-ｚ]+)\{([^}]+)\}/g;
 export const plainText = (text) => text.replace(/\{[^}]+\}/g, '');
+export const readingText = (text) => text.replace(RUBY, '$2');
 
 function gist(text) {
   const match = text.match(GIST);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
-import { Batch, freeze, paintedTexture, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, paintedTexture, shapes, toonMaterial, SERIF, GLYPHS } from './toon.js';
 import { makeRandom } from './random.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
@@ -10,9 +10,8 @@ import { idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { blessingSlots } from './economy.js';
 import { arcSlots, claimHold, createSlotClaims, inSector, lineSlots } from './blessingSpots.js';
+import { STONE, STONE_DARK } from './palette.js';
 
-const STONE = 0xb3ab99;
-const STONE_DARK = 0x8a8273;
 const STONE_LIGHT = 0xcfc6b2;
 const BRONZE = 0x6e8577;
 const BRONZE_DARK = 0x55695c;
@@ -30,7 +29,6 @@ const EDGE_BEDS = [
 ];
 const FADE = 3;
 const VIEW_DISTANCE = 120;
-const GLYPHS = ['文', '智', '福', '學', '道', '神', '靈', '光', '德', '明', '聖', '仁'];
 const CROWN = { count: 8, radius: 1.25, height: HEAD_Y + 1.15, size: 0.62, spin: 0.35, bob: 0.12 };
 const SKY = { count: 6, radius: 2.6, height: HEAD_Y + 2.3, size: 0.9, spin: -0.18, bob: 0.25 };
 const BURST = { y: PEDESTAL_TOP + 1.7, size: 13, glow: 6.5, spin: 0.035 };
@@ -58,7 +56,6 @@ const ALTAR = {
 const STAY_TRIES = 16;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
 const LIGHT = 'rgba(255,255,255,1)';
-const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 
 function lotusPedestal(b) {
   b.add(shapes.box(4.2, 0.3, 4.2), STONE_DARK, { p: [0, 0.15, 0] });
@@ -136,7 +133,6 @@ function boxBed(b, rand, { x, z, hx, hz }) {
     (r) => ({ x: x + (r() * 2 - 1) * (hx - 0.15), z: z + (r() * 2 - 1) * (hz - 0.15) }),
   );
 }
-
 
 function paintGroundRing(ctx, size) {
   const c = size / 2;

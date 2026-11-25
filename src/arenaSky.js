@@ -1,19 +1,14 @@
 import * as THREE from 'three';
-import { Batch, shapes, toonMaterial } from './toon.js';
+import { Batch, shapes, toonMaterial, SERIF } from './toon.js';
 import { makeRandom } from './random.js';
+import { GILT, STONE_DARK, STONE_DEEP, MARBLE, LACQUER } from './palette.js';
 
-const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const DAY_CLOUD = new THREE.Color(0xffffff);
 const NIGHT_CLOUD = new THREE.Color(0x5a6a8c);
 const DAY_SEA = new THREE.Color(0xf4f7ff);
 const NIGHT_SEA = new THREE.Color(0x3a4766);
-const MARBLE = 0xf2efe6;
 const JADE = 0x4fae94;
 const JADE_DARK = 0x2f7a66;
-const LACQUER = 0x9a2418;
-const GILT = 0xd8b45a;
-const ROCK = 0x8a8273;
-const ROCK_DARK = 0x5e5850;
 const MOSS = 0x6a9a4a;
 const BANNER_GLYPHS = ['擂', '台', '仙', '道', '武', '魁'];
 
@@ -184,8 +179,8 @@ function pavilion(b, x, y, z, size) {
 
 function floatingIslet(b, x, y, z, radius, rand) {
   b.add(shapes.cylinder(radius, radius * 0.9, 0.5, 10), MOSS, { p: [x, y - 0.25, z] });
-  b.add(shapes.cone(radius * 0.9, radius * 2, 9), ROCK_DARK, { p: [x, y - 0.5 - radius, z], r: [Math.PI, rand() * 3, 0] });
-  b.add(shapes.ico(radius * 0.35, 0), ROCK, { p: [x + radius * 0.3, y + radius * 0.15, z - radius * 0.2] });
+  b.add(shapes.cone(radius * 0.9, radius * 2, 9), STONE_DEEP, { p: [x, y - 0.5 - radius, z], r: [Math.PI, rand() * 3, 0] });
+  b.add(shapes.ico(radius * 0.35, 0), STONE_DARK, { p: [x + radius * 0.3, y + radius * 0.15, z - radius * 0.2] });
 }
 
 function crane() {

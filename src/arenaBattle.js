@@ -1,14 +1,14 @@
 import { ARENA } from './config.js';
-import { comboOf, roundName } from './arena.js';
+import { comboOf, roundName, SIDES } from './arena.js';
 import { fighterSpot, stageOf } from './arenaIsland.js';
 import { onStage, replayState, resolveAt, skillOf } from './arenaReplay.js';
 import { plainText, unitOf } from './studyDecks.js';
-import { LETTERS, buildQuestion, pickOf, seeded } from './arenaQuestion.js';
+import { buildQuestion, pickOf, seeded } from './arenaQuestion.js';
 import { PLAYER } from './inventory.js';
+import { LETTERS } from './format.js';
 
 const LATE_MINUTES = 1.5 / 60;
 const CRITICAL = 1.4;
-const SIDES = ['a', 'b'];
 const other = (side) => (side === 'a' ? 'b' : 'a');
 
 const wordOf = (key) => {

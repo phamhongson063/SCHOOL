@@ -158,6 +158,10 @@ export const ENERGY = {
 
 export const MOVE = { walk: 2, run: 3 };
 
+export const MAX_STEP = 0.55;
+
+export const ODDS_MINUTES = 10;
+
 export const AWAY = { step: 15, walk: 1.5 };
 
 export const LODGES = {

@@ -15,7 +15,7 @@ import { arenaStarts } from './arenaSchedule.js';
 const KEY = worldKey('arena');
 const DATA_VERSION = 1;
 const PHASES = ['open', 'running', 'done'];
-const SIDES = ['a', 'b'];
+export const SIDES = ['a', 'b'];
 const LIVE_MINUTES = (ARENA.finalSets * ARENA.turns * (ARENA.read + ARENA.seconds + ARENA.pause)) / 60 + ARENA.grace;
 
 const other = (side) => (side === 'a' ? 'b' : 'a');

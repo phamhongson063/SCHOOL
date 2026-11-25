@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, toonMaterial } from './toon.js';
+import { Batch, shapes, toonMaterial, pointsGeometry } from './toon.js';
 import { makeRandom } from './random.js';
 import { DAYLIGHT } from './config.js';
 import { minuteOfDay, dayOf, DAY_MINUTES } from './clock.js';
@@ -196,9 +196,7 @@ function createStars() {
     const bright = 0.45 + rand() * 0.55;
     colors.set([tint.r * bright, tint.g * bright, tint.b * bright], i * 3);
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const geometry = pointsGeometry(positions, colors);
   const material = new THREE.PointsMaterial({
     size: 2.2,
     sizeAttenuation: false,

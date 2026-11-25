@@ -1,4 +1,4 @@
-import { FIREWORKS } from './config.js';
+import { FIREWORKS, ODDS_MINUTES } from './config.js';
 import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
@@ -23,7 +23,6 @@ import { fireworksLeft, fireworksWindow, showEnd, showStart, validSlot } from '.
 
 const KEY = worldKey('fireworks');
 const PHASES = ['open', 'live', 'done'];
-const ODDS_MINUTES = 10;
 
 const ids = (list) => (Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []);
 const freshPlay = () => ({ index: 0, filled: [], since: null, missed: false, score: 0, words: 0, lastAt: null, glyphs: 0, spent: 0 });

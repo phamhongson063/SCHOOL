@@ -1,7 +1,7 @@
 import { DECKS, DECK_IDS, plainText, unitOf } from './studyDecks.js';
 import { makeRandom, shuffle } from './random.js';
+import { LETTERS } from './format.js';
 
-export const LETTERS = ['A', 'B', 'C', 'D'];
 export const KIND_LABELS = { kanji: 'Chữ Hán nào?', reading: 'Cách đọc?', meaning: 'Nghĩa là gì?' };
 
 const MEANINGS = [...new Set(Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.meaning)))];

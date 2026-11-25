@@ -120,9 +120,13 @@ export class SchoolBehavior {
   }
 
   takeBookedSeat(seat) {
-    const seats = this.town.studySeats;
     this.cancel();
     this.lookAt = null;
+    this.walkToSeat(seat);
+  }
+
+  walkToSeat(seat) {
+    const seats = this.town.studySeats;
     this.task = 'selfstudy';
     seats.reserve(seat, this);
     this.targetSeat = seat;
@@ -231,7 +235,6 @@ export class SchoolBehavior {
   }
 
   pickStudySeat(deck) {
-    const seats = this.town.studySeats;
     const seat = this.studySeatFor(deck, this.reviewing ? this.reviewFee() : CERTIFY.learnFee);
     this.cancel();
     if (!seat) {
@@ -239,10 +242,7 @@ export class SchoolBehavior {
       else this.quitSelfStudy();
       return;
     }
-    this.task = 'selfstudy';
-    seats.reserve(seat, this);
-    this.targetSeat = seat;
-    this.travel(seat.spot, { then: () => this.claimSeat(seats, () => this.goSelfStudy()), fail: () => this.quitSelfStudy() });
+    this.walkToSeat(seat);
   }
 
   claimSeat(seats, fallback) {

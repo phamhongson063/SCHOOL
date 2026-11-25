@@ -1,6 +1,6 @@
 import { RANKING } from './config.js';
 import { clockText, dayOf, minuteOfDay, DAY_MINUTES } from './clock.js';
-import { amount, coins } from './format.js';
+import { amount, coins, placeText } from './format.js';
 import { PLAYER } from './inventory.js';
 import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
@@ -11,7 +11,6 @@ import { netWorth } from './profileRules.js';
 import { readSaved } from './persist.js';
 
 const KEY = worldKey('ranking');
-const MEDALS = ['🥇', '🥈', '🥉'];
 const DAILY_TABS = new Set(['arena', 'lantern', 'fireworks']);
 const CHECK_MS = 5000;
 
@@ -115,7 +114,7 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
     const item = el('li', id === PLAYER ? 'rank-row mine' : 'rank-row');
     const change = Number.isFinite(prev) ? score - prev : 0;
     item.append(
-      el('span', 'rank-place', MEDALS[rank - 1] ?? String(rank)),
+      el('span', 'rank-place', placeText(rank)),
       nameButton(id),
       scoreCell[tab](score),
       el('span', change > 0 ? 'rank-trend up' : change < 0 ? 'rank-trend down' : 'rank-trend', change > 0 ? `+${amount(change)}` : change < 0 ? `-${amount(-change)}` : ''),

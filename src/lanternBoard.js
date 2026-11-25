@@ -1,9 +1,8 @@
-import { amount } from './format.js';
+import { amount, placeText } from './format.js';
 import { PLAYER } from './inventory.js';
 import { isStashed, unstash } from './popupStash.js';
 import { el } from './dialog.js';
 
-const MEDALS = ['🥇', '🥈', '🥉'];
 const CHECK_MS = 500;
 const UPDATE_MS = 60_000;
 const MARGIN = 12;
@@ -23,7 +22,7 @@ export function createStandingsBoard({ buttonId, boardId, icon, active, standing
     const name = el('button', 'lantern-board-name', names.get(id) ?? 'người khác');
     name.type = 'button';
     name.dataset.id = id;
-    item.append(el('span', 'lantern-board-place', MEDALS[i] ?? String(i + 1)), name, el('span', 'lantern-board-score', `${icon} ${amount(score)}`));
+    item.append(el('span', 'lantern-board-place', placeText(i + 1)), name, el('span', 'lantern-board-score', `${icon} ${amount(score)}`));
     return item;
   }
 

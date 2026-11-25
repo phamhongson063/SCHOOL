@@ -1,4 +1,4 @@
-import { LOTO } from './config.js';
+import { LOTO, ODDS_MINUTES } from './config.js';
 import { dayOf } from './clock.js';
 import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
@@ -27,8 +27,6 @@ import {
 
 const KEY = worldKey('loto');
 const MARKS = new RegExp(`^[.ox-]{${LOTO_CELLS}}$`);
-
-const ODDS_MINUTES = 10;
 
 const knownBy = (id) => (key) => absorption.chance(id, key);
 const heardOdds = (id, key) => 1 - (1 - absorption.chance(id, key)) ** LOTO.rounds;

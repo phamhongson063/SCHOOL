@@ -1,4 +1,4 @@
-const RUBY = /([㐀-鿿々〆Ａ-Ｚａ-ｚ]+)\{([^}]+)\}/g;
+import { RUBY } from './studyDecks.js';
 
 function appendRuby(target, text) {
   let last = 0;

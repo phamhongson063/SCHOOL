@@ -1,20 +1,18 @@
 import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
 import { japanese, spokenOf } from './ruby.js';
-import { DECKS, DECK_IDS, unitOf, plainText as plain } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, plainText as plain, readingText, MARKS } from './studyDecks.js';
 import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
 import { shuffle } from './random.js';
+import { LETTERS } from './format.js';
 
 const RECENT = 40;
 const AUTO_CLOSE_MS = 3000;
 const QUICK_CLOSE_MS = 3000;
 const CLOSE_ANIMATION_MS = 600;
-const LETTERS = ['A', 'B', 'C', 'D'];
 const PAIR_COUNT = 4;
 const PAIR_WIDTH = 12;
 const WIDE_CHAR = /[　-鿿豈-﫿＀-￯]/;
-const MARKS = /\[([^\]]+)\]/g;
-const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
 
 const ALL_KEYS = Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.key));
 const CLOZE_ANSWERS = DECK_IDS.filter((id) => DECKS[id].quiz === 'phrase')
@@ -82,8 +80,6 @@ export function clozeLines(lines, cloze) {
   });
   return { nodes, blanks };
 }
-
-const readingOf = (mark) => mark.replace(RUBY, '$1');
 
 function pickLine(said, shown) {
   const line = document.createElement('p');
@@ -305,7 +301,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
       return [];
     }
     if (asked.kind === 'pick' || asked.kind === 'read' || asked.kind === 'sense') {
-      const sentence = pickLine(asked.text, asked.kind === 'pick' ? readingOf : plain);
+      const sentence = pickLine(asked.text, asked.kind === 'pick' ? readingText : plain);
       ui.text.className = 'phrase-text dialogue';
       ui.text.replaceChildren(...sentence.nodes);
       return sentence.blanks;

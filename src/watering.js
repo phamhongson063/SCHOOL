@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, characterMaterial } from './toon.js';
+import { Batch, shapes, characterMaterial, UP } from './toon.js';
 
 const GREEN = 0x8cc63f;
 const GREEN_LIGHT = 0xacd862;
@@ -13,7 +13,6 @@ const RATE = 45;
 const GRAVITY = 6.5;
 const TILT = 0.75;
 const ARM_RAISE = -1.35;
-const UP = new THREE.Vector3(0, 1, 0);
 const SPOUT_DIR = new THREE.Vector3(0, 0.55, 1).normalize();
 const SPOUT_ROOT = new THREE.Vector3(0, -0.05, 0.1);
 const SPOUT_LENGTH = 0.27;

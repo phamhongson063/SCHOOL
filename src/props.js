@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import { Batch, labelBox, shapes, shade, toonMaterial, vertexMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { keepCanvas } from './canvasRestore.js';
+import { GOLD } from './palette.js';
 
 const OUTLINE = 0.01;
 const WOOD = 0xa8693a;
 const WOOD_DARK = 0x5e3820;
 const LACQUER = 0xb02e1f;
-const GOLD = 0xf2c14e;
 const PAPER = 0xfbf5e4;
 const INK = 0x1a1618;
 const STRAW = 0xe6cf8f;

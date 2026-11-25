@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { paintedTexture } from './toon.js';
+import { paintedTexture, SERIF, pointsGeometry } from './toon.js';
 import { FIREWORKS } from './config.js';
 
-const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const COLORS = ['#ffd36b', '#ff7ab8', '#7fe3ff', '#a6ff8a', '#c79bff', '#ff9a5a'];
 const FIELD = { yaw: 0.8, elev: [0.3, 0.85], dist: [15, 28], gap: 0.24, tries: 18, sway: [0.5, 1.5], swaySpeed: [0.18, 0.4], lift: [0.1, 0.3] };
 const LAUNCH = { x: 14, z: [-2, 8], y: 0.6 };
@@ -17,7 +16,6 @@ const GLYPH_CACHE = 80;
 const WHITEN = 0.45;
 
 const rand = (a, b) => a + Math.random() * (b - a);
-
 
 function paintDot(ctx, size) {
   const c = size / 2;
@@ -106,9 +104,7 @@ function createShell(textures, group, angle, glow = true) {
   const count = SPARKS.count + TRAIL;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const geometry = pointsGeometry(positions, colors);
   const sparks = new THREE.Points(geometry, new THREE.PointsMaterial({ map: textures.dot, size: SPARKS.size, vertexColors: true, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
   sparks.frustumCulled = false;
   sparks.renderOrder = 10;

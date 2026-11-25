@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { shapes } from './toon.js';
+import { shapes, UP } from './toon.js';
 import { makeRandom } from './random.js';
 import { RIPE, SPENT } from './bedStatus.js';
 import { CROPS } from './cropData.js';
@@ -357,8 +357,6 @@ function sweetPotatoPlant(b, stage, variety) {
     }
   }
 }
-
-const UP = new THREE.Vector3(0, 1, 0);
 
 function towards(dir) {
   return new THREE.Quaternion().setFromUnitVectors(UP, dir.clone().normalize());

@@ -21,10 +21,10 @@ import { NPC } from './npcIds.js';
 
 export const VILLAGE_BOUNDS = { x0: 37, z0: 17, x1: 155, z1: 54 };
 
-const NORTH_FRONT = 28;
-const SOUTH_FRONT = 43;
-const STREET_LAYER = GROUND_LAYER.mark + 1;
-const ABOVE_PAVING = STREET_LAYER + 1;
+export const NORTH_FRONT = 28;
+export const SOUTH_FRONT = 43;
+export const PAVING_LAYER = GROUND_LAYER.mark + 1;
+export const ABOVE_PAVING = PAVING_LAYER + 1;
 const EXITS = [
   { x: -43, z: 35.5 },
   { x: 153, z: 35.5 },
@@ -58,9 +58,10 @@ const CHIEF_LOOK = { shirt: 0x2e2a4a, pants: 0xf1ebdc, skin: 0xd9a479, style: 'k
 
 const LANTERN_COLORS = [0xd8321e, 0xf2b630, 0xe0622a, 0x2f7ab8, 0xc0281a, 0x3a9a5a];
 
-function frame(side, x) {
+const frame = (side, x) => lotFrame(side, x, side === 'north' ? NORTH_FRONT : SOUTH_FRONT);
+
+export function lotFrame(side, x, front) {
   const north = side === 'north';
-  const front = north ? NORTH_FRONT : SOUTH_FRONT;
   const turn = north ? 0 : Math.PI;
   const toWorld = (p) => (north ? { x: x + p.x, z: front + p.z } : { x: x - p.x, z: front - p.z });
   const box = (b) =>
@@ -248,7 +249,7 @@ export function paving() {
 
 function decor() {
   const group = new THREE.Group();
-  const street = groundDecal(roundedRectGeometry(44.5, NORTH_FRONT - 0.6, 150, SOUTH_FRONT + 0.6, 0.6), paving(), STREET_LAYER, 0.014);
+  const street = groundDecal(roundedRectGeometry(44.5, NORTH_FRONT - 0.6, 150, SOUTH_FRONT + 0.6, 0.6), paving(), PAVING_LAYER, 0.014);
   const walks = [street];
   group.add(street);
   const rand = makeRandom(4646);

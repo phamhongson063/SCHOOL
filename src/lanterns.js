@@ -1,7 +1,7 @@
 import { ENERGY_PRICE, LANTERN, MIND } from './config.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 import { makeRandom, shuffle } from './random.js';
-import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, readingText } from './studyDecks.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { createStore, readSaved } from './persist.js';
@@ -10,13 +10,12 @@ import { worldKey } from './saveKeys.js';
 import { northBank } from './riverShape.js';
 
 const KEY = worldKey('lanterns');
-const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
 const PHRASE_CARDS = DECK_IDS.filter((id) => DECKS[id].quiz === 'phrase')
   .flatMap((id) => DECKS[id].cards)
   .filter((card) => card.cloze);
 const PHRASE_KEYS = PHRASE_CARDS.map((card) => card.key);
 
-const kanaOf = (text) => Array.from(text.replace(RUBY, '$1').replace(/[[\]\s]/g, '')).join('');
+const kanaOf = (text) => Array.from(readingText(text).replace(/[[\]\s]/g, '')).join('');
 
 export const answerOf = (key) => kanaOf(unitOf(key)?.cloze?.answer ?? '');
 

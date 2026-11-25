@@ -4,13 +4,13 @@ import { FIELDS } from './fieldPlan.js';
 import { DISTRICT_STREETS } from './district.js';
 import { ROAD } from './road.js';
 import { NPC } from './npcIds.js';
+import { MAX_STEP } from './config.js';
 
 export const SPACING = 0.62;
 export const PASS_SPACING = 0.85;
 export const STREET_MID = (ROAD.z0 + ROAD.z1) / 2;
 export const STOP_SPACING = 2;
 export const LOOKAHEAD = 0.85;
-const MAX_STEP = 0.55;
 export const AVOID_RANGE = 1.5;
 export const PLAYER_AVOID_RANGE = 1.8;
 export const AVOID_PROBE = 0.6;

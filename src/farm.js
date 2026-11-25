@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, shapes, vertexMaterial } from './toon.js';
+import { Batch, shapes, vertexMaterial, UP } from './toon.js';
 import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
@@ -387,7 +387,6 @@ const position = new THREE.Vector3();
 const rotation = new THREE.Quaternion();
 const scale = new THREE.Vector3();
 const matrix = new THREE.Matrix4();
-const UP = new THREE.Vector3(0, 1, 0);
 const euler = new THREE.Euler();
 const RIPE_ICON = { scale: 0.42, lift: 0.4 };
 const CURE_ICON = '💊';
@@ -757,13 +756,17 @@ export function createFarm({ ledger, nameOf, nav }) {
     return pick;
   }
 
-  function renewJob(actor, beds, purse, seed) {
-    const now = gameNow();
-    const bed = beds.find((held) => state.leases.holder(held, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && !takenIn(bedClaims, held, actor));
+  function leaseBed(bed, purse, seed) {
     if (bed === undefined) return null;
     const offer = leaseOffer(purse, seed, bed);
     if (offer < 0) return null;
     return { action: 'lease', bed, offer, index: FIRST_SPOT[bed], stand: bedHead(bed) };
+  }
+
+  function renewJob(actor, beds, purse, seed) {
+    const now = gameNow();
+    const bed = beds.find((held) => state.leases.holder(held, now).until - now < VILLAGER.renewBefore * DAY_MINUTES && !takenIn(bedClaims, held, actor));
+    return leaseBed(bed, purse, seed);
   }
 
   function leaseJob(actor, purse, from, seed, shortfall) {
@@ -773,10 +776,7 @@ export function createFarm({ ledger, nameOf, nav }) {
     };
     const open = state.leases.free(gameNow()).filter((bed) => BEDS[bed].holes <= shortfall * 2 && !takenIn(bedClaims, bed, actor));
     const bed = open.sort((a, b) => gap(a) - gap(b))[0];
-    if (bed === undefined) return null;
-    const offer = leaseOffer(purse, seed, bed);
-    if (offer < 0) return null;
-    return { action: 'lease', bed, offer, index: FIRST_SPOT[bed], stand: bedHead(bed) };
+    return leaseBed(bed, purse, seed);
   }
 
   const worthAt = (plant, action) => cropWorth(action, { fruits: varietyOf(plant).fruits, price: CROP_ECONOMY[plant.crop]?.price ?? 1, missed: plant.missed });
