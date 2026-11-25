@@ -444,7 +444,7 @@ async function catchUp(from, to, progress) {
 }
 
 async function update(progress = null) {
-  if (catching || document.hidden) return;
+  if (catching || ctx.paused()) return;
   const t = ctx.now();
   const gap = state.seen === null ? 0 : t - state.seen;
   if (gap > ONLINE_GAP) await catchUp(state.seen, t, progress);
@@ -458,8 +458,8 @@ export const economy = {
   get catching() {
     return catching;
   },
-  async start({ ledger, bank, estate, staff, people, villagers: roster = null, now, away, progress = null }) {
-    ctx = { ledger, bank, estate, staff, people, villagers: roster, now, away };
+  async start({ ledger, bank, estate, staff, people, villagers: roster = null, now, paused = () => false, away, progress = null }) {
+    ctx = { ledger, bank, estate, staff, people, villagers: roster, now, paused, away };
     if (!state.seeded) {
       state.seeded = true;
       pay(FUND, ECONOMY.fundSeed);

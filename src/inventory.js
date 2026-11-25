@@ -1,4 +1,4 @@
-import { CROPS } from './crops.js';
+import { CROPS } from './cropData.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
 import { createPairStore, without } from './persist.js';

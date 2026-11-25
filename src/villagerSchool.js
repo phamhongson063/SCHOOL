@@ -1,9 +1,8 @@
 import { between } from './random.js';
-import { BLESSING, CERTIFY, TRAINING } from './config.js';
+import { BLESSING, CERTIFY, SELF_STUDY, TRAINING } from './config.js';
 import { certify } from './certify.js';
 import { DECK_IDS } from './studyDecks.js';
-import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examHall.js';
-import { SELF_STUDY } from './villagerData.js';
+import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examRules.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';

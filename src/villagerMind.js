@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { ARENA, BLESSING, TRAINING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SHOP, SPEAK, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, TRAINING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SELF_STUDY, SHOP, SPEAK, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
@@ -8,7 +8,6 @@ import { blessingAskScore } from './blessingRules.js';
 import { trainingGain } from './training.js';
 import { averageYield } from './market.js';
 import { trade } from './trade.js';
-import { SELF_STUDY } from './villagerData.js';
 import { traits } from './traits.js';
 import { quests } from './quests.js';
 import { fluency } from './fluency.js';

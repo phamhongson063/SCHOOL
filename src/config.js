@@ -99,6 +99,8 @@ export const HUNTING = {
 
 export const HOUSE_PRICES = { small: 700000, medium: 1200000, large: 2000000 };
 
+export const SELF_STUDY = { cooldown: 20 * 60, waitPoll: 1.5, waitMax: 5 * 60 };
+
 export const VILLAGER = {
   sellWhen: 6,
   seedStock: 4,

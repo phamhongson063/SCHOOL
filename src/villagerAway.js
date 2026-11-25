@@ -1,4 +1,4 @@
-import { AWAY, BANK, BLESSING, CERTIFY, FIREWORKS, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, TRAINING, VENDOR, VILLAGER, WILDLIFE } from './config.js';
+import { AWAY, BANK, BLESSING, CERTIFY, FIREWORKS, LOTO, ENERGY, FIREFLY, FISHING, FOODS, HUNTING, MIND, MOVE, QUIZ, SELF_STUDY, TRAINING, VENDOR, VILLAGER, WILDLIFE } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt } from './clock.js';
 import { certify } from './certify.js';
 import { gameId } from './inventory.js';
@@ -7,7 +7,6 @@ import { between } from './random.js';
 import { AVERAGE_CASTS, BLESSING_STAY, blessingStayMinutes } from './villagerMind.js';
 import { blessingSlots, economy } from './economy.js';
 import { simulateExam, simulateInternal } from './villagerSchool.js';
-import { SELF_STUDY } from './villagerData.js';
 import { DECK_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
 import { traits } from './traits.js';

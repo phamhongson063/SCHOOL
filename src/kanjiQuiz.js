@@ -1,7 +1,7 @@
 import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
 import { japanese, spokenOf } from './ruby.js';
-import { DECKS, unitOf, plainText as plain } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, plainText as plain } from './studyDecks.js';
 import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
 import { shuffle } from './random.js';
 
@@ -17,7 +17,10 @@ const MARKS = /\[([^\]]+)\]/g;
 const RUBY = /[㐀-鿿々〆Ａ-Ｚａ-ｚ]+\{([^}]+)\}/g;
 
 const ALL_KEYS = Object.values(DECKS).flatMap((deck) => deck.cards.map((card) => card.key));
-const CLOZE_ANSWERS = DECKS.sugu1.cards.filter((card) => card.cloze).map((card) => card.cloze.answer);
+const CLOZE_ANSWERS = DECK_IDS.filter((id) => DECKS[id].quiz === 'phrase')
+  .flatMap((id) => DECKS[id].cards)
+  .filter((card) => card.cloze)
+  .map((card) => card.cloze.answer);
 const DECK_MEANINGS = Object.fromEntries(Object.entries(DECKS).map(([id, deck]) => [id, [...new Set(deck.cards.map((card) => card.meaning))]]));
 const KANJI_KINDS = ['pick', 'read', 'meaning'];
 

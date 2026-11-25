@@ -4,7 +4,7 @@ import { closable } from './dialog.js';
 import { DECKS, DECK_IDS } from './studyDecks.js';
 import { certify } from './certify.js';
 import { PLAYER } from './inventory.js';
-import { EXAM_HOURS } from './examHall.js';
+import { EXAM_HOURS } from './examRules.js';
 
 const MOONS = [
   [0.03, '🌑 Trăng non'],

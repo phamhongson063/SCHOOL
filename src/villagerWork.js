@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { between } from './random.js';
-import { CROPS } from './crops.js';
+import { CROPS } from './cropData.js';
 import { ITEMS, seedId, fishId } from './inventory.js';
 import { FISHING, ENERGY, FIREFLY, HUNTING, CERTIFY } from './config.js';
 import { FIELD_TREES } from './farm.js';

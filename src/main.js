@@ -58,8 +58,10 @@ import { createLotoDialog, createLotoSign } from './lotoDialog.js';
 import { HIT, LOTO_CLUE_LABELS, lotoEnd, lotoSignOpen, lotoStart } from './lotoRules.js';
 import { createBlessing, createBlessingDialog } from './blessing.js';
 import { blessingScore } from './blessingRules.js';
-import { createMarket, createShopUI, createFishShopUI, createMartUI, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
-import { createEstate, createChiefUI, chiefOpen, chiefHours } from './estate.js';
+import { createMarket, shopOpen, shopHours, fishShopOpen, fishShopHours, martOpen, martHours } from './market.js';
+import { createShopUI, createFishShopUI, createMartUI } from './marketDialog.js';
+import { createEstate, chiefOpen, chiefHours } from './estate.js';
+import { createChiefUI } from './chiefDialog.js';
 import { Town } from './villagers.js';
 import { createAwaySim } from './villagerAway.js';
 import { villagerProfiles } from './villagerData.js';
@@ -92,13 +94,15 @@ import { VERSION } from './version.js';
 import { createInn, INN, INN_STAND, INN_DOOR } from './inn.js';
 import { createStudy } from './study.js';
 import { createExams } from './exams.js';
-import { createExamHall, examOpen, qualifyTag } from './examHall.js';
+import { createExamHall, qualifyTag } from './examHall.js';
+import { examOpen } from './examRules.js';
 import { createInternalDialog } from './internalDialog.js';
 import { certify } from './certify.js';
 import { DECKS, unitOf } from './studyDecks.js';
 import { activityOf, homeActivity, moodOf } from './stamina.js';
 import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
-import { createBank, createBankUI, bankOpen, bankHours } from './bank.js';
+import { createBank, bankOpen, bankHours } from './bank.js';
+import { createBankUI } from './bankDialog.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createRanking } from './ranking.js';
 import { createStandingsBoard } from './lanternBoard.js';
@@ -948,6 +952,7 @@ await economy.start({
   people: () => everyone.map((person) => person.id),
   villagers: () => town.members.map((member) => member.id),
   now: gameNow,
+  paused: () => document.hidden,
   away: createAwaySim({ town, contextAt }),
   progress: (share) => loadingStep(0.82 + share * 0.08, 'Làng qua những ngày vắng'),
 });

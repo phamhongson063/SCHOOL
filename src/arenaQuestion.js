@@ -1,4 +1,4 @@
-import { DECKS, plainText, unitOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, plainText, unitOf } from './studyDecks.js';
 import { makeRandom, shuffle } from './random.js';
 
 export const LETTERS = ['A', 'B', 'C', 'D'];
@@ -15,7 +15,9 @@ const MEANINGS_BY_WORD = (() => {
   }
   return map;
 })();
-const KANJI_WORDS = DECKS.n2.cards.map((card) => plainText(card.word)).filter((word) => /[㐀-鿿]/.test(word));
+const KANJI_WORDS = DECK_IDS.filter((id) => DECKS[id].quiz === 'vocab')
+  .flatMap((id) => DECKS[id].cards.map((card) => plainText(card.word)))
+  .filter((word) => /[㐀-鿿]/.test(word));
 
 function hashOf(text) {
   let h = 2166136261;

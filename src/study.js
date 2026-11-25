@@ -1,4 +1,4 @@
-import { DECKS, unitOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
 import { japanese, spokenOf } from './ruby.js';
 import { CERTIFY, SPEAK } from './config.js';
@@ -6,7 +6,7 @@ import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
-import { INTERNAL_SPAN } from './examHall.js';
+import { INTERNAL_SPAN } from './examRules.js';
 import { classTeacherOf } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
 import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
@@ -77,8 +77,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const dim = document.getElementById('studyDim');
   const timer = document.getElementById('studyTimer');
   const timerFill = timer.firstElementChild;
-  let deckId = 'n2';
-  let deck = DECKS.n2;
+  let deckId = DECK_IDS[0];
+  let deck = DECKS[deckId];
   let mode = null;
   let current = null;
   let order = [];
@@ -823,7 +823,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   dim.addEventListener('transitionend', (event) => {
     if (event.propertyName === 'opacity') dimmed = dim.classList.contains('on');
   });
-  useDeck('n2');
+  useDeck(DECK_IDS[0]);
   learnPick.addEventListener('click', beginLearn);
   reviewPick.addEventListener('click', beginReview);
   speakPick.addEventListener('click', beginSpeak);
@@ -876,7 +876,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     },
     internalBlocker,
     takeInternal,
-    open(id = 'n2') {
+    open(id = DECK_IDS[0]) {
       useDeck(id);
       seated = true;
       paid = new Set();

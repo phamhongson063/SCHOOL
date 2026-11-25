@@ -4,7 +4,8 @@ import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { bedsGeometry, raggedPatch, soilMaterial } from './soil.js';
 import { BEDS, FIELDS, FIELD_OF, FIRST_SPOT, SPOT_BED, bedHead, bedPlace, bedPoint, bedsOf, fieldObstacles, fieldOf, layoutSpots, leasePrice, leasesFromSave, leasesToSave, signPoint, spotAt, spotsFromSave, spotsToSave, standFor, standsAt } from './fieldPlan.js';
-import { CROPS, RIPE, SPENT, mound } from './crops.js';
+import { CROPS } from './cropData.js';
+import { CROP_MODELS, RIPE, SPENT, mound } from './crops.js';
 import { bedNeeds, growing, needsCure, thirsty } from './bedStatus.js';
 import { LOW_POWER } from './quality.js';
 import { gameNow, durationText, countdownText, DAY_MINUTES } from './clock.js';
@@ -410,7 +411,7 @@ class FarmView {
     for (const [id, crop] of Object.entries(CROPS)) {
       crop.varieties.forEach((variety, v) => {
         for (let stage = SHAPED_FROM; stage <= SPENT; stage++) {
-          this.models.set(modelKey(stage, id, v), this.instanced((b) => crop.build(b, stage, variety), { tinted: true, shadow: !LOW_POWER }));
+          this.models.set(modelKey(stage, id, v), this.instanced((b) => CROP_MODELS[id](b, stage, variety), { tinted: true, shadow: !LOW_POWER }));
         }
       });
     }

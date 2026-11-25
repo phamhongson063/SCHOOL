@@ -5,18 +5,12 @@ import { closable } from './dialog.js';
 import { coins } from './format.js';
 import { setRich } from './goldArt.js';
 import { economy } from './economy.js';
-import { hoursText, isOpenAt, dayOf } from './clock.js';
+import { hoursText, dayOf } from './clock.js';
+import { EXAM_HOURS, EXAM_SPAN, examOpen } from './examRules.js';
 import { traits } from './traits.js';
 import { PLAYER } from './inventory.js';
 import { NPC } from './npcIds.js';
 import { TRAINING_SPAN, payTraining } from './training.js';
-
-export const EXAM_HOURS = { open: CERTIFY.open, close: CERTIFY.close };
-
-export const examOpen = (minutes) => isOpenAt(EXAM_HOURS, minutes);
-
-export const EXAM_SPAN = CERTIFY.examMinutes + 2;
-export const INTERNAL_SPAN = CERTIFY.internalMinutes + 2;
 
 const CLASH_REASONS = { soon: 'Sắp tới giờ lôi đài, không kịp thi.', running: 'Lôi đài đang diễn ra, thi sau nhé.' };
 
