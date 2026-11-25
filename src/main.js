@@ -40,7 +40,7 @@ import { createStreetLamps } from './streetLamps.js';
 import { createBubble, updateBubbles, setBubbleOcclusion } from './bubble.js';
 import { ITEMS, Ledger, PLAYER } from './inventory.js';
 import { createBag } from './bag.js';
-import { createMailbox } from './mailbox.js';
+import { createMailbox, RECORD_DAYS } from './mailbox.js';
 import { createAtms, createAtmUI } from './atm.js';
 import { LOW_POWER } from './quality.js';
 import { freeze, X_AXIS } from './toon.js';
@@ -835,7 +835,7 @@ const bracketDialog = createBracketDialog({ arena, nameOf, now: () => gameNow() 
 const arenaDesk = createArenaDesk({ arena, minutes: () => gameNow(), greet: (text, duration) => district.arenaDesk?.say(text, duration) });
 arena.onFinish((event) => {
   if (!event.entrants.includes(PLAYER)) return;
-  mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, tag: 'arena' });
+  mailbox.notify({ icon: '⚔️', lines: arenaLines(event, nameOf), keep: true, days: RECORD_DAYS, tag: 'arena' });
 });
 if (arena.purged) mailbox.removeWhere((mail) => mail.tag === 'arena' || mail.icon === '⚔️');
 const arenaPresent = (id) => id === PLAYER && !purse.sleeping;

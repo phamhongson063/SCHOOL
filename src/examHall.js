@@ -10,6 +10,7 @@ import { EXAM_HOURS, EXAM_SPAN, examOpen } from './examRules.js';
 import { traits } from './traits.js';
 import { PLAYER } from './inventory.js';
 import { NPC } from './npcIds.js';
+import { RECORD_DAYS } from './mailbox.js';
 import { TRAINING_SPAN, payTraining } from './training.js';
 
 const CLASH_REASONS = { soon: 'Sắp tới giờ lôi đài, không kịp thi.', running: 'Lôi đài đang diễn ra, thi sau nhé.' };
@@ -159,7 +160,7 @@ export function createExamHall({ purse, exams, mailbox, minutes, say, onRegister
     });
     const result = certify.gradeExam(PLAYER, deck, results);
     traits.note(PLAYER, result.passed ? 'pass' : 'fail', dayOf(minutes()));
-    mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true });
+    mailbox.notify({ icon: result.passed ? '🎓' : '📄', lines: examLines(deck, result), tab: 'cert', keep: true, days: RECORD_DAYS });
     if (!result.passed && !certify.examTaken(PLAYER, deck) && certify.qualified(PLAYER, deck)) onRetakeReady?.(deck);
     say?.(result.passed ? '🎓 Đậu khảo thí! Xem kết quả trong hộp thư nhé.' : '📄 Đã có kết quả khảo thí, xem hộp thư nhé.');
   }

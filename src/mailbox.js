@@ -1,10 +1,12 @@
-import { clockText, dateText, gameNow } from './clock.js';
+import { clockText, dateText, gameNow, DAY_MINUTES } from './clock.js';
 import { setRich } from './goldArt.js';
 import { coins } from './format.js';
 import { writeGameItem } from './seal.js';
 import { readSaved } from './persist.js';
 
 const KEY = 'langsch.mail';
+export const RECORD_DAYS = 7;
+const RECORD_MINUTES = RECORD_DAYS * DAY_MINUTES;
 const TABS = [
   { key: 'system', icon: '🔔', label: 'Hệ thống', empty: 'Chưa có thư.' },
   { key: 'cert', icon: '🎓', label: 'Chứng chỉ', empty: 'Chưa có kết quả khảo thí.' },
@@ -77,7 +79,10 @@ function mailRow(mail) {
 
 function loadSaved() {
   const saved = readSaved(KEY);
-  return Array.isArray(saved) ? saved.filter((mail) => mail && Array.isArray(mail.lines) && Number.isFinite(mail.at)) : [];
+  if (!Array.isArray(saved)) return [];
+  return saved
+    .filter((mail) => mail && Array.isArray(mail.lines) && Number.isFinite(mail.at))
+    .map((mail) => (!mail.expires && (mail.tag === 'arena' || mail.icon === '⚔️' || mail.tab === 'cert') ? { ...mail, expires: mail.at + RECORD_MINUTES } : mail));
 }
 
 export function createMailbox({ onTravel, onClaim = null }) {
@@ -209,9 +214,10 @@ export function createMailbox({ onTravel, onClaim = null }) {
     return id;
   }
 
-  function notify({ icon, lines, place = null, point = null, visit = null, tab: where = 'system', keep = false, expires = null, attach = null, tag = null }) {
+  function notify({ icon, lines, place = null, point = null, visit = null, tab: where = 'system', keep = false, expires = null, days = null, attach = null, tag = null }) {
     const id = order;
-    mails.set(id, { id, icon, lines, place, point, visit, tab: where, keep, expires, attach, claimed: false, tag, at: gameNow(), order: order++, read: false });
+    const at = gameNow();
+    mails.set(id, { id, icon, lines, place, point, visit, tab: where, keep, expires: days ? at + days * DAY_MINUTES : expires, attach, claimed: false, tag, at, order: order++, read: false });
     if (keep) save();
     refresh();
     return id;
