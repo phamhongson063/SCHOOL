@@ -443,7 +443,7 @@ export const FIREWORKS = {
   gather: 5,
   heraldLead: 15,
   deck: 'kanjiN2',
-  aimSeconds: 4,
+  aimSeconds: 6,
   wordSlack: 1.56,
   hostShare: 0.1,
   sky: { rise: 0.9, hang: 14, fade: 1.6, retire: 0.35, deal: 1.6, wait: [0.3, 1.6], pop: 0.6 },

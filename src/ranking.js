@@ -64,7 +64,7 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
 
   const certsOf = (id) => certify.certifiedTotal(id);
   const lanternsOf = (id) => lanterns.totalOf(id);
-  const fireworksOf = (id) => fireworks.titlesOf(id);
+  const fireworksOf = (id) => fireworks.totalOf(id);
 
   function certsBaseFor(day) {
     if (board?.certsBase?.day === day) return board.certsBase;
@@ -72,16 +72,16 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
     return { day, rows: rows.map(({ id, score }) => ({ id, score })) };
   }
 
-  const dailyFresh = (previous) => previous?.dailyDay === dailyCheckpoint(now()).day && previous.arenaVersion === arena.version && !!previous.arena && !!previous.lantern && !!previous.fireworks;
+  const dailyFresh = (previous) => previous?.dailyDay === dailyCheckpoint(now()).day && previous.arenaVersion === arena.version && !!previous.arena && !!previous.lantern && !!previous.fireworksTotal;
 
   function dailyBoard(previous) {
-    if (dailyFresh(previous)) return { arena: previous.arena, arenaVersion: previous.arenaVersion, lantern: previous.lantern, fireworks: previous.fireworks, dailyDay: previous.dailyDay, dailyAt: previous.dailyAt };
+    if (dailyFresh(previous)) return { arena: previous.arena, arenaVersion: previous.arenaVersion, lantern: previous.lantern, fireworksTotal: previous.fireworksTotal, dailyDay: previous.dailyDay, dailyAt: previous.dailyAt };
     const checkpoint = dailyCheckpoint(now());
     return {
       arena: standings(titlesOf, previous?.arenaVersion === arena.version ? previous?.arena : null),
       arenaVersion: arena.version,
       lantern: standings(lanternsOf, previous?.lantern),
-      fireworks: standings(fireworksOf, previous?.fireworks),
+      fireworksTotal: standings(fireworksOf, previous?.fireworksTotal),
       dailyDay: checkpoint.day,
       dailyAt: checkpoint.at,
     };
@@ -124,7 +124,7 @@ export function createRanking({ ledger, bank, estate, arena, lanterns, fireworks
 
   function render() {
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
-    const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0), fireworks: board.fireworks.filter((entry) => entry.score > 0) };
+    const pick = { certs: board.certs, arena: board.arena.filter((entry) => entry.score > 0), lantern: board.lantern.filter((entry) => entry.score > 0), fireworks: board.fireworksTotal.filter((entry) => entry.score > 0) };
     const rows = (pick[tab] ?? board.rows).filter((entry) => names.has(entry.id));
     list.replaceChildren(...(rows.length ? rows.map(row) : [el('li', 'rank-empty', 'Chưa có nhà vô địch.')]));
     stamp.textContent = `Cập nhật lúc ${clockText(DAILY_TABS.has(tab) ? board.dailyAt : board.at)}`;

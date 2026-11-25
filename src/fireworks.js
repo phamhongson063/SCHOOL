@@ -77,12 +77,12 @@ function load() {
   try {
     const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
-      const titles = saved.titles && typeof saved.titles === 'object' ? Object.fromEntries(Object.entries(saved.titles).filter(([, count]) => Number.isInteger(count) && count > 0)) : {};
+      const totals = saved.totals && typeof saved.totals === 'object' ? Object.fromEntries(Object.entries(saved.totals).filter(([, total]) => Number.isFinite(total) && total > 0)) : {};
       const champions = Array.isArray(saved.champions) ? saved.champions.filter((item) => Number.isInteger(item?.day) && typeof item?.id === 'string').slice(0, FIREWORKS.champions) : [];
-      return { show: cleanShow(saved.show), titles, champions, last: cleanLast(saved.last) };
+      return { show: cleanShow(saved.show), totals, champions, last: cleanLast(saved.last) };
     }
   } catch {}
-  return { show: null, titles: {}, champions: [], last: null };
+  return { show: null, totals: {}, champions: [], last: null };
 }
 
 export function createFireworks({ charge, sponsor, pay, refund, award, prize, human }) {
@@ -160,9 +160,9 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       return { id: row.id, score: row.score, words: row.words, prize: money, intellect };
     });
     refund(show.pot - paid);
+    for (const place of show.places) if (place.score > 0) state.totals[place.id] = (state.totals[place.id] ?? 0) + place.score;
     const champion = show.places[0];
     if (champion && champion.score > 0) {
-      state.titles[champion.id] = (state.titles[champion.id] ?? 0) + 1;
       state.champions = [{ day: show.day, id: champion.id }, ...state.champions].slice(0, FIREWORKS.champions);
     }
     show.phase = 'done';
@@ -336,7 +336,7 @@ export function createFireworks({ charge, sponsor, pay, refund, award, prize, hu
       const play = state.show?.play[who];
       return play ? fireworksPace(play) : null;
     },
-    titlesOf: (id) => state.titles[id] ?? 0,
+    totalOf: (id) => state.totals[id] ?? 0,
     get champions() {
       return state.champions;
     },
