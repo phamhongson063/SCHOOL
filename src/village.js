@@ -285,6 +285,14 @@ export function keeperNPC(look, model, name = '') {
   return { walker, bubble, phase: Math.random() * Math.PI * 2 };
 }
 
+export function idleKeeper(npc, t) {
+  npc.bubble.update(t);
+  npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
+  npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
+  npc.walker.face?.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
+  npc.walker.pose?.();
+}
+
 const ZONES = [
   { x0: VILLAGE_BOUNDS.x0, x1: 68 },
   { x0: 68, x1: 98 },
@@ -407,26 +415,26 @@ export function createVillage() {
     return light;
   });
 
-  for (const spec of HOUSES) {
+  function streetHouse(spec, kind, lines, signStyle) {
     const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
     const f = placeBuilding(house, spec);
     obstacles.push(...house.obstacles.map(f.box));
     const door = f.toWorld(house.door);
-    doors.set(spec.id, door);
-    const sign = plaqueBoard([`Nhà số ${spec.id}`, 'Đang bán']);
+    const sign = plaqueBoard(lines, signStyle);
     sign.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
-    plaques.set(spec.id, { sign, anchor: new THREE.Vector3().copy(sign.mesh.position).applyMatrix4(house.group.matrixWorld) });
-    addBuilding({ kind: 'house', id: spec.id, group: house.group, stand: door, look: f.toWorld({ x: house.door.x, z: house.door.z - 1 }) }, spec.x, sign);
+    const anchor = new THREE.Vector3().copy(sign.mesh.position).applyMatrix4(house.group.matrixWorld);
+    addBuilding({ kind, id: spec.id, group: house.group, stand: door, look: f.toWorld({ x: house.door.x, z: house.door.z - 1 }) }, spec.x, sign);
+    return { door, sign, anchor };
+  }
+
+  for (const spec of HOUSES) {
+    const { door, sign, anchor } = streetHouse(spec, 'house', [`Nhà số ${spec.id}`, 'Đang bán']);
+    doors.set(spec.id, door);
+    plaques.set(spec.id, { sign, anchor });
   }
 
   const lodges = LODGE_SPOTS.map((spec) => {
-    const house = createShophouse({ seed: spec.seed, width: spec.width, depth: spec.depth, stories: spec.stories });
-    const f = placeBuilding(house, spec);
-    obstacles.push(...house.obstacles.map(f.box));
-    const door = f.toWorld(house.door);
-    const sign = plaqueBoard([LODGE_ROOMS[spec.id].name.toUpperCase(), `${roomTier(spec.id).price} 🪙 / đêm`], spec.sign);
-    sign.mesh.position.set(house.plaque.x, house.plaque.y, house.plaque.z);
-    addBuilding({ kind: 'lodge', id: spec.id, group: house.group, stand: door, look: f.toWorld({ x: house.door.x, z: house.door.z - 1 }) }, spec.x, sign);
+    const { door } = streetHouse(spec, 'lodge', [LODGE_ROOMS[spec.id].name.toUpperCase(), `${roomTier(spec.id).price} 🪙 / đêm`], spec.sign);
     return { id: spec.id, stand: door };
   });
 
@@ -575,11 +583,7 @@ export function createVillage() {
         const near = on && camera.position.distanceTo(npc.walker.group.position) < KEEPER_DISTANCE;
         npc.walker.group.visible = near;
         if (!near) continue;
-        npc.bubble.update(t);
-        npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-        npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-        npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-        npc.walker.pose?.();
+        idleKeeper(npc, t);
       }
       if (t < lodAt) return;
       lodAt = t + 0.5;

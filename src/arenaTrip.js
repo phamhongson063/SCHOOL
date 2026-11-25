@@ -4,6 +4,7 @@ import { PLAYER } from './inventory.js';
 import { calledUp, onStage } from './arenaReplay.js';
 import { roundName } from './arena.js';
 import { clockText } from './clock.js';
+import { between } from './random.js';
 
 const HOME_DELAY = 8;
 const IDLE = [4, 11];
@@ -18,7 +19,6 @@ const EMERGE_DELAY = 0.9;
 const PACE = { in: 1.25, out: 0.8 };
 const SETTLED = { reach: 0.8, speed: 0.1 };
 
-const between = (a, b) => a + Math.random() * (b - a);
 const facingTo = (from, to) => Math.atan2(to.x - from.x, to.z - from.z);
 
 function stageSpots(event, now) {

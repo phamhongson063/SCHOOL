@@ -1,6 +1,6 @@
 import { LOTO } from './config.js';
 import { dayOf } from './clock.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { absorption } from './absorption.js';
 import { fluency } from './fluency.js';
@@ -60,7 +60,7 @@ function cleanLast(raw) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object' && Number.isInteger(saved.day) && saved.start !== LOTO.start) return blank(null, cleanLast(saved.last));
     if (saved && typeof saved === 'object' && Number.isInteger(saved.day)) {
       const joined = Array.isArray(saved.joined) ? saved.joined.filter((id) => typeof id === 'string' && MARKS.test(saved.marks?.[id] ?? '')) : [];

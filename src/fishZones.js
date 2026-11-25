@@ -3,6 +3,7 @@ import { minuteOfDay } from './clock.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { BOAT_X, DOCK_X, SEGMENT, clearOfCrossing, lowestNorth, northBank } from './riverShape.js';
+import { readSaved } from './persist.js';
 
 const KEY = worldKey('river');
 const BANK = { x0: WORLD.x0 + 5, x1: WORLD.x1 - 5 };
@@ -32,10 +33,8 @@ function randomBankX() {
 }
 
 function loadZones() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && Array.isArray(saved.zones) && Array.isArray(saved.pending)) return saved;
-  } catch {}
+  const saved = readSaved(KEY);
+  if (saved && Array.isArray(saved.zones) && Array.isArray(saved.pending)) return saved;
   return null;
 }
 

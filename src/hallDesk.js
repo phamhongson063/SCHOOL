@@ -3,7 +3,7 @@ import { clockText, dayOf, DAY_MINUTES } from './clock.js';
 import { arenaStarts } from './arenaSchedule.js';
 import { arenaWindow } from './arena.js';
 import { coins } from './format.js';
-import { closable } from './dialog.js';
+import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { paintStallArt } from './stallCard.js';
 import { blessingSlots } from './economy.js';
@@ -44,13 +44,6 @@ const EXPENSE_NAMES = {
   buyback: ['🏚️', 'Mua lại nhà'],
   capital: ['🏪', 'Cấp vốn tiệm'],
 };
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 function row(icon, label, value, { strong = false, sign = '' } = {}) {
   const item = el('div', strong ? 'hall-row total' : 'hall-row');

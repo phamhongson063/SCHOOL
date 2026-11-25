@@ -2,6 +2,25 @@ import { writeGameItem } from './seal.js';
 
 const stores = [];
 
+export function readSaved(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function readEntries(key, clean) {
+  const saved = readSaved(key);
+  const entries = {};
+  if (!saved || typeof saved !== 'object') return entries;
+  for (const [id, raw] of Object.entries(saved)) {
+    const entry = clean(raw, id);
+    if (entry) entries[id] = entry;
+  }
+  return entries;
+}
+
 export function createStore(key, read) {
   let pending = false;
   let halted = false;

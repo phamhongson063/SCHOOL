@@ -3,6 +3,7 @@ import { isOpenAt, hoursText } from './clock.js';
 import { economy } from './economy.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
+import { readSaved } from './persist.js';
 
 const KEY = worldKey('estate');
 const SIZE_NAMES = { small: 'Nhà nhỏ', medium: 'Nhà vừa', large: 'Nhà lớn' };
@@ -14,7 +15,7 @@ export function createEstate({ houses }) {
   const list = houses.map((house) => ({ ...house, price: HOUSE_PRICES[house.size], owner: null }));
   const listeners = [];
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       for (const house of list) {
         const owner = saved[house.id];

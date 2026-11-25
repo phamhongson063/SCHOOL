@@ -7,7 +7,7 @@ import { makeRandom } from './random.js';
 import { tileRoofMeshes, roundedRectShape } from './scenery.js';
 import { plasterMaterial, texturedBox } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { brickMaterial, keeperNPC } from './village.js';
+import { brickMaterial, idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { DECKS } from './studyDecks.js';
 
@@ -100,11 +100,7 @@ function createTeacher(scene, hall, frame) {
       const near = camera.position.distanceTo(at) < TEACHER.distance;
       npc.walker.group.visible = near;
       if (!near) return;
-      npc.bubble.update(t);
-      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-      npc.walker.pose?.();
+      idleKeeper(npc, t);
     },
   };
 }

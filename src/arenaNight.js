@@ -1,32 +1,12 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
-import { keepCanvas } from './canvasRestore.js';
+import { glowPoolTexture } from './toon.js';
 import { createLanternGlow } from './lanternGlow.js';
 
 const DESK_LIGHT = { color: 0xffc98a, intensity: 16, distance: 9, height: 2.6, ahead: 0.7 };
 const POOL = { radius: 1.25, y: 0.08, color: 0xffc070, strength: 0.4, below: 1.5 };
 
-function paintPool(ctx, size) {
-  const c = size / 2;
-  const gradient = ctx.createRadialGradient(c, c, 0, c, c, c);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.3, 'rgba(255,255,255,0.6)');
-  gradient.addColorStop(0.7, 'rgba(255,255,255,0.15)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-}
-
-function poolTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  paintPool(canvas.getContext('2d'), size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paintPool(ctx, size));
-}
+const poolTexture = () => glowPoolTexture([[0, 1], [0.3, 0.6], [0.7, 0.15], [1, 0]]);
 
 export function createArenaNight({ lights, desk, toWorld, layer }) {
   const group = new THREE.Group();

@@ -2,13 +2,7 @@ import { BANK_ART } from './bankArt.js';
 import { paintIcon } from './itemArt.js';
 import { fineAmount } from './format.js';
 import { setRich } from './goldArt.js';
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
+import { el } from './dialog.js';
 
 function coinArt() {
   const node = el('span', 'bank-coin');

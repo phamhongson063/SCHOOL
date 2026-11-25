@@ -1,18 +1,9 @@
 import * as THREE from 'three';
-import { keepCanvas } from './canvasRestore.js';
+import { paintedTexture } from './toon.js';
 
-function canvasTexture(width, height, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), width, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paint(ctx, width, height));
-}
 
 function blobTexture() {
-  return canvasTexture(64, 64, (ctx, w, h) => {
+  return paintedTexture(64, 64, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
     g.addColorStop(0, 'rgba(0,0,0,0.75)');
     g.addColorStop(0.55, 'rgba(0,0,0,0.4)');

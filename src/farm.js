@@ -19,6 +19,7 @@ import { economy } from './economy.js';
 import { badgeMaterial } from './studyIcon.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
+import { readSaved } from './persist.js';
 
 export { FIELD_TREES } from './fieldPlan.js';
 
@@ -26,7 +27,6 @@ const STORAGE_KEY = worldKey('fieldPlots');
 const LEASE_KEY = worldKey('fieldLeases');
 const LEGACY_KEY = worldKey('farm');
 const LEGACY_LEASE_KEY = worldKey('farmLeases');
-const readJson = (key) => JSON.parse(localStorage.getItem(key) ?? 'null');
 const GROWTH_STEPS = RIPE - 1;
 const CLEAR_SECONDS = 1.4;
 const BUSY_HOLE = 'Có người đang làm hốc này rồi!';
@@ -62,8 +62,8 @@ class Leases {
   constructor() {
     this.beds = BEDS.map(() => null);
     try {
-      const saved = readJson(LEASE_KEY);
-      leasesFromSave(saved, saved ? null : readJson(LEGACY_LEASE_KEY)).forEach((lease, bed) => {
+      const saved = readSaved(LEASE_KEY);
+      leasesFromSave(saved, saved ? null : readSaved(LEGACY_LEASE_KEY)).forEach((lease, bed) => {
         if (typeof lease?.owner === 'string' && Number.isFinite(lease.until)) this.beds[bed] = { owner: lease.owner, until: lease.until };
       });
       if (!saved) this.save();
@@ -192,8 +192,8 @@ class FarmState {
 
   load() {
     try {
-      const saved = readJson(STORAGE_KEY);
-      const legacy = saved ? null : readJson(LEGACY_KEY);
+      const saved = readSaved(STORAGE_KEY);
+      const legacy = saved ? null : readSaved(LEGACY_KEY);
       if (!saved && !legacy) return false;
       const now = gameNow();
       for (const [i, spot] of spotsFromSave(saved, legacy)) {

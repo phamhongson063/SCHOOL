@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
-import { Batch, freeze, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, paintedTexture, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
-import { keepCanvas } from './canvasRestore.js';
 import { clockText, dayOf, minuteOfDay } from './clock.js';
 import { BLESSING } from './config.js';
 import { PLAZA } from './school.js';
 import { plazaFloor, PLAZA_ZONE } from './quarter.js';
-import { keeperNPC } from './village.js';
+import { idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { blessingSlots } from './economy.js';
 import { arcSlots, claimHold, createSlotClaims, inSector, lineSlots } from './blessingSpots.js';
@@ -138,15 +137,6 @@ function boxBed(b, rand, { x, z, hx, hz }) {
   );
 }
 
-function canvasTexture(width, height, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), width, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paint(ctx, width, height));
-}
 
 function paintGroundRing(ctx, size) {
   const c = size / 2;
@@ -283,7 +273,7 @@ function glyphOrbit({ count, radius, height, size }, offset) {
   const orbit = new THREE.Group();
   const items = Array.from({ length: count }, (_, i) => {
     const glyph = GLYPHS[(i + offset) % GLYPHS.length];
-    const map = canvasTexture(128, 128, (ctx, w) => paintGlyph(ctx, w, glyph));
+    const map = paintedTexture(128, 128, (ctx, w) => paintGlyph(ctx, w, glyph));
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     const angle = (i / count) * Math.PI * 2;
     sprite.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
@@ -326,7 +316,7 @@ function paintFloorRays(ctx, size) {
 }
 
 function burstSprite(rays, seed) {
-  const material = new THREE.SpriteMaterial({ map: canvasTexture(512, 512, (ctx, w) => paintBurst(ctx, w, rays, seed)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const material = new THREE.SpriteMaterial({ map: paintedTexture(512, 512, (ctx, w) => paintBurst(ctx, w, rays, seed)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const sprite = new THREE.Sprite(material);
   sprite.position.y = BURST.y;
   sprite.scale.setScalar(BURST.size);
@@ -426,7 +416,7 @@ function createZoneGlow() {
   group.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
   group.visible = false;
 
-  const floorMaterial = glowMaterial(canvasTexture(Math.round(width * ZONE.px), Math.round(depth * ZONE.px), paintZoneFloor), { opacity: 0, color: AURA_GOLD });
+  const floorMaterial = glowMaterial(paintedTexture(Math.round(width * ZONE.px), Math.round(depth * ZONE.px), paintZoneFloor), { opacity: 0, color: AURA_GOLD });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMaterial);
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0.06;
@@ -441,7 +431,7 @@ function createZoneGlow() {
     [depth, -width / 2, 0, Math.PI / 2],
     [depth, width / 2, 0, -Math.PI / 2],
   ]) {
-    const map = canvasTexture(256, 128, paintZoneWall);
+    const map = paintedTexture(256, 128, paintZoneWall);
     map.wrapS = THREE.RepeatWrapping;
     map.repeat.set(length / 6, 1);
     const material = glowMaterial(map, { opacity: 0, color: AURA_GOLD, side: THREE.DoubleSide });
@@ -528,7 +518,7 @@ function createAura(statueMaterial) {
   const hue = new THREE.Color();
   const tint = (color, k, shift) => color.copy(gold).lerp(hue.setHSL((((shift % 1) + 1) % 1), 0.9, 0.62), k);
 
-  const ringMaterial = glowMaterial(canvasTexture(1024, 1024, (ctx, w) => paintGroundRing(ctx, w)));
+  const ringMaterial = glowMaterial(paintedTexture(1024, 1024, (ctx, w) => paintGroundRing(ctx, w)));
   const ring = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_RING * 2, GROUND_RING * 2), ringMaterial);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.08;
@@ -536,7 +526,7 @@ function createAura(statueMaterial) {
   const ringSpin = new THREE.Group();
   ringSpin.add(ring);
 
-  const floorMap = canvasTexture(1024, 1024, (ctx, w) => paintFloorRays(ctx, w));
+  const floorMap = paintedTexture(1024, 1024, (ctx, w) => paintFloorRays(ctx, w));
   floorMap.center.set(0.5, 0.5);
   const floorMaterial = glowMaterial(floorMap);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(FLOOR_RAYS.x * 2, FLOOR_RAYS.z * 2), floorMaterial);
@@ -544,7 +534,7 @@ function createAura(statueMaterial) {
   floor.position.y = 0.07;
   floor.renderOrder = 2;
 
-  const glowSpriteMaterial = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintGlow(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const glowSpriteMaterial = new THREE.SpriteMaterial({ map: paintedTexture(256, 256, (ctx, w) => paintGlow(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const glow = new THREE.Sprite(glowSpriteMaterial);
   glow.position.y = BURST.y;
   glow.scale.setScalar(BURST.glow);
@@ -552,7 +542,7 @@ function createAura(statueMaterial) {
   const bursts = [burstSprite(40, 17), burstSprite(28, 53)];
   bursts[1].scale.setScalar(BURST.size * 0.8);
 
-  const haloMaterial = new THREE.SpriteMaterial({ map: canvasTexture(256, 256, (ctx, w) => paintHalo(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const haloMaterial = new THREE.SpriteMaterial({ map: paintedTexture(256, 256, (ctx, w) => paintHalo(ctx, w)), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const halo = new THREE.Sprite(haloMaterial);
   halo.position.set(0, HEAD_Y, 0.4);
   halo.scale.setScalar(2.2);
@@ -579,7 +569,7 @@ function createAura(statueMaterial) {
   sparkGeometry.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
   sparkGeometry.setAttribute('color', new THREE.BufferAttribute(sparkColors, 3));
   const sparkMaterial = new THREE.PointsMaterial({
-    map: canvasTexture(64, 64, (ctx, w) => paintSpark(ctx, w)),
+    map: paintedTexture(64, 64, (ctx, w) => paintSpark(ctx, w)),
     size: 0.22,
     vertexColors: true,
     transparent: true,
@@ -732,11 +722,7 @@ function createOfficial(scene) {
       const near = camera.position.distanceTo(at) < OFFICIAL_DISTANCE;
       npc.walker.group.visible = near;
       if (!near) return;
-      npc.bubble.update(t);
-      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-      npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-      npc.walker.pose?.();
+      idleKeeper(npc, t);
     },
   };
 }

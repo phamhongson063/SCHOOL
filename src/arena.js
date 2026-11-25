@@ -6,7 +6,7 @@ import { traits } from './traits.js';
 import { economy } from './economy.js';
 import { DECKS } from './studyDecks.js';
 import { PLAYER } from './inventory.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { DAY_MINUTES, dayOf, minuteOfDay } from './clock.js';
 import { shuffle } from './random.js';
@@ -120,7 +120,7 @@ function titlesFrom(saved) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object' && saved.version === DATA_VERSION) {
       return {
         event: validEvent(saved.event) ? saved.event : null,

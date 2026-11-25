@@ -193,18 +193,33 @@ export function createOutline(geometry, thickness) {
   return mesh;
 }
 
-export function canvasTexture(size, paint, repeat = [1, 1]) {
+export function paintedTexture(width, height, paint, { keep = true } = {}) {
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  paint(canvas.getContext('2d'), size);
+  canvas.width = width;
+  canvas.height = height;
+  paint(canvas.getContext('2d'), width, height);
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return keep ? keepCanvas(texture, (ctx) => paint(ctx, width, height)) : texture;
+}
+
+export function glowPoolTexture(stops, size = 128) {
+  return paintedTexture(size, size, (ctx) => {
+    const c = size / 2;
+    const gradient = ctx.createRadialGradient(c, c, 0, c, c, c);
+    for (const [at, alpha] of stops) gradient.addColorStop(at, `rgba(255,255,255,${alpha})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+  });
+}
+
+export function canvasTexture(size, paint, repeat = [1, 1]) {
+  const texture = paintedTexture(size, size, (ctx) => paint(ctx, size));
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(repeat[0], repeat[1]);
-  texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
-  return keepCanvas(texture, (ctx) => paint(ctx, size));
+  return texture;
 }
 
 export function labelBox(w, h, d, edge = [0.01, 0.01]) {

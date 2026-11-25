@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { keepCanvas } from './canvasRestore.js';
+import { paintedTexture } from './toon.js';
 import { FIREWORKS } from './config.js';
 
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
@@ -18,15 +18,6 @@ const WHITEN = 0.45;
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
-function canvasTexture(size, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  paint(canvas.getContext('2d'), size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paint(ctx, size));
-}
 
 function paintDot(ctx, size) {
   const c = size / 2;
@@ -79,9 +70,9 @@ function paintGlyph(ctx, size, char) {
 
 function createTextures(inUse) {
   const glyphs = new Map();
-  const dot = canvasTexture(64, paintDot);
-  const halo = canvasTexture(128, paintHalo);
-  const blank = canvasTexture(4, (ctx, size) => ctx.clearRect(0, 0, size, size));
+  const dot = paintedTexture(64, 64, paintDot);
+  const halo = paintedTexture(128, 128, paintHalo);
+  const blank = paintedTexture(4, 4, (ctx, size) => ctx.clearRect(0, 0, size, size));
   function trim() {
     for (const [char, texture] of glyphs) {
       if (glyphs.size <= GLYPH_CACHE) return;
@@ -97,7 +88,7 @@ function createTextures(inUse) {
     glyph(char) {
       let texture = glyphs.get(char);
       if (texture) glyphs.delete(char);
-      else texture = canvasTexture(128, (ctx, size) => paintGlyph(ctx, size, char));
+      else texture = paintedTexture(128, 128, (ctx, size) => paintGlyph(ctx, size, char));
       glyphs.set(char, texture);
       if (glyphs.size > GLYPH_CACHE) trim();
       return texture;

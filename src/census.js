@@ -1,12 +1,12 @@
 import { CENSUS } from './config.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 
 const KEY = worldKey('census');
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object' && saved.days && typeof saved.days === 'object') {
       const days = {};
       for (const [day, page] of Object.entries(saved.days)) {

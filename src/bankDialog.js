@@ -2,7 +2,7 @@ import { durationText } from './clock.js';
 import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
 import { BANK_ART } from './bankArt.js';
-import { closable } from './dialog.js';
+import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { percent } from './bank.js';
 
@@ -58,13 +58,6 @@ export function createBankUI({ bank, purse, owner = PLAYER }) {
     if (result.ok) field.value = '';
     report(result);
   };
-
-  function el(tag, className, text) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
 
   function art(className, name) {
     const node = el('span', className);

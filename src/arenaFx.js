@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { paintedTexture } from './toon.js';
+import { between } from './random.js';
 
 const CHEST = 1.15;
 const FLIGHT = 0.45;
@@ -13,18 +15,8 @@ const LABEL = { life: 1.5, rise: 0.9, head: 2.15, width: 2.6, height: 0.65 };
 const SHIELD = { life: 0.6 };
 
 const TAU = Math.PI * 2;
-const between = (a, b) => a + Math.random() * (b - a);
 const easeOut = (k) => 1 - (1 - k) ** 3;
 
-function canvasTexture(width, height, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), width, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
 
 function radial(ctx, size, stops) {
   const c = size / 2;
@@ -34,7 +26,7 @@ function radial(ctx, size, stops) {
   ctx.fillRect(0, 0, size, size);
 }
 
-const GLOW = canvasTexture(128, 128, (ctx, size) =>
+const GLOW = paintedTexture(128, 128, (ctx, size) =>
   radial(ctx, size, [
     [0, 1],
     [0.18, 0.95],
@@ -44,7 +36,7 @@ const GLOW = canvasTexture(128, 128, (ctx, size) =>
   ]),
 );
 
-const CORE = canvasTexture(64, 64, (ctx, size) =>
+const CORE = paintedTexture(64, 64, (ctx, size) =>
   radial(ctx, size, [
     [0, 1],
     [0.35, 1],
@@ -53,7 +45,7 @@ const CORE = canvasTexture(64, 64, (ctx, size) =>
   ]),
 );
 
-const SPARK = canvasTexture(64, 64, (ctx, size) => {
+const SPARK = paintedTexture(64, 64, (ctx, size) => {
   const c = size / 2;
   radial(ctx, size, [
     [0, 1],
@@ -73,7 +65,7 @@ const SPARK = canvasTexture(64, 64, (ctx, size) => {
   }
 });
 
-const RING = canvasTexture(128, 128, (ctx, size) =>
+const RING = paintedTexture(128, 128, (ctx, size) =>
   radial(ctx, size, [
     [0, 0],
     [0.62, 0],
@@ -84,7 +76,7 @@ const RING = canvasTexture(128, 128, (ctx, size) =>
   ]),
 );
 
-const RUNE = canvasTexture(256, 256, (ctx, size) => {
+const RUNE = paintedTexture(256, 256, (ctx, size) => {
   const c = size / 2;
   ctx.strokeStyle = '#fff';
   ctx.fillStyle = '#fff';
@@ -129,7 +121,7 @@ const RUNE = canvasTexture(256, 256, (ctx, size) => {
   }
 });
 
-const COLUMN = canvasTexture(128, 256, (ctx, width, height) => {
+const COLUMN = paintedTexture(128, 256, (ctx, width, height) => {
   for (let x = 0; x < width; x += 4) {
     const strength = 0.35 + 0.65 * Math.abs(Math.sin(x * 0.21) * Math.cos(x * 0.07));
     const gradient = ctx.createLinearGradient(0, height, 0, 0);
@@ -160,7 +152,7 @@ const SHARED_MAPS = [GLOW, CORE, SPARK, RING, RUNE, COLUMN];
 const LABEL_SPARES = 4;
 const labelPool = [];
 
-const blankLabel = () => canvasTexture(512, 128, () => {});
+const blankLabel = () => paintedTexture(512, 128, () => {}, { keep: false });
 
 function labelTexture(text, color) {
   const texture = labelPool.pop() ?? blankLabel();

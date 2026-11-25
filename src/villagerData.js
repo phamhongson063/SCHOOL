@@ -150,7 +150,6 @@ const IRISES = [0x6a3a1e, 0x4a2a18, 0x7a4a24];
 export const pick = (list) => list[Math.floor(Math.random() * list.length)];
 export const LANE = 0.7;
 export const TURN_RATE = 3.75;
-export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function canMove(nav, y, x, z) {

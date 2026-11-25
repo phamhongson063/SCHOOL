@@ -2,12 +2,13 @@ import { RANKING } from './config.js';
 import { clockText, dayOf, minuteOfDay, DAY_MINUTES } from './clock.js';
 import { amount, coins } from './format.js';
 import { PLAYER } from './inventory.js';
-import { closable } from './dialog.js';
+import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { writeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
 import { netWorth } from './profileRules.js';
+import { readSaved } from './persist.js';
 
 const KEY = worldKey('ranking');
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -15,10 +16,8 @@ const DAILY_TABS = new Set(['arena', 'lantern', 'fireworks']);
 const CHECK_MS = 5000;
 
 function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && Number.isFinite(saved.slot) && Number.isFinite(saved.at) && Array.isArray(saved.rows)) return saved;
-  } catch {}
+  const saved = readSaved(KEY);
+  if (saved && Number.isFinite(saved.slot) && Number.isFinite(saved.at) && Array.isArray(saved.rows)) return saved;
   return null;
 }
 
@@ -33,13 +32,6 @@ function latestCheckpoint(minutes) {
 function dailyCheckpoint(minutes) {
   const day = dayOf(minutes - RANKING.dailyHour);
   return { day, at: day * DAY_MINUTES + RANKING.dailyHour };
-}
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
 }
 
 function richSpan(className, text) {

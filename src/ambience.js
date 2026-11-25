@@ -1,8 +1,8 @@
 import { loadClip, onAudio } from './audio.js';
+import { between } from './random.js';
 
 const FADE = 2.5;
 
-const between = ([lo, hi]) => lo + Math.random() * (hi - lo);
 const sources = (path) => [`${path}.ogg`, `${path}.m4a`];
 
 export class Ambience {
@@ -13,7 +13,7 @@ export class Ambience {
     this.bed = null;
     this.source = null;
     this.wanted = false;
-    this.cues = cues.map((cue) => ({ ...cue, clips: [], last: -1, wait: between(cue.every) }));
+    this.cues = cues.map((cue) => ({ ...cue, clips: [], last: -1, wait: between(...cue.every) }));
     onAudio(async (ctx) => {
       this.ctx = ctx;
       this.gain = ctx.createGain();
@@ -55,7 +55,7 @@ export class Ambience {
     for (const cue of this.cues) {
       cue.wait -= dt;
       if (cue.wait > 0) continue;
-      cue.wait = between(cue.every);
+      cue.wait = between(...cue.every);
       this.play(cue);
     }
   }

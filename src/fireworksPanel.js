@@ -1,15 +1,10 @@
+import { el } from './dialog.js';
+
 const FLASH_MS = 900;
 const READING_SIZE = 20;
 const READING_MIN = 14;
 const LOW_SECONDS = 5;
 const RING = 2 * Math.PI * 15;
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 export function createFireworksPanel() {
   const panel = document.getElementById('fireworksPanel');

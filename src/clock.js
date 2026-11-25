@@ -48,22 +48,15 @@ export function dateText(minutes) {
 
 export const hoursText = (hours) => `${clockText(hours.open)}–${clockText(hours.close)}`;
 
-export function countdownText(minutes) {
+function spanText(minutes, [day, hour, minute], gap) {
   const total = Math.max(1, Math.ceil(minutes));
   const days = Math.floor(total / DAY_MINUTES);
   const hours = Math.floor((total % DAY_MINUTES) / 60);
   const mins = total % 60;
-  if (days > 0) return hours ? `${days}d${hours}h` : `${days}d`;
-  if (hours > 0) return mins ? `${hours}h${mins}m` : `${hours}h`;
-  return `${mins}m`;
+  if (days > 0) return hours ? `${days}${day}${gap}${hours}${hour}` : `${days}${day}`;
+  if (hours > 0) return mins ? `${hours}${hour}${gap}${mins}${minute}` : `${hours}${hour}`;
+  return `${mins}${minute}`;
 }
 
-export function durationText(minutes) {
-  const total = Math.max(1, Math.ceil(minutes));
-  const days = Math.floor(total / DAY_MINUTES);
-  const hours = Math.floor((total % DAY_MINUTES) / 60);
-  const mins = total % 60;
-  if (days > 0) return hours ? `${days} ngày ${hours} giờ` : `${days} ngày`;
-  if (hours > 0) return mins ? `${hours} giờ ${mins} phút` : `${hours} giờ`;
-  return `${mins} phút`;
-}
+export const countdownText = (minutes) => spanText(minutes, ['d', 'h', 'm'], '');
+export const durationText = (minutes) => spanText(minutes, [' ngày', ' giờ', ' phút'], ' ');

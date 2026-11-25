@@ -1,7 +1,7 @@
 import { loadClip, onAudio } from './audio.js';
 
 const VOLUME = 0.5;
-const CLOSE_BUTTONS = '.sched-x, .lesson-close';
+const CLOSE_BUTTONS = '.sched-x';
 const BUTTONS = 'button, [role="button"]';
 
 export function createUiSounds() {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pooledLight } from './lightPool.js';
-import { Batch, freeze, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, paintedTexture, shapes, toonMaterial } from './toon.js';
 import { makeRandom } from './random.js';
 import { createArenaSky } from './arenaSky.js';
 
@@ -283,18 +283,9 @@ function glowMesh() {
   return b.mesh(glowMaterial(), { shadow: false });
 }
 
-function canvasTexture(size, paint, height = size) {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), size, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
 
 export function runeTexture() {
-  return canvasTexture(512, (ctx, size) => {
+  return paintedTexture(512, 512, (ctx, size) => {
     const c = size / 2;
     ctx.strokeStyle = '#bfe8ff';
     ctx.fillStyle = '#bfe8ff';
@@ -338,7 +329,7 @@ export function runeTexture() {
 }
 
 export function swirlTexture() {
-  return canvasTexture(256, (ctx, size) => {
+  return paintedTexture(256, 256, (ctx, size) => {
     const c = size / 2;
     const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
     glow.addColorStop(0, 'rgba(255,255,255,0.95)');
@@ -366,7 +357,7 @@ export function swirlTexture() {
 }
 
 function threadTexture() {
-  const texture = canvasTexture(64, (ctx, size) => {
+  const texture = paintedTexture(64, 64, (ctx, size) => {
     const fade = ctx.createLinearGradient(0, 0, 0, size);
     fade.addColorStop(0, 'rgba(255,240,200,0)');
     fade.addColorStop(0.35, 'rgba(255,230,170,0.5)');
@@ -386,7 +377,7 @@ function threadTexture() {
 }
 
 function haloTexture() {
-  return canvasTexture(256, (ctx, size) => {
+  return paintedTexture(256, 256, (ctx, size) => {
     const c = size / 2;
     const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
     glow.addColorStop(0, 'rgba(255,236,170,0.9)');
@@ -398,8 +389,9 @@ function haloTexture() {
 }
 
 function skyGateTexture() {
-  return canvasTexture(
+  return paintedTexture(
     1024,
+    512,
     (ctx, w, h) => {
       const glowing = (color, blur) => {
         ctx.shadowColor = color;
@@ -473,7 +465,6 @@ function skyGateTexture() {
       ctx.fillStyle = fade;
       ctx.fillRect(0, 0, w, h);
     },
-    512,
   );
 }
 
@@ -482,7 +473,7 @@ export const additive = (options) => new THREE.MeshBasicMaterial({ transparent: 
 let moteMap = null;
 
 function moteTexture() {
-  moteMap ??= canvasTexture(64, (ctx, size) => {
+  moteMap ??= paintedTexture(64, 64, (ctx, size) => {
     const c = size / 2;
     const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
     glow.addColorStop(0, 'rgba(255,255,255,1)');

@@ -1,5 +1,5 @@
 import { TRAITS } from './config.js';
-import { createStore } from './persist.js';
+import { createStore, readEntries } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { makeRandom, between } from './random.js';
 import { dayOf } from './clock.js';
@@ -89,14 +89,7 @@ function cleanEntry(raw, id) {
 }
 
 function load() {
-  const entries = {};
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && typeof saved === 'object') {
-      for (const [id, raw] of Object.entries(saved)) entries[id] = cleanEntry(raw, id);
-    }
-  } catch {}
-  return entries;
+  return readEntries(KEY, cleanEntry);
 }
 
 const entries = load();

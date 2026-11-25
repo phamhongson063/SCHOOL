@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { Batch, freeze, shapes, toonMaterial } from './toon.js';
+import { Batch, freeze, glowPoolTexture, shapes, toonMaterial } from './toon.js';
 import { GROUND_LAYER } from './scenery.js';
 import { ROAD, TREES } from './road.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { FLUORESCENT } from './config.js';
-import { keepCanvas } from './canvasRestore.js';
 
 const SPACING = 14;
 const END_MARGIN = 6;
@@ -47,26 +46,7 @@ function lampSpots() {
   return spots;
 }
 
-function paintPool(ctx, size) {
-  const c = size / 2;
-  const gradient = ctx.createRadialGradient(c, c, 0, c, c, c);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.35, 'rgba(255,255,255,0.55)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-}
-
-function poolTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  paintPool(canvas.getContext('2d'), size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paintPool(ctx, size));
-}
+const poolTexture = () => glowPoolTexture([[0, 1], [0.35, 0.55], [1, 0]]);
 
 export function createStreetLamps() {
   const group = new THREE.Group();

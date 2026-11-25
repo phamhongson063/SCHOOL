@@ -4,7 +4,7 @@ import { makeRandom, shuffle } from './random.js';
 import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { drainBetween } from './stamina.js';
 import { worldKey } from './saveKeys.js';
 import { northBank } from './riverShape.js';
@@ -129,7 +129,7 @@ export function lanternStandings(ids, tally) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       return {
         day: Number.isInteger(saved.day) ? saved.day : null,

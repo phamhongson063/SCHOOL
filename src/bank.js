@@ -2,7 +2,7 @@ import { ATM, BANK, VILLAGER } from './config.js';
 import { DAY_MINUTES, dayOf, isOpenAt, hoursText } from './clock.js';
 import { amount, coins, notEnough } from './format.js';
 import { PLAYER } from './inventory.js';
-import { createPairStore, without } from './persist.js';
+import { createPairStore, without, readSaved } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
 import { clamp } from './math.js';
@@ -39,20 +39,12 @@ function cleanAccount(raw) {
   return account;
 }
 
-function readJSON(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null');
-  } catch {
-    return null;
-  }
-}
-
 function load(minutes) {
   const deposit = BANK.deposit.base;
   const loan = BANK.deposit.base + BANK.loan.spread;
   const state = { day: dayOf(minutes), deposit, loan, prevDeposit: deposit, prevLoan: loan, vault: BANK.capital, seq: 1, accounts: {} };
-  const raw = readJSON(WORLD_KEY);
-  const mine = readJSON(SELF_KEY);
+  const raw = readSaved(WORLD_KEY);
+  const mine = readSaved(SELF_KEY);
   if (raw && typeof raw === 'object') {
     for (const field of ['day', 'deposit', 'loan', 'prevDeposit', 'prevLoan', 'vault', 'seq']) {
       if (Number.isFinite(raw[field])) state[field] = raw[field];

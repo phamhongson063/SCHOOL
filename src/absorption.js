@@ -1,7 +1,7 @@
 import { ABSORB, FLUENCY } from './config.js';
 import { fluency } from './fluency.js';
 import { certify } from './certify.js';
-import { createStore } from './persist.js';
+import { createStore, readEntries } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { between } from './random.js';
 import { clamp } from './math.js';
@@ -23,17 +23,7 @@ function cleanEntry(raw) {
 }
 
 function load() {
-  const entries = {};
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (saved && typeof saved === 'object') {
-      for (const [id, raw] of Object.entries(saved)) {
-        const entry = cleanEntry(raw);
-        if (entry) entries[id] = entry;
-      }
-    }
-  } catch {}
-  return entries;
+  return readEntries(KEY, cleanEntry);
 }
 
 const entries = load();

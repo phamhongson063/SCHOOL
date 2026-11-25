@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { keepCanvas } from './canvasRestore.js';
+import { paintedTexture } from './toon.js';
 import { LANTERN } from './config.js';
 import { landedAt } from './lanterns.js';
 
@@ -19,15 +19,6 @@ const SCALE = 1.2;
 const DIM = new THREE.Color(0x8c8c8c);
 const LIT = new THREE.Color(0xffffff);
 
-function canvasTexture(size, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  paint(canvas.getContext('2d'), size);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paint(ctx, size));
-}
 
 function paintPaper(ctx, size) {
   const shade = ctx.createLinearGradient(0, 0, 0, size);
@@ -116,10 +107,10 @@ function sharedParts() {
     body,
     rim,
     wire,
-    paper: canvasTexture(256, paintPaper),
-    glow: canvasTexture(128, paintGlow),
-    flame: canvasTexture(64, paintFlame),
-    spark: canvasTexture(32, paintSpark),
+    paper: paintedTexture(256, 256, paintPaper),
+    glow: paintedTexture(128, 128, paintGlow),
+    flame: paintedTexture(64, 64, paintFlame),
+    spark: paintedTexture(32, 32, paintSpark),
     frame: new THREE.MeshBasicMaterial({ color: 0x5a2a0e }),
   };
   return shared;

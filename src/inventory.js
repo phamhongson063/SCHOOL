@@ -1,7 +1,7 @@
 import { CROPS } from './cropData.js';
 import { STARTER, FISH, FISHING, ENERGY, WILDLIFE, LODGE_ROOMS, SNACKS, CERTIFY } from './config.js';
 import { energyRate, isNight, nextShift, OFFLINE_GAP } from './stamina.js';
-import { createPairStore, without } from './persist.js';
+import { createPairStore, without, readSaved } from './persist.js';
 import { playerId, selfKey, worldKey } from './saveKeys.js';
 
 const WORLD_KEY = worldKey('ledger');
@@ -77,14 +77,6 @@ function clean(raw) {
   const legacyIntellect = Math.floor(Number(raw.intellect) || 0);
   if (legacyIntellect > 0) account.items.intellect = (account.items.intellect ?? 0) + legacyIntellect;
   return account;
-}
-
-function readJSON(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null');
-  } catch {
-    return null;
-  }
 }
 
 export class Purse {
@@ -253,8 +245,8 @@ export class Purse {
 
 export class Ledger {
   constructor() {
-    const world = readJSON(WORLD_KEY);
-    const mine = readJSON(SELF_KEY);
+    const world = readSaved(WORLD_KEY);
+    const mine = readSaved(SELF_KEY);
     const raw = { ...world, ...(mine && { [PLAYER]: mine }) };
     this.accounts = {};
     for (const [id, account] of Object.entries(raw)) {

@@ -121,7 +121,7 @@ import { createHoverTip } from './hoverTip.js';
 import { createRenderTuning, MAX_PIXEL_RATIO } from './renderTuning.js';
 import { createLightPool } from './lightPool.js';
 import { coins } from './format.js';
-import { haltStores } from './persist.js';
+import { haltStores, readSaved } from './persist.js';
 import { writeGameItem, removeGameItem } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { createArena } from './arena.js';
@@ -449,10 +449,8 @@ const PLACE_KEY = 'langsch.player';
 const BLESSING_KEY = 'langsch.blessing';
 const VILLAGERS_KEY = worldKey('villagers');
 function loadPlace() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PLACE_KEY) ?? 'null');
-    if (saved && [saved.x, saved.z, saved.yaw].every(Number.isFinite)) return saved;
-  } catch {}
+  const saved = readSaved(PLACE_KEY);
+  if (saved && [saved.x, saved.z, saved.yaw].every(Number.isFinite)) return saved;
   return null;
 }
 const savedPlace = loadPlace();
@@ -812,9 +810,7 @@ town = new Town({
   dust,
 });
 
-try {
-  town.saved = JSON.parse(localStorage.getItem(VILLAGERS_KEY) ?? 'null');
-} catch {}
+town.saved = readSaved(VILLAGERS_KEY);
 player.avoid = (position, dirX, dirZ, remaining) => town.playerAvoidance(position, dirX, dirZ, remaining);
 player.blockers = () => town.restingBlockers();
 town.martStands = [quarter.martStand, fieldMart.stand];
@@ -880,7 +876,7 @@ const blessingDialog = createBlessingDialog({
   onStart: () => blessing.startTest(PLAYER, context.minutes),
 });
 try {
-  blessing.resume(PLAYER, JSON.parse(localStorage.getItem(BLESSING_KEY) ?? 'null'), gameNow());
+  blessing.resume(PLAYER, readSaved(BLESSING_KEY), gameNow());
 } catch {}
 const openGround = createOpenGround({
   bounds: { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 },
@@ -2598,10 +2594,8 @@ function updateBlessingQuiz(dt) {
 
 const TALLY_KEY = 'langsch.blessingTally';
 function loadTally() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TALLY_KEY) ?? 'null');
-    if (saved && typeof saved.session === 'string' && Number.isFinite(saved.correct)) return { session: saved.session, correct: saved.correct, wrong: Number.isFinite(saved.wrong) ? saved.wrong : 0 };
-  } catch {}
+  const saved = readSaved(TALLY_KEY);
+  if (saved && typeof saved.session === 'string' && Number.isFinite(saved.correct)) return { session: saved.session, correct: saved.correct, wrong: Number.isFinite(saved.wrong) ? saved.wrong : 0 };
   return null;
 }
 let blessingTally = loadTally();

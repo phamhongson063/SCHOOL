@@ -5,7 +5,7 @@ import { createLotoStage } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { createCourtLight, createLotoAura } from './lotoAura.js';
 import { COURT, courtBase, courtPoint, courtTop } from './terrain.js';
-import { keeperNPC } from './village.js';
+import { idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { keepCanvas } from './canvasRestore.js';
 import { claimHold, createSlotClaims, lineSlots } from './blessingSpots.js';
@@ -226,11 +226,7 @@ export function createLotoCourt(scene) {
       npc.walker.group.visible = near;
       boardGroup.visible = near;
       if (!near) return;
-      npc.bubble.update(t);
-      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-      npc.walker.face?.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-      npc.walker.pose?.();
+      idleKeeper(npc, t);
     },
   };
 }

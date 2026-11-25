@@ -1,5 +1,5 @@
 import { FLUENCY } from './config.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 
 const KEY = worldKey('fluency');
@@ -7,7 +7,7 @@ const KEY = worldKey('fluency');
 function load() {
   const actors = {};
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       for (const [id, cards] of Object.entries(saved)) {
         if (!cards || typeof cards !== 'object') continue;

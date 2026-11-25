@@ -1,19 +1,13 @@
 import { amount } from './format.js';
 import { PLAYER } from './inventory.js';
 import { isStashed, unstash } from './popupStash.js';
+import { el } from './dialog.js';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 const CHECK_MS = 500;
 const UPDATE_MS = 60_000;
 const MARGIN = 12;
 const GAP = 8;
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 export function createStandingsBoard({ buttonId, boardId, icon, active, standings, people, every = UPDATE_MS, onPick = () => {} }) {
   const button = document.getElementById(buttonId);

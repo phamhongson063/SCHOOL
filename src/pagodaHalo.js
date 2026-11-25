@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { keepCanvas } from './canvasRestore.js';
+import { paintedTexture } from './toon.js';
 
 const GOLD = 'rgba(255,214,110,1)';
 const RING = { inner: 4.3, outer: 5.5, symbols: 8, spin: 0.06 };
@@ -105,15 +105,6 @@ function paintSymbol(ctx, size) {
   strokeManji(ctx, c, c, size * 0.2, size * 0.075);
 }
 
-function canvasTexture(width, height, paint) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  paint(canvas.getContext('2d'), width, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return keepCanvas(texture, (ctx) => paint(ctx, width, height));
-}
 
 const glowMaterial = (map, extra = {}) =>
   new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...extra });
@@ -122,7 +113,7 @@ export function createPagodaHalo({ x, z, ground }) {
   const group = new THREE.Group();
   group.position.set(x, ground, z);
 
-  const ringMaterial = glowMaterial(canvasTexture(1024, 1024, (ctx, w) => paintRing(ctx, w)));
+  const ringMaterial = glowMaterial(paintedTexture(1024, 1024, (ctx, w) => paintRing(ctx, w)));
   const ring = new THREE.Mesh(new THREE.PlaneGeometry(RING.outer * 2, RING.outer * 2), ringMaterial);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.07;
@@ -130,12 +121,12 @@ export function createPagodaHalo({ x, z, ground }) {
   const ringSpin = new THREE.Group();
   ringSpin.add(ring);
 
-  const auraMaterial = glowMaterial(canvasTexture(512, 128, paintAura), { side: THREE.DoubleSide });
+  const auraMaterial = glowMaterial(paintedTexture(512, 128, paintAura), { side: THREE.DoubleSide });
   const aura = new THREE.Mesh(new THREE.CylinderGeometry(AURA.radius, AURA.radius, AURA.height, 48, 1, true), auraMaterial);
   aura.position.y = AURA.height / 2;
   aura.renderOrder = 2;
 
-  const symbolMap = canvasTexture(128, 128, (ctx, w) => paintSymbol(ctx, w));
+  const symbolMap = paintedTexture(128, 128, (ctx, w) => paintSymbol(ctx, w));
   const orbit = new THREE.Group();
   const symbols = Array.from({ length: ORBIT.count }, (_, i) => {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: symbolMap, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));

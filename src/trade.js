@@ -1,6 +1,6 @@
 import { CROP_ECONOMY, ECONOMY, FISH, FISHING, FOODS, SHOP, SNACKS, TRADE, VENDOR, WILDLIFE } from './config.js';
 import { ITEMS, seedId, snackId } from './inventory.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { economy } from './economy.js';
 import { NPC } from './npcIds.js';
@@ -63,7 +63,7 @@ function cleanPantry(raw) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       return {
         seeded: saved.seeded === true,

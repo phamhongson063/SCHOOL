@@ -1,6 +1,6 @@
 import { CERTIFY } from './config.js';
 import { DECKS, DECK_IDS, VAULT_DECK_IDS, deckOf, unitOf } from './studyDecks.js';
-import { createPairStore, without } from './persist.js';
+import { createPairStore, without, readSaved } from './persist.js';
 import { selfKey, worldKey } from './saveKeys.js';
 import { PLAYER } from './inventory.js';
 import { dayOf, gameNow } from './clock.js';
@@ -92,14 +92,6 @@ function restoreSkipped(state, deck, actor) {
   return state;
 }
 
-function readJSON(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null');
-  } catch {
-    return null;
-  }
-}
-
 const dormantDecks = (decks) => Object.fromEntries(VAULT_DECK_IDS.filter((deck) => !DECKS[deck] && decks?.[deck] && typeof decks[deck] === 'object').map((deck) => [deck, decks[deck]]));
 
 const cleanActor = (decks, actor) => ({
@@ -108,8 +100,8 @@ const cleanActor = (decks, actor) => ({
 });
 
 function load() {
-  const world = readJSON(WORLD_KEY);
-  const mine = readJSON(SELF_KEY);
+  const world = readSaved(WORLD_KEY);
+  const mine = readSaved(SELF_KEY);
   const actors = {};
   if (world && typeof world === 'object') for (const [id, decks] of Object.entries(world)) actors[id] = cleanActor(decks, id);
   if (mine && typeof mine === 'object') actors[PLAYER] = cleanActor(mine, PLAYER);

@@ -1,6 +1,6 @@
 import { amount, coins } from './format.js';
 import { dateText, durationText, DAY_MINUTES } from './clock.js';
-import { closable } from './dialog.js';
+import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { certify } from './certify.js';
 import { homelandOf, netWorth, habitsOf, abilitiesOf, certifiedDecks, certifiedRows } from './profileRules.js';
@@ -10,13 +10,6 @@ const OVERSCAN = 6;
 const RADAR = 40;
 const HABITS = { farm: '🌾', fish: '🎣', hunt: '🏹', study: '📖', blessing: '🙏', loto: '🎴', fireworks: '🎆' };
 const SKILL_LABELS = { farm: 'Làm ruộng', fish: 'Câu cá', hunt: 'Săn bắt' };
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 const percent = (value) => `${Math.round(value * 100)}%`;
 

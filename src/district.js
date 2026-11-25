@@ -5,7 +5,7 @@ import { makeRandom } from './random.js';
 import { groundDecal, GROUND_LAYER, roundedRectGeometry } from './scenery.js';
 import { createShophouse, createBank, createArenaCompound, createLanternPavilion, createTownHall, shophousePots } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
-import { paving, plaqueBoard, keeperNPC } from './village.js';
+import { idleKeeper, paving, plaqueBoard, keeperNPC } from './village.js';
 import { bankOpen, bankHours } from './bank.js';
 import { LODGE_ROOMS } from './config.js';
 import { roomTier } from './lodging.js';
@@ -176,11 +176,7 @@ function streetMesh(plaza) {
 function animateKeeper(npc, t, near) {
   npc.walker.group.visible = near;
   if (!near) return;
-  npc.bubble.update(t);
-  npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-  npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-  npc.walker.face.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-  npc.walker.pose?.();
+  idleKeeper(npc, t);
 }
 
 export const DISTRICT_STREETS = [[PAVED.x0 + 1, ROAD.z0 + 0.5, PAVED.x1 - 1, ROAD.z1 - 0.5]];
@@ -261,30 +257,36 @@ export function createDistrict() {
   clickables.push(mayor.walker.group);
   const hall = { group: hallBuilt.group, mayor, look: mayorAt, stand: hallAt(hallBuilt.door), spots: HALL_SPOTS.map((x) => hallAt({ x: hallBuilt.door.x + x, z: hallBuilt.door.z })) };
   const hallLife = createHallLife({ plaza, hallFront: hallSpot.front, built: hallBuilt, toWorld: hallAt, turn: hallSpot.turn });
+  function staffedLot(house, built, look, staff, y) {
+    obstacles.push(...built.obstacles.map((box) => place(house, box)));
+    for (const node of [built.group, built.floor]) {
+      node.position.set(house.x, 0, house.front);
+      node.rotation.y = house.turn;
+    }
+    group.add(built.floor, built.group);
+    clickables.push(built.group);
+    const side = house.north ? 1 : -1;
+    const toWorld = (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z });
+    const at = toWorld(built.door);
+    const npc = keeperNPC(look, staff.model);
+    npc.walker.group.position.set(at.x, y, at.z);
+    npc.walker.group.rotation.y = house.turn;
+    clickables.push(npc.walker.group);
+    obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
+    const spots = staff.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * staff.reach }));
+    return { side, toWorld, at, npc, spots };
+  }
+
   let arena = null;
   for (const block of blocks) {
     for (const house of block.houses) {
       if (!house.arena) continue;
       const built = createArenaCompound({ seed: house.seed, width: house.width, depth: ARENA_LOT.depth });
-      obstacles.push(...built.obstacles.map((box) => place(house, box)));
-      for (const node of [built.group, built.floor]) {
-        node.position.set(house.x, 0, house.front);
-        node.rotation.y = house.turn;
-      }
-      group.add(built.floor, built.group);
-      clickables.push(built.group);
-      const side = house.north ? 1 : -1;
-      const at = { x: house.x + side * built.door.x, z: house.front + side * built.door.z };
-      const registrar = keeperNPC(REGISTRAR_LOOK, REGISTRAR.model);
-      registrar.walker.group.position.set(at.x, 0, at.z);
-      registrar.walker.group.rotation.y = house.turn;
-      clickables.push(registrar.walker.group);
-      obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
-      const spots = REGISTRAR.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * REGISTRAR.reach }));
+      const { side, toWorld, at, npc: registrar, spots } = staffedLot(house, built, REGISTRAR_LOOK, REGISTRAR, 0);
       const lamps = createArenaNight({
         lights: built.group.userData.lights,
         desk: built.desk,
-        toWorld: (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z }),
+        toWorld,
         layer: ABOVE_PAVING,
       });
       arena = { group: built.group, registrar, at, out: side, spots, stand: spots[1], lamps };
@@ -295,22 +297,7 @@ export function createDistrict() {
     for (const house of block.houses) {
       if (!house.lantern) continue;
       const built = createLanternPavilion({ seed: LANTERN_LOT.seed, width: house.width, depth: LANTERN_LOT.depth });
-      obstacles.push(...built.obstacles.map((box) => place(house, box)));
-      for (const node of [built.group, built.floor]) {
-        node.position.set(house.x, 0, house.front);
-        node.rotation.y = house.turn;
-      }
-      group.add(built.floor, built.group);
-      clickables.push(built.group);
-      const side = house.north ? 1 : -1;
-      const toWorld = (local) => ({ x: house.x + side * local.x, z: house.front + side * local.z });
-      const at = toWorld(built.door);
-      const keeper = keeperNPC(LANTERN_KEEPER_LOOK, LANTERN_KEEPER.model);
-      keeper.walker.group.position.set(at.x, built.rise, at.z);
-      keeper.walker.group.rotation.y = house.turn;
-      clickables.push(keeper.walker.group);
-      obstacles.push({ minX: at.x - 0.35, maxX: at.x + 0.35, minZ: at.z - 0.35, maxZ: at.z + 0.35, minY: 0, maxY: 2 });
-      const spots = LANTERN_KEEPER.spots.map((offset) => ({ x: at.x + offset, z: at.z + side * LANTERN_KEEPER.reach }));
+      const { side, toWorld, at, npc: keeper, spots } = staffedLot(house, built, LANTERN_KEEPER_LOOK, LANTERN_KEEPER, built.rise);
       const glow = createLanternGlow(
         built.group.userData.lights.map(({ position, tint }) => {
           const { x, z } = toWorld({ x: position.x, z: position.z });

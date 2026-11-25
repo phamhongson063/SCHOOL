@@ -1,5 +1,5 @@
 import { FIREWORKS } from './config.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { certify } from './certify.js';
 import { unitOf } from './studyDecks.js';
@@ -76,7 +76,7 @@ function cleanLast(raw) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       const titles = saved.titles && typeof saved.titles === 'object' ? Object.fromEntries(Object.entries(saved.titles).filter(([, count]) => Number.isInteger(count) && count > 0)) : {};
       const champions = Array.isArray(saved.champions) ? saved.champions.filter((item) => Number.isInteger(item?.day) && typeof item?.id === 'string').slice(0, FIREWORKS.champions) : [];

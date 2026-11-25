@@ -4,7 +4,7 @@ import { makeRandom } from './random.js';
 import { earthMaterial, groundDecal, GROUND_LAYER, roundedRectGeometry, roundTree } from './scenery.js';
 import { ROAD } from './road.js';
 import { CROSSING, ISLE, deckHeight, isleNorth, northBank, onIsle } from './riverShape.js';
-import { keeperNPC } from './village.js';
+import { idleKeeper, keeperNPC } from './village.js';
 import { SHOPKEEPERS } from './economy.js';
 import { NPC } from './npcIds.js';
 import { createAttention } from './attention.js';
@@ -223,11 +223,7 @@ function createHost() {
     update(t) {
       clock = t;
       attention.update(t);
-      npc.bubble.update(t);
-      npc.walker.head.rotation.y = Math.sin(t * 0.5 + npc.phase) * 0.45;
-      npc.walker.head.rotation.x = Math.sin(t * 0.9 + npc.phase) * 0.05;
-      npc.walker.face?.update(t, npc.bubble.visible && Math.sin(t * 11) > 0 ? 'talk' : 'open');
-      npc.walker.pose?.();
+      idleKeeper(npc, t);
     },
   };
 }

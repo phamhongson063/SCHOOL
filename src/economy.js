@@ -1,7 +1,7 @@
 import { AWAY, BLESSING, CERTIFY, ECONOMY, FIREWORKS, ENERGY_PRICE, QUEST, QUIZ, STIPEND, VILLAGER } from './config.js';
 import { atGameTime, dayOf, gameMinutesOf, gameNow, DAY_MINUTES } from './clock.js';
 import { PLAYER } from './inventory.js';
-import { createStore } from './persist.js';
+import { createStore, readSaved } from './persist.js';
 import { holdWrites } from './seal.js';
 import { worldKey } from './saveKeys.js';
 import { foldArenaSurplus, planDay, pruneBook, record, sumBook } from './townhall.js';
@@ -46,7 +46,7 @@ function cleanQuest(raw) {
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const saved = readSaved(KEY);
     if (saved && typeof saved === 'object') {
       return {
         day: Number.isFinite(saved.day) ? saved.day : null,

@@ -214,34 +214,28 @@ export class MindBehavior {
   reviewOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.reviewDeckWanted(ctx);
-    const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
-    if (!seat) return null;
-    const sit = CERTIFY.sitSeconds / 60;
-    const minutes = this.walkMinutes(seat.spot) + sit;
-    const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (this.reviewGain(need, sit, deck) / minutes) * crowd, go: () => this.goPlainReview(deck) };
+    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.reviewGain(need, sit, deck), () => this.goPlainReview(deck));
   }
 
   speakOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.speakDeckWanted(ctx);
-    const seat = deck && this.studySeatFor(deck, CERTIFY.speakFee);
-    if (!seat) return null;
-    const sit = CERTIFY.sitSeconds / 60;
-    const minutes = this.walkMinutes(seat.spot) + sit;
-    const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (this.speakGain(need, sit, deck, ctx.day) / minutes) * crowd, go: () => this.goSpeak(deck) };
+    return this.seatedStudy(deck, CERTIFY.speakFee, (sit) => this.speakGain(need, sit, deck, ctx.day), () => this.goSpeak(deck));
   }
 
   prepOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.prepDeckWanted(ctx);
-    const seat = deck && this.studySeatFor(deck, CERTIFY.reviewFee);
+    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.prepGain(need, sit, deck, ctx.day), () => this.goPrep(deck));
+  }
+
+  seatedStudy(deck, fee, gainOf, go) {
+    const seat = deck && this.studySeatFor(deck, fee);
     if (!seat) return null;
     const sit = CERTIFY.sitSeconds / 60;
     const minutes = this.walkMinutes(seat.spot) + sit;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (this.prepGain(need, sit, deck, ctx.day) / minutes) * crowd, go: () => this.goPrep(deck) };
+    return { kind: 'study', minutes, rate: (gainOf(sit) / minutes) * crowd, go };
   }
 
   plan(ctx) {

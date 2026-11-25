@@ -2,6 +2,7 @@ import { clockText, dateText, gameNow } from './clock.js';
 import { setRich } from './goldArt.js';
 import { coins } from './format.js';
 import { writeGameItem } from './seal.js';
+import { readSaved } from './persist.js';
 
 const KEY = 'langsch.mail';
 const TABS = [
@@ -75,12 +76,8 @@ function mailRow(mail) {
 }
 
 function loadSaved() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-    return Array.isArray(saved) ? saved.filter((mail) => mail && Array.isArray(mail.lines) && Number.isFinite(mail.at)) : [];
-  } catch {
-    return [];
-  }
+  const saved = readSaved(KEY);
+  return Array.isArray(saved) ? saved.filter((mail) => mail && Array.isArray(mail.lines) && Number.isFinite(mail.at)) : [];
 }
 
 export function createMailbox({ onTravel, onClaim = null }) {
