@@ -105,6 +105,7 @@ import { createBank, bankOpen, bankHours } from './bank.js';
 import { createBankUI } from './bankDialog.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
 import { createQuestBoard } from './questBoard.js';
+import { createToolbarToggle } from './toolbarToggle.js';
 import { createRanking } from './ranking.js';
 import { createStandingsBoard } from './lanternBoard.js';
 import { createProfile } from './profile.js';
@@ -344,6 +345,7 @@ const questBoard = createQuestBoard({
 quests.onChange((id) => {
   if (id === PLAYER) questBoard.refresh();
 });
+createToolbarToggle();
 function playerQuestAct(quest, action) {
   const day = dayOf(gameNow());
   if (action === 'accept') {

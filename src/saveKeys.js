@@ -3,7 +3,7 @@ export const WORLD_PREFIX = PREFIX + 'world.';
 export const ACCOUNT_KEY = PREFIX + 'account';
 const LOCAL_PLAYER = 'player';
 
-const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'studyFurigana', 'translate', 'bagTab', 'music'].map((key) => PREFIX + key), ACCOUNT_KEY]);
+const DEVICE_KEYS = new Set([...['lessonMode', 'lessonChoice', 'furigana', 'studyFurigana', 'translate', 'bagTab', 'music', 'toolbar'].map((key) => PREFIX + key), ACCOUNT_KEY]);
 
 export const worldKey = (name) => WORLD_PREFIX + name;
 

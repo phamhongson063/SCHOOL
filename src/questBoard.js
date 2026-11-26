@@ -139,6 +139,7 @@ export function createQuestBoard({ list, active, reward, act, placeOf, onTravel 
     }
     panel.hidden = !open;
     veil.hidden = !open;
+    document.body.classList.toggle('quest-open', open);
     button.classList.toggle('active', open);
     button.setAttribute('aria-expanded', String(open));
     if (open) close.focus({ preventScroll: true });

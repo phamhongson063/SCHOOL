@@ -50,7 +50,6 @@
 #toolbar,
 #bagPanel,
 #mailPanel,
-#questBtn,
 #questPanel,
 #phasePill,
 #studyOpen,
@@ -186,6 +185,27 @@ body {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+}
+
+#toolbar.collapsed > .icon-btn:not(.toolbar-toggle) {
+  display: none;
+}
+
+#toolbar .toolbar-toggle {
+  position: relative;
+  height: 30px;
+}
+
+#toolbar .toolbar-toggle .mail-dot {
+  top: 2px;
+}
+
+.toolbar-toggle svg {
+  transition: transform 0.2s ease;
+}
+
+#toolbar.collapsed .toolbar-toggle svg {
+  transform: rotate(180deg);
 }
 
 .icon-btn {
@@ -586,7 +606,8 @@ body {
 }
 
 body.bag-open #toolbar,
-body.mail-open #toolbar {
+body.mail-open #toolbar,
+body.quest-open #toolbar {
   z-index: var(--z-over);
 }
 
@@ -975,21 +996,12 @@ body.mail-open #toolbar {
   box-shadow: 0 0 0 1.5px #1c140e;
 }
 
-#questBtn {
-  position: fixed;
-  left: var(--hud-edge);
-  top: calc(var(--hud-clock-top) + 40px);
-  z-index: var(--z-scene-ui);
-  width: var(--hud-face);
+.quest-btn {
+  position: relative;
 }
 
 .quest-panel {
-  top: var(--hud-edge);
-  right: auto;
-  left: calc(var(--hud-edge) + var(--hud-face) + 10px);
-  width: min(360px, calc(100vw - var(--hud-edge) * 2 - var(--hud-face) - 10px));
-  max-height: calc(100dvh - var(--hud-edge) * 2);
-  transform-origin: top left;
+  width: min(360px, calc(100vw - 32px));
 }
 
 .quest-panel .bag-well,
@@ -7276,7 +7288,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
 #lanternBtn {
   position: fixed;
   left: var(--hud-edge);
-  top: calc(var(--hud-clock-top) + 88px);
+  top: calc(var(--hud-clock-top) + 40px);
   z-index: var(--z-scene-ui);
   width: var(--hud-face);
 }
@@ -7410,7 +7422,7 @@ body.in-duel > :not(#app):not(#duelDialog) {
 #fireworksBtn {
   position: fixed;
   left: var(--hud-edge);
-  top: calc(var(--hud-clock-top) + 88px);
+  top: calc(var(--hud-clock-top) + 40px);
   z-index: var(--z-scene-ui);
   width: var(--hud-face);
 }

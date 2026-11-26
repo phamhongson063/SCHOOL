@@ -236,7 +236,7 @@ export function createRegen({ scene, camera, purse }) {
     screen.set(center.x, center.y + HEAD_LIFT, center.z).project(camera);
     if (screen.z > 1) return;
     const bag = document.getElementById('bagBtn');
-    const target = bag.getBoundingClientRect();
+    const target = (bag.offsetParent ? bag : document.getElementById('toolbarToggle')).getBoundingClientRect();
     const x0 = ((screen.x + 1) / 2) * window.innerWidth;
     const y0 = ((1 - screen.y) / 2) * window.innerHeight;
     const dx = target.left + target.width / 2 - x0;
