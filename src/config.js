@@ -428,7 +428,7 @@ export const TOWNHALL = {
   fireworksShare: 0.02,
   history: 14,
   lanternShare: 0.2,
-  questShare: 0.15,
+  questShare: 0.05,
   lotoShare: 0.1,
 };
 
