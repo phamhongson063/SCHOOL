@@ -16,29 +16,48 @@ export function createToolbarToggle() {
   const button = document.getElementById('toolbarToggle');
   const dot = document.getElementById('toolbarDot');
   const dots = DOTS.map((id) => document.getElementById(id));
+  let saved = loadCollapsed();
+  let auto = false;
+  let peek = false;
+
+  const collapsed = () => (auto ? !peek : saved);
 
   function paintDot() {
-    dot.hidden = !toolbar.classList.contains('collapsed') || dots.every((node) => node.hidden);
+    dot.hidden = !collapsed() || dots.every((node) => node.hidden);
   }
 
-  function setCollapsed(collapsed) {
-    toolbar.classList.toggle('collapsed', collapsed);
-    button.setAttribute('aria-expanded', String(!collapsed));
-    const label = collapsed ? 'Hiện biểu tượng' : 'Ẩn biểu tượng';
+  function paint() {
+    const hidden = collapsed();
+    toolbar.classList.toggle('collapsed', hidden);
+    button.setAttribute('aria-expanded', String(!hidden));
+    const label = hidden ? 'Hiện biểu tượng' : 'Ẩn biểu tượng';
     button.title = label;
     button.setAttribute('aria-label', label);
     paintDot();
   }
 
   button.addEventListener('click', () => {
-    const collapsed = !toolbar.classList.contains('collapsed');
-    setCollapsed(collapsed);
-    try {
-      localStorage.setItem(KEY, collapsed ? 'collapsed' : 'open');
-    } catch {}
+    if (auto) {
+      peek = !peek;
+    } else {
+      saved = !saved;
+      try {
+        localStorage.setItem(KEY, saved ? 'collapsed' : 'open');
+      } catch {}
+    }
+    paint();
   });
   button.addEventListener('pointerup', () => button.blur());
   const watch = new MutationObserver(paintDot);
   for (const node of dots) watch.observe(node, { attributes: true, attributeFilter: ['hidden'] });
-  setCollapsed(loadCollapsed());
+  paint();
+
+  return {
+    autoHide(on) {
+      if (auto === on) return;
+      auto = on;
+      peek = false;
+      paint();
+    },
+  };
 }

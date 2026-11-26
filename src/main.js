@@ -345,7 +345,7 @@ const questBoard = createQuestBoard({
 quests.onChange((id) => {
   if (id === PLAYER) questBoard.refresh();
 });
-createToolbarToggle();
+const toolbar = createToolbarToggle();
 function playerQuestAct(quest, action) {
   const day = dayOf(gameNow());
   if (action === 'accept') {
@@ -1189,12 +1189,16 @@ const study = createStudy({
 });
 player.lookTarget = school.teacherHead;
 player.onFacingTeacher = () => {
-  if (player.seat?.study) study.open(player.seat.deck);
+  if (player.seat?.study) {
+    study.open(player.seat.deck);
+    toolbar.autoHide(true);
+  }
   if (player.seat?.internal) beginInternalExam();
   if (player.seat && player.seat === examTrip?.seat) beginExamSitting();
 };
 player.onStand = () => {
   study.close();
+  toolbar.autoHide(false);
 };
 
 
