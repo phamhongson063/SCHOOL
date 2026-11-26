@@ -31,6 +31,7 @@ import { LotoBehavior } from './villagerLoto.js';
 import { FireworksBehavior } from './villagerFireworks.js';
 
 const LOTO_SWAY = { speed: 1.8, roll: 0.07, tiltSpeed: 0.8, tilt: 0.16, turnSpeed: 0.45, turn: 0.3, ease: 3 };
+const QUEST_TEND_SECONDS = 60;
 
 export class Villager {
   constructor(profile, town) {
@@ -41,6 +42,7 @@ export class Villager {
     this.town = town;
     this.studyUntil = 0;
     this.studyRestAt = 0;
+    this.questTendAt = 0;
     this.lodge = null;
     this.lodgeNight = false;
     this.heldRoom = null;
@@ -213,6 +215,11 @@ export class Villager {
     const ctx = this.town.context;
     this.lookAt = null;
     this.task = null;
+    if (this.now >= this.questTendAt) {
+      this.questTendAt = this.now + QUEST_TEND_SECONDS;
+      const { taken, done } = this.tendQuests(ctx);
+      if (taken > 0 || done > 0) this.say('📋', 1.6);
+    }
     if (this.lotoSeatWanted(ctx)) return this.goLotoSeat();
     if (this.fireworksSeatWanted(ctx)) return this.goFireworksSeat();
     const nightPlan = ctx.night ? this.plan(ctx) : null;
@@ -226,7 +233,6 @@ export class Villager {
     if (money) return this.goMoney(money);
     if (this.wantsArena()) return this.goArena();
     if (this.wantsLanternSignup(ctx)) return this.goLanternDesk();
-    if (this.wantsQuests(ctx)) return this.goQuests();
     if (ctx.shopOpen && this.town.market.wantsTrade(this)) return this.goShop();
     if (ctx.fishOpen && this.town.market.wantsFish(this)) return this.goFishShop();
     if (ctx.chiefOpen && this.town.estate.affordableFor(this.id, this.purse.money - VILLAGER.houseReserve)) return this.goChief();

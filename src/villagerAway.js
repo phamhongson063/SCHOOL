@@ -343,14 +343,6 @@ export function createAwaySim({ town, contextAt }) {
     return at - clock;
   }
 
-  function questDesk(member, ctx) {
-    if (!member.wantsQuests(ctx)) return;
-    const memo = memoOf(member);
-    const leave = Math.max(ctx.minutes, memo.busyUntil);
-    occupy(memo, leave, leave + AWAY.walk, 'walk');
-    member.serveQuests(ctx.day);
-  }
-
   function banking(member, ctx) {
     const since = member.bankAt === null ? Infinity : ctx.minutes - member.bankAt;
     if (!bank || since < BANK.npc.urgentGap) return;
@@ -371,7 +363,7 @@ export function createAwaySim({ town, contextAt }) {
     exams(member, ctx, end);
     signUp(member, ctx);
     signLanterns(member, ctx);
-    questDesk(member, ctx);
+    member.tendQuests(ctx);
     banking(member, ctx);
     if (ctx.shopOpen && market.wantsTrade(member)) market.trade(member);
     if (ctx.fishOpen && market.wantsFish(member)) market.fishTrade(member);
@@ -459,7 +451,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview(deck)) return AWAY.walk;
     member.drillWeak(deck, CERTIFY.sitSeconds);
-    quests.note(member.id, 'study', ctx.day);
+    quests.note(member.id, 'sit', ctx.day, SIT, deck);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -475,8 +467,8 @@ export function createAwaySim({ town, contextAt }) {
     if (!member.payReview(deck, CERTIFY.speakFee)) return AWAY.walk;
     const run = planSpeech(member.id, deck, CERTIFY.sitSeconds, ctx.day);
     applySpeech(member.id, deck, run.done, run.seconds, ctx.day);
-    quests.note(member.id, 'study', ctx.day);
     const sit = run.seconds / 60;
+    quests.note(member.id, 'sit', ctx.day, sit, deck);
     memoOf(member).studyAt = ctx.minutes + sit + COOLDOWN;
     return AWAY.walk + sit;
   }
@@ -491,7 +483,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview(deck)) return AWAY.walk;
     member.drillCertified(deck, CERTIFY.sitSeconds);
-    quests.note(member.id, 'study', ctx.day);
+    quests.note(member.id, 'sit', ctx.day, SIT, deck);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -503,7 +495,7 @@ export function createAwaySim({ town, contextAt }) {
     for (let at = VIEW; at <= SIT && words < CERTIFY.sitWords && certify.learnLeft(member.id, deck).length; at += VIEW) {
       if (member.learnWord(deck)) words += 1;
     }
-    if (words >= CERTIFY.sitWords || certify.learnLeft(member.id, deck).length) quests.note(member.id, 'study', ctx.day);
+    quests.note(member.id, 'sit', ctx.day, SIT, deck);
     if (Math.random() >= member.diligence) memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
   }
@@ -690,7 +682,7 @@ export function createAwaySim({ town, contextAt }) {
       if (!ctx.night) {
         errands(member, ctx, end);
         if (lodged(member, end)) return;
-      } else questDesk(member, ctx);
+      } else member.tendQuests(ctx);
       if (member.purse.energy < ENERGY.workMin) return member.purse.tickEnergy(end, energyRate('rest', ctx.night));
     }
     const used = work(member, ctx, minutes, slots);

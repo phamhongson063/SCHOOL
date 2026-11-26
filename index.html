@@ -193,6 +193,25 @@
       <div id="mailList" class="mail-list" role="tabpanel"></div>
     </div>
   </section>
+  <button id="questBtn" class="icon-btn quest-btn" type="button" title="Nhiệm vụ" aria-label="Nhiệm vụ" aria-expanded="false" aria-controls="questPanel">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4V2.8h6V4" />
+      <path d="m8 10 1.5 1.5L12 9M8 16l1.5 1.5L12 15M14.5 10.5h2M14.5 16.5h2" />
+    </svg>
+    <span id="questDot" class="mail-dot" hidden></span>
+  </button>
+  <div id="questVeil" class="bag-veil" hidden></div>
+  <section id="questPanel" class="bag-panel quest-panel" role="dialog" aria-modal="true" aria-labelledby="questTitle" hidden>
+    <header class="bag-head">
+      <h2 id="questTitle">Nhiệm vụ<span id="questCategory" class="bag-category"></span></h2>
+      <button id="questClose" class="sched-x bag-close" type="button" aria-label="Đóng">×</button>
+    </header>
+    <div class="bag-tabs" role="tablist" aria-label="Loại nhiệm vụ"></div>
+    <div class="bag-well">
+      <div id="questList" class="quest-list" role="tabpanel"></div>
+    </div>
+  </section>
   <div id="studyDim" class="study-dim" aria-hidden="true"></div>
   <div id="sitDim" class="study-dim" aria-hidden="true"></div>
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
@@ -803,7 +822,6 @@
       <div class="bank-tabs" role="tablist">
         <button type="button" role="tab" data-tab="today" aria-selected="true">Hôm nay</button>
         <button type="button" role="tab" data-tab="week" aria-selected="false">7 ngày</button>
-        <button type="button" role="tab" data-tab="quests" aria-selected="false">Nhiệm vụ</button>
         <button type="button" role="tab" data-tab="plan" aria-selected="false">Lịch</button>
       </div>
       <div class="bank-panel">

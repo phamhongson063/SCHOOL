@@ -271,19 +271,19 @@ function closeQuests(day) {
 function openQuests(day, budget) {
   const quest = state.quest;
   const takers = villagers().length + 1;
-  const weekSlots = (QUEST.week.count * QUEST.week.weight) / 7;
+  const weekSlots = (QUEST.week.slots * QUEST.week.weight) / 7;
   const amount = takeFund(budget);
-  const weekPart = Math.floor((amount * weekSlots) / (QUEST.day.count + weekSlots));
+  const weekPart = Math.floor((amount * weekSlots) / (QUEST.day.slots + weekSlots));
   const dayPart = amount - weekPart;
   const week = weekOf(day);
   if (quest.week !== week) {
     quest.week = week;
-    quest.weekReward = Math.floor((weekPart * 7) / (takers * QUEST.week.count));
+    quest.weekReward = Math.floor((weekPart * 7) / (takers * QUEST.week.slots));
   }
   quest.weekPool += weekPart;
   quest.day = day;
   quest.dayPool = dayPart;
-  quest.dayReward = Math.floor(dayPart / (takers * QUEST.day.count));
+  quest.dayReward = Math.floor(dayPart / (takers * QUEST.day.slots));
 }
 
 function planFor(day) {

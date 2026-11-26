@@ -65,7 +65,7 @@ export class SchoolBehavior {
       const learning = certify.learnLeft(this.id, deck).length > 0 && this.purse.money >= certify.fee(deck, CERTIFY.learnFee);
       const internal = !ctx.night && this.canTakeInternal(deck);
       if (!learning && !internal) continue;
-      const score = (internal && !learning ? 1 : this.hallRoom(deck)) + Math.random() * 0.5;
+      const score = (internal && !learning ? 1 : this.hallRoom(deck)) + quests.deckPull(this.id, deck, ctx.day) + Math.random() * 0.5;
       if (score > bestScore) {
         bestScore = score;
         best = deck;
@@ -159,7 +159,7 @@ export class SchoolBehavior {
       if (this.purse.money < certify.fee(deck, CERTIFY.reviewFee)) continue;
       const weak = certify.reviewQuestions(this.id, deck).length;
       if (!weak && studied) continue;
-      const score = weak + this.hallRoom(deck) + Math.random() * 0.5;
+      const score = weak + this.hallRoom(deck) + quests.deckPull(this.id, deck, ctx.day) + Math.random() * 0.5;
       if (score > bestScore) {
         bestScore = score;
         best = deck;
@@ -175,7 +175,7 @@ export class SchoolBehavior {
     for (const deck of SPEAK_DECKS) {
       if (!certify.certifiedCount(this.id, deck) || certify.learnLeft(this.id, deck).length) continue;
       if (this.purse.money < certify.fee(deck, CERTIFY.speakFee)) continue;
-      const score = this.hallRoom(deck) + Math.random() * 0.5;
+      const score = this.hallRoom(deck) + quests.deckPull(this.id, deck, this.town.context.day) + Math.random() * 0.5;
       if (score > bestScore) {
         bestScore = score;
         best = deck;
@@ -372,6 +372,7 @@ export class SchoolBehavior {
       return false;
     }
     certify.remember(this.id, deck, key);
+    quests.note(this.id, 'learn', this.town.context.day, 1, deck);
     return true;
   }
 
@@ -535,11 +536,19 @@ export class SchoolBehavior {
     }, between(0.3, 1.5));
   }
 
+  creditSit(t, day) {
+    const deck = this.seatRef?.deck;
+    const minutes = Math.floor((t - this.sitCredit) / 60);
+    if (!deck || !(minutes >= 1)) return;
+    this.sitCredit += minutes * 60;
+    quests.note(this.id, 'sit', day, minutes, deck);
+  }
+
   selfStudyUpdate(t) {
     const ctx = this.town.context;
+    this.creditSit(t, ctx.day);
     if (this.reviewing) {
       if (t < this.studyUntil && !this.needsSleep(ctx)) return;
-      if (t >= this.studyUntil) quests.note(this.id, 'study', ctx.day);
       this.reviewing = false;
       if (this.speaking) applySpeech(this.id, this.seatRef.deck, this.speechRun?.done ?? [], t - this.studyMark, ctx.day);
       else if (this.prepping) this.drillCertified(this.seatRef.deck, t - this.studyMark);
@@ -561,7 +570,6 @@ export class SchoolBehavior {
     const deck = this.seatRef?.deck;
     if (sitOver) {
       this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
-      quests.note(this.id, 'study', ctx.day);
     }
     if (done && !ctx.night && deck && this.wantsInternal(deck)) {
       this.studyRestAt = t + SELF_STUDY.cooldown;
@@ -599,6 +607,7 @@ export class SchoolBehavior {
       this.studying = true;
       this.studyUntil = this.now + CERTIFY.sitSeconds;
       this.studyMark = this.now;
+      this.sitCredit = this.now;
       this.sitWords = 0;
       if (this.speaking) {
         this.speechRun = planSpeech(this.id, this.seatRef.deck, CERTIFY.sitSeconds, this.town.context.day);
@@ -666,6 +675,7 @@ export class SchoolBehavior {
     this.studying = true;
     this.studyUntil = t + left;
     this.studyMark = t - mark;
+    this.sitCredit = t;
     this.sitWords = words;
     return true;
   }

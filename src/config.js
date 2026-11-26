@@ -479,13 +479,17 @@ export const LOTO = {
 
 export const QUEST = {
   pull: 0.5,
-  day: { count: 3 },
-  week: { count: 3, weight: 4 },
+  deckPull: 1,
+  active: 3,
+  minFit: 0.6,
+  day: { count: 6, slots: 2 },
+  week: { count: 3, slots: 1, weight: 6, steps: [2, 4] },
   kinds: {
-    study: { icon: '📖', name: 'Buổi học', day: [2, 3], week: [10, 15] },
-    farm: { icon: '🌾', name: 'Việc đồng áng', day: [6, 10], week: [35, 50] },
-    fish: { icon: '🎣', name: 'Câu được cá', day: [2, 4], week: [10, 16] },
-    hunt: { icon: '🏹', name: 'Săn được thú', day: [1, 2], week: [5, 8] },
+    learn: { icon: '📖', deck: true, weight: 3, day: [2, 5], week: [3, 5] },
+    sit: { icon: '⏳', deck: true, weight: 3, unit: 5, day: [10, 25], week: [15, 30] },
+    farm: { icon: '🌾', weight: 1, day: [6, 10], week: [8, 15] },
+    fish: { icon: '🎣', weight: 1, day: [2, 4], week: [3, 5] },
+    hunt: { icon: '🏹', weight: 1, day: [1, 2], week: [1, 3] },
   },
 };
 

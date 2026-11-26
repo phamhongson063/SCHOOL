@@ -35,7 +35,7 @@ function loadFurigana() {
   }
 }
 
-export function createStudy({ purse, music = null, sounds = null, exams, onQualified = null, onSitOver = null, onPaid = null, arenaClash = () => null }) {
+export function createStudy({ purse, music = null, sounds = null, exams, onQualified = null, onSitOver = null, onPaid = null, onLearn = null, onSitMinute = null, arenaClash = () => null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -456,6 +456,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   function answer() {
     if (mode !== 'learn' || !current || waitLeft() > 0) return;
     certify.remember(PLAYER, deckId, current);
+    onLearn?.(deckId);
     sitWords += 1;
     if (sitWords >= CERTIFY.sitWords) {
       endSit();
@@ -791,6 +792,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   setInterval(() => {
     if (!seated || document.visibilityState !== 'visible') return;
     sitSeconds += 1;
+    if (paid.size && sitSeconds % 60 === 0) onSitMinute?.(deckId);
     if (sitSeconds >= CERTIFY.sitSeconds) endSit();
   }, 1000);
 

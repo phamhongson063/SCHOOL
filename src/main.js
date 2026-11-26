@@ -104,6 +104,7 @@ import { createFoodUI, eateryOpen, eateryHours } from './eatery.js';
 import { createBank, bankOpen, bankHours } from './bank.js';
 import { createBankUI } from './bankDialog.js';
 import { createHallUI, hallMenu } from './hallDesk.js';
+import { createQuestBoard } from './questBoard.js';
 import { createRanking } from './ranking.js';
 import { createStandingsBoard } from './lanternBoard.js';
 import { createProfile } from './profile.js';
@@ -325,21 +326,34 @@ const foodUI = createFoodUI({ purse });
 const bank = createBank({ ledger, estate, now: gameNow });
 const bankUI = createBankUI({ bank, purse });
 const atmUI = createAtmUI({ bank, purse });
-const hallUI = createHallUI({
-  economy,
-  now: gameNow,
-  quests: {
-    list: () => quests.view(PLAYER, dayOf(gameNow())),
-    act: (quest) => playerQuestDesk(quest),
-  },
+const hallUI = createHallUI({ economy, now: gameNow });
+const HALL_PLACES = new Map(
+  STUDY_HALLS.map((hall) => {
+    const { out } = hallBounds(hall);
+    return [hall.deck, { name: hall.name, point: { x: hall.x, z: hall.front + out * 2 } }];
+  }),
+);
+const questBoard = createQuestBoard({
+  list: () => quests.view(PLAYER, dayOf(gameNow())),
+  active: () => quests.active(PLAYER, dayOf(gameNow())),
+  reward: (scope) => economy.questReward(scope),
+  placeOf: (deck) => HALL_PLACES.get(deck) ?? null,
+  onTravel: (point) => travelTo(point),
+  act: playerQuestAct,
 });
-function playerQuestDesk(quest) {
+quests.onChange((id) => {
+  if (id === PLAYER) questBoard.refresh();
+});
+function playerQuestAct(quest, action) {
   const day = dayOf(gameNow());
-  if (quest.status === 'open') {
+  if (action === 'accept') {
     if (quests.accept(PLAYER, quest.scope, quest.index, day)) uiSounds.pop();
     return;
   }
-  if (quest.status !== 'ready') return;
+  if (action === 'drop') {
+    quests.drop(PLAYER, quest.scope, quest.index, day);
+    return;
+  }
   const paid = quests.turnIn(PLAYER, quest.scope, quest.index, day, (scope) => economy.payQuest(purse, scope));
   if (paid === null) return;
   uiSounds.correct();
@@ -1012,8 +1026,8 @@ function playerWorked(kind, effort) {
   traits.train(PLAYER, kind, effort, context.day);
 }
 
-function playerQuest(kind) {
-  quests.note(PLAYER, kind, context.day);
+function playerQuest(kind, deck = null) {
+  quests.note(PLAYER, kind, context.day, 1, deck);
 }
 
 function settlePlayerTraits() {
@@ -1161,8 +1175,9 @@ const study = createStudy({
   onQualified(deck) {
     sendQualifyMail(deck, `Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay.`);
   },
-  onSitOver(studied) {
-    if (studied) playerQuest('study');
+  onLearn: (deck) => playerQuest('learn', deck),
+  onSitMinute: (deck) => playerQuest('sit', deck),
+  onSitOver() {
     const seat = player.seat;
     if (!seat?.study) return;
     playerSeats.rest(seat, 'player', clock.elapsedTime + CERTIFY.seatRest);
@@ -1840,7 +1855,7 @@ for (const [name, at, stand] of [
   ['Trường khảo thí', { x: CX, z: (HOUSE.front + HOUSE.back) / 2 }, TEACHER_STAND],
   ...STUDY_HALLS.map((hall) => {
     const { out } = hallBounds(hall);
-    return [hall.name, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, { x: hall.x, z: hall.front + out * 2 }];
+    return [hall.name, { x: hall.x, z: hall.front - (out * HALL_SIZE.depth) / 2 }, HALL_PLACES.get(hall.deck).point];
   }),
   [HOME_NAME, null],
   ['Tượng thần', blessing.statueAt, blessing.official.stand],
