@@ -81,6 +81,22 @@ export function clozeLines(lines, cloze) {
   return { nodes, blanks };
 }
 
+function orderLine({ head, parts, tail, star }) {
+  const line = document.createElement('p');
+  line.className = 'phrase-line';
+  const words = document.createElement('span');
+  const blanks = parts.map((part, i) => {
+    const blank = document.createElement('span');
+    blank.className = i === star ? 'phrase-blank star' : 'phrase-blank';
+    blank.lang = 'ja';
+    blank.dataset.fill = part;
+    return blank;
+  });
+  words.append(japanese(head), ...blanks, japanese(tail));
+  line.append(words);
+  return { nodes: [line], blanks };
+}
+
 function pickLine(said, shown) {
   const line = document.createElement('p');
   line.className = 'phrase-line';
@@ -129,19 +145,27 @@ function sentenceQuestion(kind, sentence, count) {
   return { kind, bare: true, answer: sentence.cloze.answer, wrong: shuffle([...sentence.wrong]).slice(0, count), lines: sentence.lines, cloze: sentence.cloze };
 }
 
+function orderQuestion({ order }) {
+  return { kind: 'order', bare: true, answer: order.parts[order.star], wrong: order.parts.filter((_, i) => i !== order.star), order };
+}
+
+function practiceQuestion(item, count) {
+  return item.order ? orderQuestion(item) : sentenceQuestion('cloze', item, count);
+}
+
 function grammarQuestion(entry, kind, choices, { listen = false, practice = [] } = {}) {
   const count = (choices || PHRASE_QUIZ.choices) - 1;
   const variants = ['card', ...(listen && entry.listen ? ['listen'] : []), ...(practice.length ? ['practice'] : [])];
   const variant = variants[Math.floor(Math.random() * variants.length)];
   if (variant === 'listen') return { ...sentenceQuestion('listen', entry.listen, count), audio: entry.audio };
-  if (variant === 'practice') return sentenceQuestion('cloze', practice[Math.floor(Math.random() * practice.length)], count);
+  if (variant === 'practice') return practiceQuestion(practice[Math.floor(Math.random() * practice.length)], count);
   const lines = entry.examples[0].lines;
   if (kind === 'meaning' || (kind !== 'reading' && Math.random() < 0.5)) return { ...meaningQuestion(entry, entry.siblingMeanings, count), kind: 'sense', text: lines[0][1] };
   return sentenceQuestion('cloze', { lines, cloze: entry.cloze, wrong: entry.wrong }, count);
 }
 
 const inVietnamese = (kind) => kind === 'meaning' || kind === 'sense';
-const inSentence = (kind) => kind === 'cloze' || kind === 'listen';
+const inSentence = (kind) => kind === 'cloze' || kind === 'listen' || kind === 'order';
 
 function question(entry, kind, choices, extra) {
   const style = DECKS[entry.deck].quiz;
@@ -305,6 +329,12 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
       ui.text.className = 'phrase-text dialogue';
       ui.text.replaceChildren(...sentence.nodes);
       return sentence.blanks;
+    }
+    if (asked.kind === 'order') {
+      const line = orderLine(asked.order);
+      ui.text.className = 'phrase-text dialogue';
+      ui.text.replaceChildren(...line.nodes);
+      return line.blanks;
     }
     if (!inSentence(asked.kind)) {
       ui.text.className = 'phrase-text single';

@@ -2210,6 +2210,13 @@ dialog.paper.phrase-quiz {
   border-bottom: 0;
 }
 
+.phrase-blank.star::before {
+  content: "★";
+  margin-right: 2px;
+  color: #c2287e;
+  font-size: 0.8em;
+}
+
 .phrase-text mark {
   background: none;
   color: #c2287e;

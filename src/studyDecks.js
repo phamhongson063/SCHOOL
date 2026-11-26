@@ -88,15 +88,24 @@ function sentenceOf(ja, vi, wrong) {
   return cloze ? { lines, cloze, wrong: Array.isArray(wrong) ? wrong : [] } : null;
 }
 
+function orderOf(order, vi) {
+  if (!order || typeof order.head !== 'string' || typeof order.tail !== 'string') return null;
+  const { parts, star } = order;
+  if (!Array.isArray(parts) || parts.length < 2 || !parts.every((part) => typeof part === 'string')) return null;
+  if (!Number.isInteger(star) || star < 0 || star >= parts.length) return null;
+  return { order: { head: order.head, parts, tail: order.tail, star }, vi: vi ?? '' };
+}
+
 function practiceByGroup(units, deck) {
   const byGroup = new Map();
   if (!Array.isArray(units)) return byGroup;
   for (const unit of units) {
     const groups = Array.isArray(unit?.groups) ? unit.groups : [];
+    const each = unit?.unlock === 'group';
     for (const item of Array.isArray(unit?.practice) ? unit.practice : []) {
-      const sentence = sentenceOf(item?.ja, item?.vi, item?.wrong);
-      if (!sentence || !groups.includes(item.group)) continue;
-      byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { ...sentence, deck, groups }]);
+      const question = item?.order ? orderOf(item.order, item.vi) : sentenceOf(item?.ja, item?.vi, item?.wrong);
+      if (!question || !(each || groups.includes(item.group))) continue;
+      byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { ...question, deck, groups: each ? [item.group] : groups }]);
     }
   }
   return byGroup;
