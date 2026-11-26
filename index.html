@@ -183,6 +183,13 @@
       </svg>
       <span id="questDot" class="mail-dot" hidden></span>
     </button>
+    <button id="eventBtn" class="icon-btn" type="button" title="Lịch sự kiện" aria-label="Lịch sự kiện" aria-expanded="false" aria-controls="eventPanel">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+        <path d="M3.5 10h17M8 3v4M16 3v4" />
+        <path d="M7.5 13.5h2M11 13.5h2M14.5 13.5h2M7.5 17h2M11 17h2" />
+      </svg>
+    </button>
   </div>
   <div id="bagVeil" class="bag-veil" hidden></div>
   <section id="bagPanel" class="bag-panel" role="dialog" aria-modal="true" aria-labelledby="bagTitle" hidden>
@@ -218,6 +225,16 @@
       <div id="questList" class="quest-list" role="tabpanel"></div>
     </div>
   </section>
+  <div id="eventVeil" class="bag-veil" hidden></div>
+  <section id="eventPanel" class="bag-panel event-panel" role="dialog" aria-modal="true" aria-labelledby="eventTitle" hidden>
+    <header class="bag-head">
+      <h2 id="eventTitle">Lịch sự kiện</h2>
+      <button id="eventClose" class="sched-x bag-close" type="button" aria-label="Đóng">×</button>
+    </header>
+    <div class="bag-well">
+      <div id="eventList" class="event-list"></div>
+    </div>
+  </section>
   <div id="studyDim" class="study-dim" aria-hidden="true"></div>
   <div id="sitDim" class="study-dim" aria-hidden="true"></div>
   <section id="study" class="study-card" aria-hidden="true" aria-label="Từ vựng N2">
@@ -244,10 +261,12 @@
       </div>
       <div id="studyBody" class="study-body" hidden>
         <div class="study-scroll">
-          <div class="study-head">
+          <div class="study-pins">
             <button id="studyVoice" class="study-voice" type="button" aria-label="Nghe câu ví dụ" hidden>🔊</button>
-            <span id="studyScore" class="study-score"></span>
             <button id="studyRemembered" class="study-step remembered" type="button" aria-label="Nhớ" hidden>✓</button>
+          </div>
+          <div class="study-head">
+            <span id="studyScore" class="study-score"></span>
             <p id="studyReading" class="study-reading" lang="ja"></p>
             <p id="studyWord" class="study-word" lang="ja"></p>
             <span id="studyHanViet" class="study-hanviet" role="tooltip"></span>
@@ -829,7 +848,6 @@
       <div class="bank-tabs" role="tablist">
         <button type="button" role="tab" data-tab="today" aria-selected="true">Hôm nay</button>
         <button type="button" role="tab" data-tab="week" aria-selected="false">7 ngày</button>
-        <button type="button" role="tab" data-tab="plan" aria-selected="false">Lịch</button>
       </div>
       <div class="bank-panel">
         <div id="hallList" class="rank-list hall-list"></div>

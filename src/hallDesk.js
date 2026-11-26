@@ -1,12 +1,8 @@
-import { BLESSING, LOTO } from './config.js';
-import { clockText, dayOf, DAY_MINUTES } from './clock.js';
-import { arenaStarts } from './arenaSchedule.js';
-import { arenaWindow } from './arena.js';
+import { dayOf } from './clock.js';
 import { coins } from './format.js';
 import { closable, el } from './dialog.js';
 import { setRich } from './goldArt.js';
 import { paintStallArt } from './stallCard.js';
-import { blessingSlots } from './economy.js';
 import { EXPENSE_KINDS, INCOME_KINDS, sideTotal } from './townhall.js';
 
 const WEEK = 7;
@@ -57,7 +53,6 @@ export function hallMenu(economy) {
   return [
     { id: 'today', name: 'Thu chi hôm nay', icon: '📜', art: 'scroll' },
     { id: 'week', name: `Thu chi ${WEEK} ngày`, icon: '📊', art: 'scroll' },
-    { id: 'plan', name: 'Lịch hôm nay', icon: '🗓️', art: 'scroll' },
     { id: 'fund', name: `Ngân khố ${coins(economy.treasury)}`, icon: '🏛️', info: true },
   ];
 }
@@ -88,34 +83,11 @@ export function createHallUI({ economy, now }) {
     ];
   }
 
-  function planRows(day) {
-    const slots = blessingSlots(day);
-    const times = el('div', 'hall-times');
-    times.append(...slots.map(({ start, end }) => el('span', 'hall-time', `${clockText(start)}–${clockText(end)}`)));
-    const arenaSlots = arenaStarts(day).map((start) => arenaWindow({ at: day * DAY_MINUTES + start }));
-    const arenaTimes = el('div', 'hall-times');
-    arenaTimes.append(...arenaSlots.map(({ from, to }) => el('span', 'hall-time', `${clockText(from)}–${clockText(to)}`)));
-    return [
-      el('h3', 'bank-ribbon', 'Chúc phúc'),
-      row('✨', `${slots.length}/${BLESSING.windows.length} buổi`, economy.blessingBudget(day)),
-      times,
-      el('h3', 'bank-ribbon', 'Lôi đài'),
-      row('🏆', `Giải mỗi trận · ${arenaSlots.length} trận`, economy.arenaPrize(day * DAY_MINUTES)),
-      arenaTimes,
-      el('h3', 'bank-ribbon', 'Lô tô chữ'),
-      row('🎴', `Quỹ thưởng · ${clockText(LOTO.start)}`, LOTO.purse),
-      el('h3', 'bank-ribbon', 'Nhiệm vụ'),
-      row('📋', 'Quỹ thưởng', economy.questBudget(day)),
-      el('h3', 'bank-ribbon', 'Ngân khố'),
-      row('🏛️', 'Dự trữ', economy.reserve(day)),
-    ];
-  }
-
   function render() {
     setRich(money, coins(economy.treasury));
     for (const node of tabs) node.setAttribute('aria-selected', String(node.dataset.tab === tab));
     const day = dayOf(now());
-    const rows = tab === 'plan' ? planRows(day) : tab === 'week' ? ledgerRows(day - WEEK + 1, day) : ledgerRows(day, day);
+    const rows = tab === 'week' ? ledgerRows(day - WEEK + 1, day) : ledgerRows(day, day);
     const scroll = list.scrollTop;
     list.replaceChildren(...rows);
     list.scrollTop = scroll;
@@ -138,7 +110,7 @@ export function createHallUI({ economy, now }) {
       return dialog.open;
     },
     open(choice) {
-      if (choice === 'today' || choice === 'week' || choice === 'plan') tab = choice;
+      if (choice === 'today' || choice === 'week') tab = choice;
       list.scrollTop = 0;
       render();
       dialog.showModal();

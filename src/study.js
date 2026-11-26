@@ -69,6 +69,11 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const remembered = document.getElementById('studyRemembered');
   const example = document.getElementById('studyExample');
   const voice = document.getElementById('studyVoice');
+  const pins = body.querySelector('.study-pins');
+  const head = body.querySelector('.study-head');
+  new ResizeObserver(() => {
+    if (head.offsetHeight > 0) pins.style.setProperty('--pin-y', `${head.offsetHeight / 2}px`);
+  }).observe(head);
   const furiganaBtn = document.getElementById('studyFurigana');
   const translateBtn = document.getElementById('studyTranslate');
   const dim = document.getElementById('studyDim');

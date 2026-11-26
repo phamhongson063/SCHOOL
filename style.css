@@ -51,6 +51,7 @@
 #bagPanel,
 #mailPanel,
 #questPanel,
+#eventPanel,
 #phasePill,
 #studyOpen,
 #trainingOpen,
@@ -607,7 +608,8 @@ body {
 
 body.bag-open #toolbar,
 body.mail-open #toolbar,
-body.quest-open #toolbar {
+body.quest-open #toolbar,
+body.event-open #toolbar {
   z-index: var(--z-over);
 }
 
@@ -1171,6 +1173,70 @@ body.quest-open #toolbar {
 .quest-act:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.event-panel {
+  width: min(360px, calc(100vw - 32px));
+}
+
+.event-panel .bag-well {
+  border-color: var(--wood);
+  border-radius: 9px;
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+  border: 1.5px solid #7a5230;
+  border-radius: 7px;
+  background: #4a3220;
+  color: var(--cream);
+}
+
+.event-head {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 6px;
+  font: 700 14px/1.3 var(--font-ui);
+}
+
+.event-icon {
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+.event-note {
+  color: #cbbf9f;
+  font: 700 12px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.event-time {
+  padding: 4px 9px;
+  border: 1px solid rgba(20, 12, 6, 0.7);
+  border-radius: 999px;
+  background: rgba(20, 13, 8, 0.55);
+  color: var(--cream);
+  font: 700 12.5px/1.2 var(--font-ui);
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes bag-open {
@@ -2928,15 +2994,22 @@ dialog.loto-sheet {
   letter-spacing: 0.12em;
 }
 
+.study-pins {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 0;
+  margin-top: auto;
+}
+
 .study-head {
   position: relative;
-  margin-top: auto;
   padding: 0 44px;
 }
 
-.study-head .remembered {
+.study-pins .remembered {
   position: absolute;
-  top: 50%;
+  top: var(--pin-y, 24px);
   right: 0;
   width: 40px;
   height: 40px;
@@ -3178,7 +3251,7 @@ dialog.loto-sheet {
 
 .study-voice {
   position: absolute;
-  top: 50%;
+  top: var(--pin-y, 24px);
   left: 0;
   z-index: 1;
   width: 40px;
@@ -3187,14 +3260,14 @@ dialog.loto-sheet {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(120, 90, 40, 0.1);
+  background: linear-gradient(rgba(120, 90, 40, 0.1), rgba(120, 90, 40, 0.1)), #fbf5e4;
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
 }
 
 .study-voice.playing {
-  background: rgba(120, 90, 40, 0.25);
+  background: linear-gradient(rgba(120, 90, 40, 0.25), rgba(120, 90, 40, 0.25)), #fbf5e4;
 }
 
 .study-body.covered .study-voice {
@@ -5668,7 +5741,7 @@ dialog.profile::backdrop {
 }
 
 #hallDialog .bank-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hall-list {
