@@ -6,7 +6,8 @@ import { coins, notEnough } from './format.js';
 import { economy } from './economy.js';
 import { PLAYER } from './inventory.js';
 import { paintIcon } from './itemArt.js';
-import { INTERNAL_SPAN } from './examRules.js';
+import { EXAM_SPAN, INTERNAL_SPAN } from './examRules.js';
+import { unitLabel } from './examHall.js';
 import { classTeacherOf } from './npcIds.js';
 import { dayOf, gameNow } from './clock.js';
 import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechSegments } from './speaking.js';
@@ -17,7 +18,7 @@ import { el } from './dialog.js';
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
-const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee } };
+const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee }, practice: { name: 'Luyện thi', fee: CERTIFY.practiceFee } };
 const Recognition = globalThis.SpeechRecognition ?? globalThis.webkitSpeechRecognition ?? null;
 const SPEAK_PAUSE = 900;
 const SPEAK_WRONG_VOLUME = 0.3;
@@ -47,6 +48,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const learnPick = start.querySelector('[data-mode="learn"]');
   const reviewPick = start.querySelector('[data-mode="review"]');
   const speakPick = start.querySelector('[data-mode="speak"]');
+  const practicePick = start.querySelector('[data-mode="practice"]');
+  const practiceInfo = document.getElementById('studyPracticeInfo');
   const speakInfo = document.getElementById('studySpeakInfo');
   const speakArea = document.getElementById('studySpeak');
   const scoreText = document.getElementById('studyScore');
@@ -84,6 +87,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   let dimmed = false;
   let paid = new Set();
   let weakDrilled = false;
+  let practicing = false;
   let sitSeconds = 0;
   let sitWords = 0;
   let speakRun = 0;
@@ -135,6 +139,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     speakPick.hidden = !canSpeak();
     speakInfo.textContent = `🎓 ${certified}/${total}`;
     speakPick.disabled = certified === 0;
+    practiceInfo.textContent = `${CERTIFY.examMinutes} phút`;
+    practicePick.disabled = !certify.canPractice(PLAYER, deckId);
   }
 
   function pay(name) {
@@ -424,6 +430,41 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       if (!seated) return;
     }
     browse(shuffle(certify.certified(PLAYER, deckId)), 'review');
+  }
+
+  function practiceText({ passed, right, total, score, wrong }) {
+    const line = `Luyện thi: ${right}/${total} (${Math.round(score * 100)}%) — ${passed ? 'ĐẬU' : 'RỚT'}.`;
+    return wrong.length ? `${line} Sai: ${wrong.map(unitLabel).join(', ')}.` : line;
+  }
+
+  async function beginPractice() {
+    if (exams.running || !certify.canPractice(PLAYER, deckId)) return;
+    const clash = arenaClash(EXAM_SPAN);
+    if (clash) {
+      showNotice(ARENA_CLASH[clash]);
+      return;
+    }
+    if (!pay('practice')) return;
+    const id = deckId;
+    practicing = true;
+    let results = [];
+    try {
+      results = await exams.run({
+        title: `Luyện thi ${DECKS[id].title}`,
+        deck: id,
+        keys: certify.practiceQuestions(PLAYER, id),
+        icon: '📝',
+        minSeconds: CERTIFY.examMinutes * 60,
+        more: (last) => certify.practiceExtra(PLAYER, id, last),
+        stops: (result) => certify.practiceStops(PLAYER, id, result),
+        cardOnly: true,
+      });
+    } finally {
+      practicing = false;
+    }
+    const text = practiceText(certify.gradePractice(PLAYER, id, results));
+    if (sitSeconds >= CERTIFY.sitSeconds) endSit();
+    if (seated && deckId === id) showNotice(text);
   }
 
   function browse(keys, chip) {
@@ -793,7 +834,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (!seated || document.visibilityState !== 'visible') return;
     sitSeconds += 1;
     if (paid.size && sitSeconds % 60 === 0) onSitMinute?.(deckId);
-    if (sitSeconds >= CERTIFY.sitSeconds) endSit();
+    if (sitSeconds >= CERTIFY.sitSeconds && !practicing) endSit();
   }, 1000);
 
   setInterval(() => {
@@ -823,6 +864,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   learnPick.addEventListener('click', beginLearn);
   reviewPick.addEventListener('click', beginReview);
   speakPick.addEventListener('click', beginSpeak);
+  practicePick.addEventListener('click', beginPractice);
   mic.addEventListener('click', listen);
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {

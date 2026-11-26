@@ -199,6 +199,7 @@ export const CERTIFY = {
   learnFee: 1,
   reviewFee: 1,
   speakFee: 1,
+  practiceFee: 1,
   sitSeconds: 15 * 60,
   sitWords: 2,
   seatRest: 5 * 60,

@@ -168,6 +168,8 @@ function deckState(actor, deck) {
 
 const learnKeys = (state) => state.batch.filter((key) => !state.carry.includes(key));
 
+const practiceFresh = (state) => state.batch.filter((key) => state.carry.includes(key) || (state.counts[key] ?? 0) >= CERTIFY.remember);
+
 const examsToday = (state) => (state.examDay === state.day ? state.exams : 0);
 
 const examClosed = (state) => state.examDay === state.day && (state.examPassed || state.exams >= CERTIFY.examTries);
@@ -370,6 +372,31 @@ export const certify = {
   examExtra(actor, deck, last = null) {
     const state = deckState(actor, deck);
     return pickExtra([...state.batch, ...Object.keys(state.certified)], last);
+  },
+  canPractice(actor, deck) {
+    const state = deckState(actor, deck);
+    return practiceFresh(state).length + Object.keys(state.certified).length > 0;
+  },
+  practiceQuestions(actor, deck) {
+    const state = deckState(actor, deck);
+    const fresh = practiceFresh(state);
+    return shuffle([...fresh, ...oldKeys(state, totalQuestions(deck) - fresh.length)]);
+  },
+  practiceExtra(actor, deck, last = null) {
+    const state = deckState(actor, deck);
+    return pickExtra([...practiceFresh(state), ...Object.keys(state.certified)], last);
+  },
+  practiceStops(actor, deck, { key, correct }) {
+    return !correct && practiceFresh(deckState(actor, deck)).includes(key);
+  },
+  gradePractice(actor, deck, results) {
+    const fresh = practiceFresh(deckState(actor, deck));
+    const right = results.filter((result) => result.correct).length;
+    const total = results.length;
+    const score = total ? right / total : 0;
+    const wrong = [...answersByKey(results)].filter(([, correct]) => !correct).map(([key]) => key);
+    const passed = total > 0 && !wrong.some((key) => fresh.includes(key)) && score >= CERTIFY.pass;
+    return { passed, right, total, score, wrong };
   },
   gradeExam(actor, deck, results) {
     const state = deckState(actor, deck);
