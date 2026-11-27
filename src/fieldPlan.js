@@ -51,7 +51,30 @@ function plotField({ side, x, beds }, index) {
   };
 }
 
-export const FIELDS = PLOTS.map(plotField);
+const ROW_PLOTS = [
+  { x: -81.7, z: 16, beds: [['hoi-1', 10, 4000], ['hoi-2', 10, 4013], ['hoi-3', 10, 4026], ['hoi-4', 10, 4039]] },
+];
+
+function rowField({ x, z, beds }, index) {
+  const length = Math.max(...beds.map(([, holes]) => holes)) * SPACING;
+  const head = x - length / 2;
+  const last = z - (beds.length - 1) * BED.pitch;
+  const soil = { x0: head - BED_MARGIN, x1: head + length + BED_MARGIN, z0: last - SOIL_SIDE, z1: z + SOIL_SIDE, seed: 600 + index };
+  return {
+    id: `plot-${index + 1}`,
+    region: `plot-${index + 1}`,
+    name: `Ruộng số ${index + 1}`,
+    seed: 900 + index,
+    bounds: { x0: soil.x0 - 1, x1: soil.x1 + 1, z0: soil.z0 - 1, z1: soil.z1 + 1 },
+    soil: [soil],
+    paths: [],
+    jars: [{ x: soil.x0 - 0.5, z: soil.z1 - 0.4 }],
+    trees: [[soil.x1 + 0.2, soil.z0 + 0.6]],
+    beds: beds.map(([id, holes, seed], k) => ({ id, x: head, z: z - k * BED.pitch, heading: Math.PI / 2, holes, seed })),
+  };
+}
+
+export const FIELDS = [...PLOTS.map(plotField), ...ROW_PLOTS.map((plot, k) => rowField(plot, PLOTS.length + k))];
 
 const LEGACY_ORDER = [
   ...[13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 2, 1, 25, 26].map((n) => [`rau-${n}`, 10]),
