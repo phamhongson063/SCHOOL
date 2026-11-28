@@ -428,7 +428,7 @@ export const TOWNHALL = {
   fireworksShare: 0.02,
   history: 14,
   lanternShare: 0.2,
-  questShare: 0.05,
+  questShare: 0.15,
   lotoShare: 0.1,
 };
 
@@ -444,7 +444,7 @@ export const FIREWORKS = {
   gather: 5,
   heraldLead: 15,
   deck: 'kanjiN2',
-  aimSeconds: 6,
+  aimSeconds: 5.5,
   wordSlack: 1.56,
   hostShare: 0.1,
   sky: { rise: 0.9, hang: 14, fade: 1.6, retire: 0.35, deal: 1.6, wait: [0.3, 1.6], pop: 0.6 },
@@ -485,10 +485,10 @@ export const QUEST = {
   deckPull: 1,
   active: 3,
   minFit: 0.6,
-  day: { count: 6, slots: 2 },
+  day: { count: 6, slots: 6 },
   week: {
     count: 3,
-    slots: 1,
+    slots: 3,
     weight: 6,
     paths: [
       { weight: 3, steps: ['learn', 'internal', 'exam'] },
