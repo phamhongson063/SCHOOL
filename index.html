@@ -346,7 +346,13 @@
     <div class="picker-options"></div>
   </div>
   <button id="phasePill" type="button" title="Học tập">
-    <span id="phaseClock"></span>
+    <span class="phase-time">
+      <span id="phaseClock"></span>
+      <span id="battery" class="battery" role="img" hidden>
+        <span class="battery-level"></span>
+        <span class="battery-fill"><span class="battery-level"></span></span>
+      </span>
+    </span>
   </button>
   <div id="coords" class="coords" aria-hidden="true"><b>X</b><span id="coordsX"></span><b>Y</b><span id="coordsY"></span></div>
   <div id="actionBar" role="toolbar" aria-label="Hành động">

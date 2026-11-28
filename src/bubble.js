@@ -75,6 +75,26 @@ function inScene(object) {
   return false;
 }
 
+const placed = new WeakMap();
+
+function setHidden(el, hidden) {
+  if (el.hidden !== hidden) el.hidden = hidden;
+}
+
+function moveTo(el, x, y, depth) {
+  let at = placed.get(el);
+  if (!at) placed.set(el, (at = { x: NaN, y: NaN, depth: NaN }));
+  if (at.x !== x || at.y !== y) {
+    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+    at.x = x;
+    at.y = y;
+  }
+  if (at.depth !== depth) {
+    el.style.zIndex = String(depth);
+    at.depth = depth;
+  }
+}
+
 export function setBubbleOcclusion(test) {
   blocked = test;
 }
@@ -170,37 +190,37 @@ export function createBubble() {
       }
       visible &&= !hiddenBehind;
       const named = visible && !!name;
-      element.hidden = !visible || !shown;
-      nameTag.hidden = !named;
-      for (const badge of badges) badge.el.hidden = !visible || !badge.on;
+      setHidden(element, !visible || !shown);
+      setHidden(nameTag, !named);
+      for (const badge of badges) setHidden(badge.el, !visible || !badge.on);
       if (!visible) return;
       const x = Math.round(((screen.x + 1) / 2) * window.innerWidth);
-      const depth = String(1000 - Math.round(distance * 10));
+      const depth = 1000 - Math.round(distance * 10);
       low.set(head.x, head.y - MOOD_DROP, head.z).project(camera);
       const lowX = Math.round(((low.x + 1) / 2) * window.innerWidth);
       let top = Math.round(((1 - low.y) / 2) * window.innerHeight);
       if (named) {
-        nameTag.style.transform = `translate(${lowX}px, ${top}px) translate(-50%, -100%)`;
-        nameTag.style.zIndex = depth;
+        moveTo(nameTag, lowX, top, depth);
         nameHeight ||= nameTag.offsetHeight;
         top -= nameHeight + NAME_GAP;
       }
       let y = Math.round(((1 - screen.y) / 2) * window.innerHeight - TAIL);
       if (named) y = Math.min(y, top - TAIL);
       if (shown) {
-        element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
-        element.style.zIndex = depth;
+        moveTo(element, x, y, depth);
         bubbleHeight ||= element.offsetHeight;
       }
-      const lit = badges.filter((badge) => badge.on);
-      if (!lit.length) return;
+      let litCount = 0;
+      for (const badge of badges) if (badge.on) litCount++;
+      if (!litCount) return;
       const badgeX = shown ? x : lowX;
       const badgeY = shown ? y - bubbleHeight - MOOD_GAP : top;
-      lit.forEach((badge, i) => {
-        const offset = (i - (lit.length - 1) / 2) * BADGE_STEP;
-        badge.el.style.transform = `translate(${badgeX + offset}px, ${badgeY}px) translate(-50%, -100%)`;
-        badge.el.style.zIndex = depth;
-      });
+      let slot = 0;
+      for (const badge of badges) {
+        if (!badge.on) continue;
+        moveTo(badge.el, badgeX + (slot - (litCount - 1) / 2) * BADGE_STEP, badgeY, depth);
+        slot++;
+      }
     },
   };
 

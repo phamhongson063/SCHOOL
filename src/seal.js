@@ -19,19 +19,33 @@ function digest(key, value) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
+const sealCache = { self: { text: undefined, seal: null }, world: { text: undefined, seal: null } };
+
 function readSeal(scope) {
+  const text = localStorage.getItem(SEALS[scope]);
+  const cached = sealCache[scope];
+  if (cached.text === text) return cached.seal;
+  let seal = null;
   try {
-    const seal = JSON.parse(localStorage.getItem(SEALS[scope]) ?? 'null');
-    return seal && typeof seal === 'object' && !Array.isArray(seal) ? seal : null;
-  } catch {
-    return null;
-  }
+    const parsed = JSON.parse(text ?? 'null');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) seal = parsed;
+  } catch {}
+  cached.text = text;
+  cached.seal = seal;
+  return seal;
 }
 
 function writeSeal(scope, seal) {
+  const cached = sealCache[scope];
   try {
-    localStorage.setItem(SEALS[scope], JSON.stringify(seal));
-  } catch {}
+    const text = JSON.stringify(seal);
+    localStorage.setItem(SEALS[scope], text);
+    cached.text = text;
+    cached.seal = seal;
+  } catch {
+    cached.text = undefined;
+    cached.seal = null;
+  }
 }
 
 const isSealKey = (key) => key === SEAL_KEY || key === WORLD_SEAL_KEY;
@@ -65,10 +79,13 @@ export function writeGameItem(key, value) {
     held.set(key, value);
     return;
   }
-  localStorage.setItem(key, value);
   const scope = scopeOf(key);
-  const seal = readSeal(scope) ?? sealAll(scope);
-  seal[key] = digest(key, value);
+  const stored = readSeal(scope);
+  const sealed = digest(key, value);
+  if (stored && stored[key] === sealed && localStorage.getItem(key) === value) return;
+  localStorage.setItem(key, value);
+  const seal = stored ?? sealAll(scope);
+  seal[key] = sealed;
   writeSeal(scope, seal);
 }
 

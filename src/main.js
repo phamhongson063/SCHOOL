@@ -87,6 +87,7 @@ import { createAngler } from './angler.js';
 import { createKanjiQuiz } from './kanjiQuiz.js';
 import { createPlayerFishing } from './fishing.js';
 import { createVitals } from './vitals.js';
+import { createBatteryBadge } from './batteryBadge.js';
 import { paintPortrait } from './portrait.js';
 import { buildStudyHall, createStudyHall, hallBounds, HALL_SIZE, STUDY_HALLS } from './studyHall.js';
 import { createWorldMap } from './worldMap.js';
@@ -144,19 +145,20 @@ import { stashPopups } from './popupStash.js';
 import { quests } from './quests.js';
 
 const FRAME_RATE = LOW_POWER ? 30 : 60;
+const BATTERY_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const IDLE_FRAME_RATE = 10;
 const READING_FRAME_RATE = 10;
 const POPUP_FRAME_RATE = 10;
 const BAG_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
-const WATCHING_FRAME_RATE = Math.min(FRAME_RATE, 30);
+const WATCHING_FRAME_RATE = 15;
 const SLEEP_FRAME_RATE = 2;
 const STUDY_FRAME_RATE = 10;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
-const IDLE_AFTER = 20000;
+const IDLE_AFTER = 8000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
-const POINT_LIGHT_SLOTS = LOW_POWER ? 4 : 6;
+const POINT_LIGHT_SLOTS = LOW_POWER ? 2 : 6;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: Math.max(84, ISLE_BOUNDS.z1) };
 const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
 const MAP_HOUR = 14;
@@ -187,11 +189,18 @@ sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
 const tuning = createRenderTuning({ renderer, scene, camera, sun, frameRate: FRAME_RATE });
+const batteryBadge = createBatteryBadge();
+let unplugged = false;
 navigator.getBattery?.()
   .then((battery) => {
-    const follow = () => tuning.limitForBattery(!battery.charging);
+    const follow = () => {
+      unplugged = !battery.charging;
+      tuning.limitForBattery(unplugged);
+      batteryBadge.show(battery.level);
+    };
     follow();
     battery.addEventListener('chargingchange', follow);
+    battery.addEventListener('levelchange', follow);
   })
   .catch(() => {});
 
@@ -2811,7 +2820,9 @@ renderer.setAnimationLoop((time) => {
             : IDLE_FRAME_RATE
           : resting
             ? WATCHING_FRAME_RATE
-            : FRAME_RATE;
+            : unplugged
+              ? BATTERY_FRAME_RATE
+              : FRAME_RATE;
   if (time - lastFrame < 1000 / frameRate - 2) return;
   lastFrame = time;
   if (LOW_POWER) {

@@ -5,7 +5,7 @@ import { auditSeal, dropTampered, writeGameItem } from './seal.js';
 import { fillVault } from './vault.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/11.0.2/';
-const SYNC_EVERY = 30000;
+const SYNC_EVERY = 60000;
 const DOCS = { self: 'saves', world: 'worlds' };
 const VAULT = 'vaults';
 const SOUNDS = 'sounds';
