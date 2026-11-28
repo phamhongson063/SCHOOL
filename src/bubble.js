@@ -173,13 +173,23 @@ export function createBubble() {
   let shown = false;
   let checkAt = 0;
   let hiddenBehind = false;
+  let concealed = false;
 
   const record = {
     place(camera, now) {
+      if (!inScene(anchor)) {
+        if (concealed) return;
+        setHidden(element, true);
+        setHidden(nameTag, true);
+        for (const badge of badges) setHidden(badge.el, true);
+        concealed = true;
+        return;
+      }
+      concealed = false;
       anchor.updateWorldMatrix(true, false);
       anchor.getWorldPosition(head);
       const distance = head.distanceTo(camera.position);
-      let visible = inScene(anchor) && distance < FAR;
+      let visible = distance < FAR;
       if (visible) {
         screen.copy(head).project(camera);
         visible = screen.z > -1 && screen.z < 1 && Math.abs(screen.x) < 1.2 && Math.abs(screen.y) < 1.2;

@@ -119,7 +119,7 @@ function sharedParts() {
 function buildLantern(id) {
   const parts = sharedParts();
   const group = new THREE.Group();
-  const paper = new THREE.MeshBasicMaterial({ map: parts.paper, side: THREE.DoubleSide, transparent: true, opacity: 0.97 });
+  const paper = new THREE.MeshBasicMaterial({ map: parts.paper, side: THREE.DoubleSide, transparent: true, opacity: 0.97, forceSinglePass: true });
   const body = new THREE.Mesh(parts.body, paper);
   body.userData.lanternId = id;
   const rim = new THREE.Mesh(parts.rim, parts.frame);

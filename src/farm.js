@@ -400,6 +400,7 @@ class FarmView {
     this.field = field;
     this.beds = bedsOf(field);
     this.group = new THREE.Group();
+    this.group.matrixAutoUpdate = false;
     this.clickables = [];
     this.slots = [];
     this.planted = new Map();
