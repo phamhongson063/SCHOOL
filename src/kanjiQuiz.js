@@ -1,7 +1,7 @@
 import { FISH, FISHING, PHRASE_QUIZ } from './config.js';
 import { paintIcon } from './itemArt.js';
 import { japanese, spokenOf } from './ruby.js';
-import { DECKS, DECK_IDS, unitOf, plainText as plain, readingText, MARKS } from './studyDecks.js';
+import { DECKS, DECK_IDS, unitOf, plainText as plain, readingText, readSeconds, MARKS } from './studyDecks.js';
 import { playVoice, stopVoice, voiceReady } from './voiceClips.js';
 import { shuffle } from './random.js';
 import { LETTERS } from './format.js';
@@ -407,7 +407,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
           }, lock * 1000);
         }
         const started = performance.now();
-        const total = (seconds ?? quizSeconds(asked.kind, phrase)) * 1000;
+        const total = ((seconds ?? quizSeconds(asked.kind, phrase)) + readSeconds(asked.lines)) * 1000;
         ui.bar.style.transform = 'scaleX(1)';
         pending.tick = setInterval(() => {
           const left = Math.max(0, 1 - (performance.now() - started) / total);

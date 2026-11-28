@@ -3,6 +3,7 @@ import { LESSONS } from './lessons.js';
 import { KANJI_N2 } from './kanjiN2.js';
 import { KANJI_N3 } from './kanjiN3.js';
 import { vaultItem } from './vault.js';
+import { PHRASE_QUIZ } from './config.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
 export const MARKS = /\[([^\]]+)\]/g;
@@ -10,6 +11,11 @@ export const MARKS = /\[([^\]]+)\]/g;
 export const RUBY = /([㐀-鿿々〆Ａ-Ｚａ-ｚ]+)\{([^}]+)\}/g;
 export const plainText = (text) => text.replace(/\{[^}]+\}/g, '');
 export const readingText = (text) => text.replace(RUBY, '$2');
+
+export function readSeconds(lines = []) {
+  const chars = lines.reduce((sum, [, said]) => sum + plainText(said).replace(MARKS, '$1').length, 0);
+  return Math.ceil(Math.max(0, chars - PHRASE_QUIZ.readFreeChars) / PHRASE_QUIZ.readCharsPerSecond);
+}
 
 function gist(text) {
   const match = text.match(GIST);
