@@ -79,7 +79,8 @@ import { watchUpdates, updateOffered } from './updates.js';
 import { createFullscreenToggle } from './fullscreen.js';
 import { createRiver } from './river.js';
 import { CASTLE_LOOK, CASTLE_STAND, ISLE_BOUNDS, ISLE_LOOK, ISLE_NAME, ISLE_STAND, createRiverIsle } from './riverIsle.js';
-import { FIREWORKS_NAME, SAND_CASTLE_NAME, sandFestMenu, sandFestReply, sandHostLine } from './sandFest.js';
+import { FIREWORKS_NAME, SAND_CASTLE_NAME, sandFestClosedMenu, sandFestMenu, sandFestReply, sandHostLine } from './sandFest.js';
+import { fireworksOnDuty } from './keeperShift.js';
 import { crossingDeck, crossingFloor } from './riverShape.js';
 import { BANK_POINTS } from './fishZones.js';
 import { createAngler } from './angler.js';
@@ -218,7 +219,7 @@ scene.add(village.lights);
 const streetLamps = createStreetLamps();
 scene.add(streetLamps.group);
 const river = createRiver();
-const riverIsle = createRiverIsle({ visitHost: (host) => goDo(sandHostDesk, { stand: host.stand, x: host.at.x, z: host.at.z }, 'sandFest') });
+const riverIsle = createRiverIsle({ visitHost: (host) => goDo(sandHostDesk, { stand: host.stand, x: host.at.x, z: host.at.z }, 'sandFest'), now: () => context.minutes });
 scene.add(riverIsle.lamps);
 const studyHalls = STUDY_HALLS.map((hall) => createStudyHall(scene, hall));
 const studyHallSeats = studyHalls.flatMap((hall) => hall.seats);
@@ -1555,6 +1556,10 @@ const lotoDesk = {
 
 const sandHostDesk = {
   act() {
+    if (!fireworksOnDuty(context.minutes)) {
+      picker.open({ title: FIREWORKS_NAME, options: sandFestClosedMenu(), menu: true, x: window.innerWidth / 2, y: window.innerHeight / 2 });
+      return null;
+    }
     const host = riverIsle.host;
     attendPlayer(host);
     host.say(sandHostLine(Math.random()), 2.2);
@@ -2892,7 +2897,7 @@ renderer.setAnimationLoop((time) => {
   updateSoundscape(player.position);
   quiz.update(dt, hasEntered() && !updateOffered() && regions.active?.id !== 'school' && !arenaTrip.here && !fishing.active && !exams.running && !study.focused && !fireworks.playing(PLAYER, context.minutes));
   blessing.update(dt, context.minutes, camera, night);
-  lotoCourt.update(t, camera, night);
+  lotoCourt.update(t, camera, night, context.minutes);
   updateLoto();
   updateFireworks(dt, t);
   updateBlessingQuiz(dt);

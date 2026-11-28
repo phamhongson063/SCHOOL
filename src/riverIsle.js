@@ -10,6 +10,7 @@ import { NPC } from './npcIds.js';
 import { createAttention } from './attention.js';
 import { arcSlots, claimHold, createSlotClaims } from './blessingSpots.js';
 import { createIsleLamps, createIsleLights } from './isleLights.js';
+import { fireworksOnDuty } from './keeperShift.js';
 import { GILT, TIMBER, TIMBER_DARK, LACQUER_BRIGHT } from './palette.js';
 
 export const ISLE_NAME = 'Cù lao Hoài';
@@ -42,6 +43,7 @@ const HOST_LOOK = { shirt: 0x2f7d8a, pants: 0x2a2420, skin: 0xf0c09a, style: 'bu
 const HOST_MODEL = 'girl-jade';
 const HOST_GAP = 1.5;
 const STAND_GAP = 1.6;
+const STALL = { ahead: 0.55, width: 1.2, depth: 0.5, height: 0.76 };
 const PLAZA = { half: 3.2, back: 1.2 };
 const WATCH = {
   rows: [
@@ -59,6 +61,7 @@ export const CASTLE_LOOK = { x: CASTLE.x, z: CASTLE.z };
 const castleFront = CASTLE.z - (CASTLE.half + CASTLE.thick / 2) * CASTLE.scale;
 const HOST_AT = { x: CASTLE.x, z: castleFront - HOST_GAP };
 export const CASTLE_STAND = { x: CASTLE.x, z: HOST_AT.z - STAND_GAP };
+const STALL_AT = { x: HOST_AT.x, z: HOST_AT.z - STALL.ahead };
 export const ISLE_STAND = { x: CROSSING.x, z: landingZ + LANDING.depth - 1 };
 export const ISLE_BOUNDS = { x0: ISLE.x0 - 2, z0: CROSSING.z1 - 4, x1: ISLE.x1 + 2, z1: Math.ceil(ISLE.z + ISLE.halfZ * 1.1) + 4 };
 
@@ -217,10 +220,11 @@ function createHost() {
     say(text, seconds) {
       npc.bubble.show(text, seconds, clock);
     },
-    update(t) {
+    update(t, onDuty) {
       clock = t;
       attention.update(t);
-      idleKeeper(npc, t);
+      npc.walker.group.visible = onDuty;
+      if (onDuty) idleKeeper(npc, t);
     },
   };
 }
@@ -237,6 +241,28 @@ function pickTrees(rand) {
     trees.push({ x, z, h: 4 + Math.floor(rand() * 2) });
   }
   return trees;
+}
+
+function hostStall(b) {
+  const { width: w, depth: d, height: h } = STALL;
+  b.group([STALL_AT.x, 0, STALL_AT.z], [0, Math.PI, 0], () => {
+    b.add(shapes.rounded(w, 0.06, d, 0.025), WOOD_LIGHT, { p: [0, h - 0.03, 0] });
+    b.add(shapes.box(w - 0.04, 0.32, 0.02), FLAG, { p: [0, h - 0.2, d / 2 + 0.005] });
+    b.add(shapes.box(w - 0.04, 0.03, 0.025), GILT, { p: [0, h - 0.045, d / 2 + 0.01] });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(shapes.box(0.07, h - 0.06, 0.07), TIMBER_DARK, { p: [sx * (w / 2 - 0.07), (h - 0.06) / 2, sz * (d / 2 - 0.07)] });
+    const tubes = [
+      [-0.42, 0.06, 0.05, 0.3, FLAG],
+      [-0.3, 0.1, 0.04, 0.24, GILT],
+      [-0.36, -0.08, 0.045, 0.27, LACQUER_BRIGHT],
+      [0.32, 0.02, 0.06, 0.2, LACQUER_DARK],
+      [0.45, -0.06, 0.04, 0.16, GILT],
+    ];
+    for (const [x, z, r, len, hex] of tubes) {
+      b.add(shapes.cylinder(r, r, len, 10), hex, { p: [x, h + len / 2, z] });
+      b.add(shapes.cylinder(0.006, 0.006, 0.07, 5), TIMBER_DARK, { p: [x, h + len + 0.035, z] });
+    }
+    b.add(shapes.rounded(0.3, 0.05, 0.2, 0.02), TIMBER, { p: [0, h + 0.025, -0.05] });
+  });
 }
 
 function bushes(b, rand, trees) {
@@ -279,12 +305,12 @@ function createWatchField() {
   };
 }
 
-export function createRiverIsle({ visitHost }) {
+export function createRiverIsle({ visitHost, now }) {
   const trees = pickTrees(makeRandom(7171));
   const host = createHost();
   const field = createWatchField();
   const lamps = createIsleLamps({ castleX: CASTLE.x, castleFront });
-  const hostBox = { minX: HOST_AT.x - 0.3, maxX: HOST_AT.x + 0.3, minZ: HOST_AT.z - 0.3, maxZ: HOST_AT.z + 0.3, minY: 0, maxY: 2 };
+  const hostBox = { minX: STALL_AT.x - STALL.width / 2, maxX: STALL_AT.x + STALL.width / 2, minZ: STALL_AT.z - STALL.depth / 2, maxZ: HOST_AT.z + 0.3, minY: 0, maxY: 2 };
   const rails = [-1, 1].map((side) => ({
     minX: railX(side) - CROSSING.rail / 2,
     maxX: railX(side) + CROSSING.rail / 2,
@@ -317,12 +343,15 @@ export function createRiverIsle({ visitHost }) {
     for (const tree of trees) roundTree(b, rand, tree);
     bushes(b, rand, trees);
     const details = b.mesh();
+    const stall = new Batch();
+    hostStall(stall);
+    const stallMesh = stall.mesh();
     const keep = new Batch();
     castle(keep, makeRandom(7373));
     const castleMesh = keep.mesh();
     castleMesh.scale.setScalar(CASTLE.scale);
     castleMesh.position.set(CASTLE.x * (1 - CASTLE.scale), 0, CASTLE.z * (1 - CASTLE.scale));
-    group.add(bridgeMesh, details, castleMesh);
+    group.add(bridgeMesh, details, castleMesh, stallMesh);
     freeze(group);
     lights = createIsleLights({
       castle: { ...CASTLE, keepTiers: KEEP_TIERS },
@@ -334,14 +363,14 @@ export function createRiverIsle({ visitHost }) {
     const root = new THREE.Group();
     root.add(group, lights.group, host.group);
     const update = (t, dt) => {
-      host.update(t);
+      host.update(t, fireworksOnDuty(now()));
       lights.update(t, dt);
     };
-    return { group: root, clickables: [bridgeMesh, ...paths, castleMesh, host.group], obstacles: [], update, castleMesh };
+    return { group: root, clickables: [bridgeMesh, ...paths, castleMesh, stallMesh, host.group], obstacles: [], update, castleMesh, stallMesh };
   }
 
   const ownsHost = (object) => {
-    for (let node = object; node; node = node.parent) if (node === host.group || node === built?.castleMesh) return true;
+    for (let node = object; node; node = node.parent) if (node === host.group || node === built?.castleMesh || node === built?.stallMesh) return true;
     return false;
   };
 

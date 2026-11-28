@@ -478,6 +478,8 @@ export const LOTO = {
   heraldLead: 15,
 };
 
+export const KEEPER_SHIFT = { arrive: 30, linger: 15 };
+
 export const QUEST = {
   pull: 0.5,
   deckPull: 1,

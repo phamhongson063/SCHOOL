@@ -9,6 +9,7 @@ import { idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { keepCanvas } from './canvasRestore.js';
 import { claimHold, createSlotClaims, lineSlots } from './blessingSpots.js';
+import { lotoOnDuty } from './keeperShift.js';
 
 const CALLER_LOOK = { shirt: 0x2e4a7a, pants: 0x2a2420, skin: 0xe0b088, style: 'khan', khan: 0x1f1e26, hairColor: 0x2a2420, iris: 0x3a2214 };
 const CALLER_MODEL = 'man-brown';
@@ -180,6 +181,7 @@ export function createLotoCourt(scene) {
   const claims = createSlotClaims(rows);
   const center = { x: COURT.x, z: COURT.z };
   let clock = 0;
+  let present = true;
 
   const repaint = () => {
     paint(canvas.getContext('2d'));
@@ -187,7 +189,9 @@ export function createLotoCourt(scene) {
   };
 
   return {
-    clickables: [npc.walker.group, boardGroup, stage.group],
+    get clickables() {
+      return present ? [npc.walker.group, boardGroup, stage.group] : [boardGroup, stage.group];
+    },
     caller: { ...npc, at, stand, attend: attention.attend, release: attention.release },
     stand,
     center,
@@ -212,8 +216,9 @@ export function createLotoCourt(scene) {
       Object.assign(board, next);
       repaint();
     },
-    update(t, camera, night) {
+    update(t, camera, night, minutes) {
       clock = t;
+      present = lotoOnDuty(minutes);
       attention.update(t);
       glow.update(t, night);
       courtLight.update(night);
@@ -223,9 +228,9 @@ export function createLotoCourt(scene) {
       aura.group.visible = distance < AURA_DISTANCE;
       if (aura.group.visible) aura.update(t, night);
       const near = distance < VIEW_DISTANCE;
-      npc.walker.group.visible = near;
+      npc.walker.group.visible = near && present;
       boardGroup.visible = near;
-      if (!near) return;
+      if (!near || !present) return;
       idleKeeper(npc, t);
     },
   };

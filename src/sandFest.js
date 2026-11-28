@@ -25,6 +25,8 @@ const REPLIES = {
   closed: () => `Ghi danh mở ${FIREWORKS.slots.map(slotText).join(', ')}.`,
 };
 
+export const sandFestClosedMenu = () => [{ id: 'hours', name: REPLIES.closed(), icon: '🎆', info: true }];
+
 export const sandFestReply = (outcome, start) => REPLIES[outcome]?.(start) ?? null;
 
 export const sandHostLine = (roll) => HOST_LINES[Math.floor(roll * HOST_LINES.length) % HOST_LINES.length];

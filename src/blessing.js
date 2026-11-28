@@ -9,8 +9,9 @@ import { plazaFloor, PLAZA_ZONE } from './quarter.js';
 import { idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
 import { blessingSlots } from './economy.js';
+import { blessingOnDuty } from './keeperShift.js';
 import { arcSlots, claimHold, createSlotClaims, inSector, lineSlots } from './blessingSpots.js';
-import { STONE, STONE_DARK } from './palette.js';
+import { LACQUER, STONE, STONE_DARK, TIMBER_DARK } from './palette.js';
 
 const STONE_LIGHT = 0xcfc6b2;
 const BRONZE = 0x6e8577;
@@ -41,7 +42,11 @@ const AURA_CYCLE = 0.08;
 const BURST_AHEAD = 1.1;
 const LAMP = { y: HEAD_Y + 0.6, ahead: -2.6, distance: 16, idle: 14, blessed: 24 };
 const BODY_GLOW = { idle: 0.16, blessed: 0.3 };
-const OFFICIAL = { x: PLAZA.x - 8, z: PLAZA.z0 + 0.6, facing: Math.PI, model: 'scholar-ink', rows: [{ reach: 1.6, offsets: [-0.9, 0, 0.9] }, { reach: 2.8, offsets: [-1.2, 0, 1.2] }] };
+const OFFICIAL = { x: PLAZA.x - 8, z: PLAZA.z0 + 1.1, facing: Math.PI, model: 'scholar-ink', rows: [{ reach: 2.1, offsets: [-0.9, 0, 0.9] }, { reach: 3.3, offsets: [-1.2, 0, 1.2] }] };
+const DESK = { ahead: 0.5, width: 1.3, depth: 0.5, height: 0.76 };
+const DESK_AT = { x: OFFICIAL.x + Math.sin(OFFICIAL.facing) * DESK.ahead, z: OFFICIAL.z + Math.cos(OFFICIAL.facing) * DESK.ahead };
+const PAPER = 0xf1e6c8;
+const INK = 0x2a2522;
 const OFFICIAL_LOOK = { shirt: 0x7a1f1a, pants: 0x2a2320, skin: 0xd9a479, style: 'khan', khan: 0x1f1e26, hairColor: 0x4a4440, beardColor: 0xdedad2, iris: 0x3a2214 };
 const OFFICIAL_DISTANCE = 60;
 const ALTAR = {
@@ -56,6 +61,19 @@ const ALTAR = {
 const STAY_TRIES = 16;
 const OFFICIAL_LINES = ['Ngươi muốn nhận chúc phúc à?', 'Lại đây ta xem nào.', 'Chăm học thì thần linh phù hộ.'];
 const LIGHT = 'rgba(255,255,255,1)';
+
+function officialDesk(b) {
+  const { width: w, depth: d, height: h } = DESK;
+  b.add(shapes.rounded(w, 0.07, d, 0.03), LACQUER, { p: [0, h - 0.035, 0] });
+  b.add(shapes.box(w + 0.02, 0.025, 0.025), GILT, { p: [0, h - 0.06, d / 2] });
+  b.add(shapes.box(w - 0.12, 0.16, 0.03), LACQUER, { p: [0, h - 0.16, d / 2 - 0.04] });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(shapes.box(0.07, h - 0.07, 0.07), TIMBER_DARK, { p: [sx * (w / 2 - 0.08), (h - 0.07) / 2, sz * (d / 2 - 0.07)] });
+  b.add(shapes.cylinder(0.045, 0.045, 0.5, 10), PAPER, { p: [-0.25, h + 0.045, 0.05], r: [0, 0, Math.PI / 2] });
+  for (const sx of [-1, 1]) b.add(shapes.cylinder(0.02, 0.02, 0.08, 8), TIMBER_DARK, { p: [-0.25 + sx * 0.29, h + 0.045, 0.05], r: [0, 0, Math.PI / 2] });
+  b.add(shapes.rounded(0.18, 0.04, 0.12, 0.015), INK, { p: [0.28, h + 0.02, 0.08] });
+  b.add(shapes.cylinder(0.05, 0.045, 0.16, 10), BRONZE_DARK, { p: [0.48, h + 0.08, -0.1] });
+  for (const lean of [-0.12, 0.1]) b.add(shapes.cylinder(0.008, 0.008, 0.24, 6), TIMBER_DARK, { p: [0.48 + lean * 0.15, h + 0.2, -0.1], r: [0, 0, lean] });
+}
 
 function lotusPedestal(b) {
   b.add(shapes.box(4.2, 0.3, 4.2), STONE_DARK, { p: [0, 0.15, 0] });
@@ -699,9 +717,17 @@ function createOfficial(scene) {
   npc.walker.group.position.copy(at);
   npc.walker.group.rotation.y = OFFICIAL.facing;
   scene.add(npc.walker.group);
+  const deskBatch = new Batch();
+  officialDesk(deskBatch);
+  const desk = deskBatch.mesh();
+  desk.position.set(DESK_AT.x, PLAZA.rise, DESK_AT.z);
+  desk.rotation.y = OFFICIAL.facing;
+  scene.add(desk);
+  freeze(desk);
   const attention = createAttention(npc.walker.group);
   const rows = lineSlots(at, OFFICIAL.facing, OFFICIAL.rows);
   const front = rows[0][Math.floor(rows[0].length / 2)];
+  let present = true;
   return {
     ...npc,
     at,
@@ -709,13 +735,18 @@ function createOfficial(scene) {
     rows,
     attend: attention.attend,
     release: attention.release,
+    desk,
+    get present() {
+      return present;
+    },
     owns(object) {
-      for (let node = object; node; node = node.parent) if (node === npc.walker.group) return true;
+      for (let node = object; node; node = node.parent) if (node === npc.walker.group || node === desk) return true;
       return false;
     },
-    update(t, camera) {
+    update(t, camera, onDuty) {
+      present = onDuty;
       attention.update(t);
-      const near = camera.position.distanceTo(at) < OFFICIAL_DISTANCE;
+      const near = onDuty && camera.position.distanceTo(at) < OFFICIAL_DISTANCE;
       npc.walker.group.visible = near;
       if (!near) return;
       idleKeeper(npc, t);
@@ -765,7 +796,14 @@ export function createBlessing(scene) {
     box(0, 0, 2.1, 2.1, HEAD_Y + 0.8),
     box(0, 0, RING_BED.outer + 0.1, RING_BED.outer + 0.1, 0.5),
     ...[...CORNER_BEDS, ...EDGE_BEDS].map((bed) => box(bed.x, bed.z, bed.hx + 0.1, bed.hz + 0.1, 0.5)),
-    { minX: OFFICIAL.x - 0.35, maxX: OFFICIAL.x + 0.35, minZ: OFFICIAL.z - 0.35, maxZ: OFFICIAL.z + 0.35, minY: 0, maxY: 2 },
+    {
+      minX: DESK_AT.x - DESK.width / 2,
+      maxX: DESK_AT.x + DESK.width / 2,
+      minZ: Math.min(DESK_AT.z - DESK.depth / 2, OFFICIAL.z - 0.35),
+      maxZ: Math.max(DESK_AT.z + DESK.depth / 2, OFFICIAL.z + 0.35),
+      minY: 0,
+      maxY: 2,
+    },
   ];
 
   const members = new Map();
@@ -784,7 +822,9 @@ export function createBlessing(scene) {
 
   const api = {
     obstacles,
-    clickables: [statue, official.walker.group],
+    get clickables() {
+      return official.present ? [statue, official.desk, official.walker.group] : [statue, official.desk];
+    },
     official,
     statueAt,
     altar: new THREE.Vector3(altarFront.x, PLAZA.rise, altarFront.z),
@@ -855,7 +895,7 @@ export function createBlessing(scene) {
     },
     update(dt, minutes, camera, night = 0) {
       clock += dt;
-      official.update(clock, camera);
+      official.update(clock, camera, blessingOnDuty(minutes));
       const near = camera.position.distanceTo(aura.group.position) < VIEW_DISTANCE;
       toward.subVectors(camera.position, aura.group.position).setY(0);
       if (toward.lengthSq() > 1e-6) toward.normalize();
