@@ -1,6 +1,7 @@
 import { FLUENCY, SPEAK } from './config.js';
 import { DECKS, DECK_IDS, unitOf, RUBY } from './studyDecks.js';
 import { certify } from './certify.js';
+import { quests } from './quests.js';
 import { fluency } from './fluency.js';
 import { absorption } from './absorption.js';
 import { between } from './random.js';
@@ -259,6 +260,7 @@ export function speechKeys(actor, deck, day) {
 export function rewardSpeech(actor, deck, key, day) {
   certify.gradeReview(actor, deck, [{ key, correct: true }]);
   fluency.recall(actor, key, day, true);
+  quests.note(actor, 'speak', day, 1, deck);
 }
 
 export function speechChance(actor, key, day) {

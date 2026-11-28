@@ -197,7 +197,7 @@ export class MindBehavior {
       const queue = this.town.queues[`teacher:${deck}`];
       const minutes = this.walkMinutes(queue.line[0]) + (MIND.queueSeconds * (queue.members.length + 1)) / 60;
       const gain = MIND.internalValue * this.diligence - certify.fee(deck, CERTIFY.internalFee) * need;
-      return { kind: 'study', minutes, rate: gain / minutes, go: () => this.goInternal(deck) };
+      return { kind: 'study', quest: 'internal', minutes, rate: gain / minutes, go: () => this.goInternal(deck) };
     }
     if (!certify.learnLeft(this.id, deck).length) return null;
     const seat = this.studySeatFor(deck);
@@ -208,34 +208,34 @@ export class MindBehavior {
     const minutes = this.walkMinutes(target) + sit + (waiting ? SELF_STUDY.waitMax / 60 : 0);
     const gain = this.studyGain(need, sit, deck);
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
+    return { kind: 'study', quest: 'learn', minutes, rate: (gain / minutes) * crowd, go: () => this.goSelfStudy(deck) };
   }
 
   reviewOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.reviewDeckWanted(ctx);
-    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.reviewGain(need, sit, deck), () => this.goPlainReview(deck));
+    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.reviewGain(need, sit, deck), () => this.goPlainReview(deck), 'review');
   }
 
   speakOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.speakDeckWanted(ctx);
-    return this.seatedStudy(deck, CERTIFY.speakFee, (sit) => this.speakGain(need, sit, deck, ctx.day), () => this.goSpeak(deck));
+    return this.seatedStudy(deck, CERTIFY.speakFee, (sit) => this.speakGain(need, sit, deck, ctx.day), () => this.goSpeak(deck), 'speak');
   }
 
   prepOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.prepDeckWanted(ctx);
-    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.prepGain(need, sit, deck, ctx.day), () => this.goPrep(deck));
+    return this.seatedStudy(deck, CERTIFY.reviewFee, (sit) => this.prepGain(need, sit, deck, ctx.day), () => this.goPrep(deck), 'review');
   }
 
-  seatedStudy(deck, fee, gainOf, go) {
+  seatedStudy(deck, fee, gainOf, go, quest) {
     const seat = deck && this.studySeatFor(deck, fee);
     if (!seat) return null;
     const sit = CERTIFY.sitSeconds / 60;
     const minutes = this.walkMinutes(seat.spot) + sit;
     const crowd = 1 - MIND.crowdCut * (1 - this.hallRoom(deck));
-    return { kind: 'study', minutes, rate: (gainOf(sit) / minutes) * crowd, go };
+    return { kind: 'study', quest, minutes, rate: (gainOf(sit) / minutes) * crowd, go };
   }
 
   plan(ctx) {
@@ -246,7 +246,7 @@ export class MindBehavior {
     for (const option of options) {
       if (!option || !(option.rate > 0)) continue;
       const stick = option.kind === this.lastPlan && this.now - this.lastPlanAt < MIND.stickSeconds ? MIND.stick : 1;
-      option.score = option.rate * this.tasteFor(option.kind) * quests.pull(this.id, option.kind, ctx.day) * stick * between(...MIND.noise);
+      option.score = option.rate * this.tasteFor(option.kind) * quests.pull(this.id, option.kind, ctx.day, option.quest) * stick * between(...MIND.noise);
       if (option.score > floor && (!best || option.score > best.score)) best = option;
     }
     return best;

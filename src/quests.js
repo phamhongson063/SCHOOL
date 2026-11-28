@@ -1,14 +1,14 @@
-import { QUEST } from './config.js';
+import { CERTIFY, QUEST } from './config.js';
 import { createStore, readEntries } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { makeRandom } from './random.js';
-import { DECK_IDS } from './studyDecks.js';
+import { DECKS, DECK_IDS } from './studyDecks.js';
+import { certify } from './certify.js';
 
 const KEY = worldKey('quests');
-const BOARD_VERSION = 2;
+const BOARD_VERSION = 3;
 export const QUEST_KINDS = Object.keys(QUEST.kinds);
 export const QUEST_SCOPES = ['day', 'week'];
-const MIND_KIND = { learn: 'study', sit: 'study', farm: 'farm', fish: 'fish', hunt: 'hunt' };
 
 export const weekOf = (day) => Math.floor((day + 3) / 7);
 const periodOf = (scope, day) => (scope === 'week' ? weekOf(day) : day);
@@ -16,26 +16,34 @@ const SALT = { day: 1, week: 7919 };
 
 const pickOf = (rand, list) => list[Math.floor(rand() * list.length)];
 
+const decksFor = (kind) => {
+  const spec = QUEST.kinds[kind];
+  return spec.deck ? DECK_IDS.filter((id) => !spec.needs || DECKS[id][spec.needs]) : [];
+};
+const DECKS_FOR = Object.fromEntries(QUEST_KINDS.map((kind) => [kind, decksFor(kind)]));
+const usable = (kind) => !QUEST.kinds[kind].deck || DECKS_FOR[kind].length > 0;
+
 function rollGoal(rand, [lo, hi], unit = 1) {
   const choices = Math.floor((hi - lo) / unit) + 1;
   return lo + unit * Math.floor(rand() * choices);
 }
 
-function rollKind(rand) {
-  const total = QUEST_KINDS.reduce((sum, kind) => sum + QUEST.kinds[kind].weight, 0);
+function rollWeighted(rand, items, weightOf) {
+  const total = items.reduce((sum, item) => sum + weightOf(item), 0);
   let roll = rand() * total;
-  for (const kind of QUEST_KINDS) {
-    roll -= QUEST.kinds[kind].weight;
-    if (roll < 0) return kind;
+  for (const item of items) {
+    roll -= weightOf(item);
+    if (roll < 0) return item;
   }
-  return QUEST_KINDS.at(-1);
+  return items.at(-1);
 }
 
-function rollStep(rand, scope, deck) {
-  const kind = rollKind(rand);
+const DAY_KINDS = QUEST_KINDS.filter(usable);
+
+function makeStep(rand, kind, scope, deck) {
   const spec = QUEST.kinds[kind];
   const step = { kind, goal: rollGoal(rand, spec[scope], spec.unit) };
-  if (spec.deck) step.deck = deck ?? pickOf(rand, DECK_IDS);
+  if (spec.deck) step.deck = deck ?? pickOf(rand, DECKS_FOR[kind]);
   return step;
 }
 
@@ -45,7 +53,7 @@ function singleQuests(rand) {
   const seen = new Set();
   const board = [];
   for (let tries = 0; board.length < QUEST.day.count && tries < QUEST.day.count * 20; tries++) {
-    const step = rollStep(rand, 'day');
+    const step = makeStep(rand, rollWeighted(rand, DAY_KINDS, (kind) => QUEST.kinds[kind].weight), 'day');
     if (seen.has(stepId(step))) continue;
     seen.add(stepId(step));
     board.push([step]);
@@ -53,21 +61,54 @@ function singleQuests(rand) {
   return board;
 }
 
+const pathDecks = (path) => DECK_IDS.filter((id) => path.steps.every((kind) => !QUEST.kinds[kind].deck || DECKS_FOR[kind].includes(id)));
+const PATHS = QUEST.week.paths.filter((path) => path.steps.every(usable) && (!path.steps.some((kind) => QUEST.kinds[kind].deck) || pathDecks(path).length));
+
 function chainQuests(rand) {
+  const seen = new Set();
   const board = [];
-  for (let n = 0; n < QUEST.week.count; n++) {
-    const deck = pickOf(rand, DECK_IDS);
-    const length = rollGoal(rand, QUEST.week.steps);
-    const steps = [];
-    for (let tries = 0; steps.length < length && tries < length * 20; tries++) {
-      const step = rollStep(rand, 'week', deck);
-      if (steps.some((other) => stepId(other) === stepId(step))) continue;
-      steps.push(step);
-    }
-    board.push(steps);
+  for (let tries = 0; board.length < QUEST.week.count && tries < QUEST.week.count * 20; tries++) {
+    const path = rollWeighted(rand, PATHS, (item) => item.weight);
+    const deck = path.steps.some((kind) => QUEST.kinds[kind].deck) ? pickOf(rand, pathDecks(path)) : null;
+    const id = `${path.steps.join('>')}:${deck ?? ''}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    board.push(path.steps.map((kind) => makeStep(rand, kind, 'week', deck)));
   }
   return board;
 }
+
+const deckLeft = (id, deck) => !certify.finished(id, deck);
+const hasCertified = (id, deck) => certify.certifiedCount(id, deck) > 0;
+
+const STEP_OPEN = {
+  day: {
+    learn: (id, deck, left) => certify.learnLeft(id, deck).length >= left,
+    sit: (id, deck) => certify.learnLeft(id, deck).length > 0 || hasCertified(id, deck),
+    review: hasCertified,
+    speak: hasCertified,
+    internal: (id, deck) => certify.needsInternal(id, deck) && certify.internalTriesLeft(id, deck) > 0 && !certify.examTaken(id, deck),
+    exam: (id, deck) => certify.batch(id, deck).length > 0 && !certify.examTaken(id, deck),
+  },
+  week: {
+    learn: deckLeft,
+    sit: (id, deck) => deckLeft(id, deck) || hasCertified(id, deck),
+    review: (id, deck) => deckLeft(id, deck) || hasCertified(id, deck),
+    speak: (id, deck) => deckLeft(id, deck) || hasCertified(id, deck),
+    internal: deckLeft,
+    exam: deckLeft,
+  },
+};
+
+export function stepOpen(id, step, scope, left, money) {
+  const spec = QUEST.kinds[step.kind];
+  if (!spec.deck) return true;
+  if (!DECKS_FOR[step.kind].includes(step.deck)) return false;
+  if (!(money >= certify.fee(step.deck, CERTIFY[spec.fee] ?? 0))) return false;
+  return STEP_OPEN[scope][step.kind](id, step.deck, left);
+}
+
+const questOpen = (id, quest, money) => quest.steps.every((step) => stepOpen(id, step, quest.scope, step.goal, money));
 
 const boardCache = { day: { at: null, board: [] }, week: { at: null, board: [] } };
 
@@ -152,9 +193,9 @@ function currentSteps(id, day) {
     .map((quest) => quest.steps[heldOf(id, quest, day).step]);
 }
 
-function take(id, quest, day) {
+function take(id, quest, day, money) {
   const period = periodFor(id, quest.scope, day);
-  if (!period || period.taken[quest.index] || activeCount(id, day) >= QUEST.active) return false;
+  if (!period || period.taken[quest.index] || activeCount(id, day) >= QUEST.active || !questOpen(id, quest, money)) return false;
   period.taken[quest.index] = { step: 0, count: 0, paid: false };
   return true;
 }
@@ -183,21 +224,22 @@ export const quests = {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
-  view(id, day) {
+  view(id, day, money) {
     return allQuests(day).map((quest) => {
       const held = heldOf(id, quest, day);
       const status = statusOf(quest, held);
       const step = status === 'active' ? held.step : status === 'open' ? 0 : quest.steps.length;
       const count = status === 'active' ? Math.min(Math.floor(held.count), quest.steps[step].goal) : 0;
-      return { ...quest, status, step, count };
+      const blocked = status === 'open' && !questOpen(id, quest, money);
+      return { ...quest, status, step, count, blocked };
     });
   },
   active(id, day) {
     return activeCount(id, day);
   },
-  accept(id, scope, index, day) {
+  accept(id, scope, index, day, money) {
     const quest = questBoard(scope, day)[index];
-    if (!quest || !take(id, quest, day)) return false;
+    if (!quest || !take(id, quest, day, money)) return false;
     changed(id);
     return true;
   },
@@ -230,7 +272,7 @@ export const quests = {
     }
     if (moved) changed(id);
   },
-  tend(id, day, { pay, fit }) {
+  tend(id, day, { money, pay, fit }) {
     const result = { taken: 0, done: 0, dropped: 0, paid: 0 };
     for (const quest of allQuests(day)) {
       const held = heldOf(id, quest, day);
@@ -240,30 +282,32 @@ export const quests = {
         if (paid === null) continue;
         result.done += 1;
         result.paid += paid;
-      } else if (status === 'active' && !(fit(quest.steps[held.step], quest.scope, stepLeft(quest, held)) > 0) && drop(id, quest, day)) {
+      } else if (status === 'active' && !stepOpen(id, quest.steps[held.step], quest.scope, stepLeft(quest, held), money) && drop(id, quest, day)) {
         result.dropped += 1;
       }
     }
     const room = QUEST.active - activeCount(id, day);
     if (room > 0) {
       const picks = allQuests(day)
-        .filter((quest) => statusOf(quest, heldOf(id, quest, day)) === 'open')
-        .map((quest) => {
-          const fits = quest.steps.map((step) => fit(step, quest.scope, step.goal));
-          return { quest, score: fits.every((value) => value > 0) ? fits.reduce((sum, value) => sum + value, 0) / fits.length : 0 };
-        })
+        .filter((quest) => statusOf(quest, heldOf(id, quest, day)) === 'open' && questOpen(id, quest, money))
+        .map((quest) => ({ quest, score: quest.steps.reduce((sum, step) => sum + fit(step), 0) / quest.steps.length }))
         .filter((pick) => pick.score >= QUEST.minFit)
         .sort((a, b) => b.score - a.score)
         .slice(0, room);
-      for (const { quest } of picks) if (take(id, quest, day)) result.taken += 1;
+      for (const { quest } of picks) if (take(id, quest, day, money)) result.taken += 1;
     }
     if (result.taken || result.done || result.dropped) changed(id);
     return result;
   },
-  pull(id, kind, day) {
-    return currentSteps(id, day).some((step) => MIND_KIND[step.kind] === kind) ? 1 + QUEST.pull : 1;
+  pull(id, kind, day, quest = null) {
+    const steps = currentSteps(id, day);
+    const mind = steps.some((step) => QUEST.kinds[step.kind].mind === kind) ? QUEST.pull : 0;
+    const exact = quest && steps.some((step) => step.kind === quest) ? QUEST.pull : 0;
+    return 1 + mind + exact;
   },
   deckPull(id, deck, day) {
     return currentSteps(id, day).some((step) => step.deck === deck) ? QUEST.deckPull : 0;
   },
 };
+
+certify.onPass((actor, deck, kind, day) => quests.note(actor, kind, day, 1, deck));

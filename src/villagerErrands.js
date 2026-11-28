@@ -1,6 +1,5 @@
 import { between } from './random.js';
-import { VILLAGER, BANK, ATM, CERTIFY } from './config.js';
-import { certify } from './certify.js';
+import { VILLAGER, BANK, ATM, QUEST } from './config.js';
 import { BLOCKED, NAGS, pick } from './villagerData.js';
 import { economy } from './economy.js';
 import { quests } from './quests.js';
@@ -27,21 +26,15 @@ export class ErrandBehavior {
     });
   }
 
-  questFit(step, scope, left) {
-    const deck = step.deck;
-    if (deck) {
-      const fee = certify.fee(deck, step.kind === 'learn' ? CERTIFY.learnFee : CERTIFY.reviewFee);
-      if (this.purse.money < fee) return 0;
-      const open = step.kind === 'learn' ? (scope === 'day' ? certify.learnLeft(this.id, deck).length >= left : !certify.finished(this.id, deck)) : certify.learnLeft(this.id, deck).length > 0 || certify.certifiedCount(this.id, deck) > 0;
-      if (!open) return 0;
-    }
-    return this.tasteFor(deck ? 'study' : step.kind) * between(0.8, 1.2);
+  questFit(step) {
+    return this.tasteFor(QUEST.kinds[step.kind].mind) * between(0.8, 1.2);
   }
 
   tendQuests(ctx) {
     return quests.tend(this.id, ctx.day, {
+      money: this.purse.money,
       pay: (scope) => economy.payQuest(this.purse, scope),
-      fit: (step, scope, left) => this.questFit(step, scope, left),
+      fit: (step) => this.questFit(step),
     });
   }
 

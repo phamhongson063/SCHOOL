@@ -13,6 +13,10 @@ const REFRESH_MS = 3000;
 const STEP_TEXT = {
   learn: (step) => [`Học ${step.goal} ${DECKS[step.deck]?.unit ?? 'từ'} mới ở `, step.deck],
   sit: (step) => [`Luyện tập ${step.goal} phút ở `, step.deck],
+  review: (step) => [`Ôn chứng chỉ ${step.goal} lượt ở `, step.deck],
+  speak: (step) => [`Luyện nói ${step.goal} hội thoại ở `, step.deck],
+  internal: (step) => [step.goal > 1 ? `Đậu thi nội bộ ${step.goal} lần ở ` : 'Đậu thi nội bộ ở ', step.deck],
+  exam: (step) => [`Đậu khảo thí ${DECKS[step.deck]?.label ?? step.deck}${step.goal > 1 ? ` ${step.goal} lần` : ''} ở `, step.deck],
   farm: (step) => [`Làm ${step.goal} việc đồng áng`],
   fish: (step) => [`Câu được ${step.goal} con cá`],
   hunt: (step) => [`Săn được ${step.goal} con thú`],
@@ -52,7 +56,7 @@ export function createQuestBoard({ list, active, reward, act, placeOf, onTravel 
     const node = el('div', `quest-step ${state}`);
     const [text, deck] = STEP_TEXT[step.kind](step);
     const label = el('span', 'quest-step-text', text);
-    const place = deck ? placeOf(deck) : null;
+    const place = deck ? placeOf(deck, step.kind) : null;
     if (place) {
       const link = el('button', 'quest-place', place.name);
       link.type = 'button';
@@ -85,7 +89,7 @@ export function createQuestBoard({ list, active, reward, act, placeOf, onTravel 
       quest.status === 'open' ? ['Nhận', 'accept', false] : quest.status === 'ready' ? ['Nhận thưởng', 'claim', true] : quest.status === 'active' ? ['Huỷ', 'drop', false] : ['Đã xong', null, false];
     const node = el('button', primary ? 'quest-act primary' : 'quest-act', label);
     node.type = 'button';
-    node.disabled = !action || (action === 'accept' && full);
+    node.disabled = !action || (action === 'accept' && (full || quest.blocked));
     if (action) {
       node.addEventListener('click', () => {
         act(quest, action);

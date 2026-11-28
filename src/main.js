@@ -335,11 +335,12 @@ const HALL_PLACES = new Map(
     return [hall.deck, { name: hall.name, point: { x: hall.x, z: hall.front + out * 2 } }];
   }),
 );
+const EXAM_PLACE = { name: 'Trường khảo thí', point: TEACHER_STAND };
 const questBoard = createQuestBoard({
-  list: () => quests.view(PLAYER, dayOf(gameNow())),
+  list: () => quests.view(PLAYER, dayOf(gameNow()), purse.money),
   active: () => quests.active(PLAYER, dayOf(gameNow())),
   reward: (scope) => economy.questReward(scope),
-  placeOf: (deck) => HALL_PLACES.get(deck) ?? null,
+  placeOf: (deck, kind) => (kind === 'exam' ? EXAM_PLACE : HALL_PLACES.get(deck)) ?? null,
   onTravel: (point) => travelTo(point),
   act: playerQuestAct,
 });
@@ -351,7 +352,7 @@ const toolbar = createToolbarToggle();
 function playerQuestAct(quest, action) {
   const day = dayOf(gameNow());
   if (action === 'accept') {
-    if (quests.accept(PLAYER, quest.scope, quest.index, day)) uiSounds.pop();
+    if (quests.accept(PLAYER, quest.scope, quest.index, day, purse.money)) uiSounds.pop();
     return;
   }
   if (action === 'drop') {
@@ -1172,9 +1173,10 @@ const study = createStudy({
   sounds: uiSounds,
   exams,
   arenaClash: (span) => arena.clash(PLAYER, gameNow(), span),
-  onPaid() {
+  onPaid(mode, deck) {
     playerDid('study');
     traits.note(PLAYER, 'study', context.day);
+    if (mode === 'review') playerQuest('review', deck);
   },
   onQualified(deck) {
     sendQualifyMail(deck, `Bạn đã đậu thi nội bộ lớp ${DECKS[deck].label}, đủ điều kiện dự khảo thí hôm nay.`);

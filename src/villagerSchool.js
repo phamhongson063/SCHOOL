@@ -603,6 +603,7 @@ export class SchoolBehavior {
         this.rise(() => this.think(), between(0.3, 1.5));
         return;
       }
+      if (this.reviewing && !this.speaking) quests.note(this.id, 'review', this.town.context.day, 1, this.seatRef.deck);
       this.task = 'selfstudy';
       this.studying = true;
       this.studyUntil = this.now + CERTIFY.sitSeconds;

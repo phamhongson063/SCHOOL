@@ -157,7 +157,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     }
     economy.tuition(classTeacherOf(deckId), fee);
     paid.add(name);
-    onPaid?.();
+    onPaid?.(name, deckId);
     showNotice(null);
     return true;
   }

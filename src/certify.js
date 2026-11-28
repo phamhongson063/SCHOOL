@@ -111,10 +111,15 @@ function load() {
 const actors = load();
 const store = createPairStore(WORLD_KEY, () => without(actors, PLAYER), SELF_KEY, () => actors[PLAYER] ?? null);
 const listeners = [];
+const passListeners = [];
 
 function changed(actor) {
   store.save();
   for (const listener of listeners) listener(actor);
+}
+
+function announcePass(actor, deck, kind, day) {
+  for (const listener of passListeners) listener(actor, deck, kind, day);
 }
 
 function peekNext(state, order) {
@@ -219,6 +224,9 @@ function answersByKey(results) {
 export const certify = {
   onChange(listener) {
     listeners.push(listener);
+  },
+  onPass(listener) {
+    passListeners.push(listener);
   },
   totalQuestions,
   batch(actor, deck) {
@@ -340,6 +348,7 @@ export const certify = {
     const passed = results.length > 0 && results.every((result) => result.correct);
     if (passed) state.qualified = state.day;
     changed(actor);
+    if (passed) announcePass(actor, deck, 'internal', state.day);
     return { passed, failed, revoked };
   },
   examQuestions(actor, deck) {
@@ -436,6 +445,7 @@ export const certify = {
     state.examPassed = passed;
     if (!passed) state.qualified = null;
     changed(actor);
+    if (passed) announcePass(actor, deck, 'exam', state.day);
     return { passed, right, total, score, certified, carried: passed ? [] : passedFresh, failed, revoked };
   },
   pool(actor) {

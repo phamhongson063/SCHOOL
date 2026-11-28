@@ -451,6 +451,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview(deck)) return AWAY.walk;
     member.drillWeak(deck, CERTIFY.sitSeconds);
+    quests.note(member.id, 'review', ctx.day, 1, deck);
     quests.note(member.id, 'sit', ctx.day, SIT, deck);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
@@ -483,6 +484,7 @@ export function createAwaySim({ town, contextAt }) {
     takeSeat(member, deck, slots);
     if (!member.payReview(deck)) return AWAY.walk;
     member.drillCertified(deck, CERTIFY.sitSeconds);
+    quests.note(member.id, 'review', ctx.day, 1, deck);
     quests.note(member.id, 'sit', ctx.day, SIT, deck);
     memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
     return AWAY.walk + SIT;
@@ -593,22 +595,22 @@ export function createAwaySim({ town, contextAt }) {
     if (canHunt(member, slots)) options.push({ kind: 'hunt', as: 'walk', rate: member.huntGain(need) / (AWAY.walk + HUNT), run: () => hunt(member, slots) });
     if (ctx.night && flyDensity() > 0) options.push({ kind: 'firefly', as: 'walk', rate: member.fireflyGain() / swatMinutes(), run: () => swat(member) });
     const internal = internalDeck(member, clock);
-    if (internal) options.push({ kind: 'study', as: 'study', rate: (MIND.internalValue * member.diligence - certify.fee(internal, CERTIFY.internalFee) * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
+    if (internal) options.push({ kind: 'study', quest: 'internal', as: 'study', rate: (MIND.internalValue * member.diligence - certify.fee(internal, CERTIFY.internalFee) * need) / INTERNAL_TRIP, run: () => takeInternal(member, internal, clock) });
     const training = trainingPlan(member, clock);
     if (training) options.push({ kind: 'study', as: 'study', rate: member.trainingGain(need) / (AWAY.walk + TRAINING.minutes), run: () => train(member, clock, training) });
     const deck = studyDeck(member, ctx, slots);
-    if (deck) options.push({ kind: 'study', as: 'study', rate: member.studyGain(need, SIT, deck) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
+    if (deck) options.push({ kind: 'study', quest: 'learn', as: 'study', rate: member.studyGain(need, SIT, deck) / (AWAY.walk + SIT), run: () => study(member, ctx, deck, slots) });
     const reviewing = reviewDeck(member, ctx, slots);
-    if (reviewing) options.push({ kind: 'study', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
+    if (reviewing) options.push({ kind: 'study', quest: 'review', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
     const speaking = speakDeck(member, ctx, slots);
-    if (speaking) options.push({ kind: 'study', as: 'study', rate: member.speakGain(need, SIT, speaking, ctx.day) / (AWAY.walk + SIT), run: () => speak(member, ctx, speaking, slots) });
+    if (speaking) options.push({ kind: 'study', quest: 'speak', as: 'study', rate: member.speakGain(need, SIT, speaking, ctx.day) / (AWAY.walk + SIT), run: () => speak(member, ctx, speaking, slots) });
     const prepping = prepDeck(member, ctx, slots);
-    if (prepping) options.push({ kind: 'study', as: 'study', rate: member.prepGain(need, SIT, prepping, ctx.day) / (AWAY.walk + SIT), run: () => prep(member, ctx, prepping, slots) });
+    if (prepping) options.push({ kind: 'study', quest: 'review', as: 'study', rate: member.prepGain(need, SIT, prepping, ctx.day) / (AWAY.walk + SIT), run: () => prep(member, ctx, prepping, slots) });
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {
       if (!(option.rate > 0)) continue;
-      option.score = option.rate * member.tasteFor(option.kind) * quests.pull(member.id, option.kind, ctx.day) * between(...MIND.noise);
+      option.score = option.rate * member.tasteFor(option.kind) * quests.pull(member.id, option.kind, ctx.day, option.quest) * between(...MIND.noise);
       if (option.score > floor && (!best || option.score > best.score)) best = option;
     }
     return best;
