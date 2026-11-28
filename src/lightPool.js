@@ -33,6 +33,7 @@ export function createLightPool(scene, size) {
     scene.add(light);
     return { light, source: null, weight: 0 };
   });
+  let lit = true;
   const focus = new THREE.Vector3();
   const ahead = new THREE.Vector3();
   const spot = new THREE.Vector3();
@@ -94,6 +95,11 @@ export function createLightPool(scene, size) {
       if (!free) break;
       free.source = light;
       free.weight = 0;
+    }
+    const inUse = slots.some((slot) => slot.source);
+    if (inUse !== lit) {
+      lit = inUse;
+      for (const slot of slots) slot.light.visible = lit;
     }
     apply();
   }

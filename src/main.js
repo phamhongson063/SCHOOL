@@ -155,7 +155,7 @@ const SLEEP_FRAME_RATE = 2;
 const STUDY_FRAME_RATE = 10;
 const MAX_STEP = 0.12;
 const SIM_SPAN = 0.6;
-const IDLE_AFTER = 20000;
+const IDLE_AFTER = 8000;
 const SHADOW_SPAN = LOW_POWER ? 30 : 45;
 const POINT_LIGHT_SLOTS = LOW_POWER ? 4 : 6;
 const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0: MOUNTAIN.z0, z1: Math.max(84, ISLE_BOUNDS.z1) };
@@ -2840,7 +2840,7 @@ renderer.setAnimationLoop((time) => {
   if (mapCapture && !study.dimmed) stepMapCapture(MAP_TILES_PER_FRAME);
   const night = sky.update(fireworksSkyMinutes(context.minutes), camera, player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
-  if (Math.abs(night - shownNight) > 0.01) {
+  if (Math.abs(night - shownNight) > 0.01 || (night === 0 && shownNight !== 0)) {
     shownNight = night;
     applyNight(night);
   }
