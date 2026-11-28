@@ -1,7 +1,8 @@
 import { between } from './random.js';
 import { BLESSING, CERTIFY, SELF_STUDY, TRAINING } from './config.js';
 import { certify } from './certify.js';
-import { DECK_IDS } from './studyDecks.js';
+import { DECK_IDS, READING_IDS } from './studyDecks.js';
+import { openPassages, readingFee, simulateReading } from './reading.js';
 import { EXAM_SPAN, INTERNAL_SPAN, examOpen } from './examRules.js';
 import { economy } from './economy.js';
 import { absorption } from './absorption.js';
@@ -268,6 +269,91 @@ export class SchoolBehavior {
     this.targetSeat = null;
     this.task = null;
     this.wait(between(1, 2));
+  }
+
+  readingRoomWanted() {
+    if (this.purse.money < readingFee()) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const room of READING_IDS) {
+      if (!openPassages(this.id, room).length) continue;
+      const score = this.hallRoom(room) + quests.deckPull(this.id, room, this.town.context.day) + Math.random() * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = room;
+      }
+    }
+    return best;
+  }
+
+  goReading(room) {
+    const wait = this.town.seatWait;
+    const entry = wait && !wait.inside(room, this.position) ? wait.entry(room) : null;
+    this.cancel();
+    this.task = 'reading';
+    if (!entry) {
+      this.pickReadingSeat(room);
+      return;
+    }
+    this.travel(entry, { then: () => this.pickReadingSeat(room), fail: () => this.quitReading() });
+  }
+
+  pickReadingSeat(room) {
+    const seat = this.studySeatFor(room, readingFee());
+    this.cancel();
+    if (!seat) {
+      this.quitReading();
+      return;
+    }
+    const seats = this.town.studySeats;
+    this.task = 'reading';
+    seats.reserve(seat, this);
+    this.targetSeat = seat;
+    this.travel(seat.spot, { then: () => this.claimSeat(seats, () => this.quitReading()), fail: () => this.quitReading() });
+  }
+
+  quitReading() {
+    this.town.studySeats.unreserve(this.targetSeat, this);
+    this.targetSeat = null;
+    this.task = null;
+    this.wait(between(1, 2));
+  }
+
+  payReading(room) {
+    const fee = readingFee();
+    if (!this.purse.spend(fee)) return false;
+    economy.tuition(classTeacherOf(room), fee, this.id);
+    absorption.note(this.id, 'study', this.town.context.day);
+    traits.note(this.id, 'study', this.town.context.day);
+    return true;
+  }
+
+  startReading() {
+    const room = this.seatRef.deck;
+    if (!this.payReading(room)) {
+      this.rise(() => {
+        this.task = null;
+        this.think();
+      }, between(0.5, 2));
+      return;
+    }
+    this.readingResult = simulateReading(this.id, room, CERTIFY.sitSeconds);
+    this.readingUntil = this.now + CERTIFY.sitSeconds;
+    this.studying = true;
+  }
+
+  readingUpdate(t) {
+    if (!this.readingResult || (t < this.readingUntil && !this.needsSleep(this.town.context))) return;
+    const { right, total, passages } = this.readingResult;
+    this.readingResult = null;
+    quests.note(this.id, 'read', this.town.context.day, passages, this.seatRef.deck);
+    this.town.studySeats.rest(this.seatRef, this, t + CERTIFY.seatRest);
+    this.studyRestAt = t + SELF_STUDY.cooldown;
+    if (total) this.say(`📖 ${right}/${total}`, 2.4);
+    this.rise(() => {
+      this.task = null;
+      this.think();
+    }, between(0.3, 1.5));
   }
 
   internalSeatFor(deck) {
@@ -594,6 +680,10 @@ export class SchoolBehavior {
     this.facing = Math.PI;
     this.velocity = 0;
     this.state = 'seated';
+    if (this.task === 'reading') {
+      this.startReading();
+      return;
+    }
     if (this.seatRef.study) {
       if (!(this.reviewing ? this.payReview(this.seatRef.deck) : this.payStudy(this.seatRef.deck))) {
         this.reviewing = false;

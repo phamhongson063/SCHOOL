@@ -7,7 +7,7 @@ import { worldKey } from './saveKeys.js';
 import { foldArenaSurplus, planDay, pruneBook, record, sumBook } from './townhall.js';
 import { blessingReward, parseSession, sessionShare } from './blessingRules.js';
 import { NPC, classTeacherOf } from './npcIds.js';
-import { DECKS, DECK_IDS } from './studyDecks.js';
+import { DECKS, DECK_IDS, READINGS, READING_IDS } from './studyDecks.js';
 import { trade } from './trade.js';
 import { certify } from './certify.js';
 import { traits } from './traits.js';
@@ -137,7 +137,10 @@ function charge(purse, value, kind) {
   if (taken > 0 && purse.spend(taken)) deposit(taken, kind);
 }
 
-export const CLASS_TEACHERS = DECK_IDS.map((deck) => ({ id: classTeacherOf(deck), name: DECKS[deck].teacher }));
+export const CLASS_TEACHERS = [
+  ...DECK_IDS.map((deck) => ({ id: classTeacherOf(deck), name: DECKS[deck].teacher })),
+  ...READING_IDS.map((room) => ({ id: classTeacherOf(room), name: READINGS[room].teacher })),
+];
 
 function workers() {
   return [...ctx.staff(), ...SHOPKEEPERS, ...CLASS_TEACHERS];

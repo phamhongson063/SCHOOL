@@ -164,7 +164,8 @@ export class Town {
 
   displaced(member, seat) {
     if (!(member instanceof Villager) || member.targetSeat !== seat || member.state !== 'walking') return;
-    if (seat.study) member.goSelfStudy();
+    if (member.task === 'reading') member.goReading(seat.deck);
+    else if (seat.study) member.goSelfStudy();
     else if (member.task === 'training') member.goTraining();
     else member.goExam();
   }

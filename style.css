@@ -1608,16 +1608,11 @@ dialog.paper::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
-.phase-time {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
 .battery {
-  position: absolute;
-  left: calc(100% + 5px);
-  top: 50%;
+  position: fixed;
+  right: calc(var(--hud-edge) + 4px);
+  bottom: calc(var(--safe-bottom) + 2px);
+  z-index: var(--z-hud);
   display: block;
   width: 24px;
   height: 12px;
@@ -1625,7 +1620,6 @@ dialog.paper::backdrop {
   border: 1.5px solid rgba(255, 255, 255, 0.92);
   border-radius: 4px;
   background: rgba(28, 20, 14, 0.45);
-  transform: translateY(-50%);
   pointer-events: none;
 }
 
@@ -3590,6 +3584,108 @@ dialog.loto-sheet {
 
 .study-body.covered .study-meaning {
   color: var(--tan);
+}
+
+.study-body.reading .study-pins,
+.study-body.reading .study-head,
+.study-body.reading .study-meaning,
+.study-body.reading .study-note,
+.study-body.reading .study-example {
+  display: none;
+}
+
+.study-passage {
+  padding-top: 4px;
+}
+
+.passage-text {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font: 500 16px/2 "BIZ UDPGothic", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  line-break: strict;
+  text-wrap: pretty;
+}
+
+.passage-text ruby {
+  ruby-position: over;
+}
+
+.passage-text rt {
+  font-size: 0.55em;
+  font-weight: 400;
+  color: var(--tan);
+}
+
+.study-card.no-furigana .passage-text rt {
+  visibility: hidden;
+}
+
+.passage-blank {
+  display: inline-block;
+  min-width: 3.5em;
+  margin: 0 2px;
+  border-bottom: 1.5px solid var(--tan);
+  line-height: 1.4;
+}
+
+.passage-no {
+  margin-right: 2px;
+  color: var(--tan);
+  font-weight: 700;
+}
+
+.passage-blank.now {
+  border-bottom-color: #c2287e;
+}
+
+.passage-blank.now .passage-no {
+  color: #c2287e;
+}
+
+.passage-blank.right {
+  min-width: 0;
+  border-bottom-color: #2e6e46;
+  color: #1f5534;
+  font-weight: 700;
+}
+
+.passage-blank.wrong {
+  min-width: 0;
+  border-bottom-color: var(--lacquer);
+  color: var(--lacquer);
+  font-weight: 700;
+}
+
+.passage-blank.right .passage-no,
+.passage-blank.wrong .passage-no {
+  color: inherit;
+}
+
+.passage-vi {
+  margin-bottom: 10px;
+}
+
+.passage-options {
+  margin-top: 4px;
+}
+
+.passage-result {
+  margin: 4px 0 10px;
+  color: var(--ink);
+  font: 700 16px/1.3 var(--font-ui);
+  text-align: center;
+}
+
+.passage-next {
+  display: block;
+  margin: 0 auto 6px;
+  padding: 8px 18px;
+  border: 2px solid #d9c49a;
+  border-radius: 12px;
+  background: rgba(255, 252, 240, 0.9);
+  color: var(--ink);
+  font: 600 15px/1.2 var(--font-ui);
+  cursor: pointer;
 }
 
 .loader {

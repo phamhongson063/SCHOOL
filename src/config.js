@@ -101,6 +101,8 @@ export const HOUSE_PRICES = { small: 700000, medium: 1200000, large: 2000000 };
 
 export const SELF_STUDY = { cooldown: 20 * 60, waitPoll: 1.5, waitMax: 5 * 60 };
 
+export const READING = { longText: 100, fee: 1, value: 3, blankSeconds: 60 };
+
 export const VILLAGER = {
   sellWhen: 6,
   seedStock: 4,
@@ -505,6 +507,7 @@ export const QUEST = {
     speak: { icon: '🎤', mind: 'study', deck: true, needs: 'speak', fee: 'speakFee', weight: 1, day: [1, 3], week: [3, 6] },
     internal: { icon: '🏫', mind: 'study', deck: true, fee: 'internalFee', weight: 2, day: [1, 1], week: [1, 2] },
     exam: { icon: '🎓', mind: 'study', deck: true, fee: 'examFee', weight: 1, day: [1, 1], week: [1, 2] },
+    read: { icon: '📃', mind: 'study', deck: true, reading: true, weight: 2, day: [1, 2], week: [2, 4] },
     farm: { icon: '🌾', mind: 'farm', weight: 1, day: [6, 10], week: [8, 15] },
     fish: { icon: '🎣', mind: 'fish', weight: 1, day: [2, 4], week: [3, 5] },
     hunt: { icon: '🏹', mind: 'hunt', weight: 1, day: [1, 2], week: [1, 3] },

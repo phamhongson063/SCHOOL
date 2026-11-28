@@ -7,10 +7,11 @@ import { between } from './random.js';
 import { AVERAGE_CASTS, BLESSING_STAY, blessingStayMinutes } from './villagerMind.js';
 import { blessingSlots, economy } from './economy.js';
 import { simulateExam, simulateInternal } from './villagerSchool.js';
-import { DECK_IDS } from './studyDecks.js';
+import { DECK_IDS, READING_IDS } from './studyDecks.js';
 import { NPC } from './npcIds.js';
 import { traits } from './traits.js';
 import { quests } from './quests.js';
+import { simulateReading } from './reading.js';
 import { nearestFlyGap, passingCatch } from './fireflyRules.js';
 import { answerOf, landedAt, lanternSeconds, lanternTry, lanternWorth } from './lanterns.js';
 import { book, leaveRoom, lodgeNightOf } from './lodging.js';
@@ -77,7 +78,7 @@ function blessingAnswers(member, minutes) {
 
 export function createAwaySim({ town, contextAt }) {
   const { farm, market, river, bank, estate } = town;
-  const seatsOf = Object.fromEntries(DECK_IDS.map((deck) => [deck, town.studySeats.list.filter((seat) => seat.deck === deck).length]));
+  const seatsOf = Object.fromEntries([...DECK_IDS, ...READING_IDS].map((deck) => [deck, town.studySeats.list.filter((seat) => seat.deck === deck).length]));
   const examSeats = town.seats.list.map(() => []);
   const internalSeats = Object.fromEntries(DECK_IDS.map((deck) => [deck, town.internalSeats.list.filter((seat) => seat.deck === deck).map(() => [])]));
   const allSeats = () => [examSeats, ...Object.values(internalSeats)].flat();
@@ -474,6 +475,20 @@ export function createAwaySim({ town, contextAt }) {
     return AWAY.walk + sit;
   }
 
+  function readingRoom(member, ctx, slots) {
+    if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
+    const room = member.readingRoomWanted();
+    return room && (slots.study.get(member) === room || slots.seats[room] > 0) ? room : null;
+  }
+
+  function read(member, ctx, room, slots) {
+    takeSeat(member, room, slots);
+    if (!member.payReading(room)) return AWAY.walk;
+    quests.note(member.id, 'read', ctx.day, simulateReading(member.id, room, CERTIFY.sitSeconds).passages, room);
+    memoOf(member).studyAt = ctx.minutes + SIT + COOLDOWN;
+    return AWAY.walk + SIT;
+  }
+
   function prepDeck(member, ctx, slots) {
     if (!member.seated || ctx.minutes < memoOf(member).studyAt) return null;
     const deck = member.prepDeckWanted(ctx);
@@ -604,6 +619,8 @@ export function createAwaySim({ town, contextAt }) {
     if (reviewing) options.push({ kind: 'study', quest: 'review', as: 'study', rate: member.reviewGain(need, SIT, reviewing) / (AWAY.walk + SIT), run: () => review(member, ctx, reviewing, slots) });
     const speaking = speakDeck(member, ctx, slots);
     if (speaking) options.push({ kind: 'study', quest: 'speak', as: 'study', rate: member.speakGain(need, SIT, speaking, ctx.day) / (AWAY.walk + SIT), run: () => speak(member, ctx, speaking, slots) });
+    const room = readingRoom(member, ctx, slots);
+    if (room) options.push({ kind: 'study', quest: 'read', as: 'study', rate: member.readingGain(need, SIT) / (AWAY.walk + SIT), run: () => read(member, ctx, room, slots) });
     const prepping = prepDeck(member, ctx, slots);
     if (prepping) options.push({ kind: 'study', quest: 'review', as: 'study', rate: member.prepGain(need, SIT, prepping, ctx.day) / (AWAY.walk + SIT), run: () => prep(member, ctx, prepping, slots) });
     const floor = ctx.night ? 0 : MIND.leisureValue;

@@ -161,7 +161,7 @@ export class Villager {
   }
 
   get inSchool() {
-    if (this.task === 'selfstudy') return false;
+    if (this.task === 'selfstudy' || this.task === 'reading') return false;
     return this.state === 'seated' || this.state === 'sitting' || this.state === 'rising' || this.state === 'leaving';
   }
 
@@ -402,6 +402,7 @@ export class Villager {
     this.training = null;
     this.internalResults = null;
     this.internalDeck = null;
+    this.readingResult = null;
     this.lyingDown = false;
     this.restBlend = 0;
     this.route = null;
@@ -653,6 +654,7 @@ export class Villager {
     if (this.task === 'exam') this.examUpdate(t);
     if (this.task === 'training') this.trainingUpdate(t);
     if (this.task === 'internal') this.internalUpdate(t);
+    if (this.task === 'reading') this.readingUpdate(t);
     this.seatBubble.update(t);
     const learning = this.studying;
     this.seatBubble.setStudy(learning);

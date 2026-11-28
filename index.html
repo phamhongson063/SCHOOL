@@ -256,6 +256,7 @@
           <button class="study-pick" type="button" data-mode="review"><span aria-hidden="true">🔀</span>Ôn chứng chỉ<small id="studyReviewInfo"></small></button>
           <button class="study-pick" type="button" data-mode="practice"><span aria-hidden="true">📝</span>Luyện thi<small id="studyPracticeInfo"></small></button>
           <button class="study-pick" type="button" data-mode="speak" hidden><span aria-hidden="true">🎤</span>Luyện nói<small id="studySpeakInfo"></small></button>
+          <button class="study-pick" type="button" data-mode="read" hidden><span aria-hidden="true">📖</span>Luyện đọc<small id="studyReadInfo"></small></button>
         </div>
         <p id="studyNotice" class="study-pack-note" hidden></p>
       </div>
@@ -274,6 +275,13 @@
           <p id="studyMeaning" class="study-meaning"></p>
           <p id="studyNote" class="study-note"></p>
           <div id="studyExample" class="study-example"></div>
+          <div id="studyPassage" class="study-passage" hidden>
+            <p id="passageText" class="passage-text" lang="ja"></p>
+            <p id="passageVi" class="study-example-vi passage-vi"></p>
+            <div id="passageOptions" class="kanji-options lettered passage-options"></div>
+            <p id="passageResult" class="passage-result" hidden></p>
+            <button id="passageNext" class="passage-next" type="button" hidden>Bài khác</button>
+          </div>
         </div>
         <div class="study-nav">
           <button id="studyPrev" class="study-step" type="button" aria-label="Từ trước">‹</button>
@@ -346,14 +354,12 @@
     <div class="picker-options"></div>
   </div>
   <button id="phasePill" type="button" title="Học tập">
-    <span class="phase-time">
-      <span id="phaseClock"></span>
-      <span id="battery" class="battery" role="img" hidden>
-        <span class="battery-level"></span>
-        <span class="battery-fill"><span class="battery-level"></span></span>
-      </span>
-    </span>
+    <span id="phaseClock"></span>
   </button>
+  <span id="battery" class="battery" role="img" hidden>
+    <span class="battery-level"></span>
+    <span class="battery-fill"><span class="battery-level"></span></span>
+  </span>
   <div id="coords" class="coords" aria-hidden="true"><b>X</b><span id="coordsX"></span><b>Y</b><span id="coordsY"></span></div>
   <div id="actionBar" role="toolbar" aria-label="Hành động">
     <button id="restBtn" class="slot-btn" type="button" title="Nằm nghỉ" aria-label="Nằm nghỉ" aria-pressed="false">

@@ -3,7 +3,7 @@ import { LESSONS } from './lessons.js';
 import { KANJI_N2 } from './kanjiN2.js';
 import { KANJI_N3 } from './kanjiN3.js';
 import { vaultItem } from './vault.js';
-import { PHRASE_QUIZ } from './config.js';
+import { PHRASE_QUIZ, READING } from './config.js';
 
 const GIST = /^(.+?[.!?…])\s+(?=\p{Lu})/u;
 export const MARKS = /\[([^\]]+)\]/g;
@@ -94,6 +94,9 @@ function sentenceOf(ja, vi, wrong) {
   return cloze ? { lines, cloze, wrong: Array.isArray(wrong) ? wrong : [] } : null;
 }
 
+const textLength = (text) => plainText(text).replace(MARKS, '$1').length;
+const longText = (text) => typeof text === 'string' && textLength(text) >= READING.longText;
+
 function orderOf(order, vi) {
   if (!order || typeof order.head !== 'string' || typeof order.tail !== 'string') return null;
   const { parts, star } = order;
@@ -109,12 +112,50 @@ function practiceByGroup(units, deck) {
     const groups = Array.isArray(unit?.groups) ? unit.groups : [];
     const each = unit?.unlock === 'group';
     for (const item of Array.isArray(unit?.practice) ? unit.practice : []) {
+      if (longText(item?.ja)) continue;
       const question = item?.order ? orderOf(item.order, item.vi) : sentenceOf(item?.ja, item?.vi, item?.wrong);
       if (!question || !(each || groups.includes(item.group))) continue;
       byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), { ...question, deck, groups: each ? [item.group] : groups }]);
     }
   }
   return byGroup;
+}
+
+function readingPassages(units, deck, prefix) {
+  if (!Array.isArray(units)) return [];
+  const byText = new Map();
+  for (const unit of units) {
+    for (const item of Array.isArray(unit?.practice) ? unit.practice : []) {
+      if (!longText(item?.ja) || !Array.isArray(item.wrong) || !item.wrong.length) continue;
+      const start = item.ja.indexOf('[');
+      const end = item.ja.indexOf(']', start);
+      if (start < 0 || end < 0) continue;
+      const base = item.ja.replace(/[[\]]/g, '');
+      if (!byText.has(base)) byText.set(base, { base, vi: item.vi ?? '', blanks: [] });
+      byText.get(base).blanks.push({ at: start, answer: item.ja.slice(start + 1, end), wrong: item.wrong, group: item.group });
+    }
+  }
+  return [...byText.values()].flatMap(({ base, vi, blanks }, i) => {
+    blanks.sort((a, b) => a.at - b.at);
+    let text = '';
+    let from = 0;
+    for (const blank of blanks) {
+      if (blank.at < from) return [];
+      text += `${base.slice(from, blank.at)}[${blank.answer}]`;
+      from = blank.at + blank.answer.length;
+    }
+    text += base.slice(from);
+    return [
+      {
+        id: `${prefix}:${i + 1}`,
+        deck,
+        text,
+        vi,
+        groups: [...new Set(blanks.map((blank) => blank.group))],
+        blanks: blanks.map(({ answer, wrong, group }) => ({ answer, wrong, group })),
+      },
+    ];
+  });
 }
 
 function grammarCards(points, units, prefix, deck) {
@@ -166,6 +207,8 @@ const VAULT_DECKS = {
     quiz: 'grammar',
     choices: 4,
     wholeGroups: true,
+    reading: { id: 'dokkaiN2', title: '読解', label: '読解', teacher: 'Haruka' },
+    passages: () => readingPassages(vaultItem('grammarN2Units'), 'grammarN2', 'rn2'),
     cards: (points) => grammarCards(points, vaultItem('grammarN2Units'), 'gn2', 'grammarN2'),
   },
 };
@@ -174,7 +217,7 @@ export const VAULT_DECK_IDS = Object.keys(VAULT_DECKS);
 
 function vaultDecks() {
   return Object.fromEntries(
-    VAULT_DECK_IDS.map((id) => [id, { ...VAULT_DECKS[id], cards: VAULT_DECKS[id].cards(vaultItem(id)) }]).filter(([, deck]) => deck.cards.length),
+    VAULT_DECK_IDS.map((id) => [id, { ...VAULT_DECKS[id], cards: VAULT_DECKS[id].cards(vaultItem(id)), passages: VAULT_DECKS[id].passages?.() ?? [] }]).filter(([, deck]) => deck.cards.length),
   );
 }
 
@@ -255,6 +298,12 @@ export const DECKS = {
 };
 
 export const DECK_IDS = Object.keys(DECKS);
+
+export const READINGS = Object.fromEntries(
+  DECK_IDS.filter((id) => DECKS[id].reading && DECKS[id].passages?.length).map((id) => [DECKS[id].reading.id, { ...DECKS[id].reading, deck: id, passages: DECKS[id].passages }]),
+);
+
+export const READING_IDS = Object.keys(READINGS);
 
 export const sentenceDeck = (deck) => DECKS[deck].quiz === 'phrase' || DECKS[deck].quiz === 'grammar';
 

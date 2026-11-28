@@ -9,7 +9,7 @@ import { plasterMaterial } from './architecture.js';
 import { createLanternGlow } from './lanternGlow.js';
 import { brickMaterial, idleKeeper, keeperNPC } from './village.js';
 import { createAttention } from './attention.js';
-import { DECKS } from './studyDecks.js';
+import { DECKS, READINGS } from './studyDecks.js';
 import { STONE, STONE_DARK } from './palette.js';
 
 export const HALL_SIZE = { width: 10, depth: 12, door: 3.2, doorHeight: 3.2, height: 4.2 };
@@ -19,7 +19,10 @@ export const STUDY_HALLS = [
   { deck: 'kanjiN2', name: 'Kanji N2', x: 54, front: -2, turn: Math.PI, sign: ['漢字 N2'], plain: ['漢字', 'N2'] },
   { deck: 'kanjiN3', name: 'Kanji N3', x: -45, front: -2, turn: Math.PI, sign: ['漢字 N3'], plain: ['漢字', 'N3'] },
   { deck: 'grammarN2', name: '文法 N2', x: 96, front: -2, turn: Math.PI, sign: ['文法 N2'], plain: ['文法', 'N2'], garden: true },
-].filter((hall) => DECKS[hall.deck]);
+  { deck: 'dokkaiN2', name: '読解', x: 114, front: -2, turn: Math.PI, sign: ['読解'], plain: ['読解'] },
+].filter((hall) => DECKS[hall.deck] || READINGS[hall.deck]);
+
+const classOf = (hall) => DECKS[hall.deck] ?? READINGS[hall.deck];
 
 const WALL = 0xd9b46a;
 const WOOD = 0x5e3a24;
@@ -69,7 +72,7 @@ const TEACHER = { z: HALL_SIZE.depth - 1.3, reach: 1.5, model: 'granny', distanc
 const TEACHER_LOOK = { shirt: 0x3a4a6a, pants: 0x2f2a26, skin: 0xe6b08a, style: 'bui', hairColor: 0xd8d4cc, iris: 0x3a2214 };
 
 function createTeacher(scene, hall, frame) {
-  const npc = keeperNPC(TEACHER_LOOK, TEACHER.model, DECKS[hall.deck].teacher);
+  const npc = keeperNPC(TEACHER_LOOK, TEACHER.model, classOf(hall).teacher);
   const spot = frame.point(0, TEACHER.z);
   const stand = frame.point(0, TEACHER.z - TEACHER.reach);
   const at = new THREE.Vector3(spot.x, 0.03, spot.z);
@@ -344,7 +347,7 @@ export function createStudyHall(scene, hall) {
   const internalSeats = [];
   for (const s of [-1, 1]) {
     for (const [i, sz] of DESK_ROWS.entries()) seats.push({ ...desk(s, sz, 900 + i * 7 + (s < 0 ? 0 : 50)), index: seats.length, study: true });
-    internalSeats.push({ ...desk(s, INTERNAL_ROW, 960 + (s < 0 ? 0 : 50)), internal: true });
+    if (DECKS[hall.deck]) internalSeats.push({ ...desk(s, INTERNAL_ROW, 960 + (s < 0 ? 0 : 50)), internal: true });
   }
 
   const waitSpots = WAIT_SPOTS.map(([lx, lz]) => {

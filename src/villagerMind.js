@@ -1,5 +1,5 @@
 import { between } from './random.js';
-import { ARENA, BLESSING, TRAINING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, SELF_STUDY, SHOP, SPEAK, WILDLIFE } from './config.js';
+import { ARENA, BLESSING, TRAINING, CROP_ECONOMY, ENERGY, FIREFLY, FISH, FISHING, HUNTING, MIND, MOVE, CERTIFY, READING, SELF_STUDY, SHOP, SPEAK, WILDLIFE } from './config.js';
 import { certify } from './certify.js';
 import { absorption } from './absorption.js';
 import { dayOf, minuteOfDay } from './clock.js';
@@ -13,6 +13,7 @@ import { quests } from './quests.js';
 import { fluency } from './fluency.js';
 import { LAMP_SAVING } from './fireflyRules.js';
 import { affordableJobs, tripMinutes } from './farmTrip.js';
+import { readingFee } from './reading.js';
 
 const weighted = (entries) => {
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -90,6 +91,11 @@ export class MindBehavior {
     const fresh = this.studiedToday() ? 0 : MIND.reviewValue * sit;
     const weak = certify.reviewQuestions(this.id, deck).length * MIND.weakValue;
     return (fresh + weak) * this.diligence - certify.fee(deck, CERTIFY.reviewFee) * need;
+  }
+
+  readingGain(need, sit) {
+    const fresh = this.studiedToday() ? 0 : READING.value * sit;
+    return fresh * this.diligence - readingFee() * need;
   }
 
   speakGain(need, sit, deck, day) {
@@ -223,6 +229,12 @@ export class MindBehavior {
     return this.seatedStudy(deck, CERTIFY.speakFee, (sit) => this.speakGain(need, sit, deck, ctx.day), () => this.goSpeak(deck), 'speak');
   }
 
+  readingOption(ctx, need) {
+    if (!this.seated || this.now < this.studyRestAt) return null;
+    const room = this.readingRoomWanted();
+    return this.seatedStudy(room, readingFee(), (sit) => this.readingGain(need, sit), () => this.goReading(room), 'read');
+  }
+
   prepOption(ctx, need) {
     if (!this.seated || this.now < this.studyRestAt) return null;
     const deck = this.prepDeckWanted(ctx);
@@ -240,7 +252,7 @@ export class MindBehavior {
 
   plan(ctx) {
     const need = this.moneyNeed();
-    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.speakOption(ctx, need), this.prepOption(ctx, need), this.trainingOption(ctx, need), this.blessingOption(ctx, need), this.lotoOption(ctx, need), this.fireworksOption(ctx, need)];
+    const options = [this.farmOption(need), this.fishOption(need), this.huntOption(need), this.fireflyOption(ctx), this.lanternOption(ctx, need), this.studyOption(ctx, need), this.reviewOption(ctx, need), this.speakOption(ctx, need), this.readingOption(ctx, need), this.prepOption(ctx, need), this.trainingOption(ctx, need), this.blessingOption(ctx, need), this.lotoOption(ctx, need), this.fireworksOption(ctx, need)];
     const floor = ctx.night ? 0 : MIND.leisureValue;
     let best = null;
     for (const option of options) {

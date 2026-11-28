@@ -1,4 +1,5 @@
-import { DECKS, DECK_IDS, unitOf } from './studyDecks.js';
+import { DECKS, DECK_IDS, READINGS, MARKS, plainText, unitOf } from './studyDecks.js';
+import { blankChoices, openPassages, pickPassage, readingFee } from './reading.js';
 import { certify } from './certify.js';
 import { japanese, spokenOf } from './ruby.js';
 import { CERTIFY, SPEAK } from './config.js';
@@ -14,11 +15,13 @@ import { joinPieces, rewardSpeech, scoreSpeech, speechKeys, speechLines, speechS
 import { playVoice, stopVoice } from './voiceClips.js';
 import { shuffle } from './random.js';
 import { el } from './dialog.js';
+import { LETTERS } from './format.js';
 
 const ARENA_CLASH = { soon: 'Sắp tới giờ lôi đài rồi, con không kịp thi đâu.', running: 'Lôi đài đang diễn ra, con thi sau nhé.' };
 
 const FURIGANA_KEY = 'langsch.studyFurigana';
-const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee }, practice: { name: 'Luyện thi', fee: CERTIFY.practiceFee } };
+const MODES = { learn: { name: 'Học hôm nay', fee: CERTIFY.learnFee }, today: { name: 'Xem lại hôm nay' }, review: { name: 'Ôn chứng chỉ', fee: CERTIFY.reviewFee }, speak: { name: 'Luyện nói', fee: CERTIFY.speakFee }, practice: { name: 'Luyện thi', fee: CERTIFY.practiceFee }, read: { name: 'Luyện đọc', fee: readingFee() } };
+const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩';
 const Recognition = globalThis.SpeechRecognition ?? globalThis.webkitSpeechRecognition ?? null;
 const SPEAK_PAUSE = 900;
 const SPEAK_WRONG_VOLUME = 0.3;
@@ -36,7 +39,7 @@ function loadFurigana() {
   }
 }
 
-export function createStudy({ purse, music = null, sounds = null, exams, onQualified = null, onSitOver = null, onPaid = null, onLearn = null, onSitMinute = null, arenaClash = () => null }) {
+export function createStudy({ purse, music = null, sounds = null, exams, onQualified = null, onSitOver = null, onPaid = null, onLearn = null, onSitMinute = null, onRead = null, arenaClash = () => null }) {
   const panel = document.getElementById('study');
   const reopen = document.getElementById('studyOpen');
   const start = document.getElementById('studyStart');
@@ -50,6 +53,15 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const speakPick = start.querySelector('[data-mode="speak"]');
   const practicePick = start.querySelector('[data-mode="practice"]');
   const practiceInfo = document.getElementById('studyPracticeInfo');
+  const readPick = start.querySelector('[data-mode="read"]');
+  const readInfo = document.getElementById('studyReadInfo');
+  const deckPicks = [learnPick, reviewPick, practicePick];
+  const passageBox = document.getElementById('studyPassage');
+  const passageText = document.getElementById('passageText');
+  const passageVi = document.getElementById('passageVi');
+  const passageOptions = document.getElementById('passageOptions');
+  const passageResult = document.getElementById('passageResult');
+  const passageNext = document.getElementById('passageNext');
   const speakInfo = document.getElementById('studySpeakInfo');
   const speakArea = document.getElementById('studySpeak');
   const scoreText = document.getElementById('studyScore');
@@ -81,6 +93,10 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   const timerFill = timer.firstElementChild;
   let deckId = DECK_IDS[0];
   let deck = DECKS[deckId];
+  let room = null;
+  let passage = null;
+  let marks = [];
+  let choices = [];
   let mode = null;
   let current = null;
   let order = [];
@@ -127,7 +143,25 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     return 'Bạn đã đủ điều kiện khảo thí. Hãy tới Trường khảo thí đăng ký nhé.';
   }
 
+  function paintReadStart() {
+    const total = READINGS[room].passages.length;
+    const open = openPassages(PLAYER, room).length;
+    status.textContent = '';
+    status.hidden = true;
+    for (const pick of [...deckPicks, speakPick]) pick.hidden = true;
+    readPick.hidden = false;
+    readInfo.textContent = `📖 ${open}/${total}`;
+    readPick.disabled = open === 0;
+  }
+
   function paintStart() {
+    if (room) {
+      paintReadStart();
+      return;
+    }
+    status.hidden = false;
+    readPick.hidden = true;
+    for (const pick of deckPicks) pick.hidden = false;
     const batch = certify.batch(PLAYER, deckId);
     const learning = batch.filter((item) => !item.ready);
     const done = learning.filter((item) => item.count >= CERTIFY.remember).length;
@@ -171,6 +205,9 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   function stopMode() {
     stopVoice();
     stopSpeak();
+    body.classList.remove('reading');
+    passageBox.hidden = true;
+    passage = null;
     mode = null;
     current = null;
     timer.hidden = true;
@@ -452,6 +489,7 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
     if (!pay('practice')) return;
     const id = deckId;
     practicing = true;
+    music?.start();
     let results = [];
     try {
       results = await exams.run({
@@ -466,17 +504,117 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
       });
     } finally {
       practicing = false;
+      if (!mode) music?.stop();
     }
     const text = practiceText(certify.gradePractice(PLAYER, id, results));
     if (sitSeconds >= CERTIFY.sitSeconds) endSit();
     if (seated && deckId === id) showNotice(text);
   }
 
+  const readingOn = () => mode === 'read' && !!passage && marks.includes(null);
+
+  function blankNode(blank, i) {
+    const node = el('span', 'passage-blank');
+    node.append(el('span', 'passage-no', CIRCLED[i] ?? `(${i + 1})`));
+    const mark = marks[i];
+    if (mark === null) {
+      node.classList.toggle('now', i === marks.indexOf(null));
+      return node;
+    }
+    node.classList.add(mark ? 'right' : 'wrong');
+    node.append(japanese(blank.answer));
+    return node;
+  }
+
+  function paintPassage() {
+    const nodes = [];
+    let from = 0;
+    let i = 0;
+    for (const match of passage.text.matchAll(MARKS)) {
+      nodes.push(japanese(passage.text.slice(from, match.index)), blankNode(passage.blanks[i], i));
+      from = match.index + match[0].length;
+      i += 1;
+    }
+    nodes.push(japanese(passage.text.slice(from)));
+    passageText.replaceChildren(...nodes);
+    passageVi.textContent = passage.vi;
+    const at = marks.indexOf(null);
+    const total = passage.blanks.length;
+    modeChip.textContent = `${at < 0 ? total : at + 1}/${total}`;
+    passageOptions.replaceChildren(
+      ...(at < 0
+        ? []
+        : choices.map((value, k) => {
+            const button = el('button');
+            button.type = 'button';
+            button.lang = 'ja';
+            button.append(el('span', 'kanji-letter', `${LETTERS[k]}. `), plainText(value));
+            button.addEventListener('click', () => answerBlank(value));
+            return button;
+          })),
+    );
+    passageResult.hidden = at >= 0;
+    passageNext.hidden = at >= 0;
+    if (at < 0) passageResult.textContent = `Đúng ${marks.filter(Boolean).length}/${total}`;
+  }
+
+  function askBlank() {
+    const at = marks.indexOf(null);
+    choices = at < 0 ? [] : blankChoices(passage.blanks[at]);
+    paintPassage();
+  }
+
+  function answerBlank(value) {
+    const at = marks.indexOf(null);
+    if (!readingOn() || at < 0) return;
+    const correct = value === passage.blanks[at].answer;
+    marks[at] = correct;
+    if (correct) sounds?.correct();
+    else sounds?.wrong();
+    if (!marks.includes(null)) onRead?.(deckId);
+    askBlank();
+  }
+
+  function nextPassage() {
+    if (sitSeconds >= CERTIFY.sitSeconds) {
+      endSit();
+      return;
+    }
+    const picked = pickPassage(PLAYER, deckId, passage?.id ?? null);
+    if (!picked) {
+      showStart();
+      return;
+    }
+    passage = picked;
+    marks = passage.blanks.map(() => null);
+    showTranslation(false);
+    passageBox.closest('.study-scroll').scrollTop = 0;
+    askBlank();
+  }
+
+  function beginRead() {
+    if (!room || exams.running || !openPassages(PLAYER, deckId).length || !pay('read')) return;
+    mode = 'read';
+    music?.start();
+    setStudying(true);
+    showChip('read');
+    nav.hidden = true;
+    start.hidden = true;
+    body.hidden = false;
+    body.classList.remove('covered');
+    body.classList.add('reading');
+    remembered.hidden = true;
+    voice.hidden = true;
+    passageBox.hidden = false;
+    passage = null;
+    nextPassage();
+  }
+
   function browse(keys, chip) {
     if (!keys.length) return;
     mode = 'review';
     timer.hidden = true;
-    music?.start(chip === 'review' ? 'review' : 'study');
+    music?.start();
     showTranslation(false);
     setStudying(true);
     showChip(chip);
@@ -829,7 +967,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
 
   function useDeck(id) {
     deckId = id;
-    deck = DECKS[id];
+    deck = DECKS[id] ?? READINGS[id];
+    room = READINGS[id] ? id : null;
     title.textContent = deck.title;
     panel.setAttribute('aria-label', deck.label);
     reopen.textContent = `📜 ${deck.label}`;
@@ -838,8 +977,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   setInterval(() => {
     if (!seated || document.visibilityState !== 'visible') return;
     sitSeconds += 1;
-    if (paid.size && sitSeconds % 60 === 0) onSitMinute?.(deckId);
-    if (sitSeconds >= CERTIFY.sitSeconds && !practicing) endSit();
+    if (paid.size && !room && sitSeconds % 60 === 0) onSitMinute?.(deckId);
+    if (sitSeconds >= CERTIFY.sitSeconds && !practicing && mode !== 'read') endSit();
   }, 1000);
 
   setInterval(() => {
@@ -870,6 +1009,8 @@ export function createStudy({ purse, music = null, sounds = null, exams, onQuali
   reviewPick.addEventListener('click', beginReview);
   speakPick.addEventListener('click', beginSpeak);
   practicePick.addEventListener('click', beginPractice);
+  readPick.addEventListener('click', beginRead);
+  passageNext.addEventListener('click', nextPassage);
   mic.addEventListener('click', listen);
   modeChip.addEventListener('click', showStart);
   body.addEventListener('click', (event) => {

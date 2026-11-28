@@ -2,11 +2,12 @@ import { CERTIFY, QUEST } from './config.js';
 import { createStore, readEntries } from './persist.js';
 import { worldKey } from './saveKeys.js';
 import { makeRandom } from './random.js';
-import { DECKS, DECK_IDS } from './studyDecks.js';
+import { DECKS, DECK_IDS, READING_IDS } from './studyDecks.js';
 import { certify } from './certify.js';
+import { openPassages, readingFee } from './reading.js';
 
 const KEY = worldKey('quests');
-const BOARD_VERSION = 3;
+const BOARD_VERSION = { day: 4, week: 3 };
 export const QUEST_KINDS = Object.keys(QUEST.kinds);
 export const QUEST_SCOPES = ['day', 'week'];
 
@@ -18,6 +19,7 @@ const pickOf = (rand, list) => list[Math.floor(rand() * list.length)];
 
 const decksFor = (kind) => {
   const spec = QUEST.kinds[kind];
+  if (spec.reading) return READING_IDS;
   return spec.deck ? DECK_IDS.filter((id) => !spec.needs || DECKS[id][spec.needs]) : [];
 };
 const DECKS_FOR = Object.fromEntries(QUEST_KINDS.map((kind) => [kind, decksFor(kind)]));
@@ -80,6 +82,7 @@ function chainQuests(rand) {
 
 const deckLeft = (id, deck) => !certify.finished(id, deck);
 const hasCertified = (id, deck) => certify.certifiedCount(id, deck) > 0;
+const canRead = (id, room) => openPassages(id, room).length > 0;
 
 const STEP_OPEN = {
   day: {
@@ -89,6 +92,7 @@ const STEP_OPEN = {
     speak: hasCertified,
     internal: (id, deck) => certify.needsInternal(id, deck) && certify.internalTriesLeft(id, deck) > 0 && !certify.examTaken(id, deck),
     exam: (id, deck) => certify.batch(id, deck).length > 0 && !certify.examTaken(id, deck),
+    read: canRead,
   },
   week: {
     learn: deckLeft,
@@ -97,6 +101,7 @@ const STEP_OPEN = {
     speak: (id, deck) => deckLeft(id, deck) || hasCertified(id, deck),
     internal: deckLeft,
     exam: deckLeft,
+    read: canRead,
   },
 };
 
@@ -104,7 +109,7 @@ export function stepOpen(id, step, scope, left, money) {
   const spec = QUEST.kinds[step.kind];
   if (!spec.deck) return true;
   if (!DECKS_FOR[step.kind].includes(step.deck)) return false;
-  if (!(money >= certify.fee(step.deck, CERTIFY[spec.fee] ?? 0))) return false;
+  if (!(money >= certify.fee(step.deck, spec.reading ? readingFee() : CERTIFY[spec.fee] ?? 0))) return false;
   return STEP_OPEN[scope][step.kind](id, step.deck, left);
 }
 
@@ -116,7 +121,7 @@ export function questBoard(scope, day) {
   const at = periodOf(scope, day);
   const cache = boardCache[scope];
   if (cache.at === at) return cache.board;
-  const rand = makeRandom(at * 31 + SALT[scope] + BOARD_VERSION * 104729);
+  const rand = makeRandom(at * 31 + SALT[scope] + BOARD_VERSION[scope] * 104729);
   const lists = scope === 'week' ? chainQuests(rand) : singleQuests(rand);
   const board = lists.map((steps, index) => ({ scope, index, steps }));
   boardCache[scope] = { at, board };
@@ -128,14 +133,14 @@ const allQuests = (day) => QUEST_SCOPES.flatMap((scope) => questBoard(scope, day
 const whole = (value) => (Number.isFinite(value) && value > 0 ? Math.floor(value) : 0);
 
 function cleanPeriod(raw, scope) {
-  if (!Number.isInteger(raw?.at) || raw.v !== BOARD_VERSION || !raw.taken || typeof raw.taken !== 'object') return null;
+  if (!Number.isInteger(raw?.at) || raw.v !== BOARD_VERSION[scope] || !raw.taken || typeof raw.taken !== 'object') return null;
   const size = scope === 'week' ? QUEST.week.count : QUEST.day.count;
   const taken = {};
   for (const [index, held] of Object.entries(raw.taken)) {
     if (!/^\d+$/.test(index) || Number(index) >= size) continue;
     taken[index] = { step: whole(held?.step), count: whole(held?.count), paid: held?.paid === true };
   }
-  return { at: raw.at, v: BOARD_VERSION, taken };
+  return { at: raw.at, v: BOARD_VERSION[scope], taken };
 }
 
 function cleanEntry(raw) {
@@ -163,7 +168,7 @@ function periodFor(id, scope, day) {
   const entry = (entries[id] ??= {});
   const period = entry[scope];
   if (period && period.at > at) return null;
-  if (!period || period.at < at) entry[scope] = { at, v: BOARD_VERSION, taken: {} };
+  if (!period || period.at < at) entry[scope] = { at, v: BOARD_VERSION[scope], taken: {} };
   return entry[scope];
 }
 
@@ -225,14 +230,16 @@ export const quests = {
     return () => listeners.delete(listener);
   },
   view(id, day, money) {
-    return allQuests(day).map((quest) => {
-      const held = heldOf(id, quest, day);
-      const status = statusOf(quest, held);
-      const step = status === 'active' ? held.step : status === 'open' ? 0 : quest.steps.length;
-      const count = status === 'active' ? Math.min(Math.floor(held.count), quest.steps[step].goal) : 0;
-      const blocked = status === 'open' && !questOpen(id, quest, money);
-      return { ...quest, status, step, count, blocked };
-    });
+    return allQuests(day)
+      .map((quest) => {
+        const held = heldOf(id, quest, day);
+        const status = statusOf(quest, held);
+        const step = status === 'active' ? held.step : status === 'open' ? 0 : quest.steps.length;
+        const count = status === 'active' ? Math.min(Math.floor(held.count), quest.steps[step].goal) : 0;
+        const blocked = status === 'open' && !questOpen(id, quest, money);
+        return { ...quest, status, step, count, blocked };
+      })
+      .filter((quest) => !(quest.blocked && quest.steps.some((step) => QUEST.kinds[step.kind].reading)));
   },
   active(id, day) {
     return activeCount(id, day);

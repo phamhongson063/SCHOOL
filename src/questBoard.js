@@ -1,5 +1,5 @@
 import { QUEST } from './config.js';
-import { DECKS } from './studyDecks.js';
+import { DECKS, READINGS } from './studyDecks.js';
 import { coins } from './format.js';
 import { el } from './dialog.js';
 import { setRich } from './goldArt.js';
@@ -20,6 +20,7 @@ const STEP_TEXT = {
   farm: (step) => [`Làm ${step.goal} việc đồng áng`],
   fish: (step) => [`Câu được ${step.goal} con cá`],
   hunt: (step) => [`Săn được ${step.goal} con thú`],
+  read: (step) => [`Đọc xong ${step.goal} bài ở `, step.deck],
 };
 
 export function createQuestBoard({ list, active, reward, act, placeOf, onTravel }) {
@@ -65,7 +66,7 @@ export function createQuestBoard({ list, active, reward, act, placeOf, onTravel 
         onTravel(place.point);
       });
       label.append(link);
-    } else if (deck) label.append(DECKS[deck]?.label ?? deck);
+    } else if (deck) label.append((DECKS[deck] ?? READINGS[deck])?.label ?? deck);
     const mark = state === 'done' ? '✓' : state === 'now' ? `${count}/${step.goal}` : '';
     node.append(el('span', 'quest-step-icon', QUEST.kinds[step.kind].icon), label, el('span', 'quest-step-count', mark));
     if (state === 'now') {
