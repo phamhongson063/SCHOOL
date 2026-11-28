@@ -1610,13 +1610,17 @@ dialog.paper::backdrop {
 
 .battery {
   position: fixed;
+  inset: auto;
   right: calc(var(--hud-edge) + 4px);
-  bottom: calc(var(--safe-bottom) + 2px);
-  z-index: var(--z-hud);
+  bottom: calc(var(--safe-bottom) + 12px);
+  z-index: 1000;
   display: block;
   width: 24px;
   height: 12px;
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
   border: 1.5px solid rgba(255, 255, 255, 0.92);
   border-radius: 4px;
   background: rgba(28, 20, 14, 0.45);
@@ -5316,6 +5320,11 @@ dialog.map.locked .map-label {
   .mood.study {
     animation: none;
   }
+}
+
+.study-dim.on ~ .speech-layer .mood svg,
+.study-dim.on ~ .speech-layer .mood.study {
+  animation: none;
 }
 
 .atm-balance {

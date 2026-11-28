@@ -1,4 +1,4 @@
-import { musicBus, onAudio, streamTrack } from './audio.js';
+import { musicBus, musicEnabled, onAudio, onMusicToggle, streamTrack } from './audio.js';
 
 const VOLUME = 0.85;
 const FADE = 2;
@@ -17,6 +17,15 @@ export class StudyMusic {
       this.out.gain.value = VOLUME;
       this.out.connect(musicBus(ctx));
       if (this.playing && !this.current) this.next(true);
+    });
+    onMusicToggle((on) => {
+      if (!this.playing) return;
+      if (on) {
+        if (!this.current) this.next(true);
+        return;
+      }
+      this.fadeOut(this.current);
+      this.current = null;
     });
   }
 
@@ -37,7 +46,7 @@ export class StudyMusic {
   next(fadeIn) {
     const ctx = this.ctx;
     const paths = this.sets[this.kind]?.length ? this.sets[this.kind] : this.sets.study;
-    if (!ctx || !this.playing || !paths?.length) return;
+    if (!ctx || !this.playing || !musicEnabled() || !paths?.length) return;
     const gain = ctx.createGain();
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(fadeIn ? 0 : 1, now);

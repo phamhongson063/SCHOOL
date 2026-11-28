@@ -1,4 +1,4 @@
-import { musicBus, onAudio, streamTrack } from './audio.js';
+import { musicBus, musicEnabled, onAudio, onMusicToggle, streamTrack } from './audio.js';
 
 const VOLUME = 0.25;
 const FADE = 2.5;
@@ -19,6 +19,7 @@ export class Music {
       this.gain.connect(musicBus(ctx));
       this.apply();
     });
+    onMusicToggle(() => this.apply());
   }
 
   set(on) {
@@ -31,7 +32,8 @@ export class Music {
     const ctx = this.ctx;
     if (!ctx) return;
     clearTimeout(this.releaseTimer);
-    if (this.wanted && !this.track) {
+    const on = this.wanted && musicEnabled();
+    if (on && !this.track) {
       this.track = streamTrack(ctx, this.path);
       this.track.node.connect(this.gain);
       this.track.play();
@@ -40,8 +42,8 @@ export class Music {
     const level = this.gain.gain;
     level.cancelScheduledValues(now);
     level.setValueAtTime(level.value, now);
-    level.linearRampToValueAtTime(this.wanted ? VOLUME : 0, now + FADE);
-    if (!this.wanted && this.track) this.releaseTimer = setTimeout(() => this.release(), RELEASE_AFTER);
+    level.linearRampToValueAtTime(on ? VOLUME : 0, now + FADE);
+    if (!on && this.track) this.releaseTimer = setTimeout(() => this.release(), RELEASE_AFTER);
   }
 
   release() {

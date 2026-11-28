@@ -162,6 +162,39 @@ const NAV_BOUNDS = { x0: WORLD.x0, x1: Math.max(WORLD.x1, ISLAND_BOUNDS.x1), z0:
 const MAP_BOUNDS = { x0: WORLD.x0, x1: WORLD.x1, z0: NAV_BOUNDS.z0, z1: NAV_BOUNDS.z1 };
 const MAP_HOUR = 14;
 const MAP_TILES_PER_FRAME = 1;
+const WAKE_LEAD = 6;
+
+let loopRunning = false;
+let loopFrame = 0;
+let loopTimer = 0;
+
+function wakeLoop() {
+  clearTimeout(loopTimer);
+  loopTimer = 0;
+  if (loopRunning && !loopFrame) loopFrame = requestAnimationFrame(runLoop);
+}
+
+function sleepLoop(wait) {
+  if (wait > WAKE_LEAD) loopTimer = setTimeout(wakeLoop, wait - WAKE_LEAD);
+  else wakeLoop();
+}
+
+function runLoop(time) {
+  loopFrame = 0;
+  sleepLoop(stepFrame(time));
+}
+
+function startLoop() {
+  loopRunning = true;
+  wakeLoop();
+}
+
+function stopLoop() {
+  loopRunning = false;
+  clearTimeout(loopTimer);
+  cancelAnimationFrame(loopFrame);
+  loopFrame = 0;
+}
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(MAX_PIXEL_RATIO);
@@ -394,7 +427,7 @@ createFullscreenToggle();
 let placeLocked = false;
 createSettings();
 function resetGame() {
-  renderer.setAnimationLoop(null);
+  stopLoop();
   haltStores();
   placeLocked = true;
   wipeGame();
@@ -1289,6 +1322,13 @@ const examSitting = {
 
 const sitDim = document.getElementById('sitDim');
 const SIT_DIM_MS = 1200;
+let sitDimmed = false;
+sitDim.addEventListener('transitionrun', (event) => {
+  if (event.propertyName === 'opacity') sitDimmed = false;
+});
+sitDim.addEventListener('transitionend', (event) => {
+  if (event.propertyName === 'opacity') sitDimmed = sitDim.classList.contains('on');
+});
 let internalTrip = null;
 
 function internalSeatFor(deck) {
@@ -2049,8 +2089,16 @@ const clock = new THREE.Clock();
 let lastFrame = 0;
 let lastInput = performance.now();
 for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) {
-  window.addEventListener(type, () => (lastInput = performance.now()), { passive: true });
+  window.addEventListener(
+    type,
+    () => {
+      lastInput = performance.now();
+      wakeLoop();
+    },
+    { passive: true },
+  );
 }
+document.addEventListener('visibilitychange', wakeLoop);
 const SCROLL_PAUSE = 300;
 let lastScroll = -Infinity;
 document.addEventListener('scroll', () => (lastScroll = performance.now()), { capture: true, passive: true });
@@ -2796,13 +2844,13 @@ function applyNight(k) {
   streetLamps.setNight(k);
   lightPool.apply();
 }
-renderer.setAnimationLoop((time) => {
+function stepFrame(time) {
   const busy = !!player.path || Math.hypot(player.velocity.x, player.velocity.z) > 0.2 || player.lying || !!effectTask || fishing.active || fireworksShow.visible;
   if (busy) lastInput = performance.now();
   const idle = performance.now() - lastInput > IDLE_AFTER;
   const watching = scenePopupOpen();
   const popup = !watching && popupOpen();
-  if (popup && !busy && performance.now() - lastScroll < SCROLL_PAUSE) return;
+  if (popup && !busy && performance.now() - lastScroll < SCROLL_PAUSE) return lastScroll + SCROLL_PAUSE - performance.now();
   const reading = study.visible;
   const resting = reading || idle;
   const still = resting && ((idle && !document.hasFocus()) || (!town.anyMoving() && !mountain.moving()));
@@ -2823,7 +2871,8 @@ renderer.setAnimationLoop((time) => {
           : resting
             ? WATCHING_FRAME_RATE
             : FRAME_RATE;
-  if (time - lastFrame < 1000 / frameRate - 2) return;
+  const interval = 1000 / frameRate - 2;
+  if (time - lastFrame < interval) return lastFrame + interval - performance.now();
   lastFrame = time;
   if (LOW_POWER) {
     if (popup) tuning.pauseResolution();
@@ -2839,7 +2888,8 @@ renderer.setAnimationLoop((time) => {
     placeSavedAt = t + 3;
     savePlace();
   }
-  if (mapCapture && !study.dimmed) stepMapCapture(MAP_TILES_PER_FRAME);
+  const covered = study.dimmed || sitDimmed;
+  if (mapCapture && !covered) stepMapCapture(MAP_TILES_PER_FRAME);
   const night = sky.update(fireworksSkyMinutes(context.minutes), camera, player.position, SHADOW_SPAN);
   tuning.refreshShadows(t);
   if (Math.abs(night - shownNight) > 0.01 || (night === 0 && shownNight !== 0)) {
@@ -2939,6 +2989,8 @@ renderer.setAnimationLoop((time) => {
   if (avatar.group.visible) avatar.pose?.();
   marker.update(t);
   lightPool.update(dt, camera);
-  if (!study.dimmed) renderer.render(scene, camera);
+  if (!covered) renderer.render(scene, camera);
   if (framesShown < 2 && ++framesShown === 2) loadingDone();
-});
+  return lastFrame + interval - performance.now();
+}
+startLoop();

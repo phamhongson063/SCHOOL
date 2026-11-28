@@ -85,12 +85,19 @@ export function musicBus(context) {
 
 export const musicEnabled = () => musicOn;
 
+const musicListeners = [];
+
+export function onMusicToggle(fn) {
+  musicListeners.push(fn);
+}
+
 export function setMusicEnabled(on) {
   musicOn = on;
   try {
     localStorage.setItem(MUSIC_KEY, on ? 'on' : 'off');
   } catch {}
   if (musicOut) musicOut.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, MUSIC_FADE);
+  for (const fn of musicListeners) fn(on);
 }
 
 function takeStream() {

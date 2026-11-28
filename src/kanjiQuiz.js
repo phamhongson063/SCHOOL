@@ -385,7 +385,7 @@ export function createKanjiQuiz({ practiceOpen = () => false } = {}) {
         ui.dialog.classList.toggle('brief', brief);
         ui.dialog.classList.toggle('exam', exam);
         paintIcon(ui.icon, icon ? { icon } : { icon: FISH[fish]?.icon ?? '', art: fish });
-        ui.icon.className = 'quiz-icon hooked';
+        ui.icon.className = exam ? 'quiz-icon' : 'quiz-icon hooked';
         pending.blanks = showPrompt(ui, entry, asked);
         ui.level.textContent = [level ?? levelOf(entry), note].filter(Boolean).join(' · ');
         ui.clock.textContent = clock ?? '';
