@@ -150,7 +150,7 @@ const READING_FRAME_RATE = 10;
 const POPUP_FRAME_RATE = 10;
 const BAG_FRAME_RATE = Math.min(FRAME_RATE, 30);
 const SCENE_POPUP_FRAME_RATE = Math.min(FRAME_RATE, 30);
-const WATCHING_FRAME_RATE = Math.min(FRAME_RATE, 30);
+const WATCHING_FRAME_RATE = 20;
 const SLEEP_FRAME_RATE = 2;
 const STUDY_FRAME_RATE = 10;
 const MAX_STEP = 0.12;
@@ -176,6 +176,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 });
 
 const scene = new THREE.Scene();
+scene.matrixAutoUpdate = false;
 const lightPool = createLightPool(scene, POINT_LIGHT_SLOTS);
 const sky = createSky(scene, { renderer });
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 500);
@@ -495,6 +496,7 @@ regions.onUnload = (region) => {
 };
 
 const villagerRoot = new THREE.Group();
+villagerRoot.matrixAutoUpdate = false;
 scene.add(villagerRoot);
 
 const picker = createPicker();

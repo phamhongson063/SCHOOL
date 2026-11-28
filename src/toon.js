@@ -268,6 +268,5 @@ export function freeze(object) {
   object.updateMatrixWorld(true);
   object.traverse((node) => {
     node.matrixAutoUpdate = false;
-    node.matrixWorldAutoUpdate = false;
   });
 }

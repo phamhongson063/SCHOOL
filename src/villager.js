@@ -207,8 +207,12 @@ export class Villager {
   applyLod() {
     const near = this.present && this.near && !this.town.veiled?.has(this.id);
     this.walker.group.visible = near;
+    this.walker.group.matrixWorldAutoUpdate = near;
     this.shadow.setVisible(near);
-    if (this.seated) this.seated.group.visible = this.seatedShown && this.near;
+    if (!this.seated) return;
+    const seatedShown = this.seatedShown && this.near;
+    this.seated.group.visible = seatedShown;
+    this.seated.group.matrixWorldAutoUpdate = seatedShown;
   }
 
   think() {
