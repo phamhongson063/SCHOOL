@@ -3,8 +3,8 @@ import { LOW_POWER } from './quality.js';
 import { outlineMaterial } from './toon.js';
 import { cullCharacterOutlines } from './characterModels.js';
 
-export const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 1.25 : 1.5);
-const BATTERY_PIXEL_RATIO = Math.min(MAX_PIXEL_RATIO, 1.25);
+export const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, LOW_POWER ? 2 : 1.5);
+const BATTERY_PIXEL_RATIO = LOW_POWER ? MAX_PIXEL_RATIO : Math.min(MAX_PIXEL_RATIO, 1.25);
 const MIN_PIXEL_RATIO = 1;
 const SHADOW_REFRESH = 2;
 const OUTLINE_DISTANCE = 26;
